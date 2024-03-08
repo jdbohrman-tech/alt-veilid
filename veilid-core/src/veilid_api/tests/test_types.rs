@@ -13,7 +13,11 @@ pub async fn test_alignedu64() {
 // app_messsage_call
 
 pub async fn test_veilidappmessage() {
-    let orig = VeilidAppMessage::new(Some(fix_typedkey()), b"Hi there!".to_vec());
+    let orig = VeilidAppMessage::new(
+        Some(fix_typedkey()),
+        Some(fix_cryptokey()),
+        b"Hi there!".to_vec(),
+    );
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();
 
     assert_eq!(orig, copy);
@@ -22,6 +26,7 @@ pub async fn test_veilidappmessage() {
 pub async fn test_veilidappcall() {
     let orig = VeilidAppCall::new(
         Some(fix_typedkey()),
+        Some(fix_cryptokey()),
         b"Well, hello!".to_vec(),
         AlignedU64::from(123),
     );

@@ -615,6 +615,20 @@ impl RPCProcessor {
                 // Reply received
                 let recv_ts = get_aligned_timestamp();
 
+                // Ensure the reply comes over the private route that was requested
+                if let Some(reply_private_route) = waitable_reply.reply_private_route {
+                    match &rpcreader.header.detail {
+                        RPCMessageHeaderDetail::Direct(_) | RPCMessageHeaderDetail::SafetyRouted(_) => {
+                            return Err(RPCError::protocol("should have received reply over private route"));
+                        }
+                        RPCMessageHeaderDetail::PrivateRouted(pr) => {
+                            if pr.private_route != reply_private_route {
+                                return Err(RPCError::protocol("received reply over the wrong private route"));
+                            }
+                        }
+                    };
+                }
+
                 // Record answer received
                 self.record_answer_received(
                     waitable_reply.send_ts,

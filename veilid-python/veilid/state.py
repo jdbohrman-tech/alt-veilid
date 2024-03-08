@@ -296,10 +296,12 @@ class VeilidLog:
 
 class VeilidAppMessage:
     sender: Optional[TypedKey]
+    route_id: Optional[RouteId]
     message: bytes
 
-    def __init__(self, sender: Optional[TypedKey], message: bytes):
+    def __init__(self, sender: Optional[TypedKey], route_id: Optional[RouteId], message: bytes):
         self.sender = sender
+        self.route_id = route_id
         self.message = message
 
     @classmethod
@@ -307,17 +309,20 @@ class VeilidAppMessage:
         """JSON object hook"""
         return cls(
             None if j["sender"] is None else TypedKey(j["sender"]),
+            None if j["route_id"] is None else RouteId(j["route_id"]),
             urlsafe_b64decode_no_pad(j["message"]),
         )
 
 
 class VeilidAppCall:
     sender: Optional[TypedKey]
+    route_id: Optional[RouteId]
     message: bytes
     call_id: OperationId
 
-    def __init__(self, sender: Optional[TypedKey], message: bytes, call_id: OperationId):
+    def __init__(self, sender: Optional[TypedKey], route_id: Optional[TypedKey], message: bytes, call_id: OperationId):
         self.sender = sender
+        self.route_id = route_id
         self.message = message
         self.call_id = call_id
 
@@ -326,6 +331,7 @@ class VeilidAppCall:
         """JSON object hook"""
         return cls(
             None if j["sender"] is None else TypedKey(j["sender"]),
+            None if j["route_id"] is None else RouteId(j["route_id"]),
             urlsafe_b64decode_no_pad(j["message"]),
             OperationId(j["call_id"]),
         )

@@ -1339,10 +1339,10 @@ mixin _$VeilidUpdate {
             VeilidLogLevel logLevel, String message, String? backtrace)
         log,
     required TResult Function(@Uint8ListJsonConverter() Uint8List message,
-            Typed<FixedEncodedString43>? sender)
+            Typed<FixedEncodedString43>? sender, String? routeId)
         appMessage,
     required TResult Function(@Uint8ListJsonConverter() Uint8List message,
-            String callId, Typed<FixedEncodedString43>? sender)
+            String callId, Typed<FixedEncodedString43>? sender, String? routeId)
         appCall,
     required TResult Function(AttachmentState state, bool publicInternetReady,
             bool localNetworkReady)
@@ -1365,10 +1365,13 @@ mixin _$VeilidUpdate {
             VeilidLogLevel logLevel, String message, String? backtrace)?
         log,
     TResult? Function(@Uint8ListJsonConverter() Uint8List message,
-            Typed<FixedEncodedString43>? sender)?
+            Typed<FixedEncodedString43>? sender, String? routeId)?
         appMessage,
-    TResult? Function(@Uint8ListJsonConverter() Uint8List message,
-            String callId, Typed<FixedEncodedString43>? sender)?
+    TResult? Function(
+            @Uint8ListJsonConverter() Uint8List message,
+            String callId,
+            Typed<FixedEncodedString43>? sender,
+            String? routeId)?
         appCall,
     TResult? Function(AttachmentState state, bool publicInternetReady,
             bool localNetworkReady)?
@@ -1390,10 +1393,10 @@ mixin _$VeilidUpdate {
             VeilidLogLevel logLevel, String message, String? backtrace)?
         log,
     TResult Function(@Uint8ListJsonConverter() Uint8List message,
-            Typed<FixedEncodedString43>? sender)?
+            Typed<FixedEncodedString43>? sender, String? routeId)?
         appMessage,
     TResult Function(@Uint8ListJsonConverter() Uint8List message, String callId,
-            Typed<FixedEncodedString43>? sender)?
+            Typed<FixedEncodedString43>? sender, String? routeId)?
         appCall,
     TResult Function(AttachmentState state, bool publicInternetReady,
             bool localNetworkReady)?
@@ -1566,10 +1569,10 @@ class _$VeilidLogImpl implements VeilidLog {
             VeilidLogLevel logLevel, String message, String? backtrace)
         log,
     required TResult Function(@Uint8ListJsonConverter() Uint8List message,
-            Typed<FixedEncodedString43>? sender)
+            Typed<FixedEncodedString43>? sender, String? routeId)
         appMessage,
     required TResult Function(@Uint8ListJsonConverter() Uint8List message,
-            String callId, Typed<FixedEncodedString43>? sender)
+            String callId, Typed<FixedEncodedString43>? sender, String? routeId)
         appCall,
     required TResult Function(AttachmentState state, bool publicInternetReady,
             bool localNetworkReady)
@@ -1595,10 +1598,13 @@ class _$VeilidLogImpl implements VeilidLog {
             VeilidLogLevel logLevel, String message, String? backtrace)?
         log,
     TResult? Function(@Uint8ListJsonConverter() Uint8List message,
-            Typed<FixedEncodedString43>? sender)?
+            Typed<FixedEncodedString43>? sender, String? routeId)?
         appMessage,
-    TResult? Function(@Uint8ListJsonConverter() Uint8List message,
-            String callId, Typed<FixedEncodedString43>? sender)?
+    TResult? Function(
+            @Uint8ListJsonConverter() Uint8List message,
+            String callId,
+            Typed<FixedEncodedString43>? sender,
+            String? routeId)?
         appCall,
     TResult? Function(AttachmentState state, bool publicInternetReady,
             bool localNetworkReady)?
@@ -1623,10 +1629,10 @@ class _$VeilidLogImpl implements VeilidLog {
             VeilidLogLevel logLevel, String message, String? backtrace)?
         log,
     TResult Function(@Uint8ListJsonConverter() Uint8List message,
-            Typed<FixedEncodedString43>? sender)?
+            Typed<FixedEncodedString43>? sender, String? routeId)?
         appMessage,
     TResult Function(@Uint8ListJsonConverter() Uint8List message, String callId,
-            Typed<FixedEncodedString43>? sender)?
+            Typed<FixedEncodedString43>? sender, String? routeId)?
         appCall,
     TResult Function(AttachmentState state, bool publicInternetReady,
             bool localNetworkReady)?
@@ -1730,7 +1736,8 @@ abstract class _$$VeilidAppMessageImplCopyWith<$Res> {
   @useResult
   $Res call(
       {@Uint8ListJsonConverter() Uint8List message,
-      Typed<FixedEncodedString43>? sender});
+      Typed<FixedEncodedString43>? sender,
+      String? routeId});
 }
 
 /// @nodoc
@@ -1746,6 +1753,7 @@ class __$$VeilidAppMessageImplCopyWithImpl<$Res>
   $Res call({
     Object? message = null,
     Object? sender = freezed,
+    Object? routeId = freezed,
   }) {
     return _then(_$VeilidAppMessageImpl(
       message: null == message
@@ -1756,6 +1764,10 @@ class __$$VeilidAppMessageImplCopyWithImpl<$Res>
           ? _value.sender
           : sender // ignore: cast_nullable_to_non_nullable
               as Typed<FixedEncodedString43>?,
+      routeId: freezed == routeId
+          ? _value.routeId
+          : routeId // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -1766,6 +1778,7 @@ class _$VeilidAppMessageImpl implements VeilidAppMessage {
   const _$VeilidAppMessageImpl(
       {@Uint8ListJsonConverter() required this.message,
       this.sender,
+      this.routeId,
       final String? $type})
       : $type = $type ?? 'AppMessage';
 
@@ -1777,13 +1790,15 @@ class _$VeilidAppMessageImpl implements VeilidAppMessage {
   final Uint8List message;
   @override
   final Typed<FixedEncodedString43>? sender;
+  @override
+  final String? routeId;
 
   @JsonKey(name: 'kind')
   final String $type;
 
   @override
   String toString() {
-    return 'VeilidUpdate.appMessage(message: $message, sender: $sender)';
+    return 'VeilidUpdate.appMessage(message: $message, sender: $sender, routeId: $routeId)';
   }
 
   @override
@@ -1792,13 +1807,14 @@ class _$VeilidAppMessageImpl implements VeilidAppMessage {
         (other.runtimeType == runtimeType &&
             other is _$VeilidAppMessageImpl &&
             const DeepCollectionEquality().equals(other.message, message) &&
-            (identical(other.sender, sender) || other.sender == sender));
+            (identical(other.sender, sender) || other.sender == sender) &&
+            (identical(other.routeId, routeId) || other.routeId == routeId));
   }
 
   @JsonKey(ignore: true)
   @override
-  int get hashCode => Object.hash(
-      runtimeType, const DeepCollectionEquality().hash(message), sender);
+  int get hashCode => Object.hash(runtimeType,
+      const DeepCollectionEquality().hash(message), sender, routeId);
 
   @JsonKey(ignore: true)
   @override
@@ -1814,10 +1830,10 @@ class _$VeilidAppMessageImpl implements VeilidAppMessage {
             VeilidLogLevel logLevel, String message, String? backtrace)
         log,
     required TResult Function(@Uint8ListJsonConverter() Uint8List message,
-            Typed<FixedEncodedString43>? sender)
+            Typed<FixedEncodedString43>? sender, String? routeId)
         appMessage,
     required TResult Function(@Uint8ListJsonConverter() Uint8List message,
-            String callId, Typed<FixedEncodedString43>? sender)
+            String callId, Typed<FixedEncodedString43>? sender, String? routeId)
         appCall,
     required TResult Function(AttachmentState state, bool publicInternetReady,
             bool localNetworkReady)
@@ -1833,7 +1849,7 @@ class _$VeilidAppMessageImpl implements VeilidAppMessage {
             List<ValueSubkeyRange> subkeys, int count, ValueData value)
         valueChange,
   }) {
-    return appMessage(message, sender);
+    return appMessage(message, sender, routeId);
   }
 
   @override
@@ -1843,10 +1859,13 @@ class _$VeilidAppMessageImpl implements VeilidAppMessage {
             VeilidLogLevel logLevel, String message, String? backtrace)?
         log,
     TResult? Function(@Uint8ListJsonConverter() Uint8List message,
-            Typed<FixedEncodedString43>? sender)?
+            Typed<FixedEncodedString43>? sender, String? routeId)?
         appMessage,
-    TResult? Function(@Uint8ListJsonConverter() Uint8List message,
-            String callId, Typed<FixedEncodedString43>? sender)?
+    TResult? Function(
+            @Uint8ListJsonConverter() Uint8List message,
+            String callId,
+            Typed<FixedEncodedString43>? sender,
+            String? routeId)?
         appCall,
     TResult? Function(AttachmentState state, bool publicInternetReady,
             bool localNetworkReady)?
@@ -1861,7 +1880,7 @@ class _$VeilidAppMessageImpl implements VeilidAppMessage {
             List<ValueSubkeyRange> subkeys, int count, ValueData value)?
         valueChange,
   }) {
-    return appMessage?.call(message, sender);
+    return appMessage?.call(message, sender, routeId);
   }
 
   @override
@@ -1871,10 +1890,10 @@ class _$VeilidAppMessageImpl implements VeilidAppMessage {
             VeilidLogLevel logLevel, String message, String? backtrace)?
         log,
     TResult Function(@Uint8ListJsonConverter() Uint8List message,
-            Typed<FixedEncodedString43>? sender)?
+            Typed<FixedEncodedString43>? sender, String? routeId)?
         appMessage,
     TResult Function(@Uint8ListJsonConverter() Uint8List message, String callId,
-            Typed<FixedEncodedString43>? sender)?
+            Typed<FixedEncodedString43>? sender, String? routeId)?
         appCall,
     TResult Function(AttachmentState state, bool publicInternetReady,
             bool localNetworkReady)?
@@ -1891,7 +1910,7 @@ class _$VeilidAppMessageImpl implements VeilidAppMessage {
     required TResult orElse(),
   }) {
     if (appMessage != null) {
-      return appMessage(message, sender);
+      return appMessage(message, sender, routeId);
     }
     return orElse();
   }
@@ -1956,7 +1975,8 @@ class _$VeilidAppMessageImpl implements VeilidAppMessage {
 abstract class VeilidAppMessage implements VeilidUpdate {
   const factory VeilidAppMessage(
       {@Uint8ListJsonConverter() required final Uint8List message,
-      final Typed<FixedEncodedString43>? sender}) = _$VeilidAppMessageImpl;
+      final Typed<FixedEncodedString43>? sender,
+      final String? routeId}) = _$VeilidAppMessageImpl;
 
   factory VeilidAppMessage.fromJson(Map<String, dynamic> json) =
       _$VeilidAppMessageImpl.fromJson;
@@ -1964,6 +1984,7 @@ abstract class VeilidAppMessage implements VeilidUpdate {
   @Uint8ListJsonConverter()
   Uint8List get message;
   Typed<FixedEncodedString43>? get sender;
+  String? get routeId;
   @JsonKey(ignore: true)
   _$$VeilidAppMessageImplCopyWith<_$VeilidAppMessageImpl> get copyWith =>
       throw _privateConstructorUsedError;
@@ -1978,7 +1999,8 @@ abstract class _$$VeilidAppCallImplCopyWith<$Res> {
   $Res call(
       {@Uint8ListJsonConverter() Uint8List message,
       String callId,
-      Typed<FixedEncodedString43>? sender});
+      Typed<FixedEncodedString43>? sender,
+      String? routeId});
 }
 
 /// @nodoc
@@ -1995,6 +2017,7 @@ class __$$VeilidAppCallImplCopyWithImpl<$Res>
     Object? message = null,
     Object? callId = null,
     Object? sender = freezed,
+    Object? routeId = freezed,
   }) {
     return _then(_$VeilidAppCallImpl(
       message: null == message
@@ -2009,6 +2032,10 @@ class __$$VeilidAppCallImplCopyWithImpl<$Res>
           ? _value.sender
           : sender // ignore: cast_nullable_to_non_nullable
               as Typed<FixedEncodedString43>?,
+      routeId: freezed == routeId
+          ? _value.routeId
+          : routeId // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -2020,6 +2047,7 @@ class _$VeilidAppCallImpl implements VeilidAppCall {
       {@Uint8ListJsonConverter() required this.message,
       required this.callId,
       this.sender,
+      this.routeId,
       final String? $type})
       : $type = $type ?? 'AppCall';
 
@@ -2033,13 +2061,15 @@ class _$VeilidAppCallImpl implements VeilidAppCall {
   final String callId;
   @override
   final Typed<FixedEncodedString43>? sender;
+  @override
+  final String? routeId;
 
   @JsonKey(name: 'kind')
   final String $type;
 
   @override
   String toString() {
-    return 'VeilidUpdate.appCall(message: $message, callId: $callId, sender: $sender)';
+    return 'VeilidUpdate.appCall(message: $message, callId: $callId, sender: $sender, routeId: $routeId)';
   }
 
   @override
@@ -2049,13 +2079,14 @@ class _$VeilidAppCallImpl implements VeilidAppCall {
             other is _$VeilidAppCallImpl &&
             const DeepCollectionEquality().equals(other.message, message) &&
             (identical(other.callId, callId) || other.callId == callId) &&
-            (identical(other.sender, sender) || other.sender == sender));
+            (identical(other.sender, sender) || other.sender == sender) &&
+            (identical(other.routeId, routeId) || other.routeId == routeId));
   }
 
   @JsonKey(ignore: true)
   @override
   int get hashCode => Object.hash(runtimeType,
-      const DeepCollectionEquality().hash(message), callId, sender);
+      const DeepCollectionEquality().hash(message), callId, sender, routeId);
 
   @JsonKey(ignore: true)
   @override
@@ -2070,10 +2101,10 @@ class _$VeilidAppCallImpl implements VeilidAppCall {
             VeilidLogLevel logLevel, String message, String? backtrace)
         log,
     required TResult Function(@Uint8ListJsonConverter() Uint8List message,
-            Typed<FixedEncodedString43>? sender)
+            Typed<FixedEncodedString43>? sender, String? routeId)
         appMessage,
     required TResult Function(@Uint8ListJsonConverter() Uint8List message,
-            String callId, Typed<FixedEncodedString43>? sender)
+            String callId, Typed<FixedEncodedString43>? sender, String? routeId)
         appCall,
     required TResult Function(AttachmentState state, bool publicInternetReady,
             bool localNetworkReady)
@@ -2089,7 +2120,7 @@ class _$VeilidAppCallImpl implements VeilidAppCall {
             List<ValueSubkeyRange> subkeys, int count, ValueData value)
         valueChange,
   }) {
-    return appCall(message, callId, sender);
+    return appCall(message, callId, sender, routeId);
   }
 
   @override
@@ -2099,10 +2130,13 @@ class _$VeilidAppCallImpl implements VeilidAppCall {
             VeilidLogLevel logLevel, String message, String? backtrace)?
         log,
     TResult? Function(@Uint8ListJsonConverter() Uint8List message,
-            Typed<FixedEncodedString43>? sender)?
+            Typed<FixedEncodedString43>? sender, String? routeId)?
         appMessage,
-    TResult? Function(@Uint8ListJsonConverter() Uint8List message,
-            String callId, Typed<FixedEncodedString43>? sender)?
+    TResult? Function(
+            @Uint8ListJsonConverter() Uint8List message,
+            String callId,
+            Typed<FixedEncodedString43>? sender,
+            String? routeId)?
         appCall,
     TResult? Function(AttachmentState state, bool publicInternetReady,
             bool localNetworkReady)?
@@ -2117,7 +2151,7 @@ class _$VeilidAppCallImpl implements VeilidAppCall {
             List<ValueSubkeyRange> subkeys, int count, ValueData value)?
         valueChange,
   }) {
-    return appCall?.call(message, callId, sender);
+    return appCall?.call(message, callId, sender, routeId);
   }
 
   @override
@@ -2127,10 +2161,10 @@ class _$VeilidAppCallImpl implements VeilidAppCall {
             VeilidLogLevel logLevel, String message, String? backtrace)?
         log,
     TResult Function(@Uint8ListJsonConverter() Uint8List message,
-            Typed<FixedEncodedString43>? sender)?
+            Typed<FixedEncodedString43>? sender, String? routeId)?
         appMessage,
     TResult Function(@Uint8ListJsonConverter() Uint8List message, String callId,
-            Typed<FixedEncodedString43>? sender)?
+            Typed<FixedEncodedString43>? sender, String? routeId)?
         appCall,
     TResult Function(AttachmentState state, bool publicInternetReady,
             bool localNetworkReady)?
@@ -2147,7 +2181,7 @@ class _$VeilidAppCallImpl implements VeilidAppCall {
     required TResult orElse(),
   }) {
     if (appCall != null) {
-      return appCall(message, callId, sender);
+      return appCall(message, callId, sender, routeId);
     }
     return orElse();
   }
@@ -2213,7 +2247,8 @@ abstract class VeilidAppCall implements VeilidUpdate {
   const factory VeilidAppCall(
       {@Uint8ListJsonConverter() required final Uint8List message,
       required final String callId,
-      final Typed<FixedEncodedString43>? sender}) = _$VeilidAppCallImpl;
+      final Typed<FixedEncodedString43>? sender,
+      final String? routeId}) = _$VeilidAppCallImpl;
 
   factory VeilidAppCall.fromJson(Map<String, dynamic> json) =
       _$VeilidAppCallImpl.fromJson;
@@ -2222,6 +2257,7 @@ abstract class VeilidAppCall implements VeilidUpdate {
   Uint8List get message;
   String get callId;
   Typed<FixedEncodedString43>? get sender;
+  String? get routeId;
   @JsonKey(ignore: true)
   _$$VeilidAppCallImplCopyWith<_$VeilidAppCallImpl> get copyWith =>
       throw _privateConstructorUsedError;
@@ -2332,10 +2368,10 @@ class _$VeilidUpdateAttachmentImpl implements VeilidUpdateAttachment {
             VeilidLogLevel logLevel, String message, String? backtrace)
         log,
     required TResult Function(@Uint8ListJsonConverter() Uint8List message,
-            Typed<FixedEncodedString43>? sender)
+            Typed<FixedEncodedString43>? sender, String? routeId)
         appMessage,
     required TResult Function(@Uint8ListJsonConverter() Uint8List message,
-            String callId, Typed<FixedEncodedString43>? sender)
+            String callId, Typed<FixedEncodedString43>? sender, String? routeId)
         appCall,
     required TResult Function(AttachmentState state, bool publicInternetReady,
             bool localNetworkReady)
@@ -2361,10 +2397,13 @@ class _$VeilidUpdateAttachmentImpl implements VeilidUpdateAttachment {
             VeilidLogLevel logLevel, String message, String? backtrace)?
         log,
     TResult? Function(@Uint8ListJsonConverter() Uint8List message,
-            Typed<FixedEncodedString43>? sender)?
+            Typed<FixedEncodedString43>? sender, String? routeId)?
         appMessage,
-    TResult? Function(@Uint8ListJsonConverter() Uint8List message,
-            String callId, Typed<FixedEncodedString43>? sender)?
+    TResult? Function(
+            @Uint8ListJsonConverter() Uint8List message,
+            String callId,
+            Typed<FixedEncodedString43>? sender,
+            String? routeId)?
         appCall,
     TResult? Function(AttachmentState state, bool publicInternetReady,
             bool localNetworkReady)?
@@ -2389,10 +2428,10 @@ class _$VeilidUpdateAttachmentImpl implements VeilidUpdateAttachment {
             VeilidLogLevel logLevel, String message, String? backtrace)?
         log,
     TResult Function(@Uint8ListJsonConverter() Uint8List message,
-            Typed<FixedEncodedString43>? sender)?
+            Typed<FixedEncodedString43>? sender, String? routeId)?
         appMessage,
     TResult Function(@Uint8ListJsonConverter() Uint8List message, String callId,
-            Typed<FixedEncodedString43>? sender)?
+            Typed<FixedEncodedString43>? sender, String? routeId)?
         appCall,
     TResult Function(AttachmentState state, bool publicInternetReady,
             bool localNetworkReady)?
@@ -2602,10 +2641,10 @@ class _$VeilidUpdateNetworkImpl implements VeilidUpdateNetwork {
             VeilidLogLevel logLevel, String message, String? backtrace)
         log,
     required TResult Function(@Uint8ListJsonConverter() Uint8List message,
-            Typed<FixedEncodedString43>? sender)
+            Typed<FixedEncodedString43>? sender, String? routeId)
         appMessage,
     required TResult Function(@Uint8ListJsonConverter() Uint8List message,
-            String callId, Typed<FixedEncodedString43>? sender)
+            String callId, Typed<FixedEncodedString43>? sender, String? routeId)
         appCall,
     required TResult Function(AttachmentState state, bool publicInternetReady,
             bool localNetworkReady)
@@ -2631,10 +2670,13 @@ class _$VeilidUpdateNetworkImpl implements VeilidUpdateNetwork {
             VeilidLogLevel logLevel, String message, String? backtrace)?
         log,
     TResult? Function(@Uint8ListJsonConverter() Uint8List message,
-            Typed<FixedEncodedString43>? sender)?
+            Typed<FixedEncodedString43>? sender, String? routeId)?
         appMessage,
-    TResult? Function(@Uint8ListJsonConverter() Uint8List message,
-            String callId, Typed<FixedEncodedString43>? sender)?
+    TResult? Function(
+            @Uint8ListJsonConverter() Uint8List message,
+            String callId,
+            Typed<FixedEncodedString43>? sender,
+            String? routeId)?
         appCall,
     TResult? Function(AttachmentState state, bool publicInternetReady,
             bool localNetworkReady)?
@@ -2659,10 +2701,10 @@ class _$VeilidUpdateNetworkImpl implements VeilidUpdateNetwork {
             VeilidLogLevel logLevel, String message, String? backtrace)?
         log,
     TResult Function(@Uint8ListJsonConverter() Uint8List message,
-            Typed<FixedEncodedString43>? sender)?
+            Typed<FixedEncodedString43>? sender, String? routeId)?
         appMessage,
     TResult Function(@Uint8ListJsonConverter() Uint8List message, String callId,
-            Typed<FixedEncodedString43>? sender)?
+            Typed<FixedEncodedString43>? sender, String? routeId)?
         appCall,
     TResult Function(AttachmentState state, bool publicInternetReady,
             bool localNetworkReady)?
@@ -2847,10 +2889,10 @@ class _$VeilidUpdateConfigImpl implements VeilidUpdateConfig {
             VeilidLogLevel logLevel, String message, String? backtrace)
         log,
     required TResult Function(@Uint8ListJsonConverter() Uint8List message,
-            Typed<FixedEncodedString43>? sender)
+            Typed<FixedEncodedString43>? sender, String? routeId)
         appMessage,
     required TResult Function(@Uint8ListJsonConverter() Uint8List message,
-            String callId, Typed<FixedEncodedString43>? sender)
+            String callId, Typed<FixedEncodedString43>? sender, String? routeId)
         appCall,
     required TResult Function(AttachmentState state, bool publicInternetReady,
             bool localNetworkReady)
@@ -2876,10 +2918,13 @@ class _$VeilidUpdateConfigImpl implements VeilidUpdateConfig {
             VeilidLogLevel logLevel, String message, String? backtrace)?
         log,
     TResult? Function(@Uint8ListJsonConverter() Uint8List message,
-            Typed<FixedEncodedString43>? sender)?
+            Typed<FixedEncodedString43>? sender, String? routeId)?
         appMessage,
-    TResult? Function(@Uint8ListJsonConverter() Uint8List message,
-            String callId, Typed<FixedEncodedString43>? sender)?
+    TResult? Function(
+            @Uint8ListJsonConverter() Uint8List message,
+            String callId,
+            Typed<FixedEncodedString43>? sender,
+            String? routeId)?
         appCall,
     TResult? Function(AttachmentState state, bool publicInternetReady,
             bool localNetworkReady)?
@@ -2904,10 +2949,10 @@ class _$VeilidUpdateConfigImpl implements VeilidUpdateConfig {
             VeilidLogLevel logLevel, String message, String? backtrace)?
         log,
     TResult Function(@Uint8ListJsonConverter() Uint8List message,
-            Typed<FixedEncodedString43>? sender)?
+            Typed<FixedEncodedString43>? sender, String? routeId)?
         appMessage,
     TResult Function(@Uint8ListJsonConverter() Uint8List message, String callId,
-            Typed<FixedEncodedString43>? sender)?
+            Typed<FixedEncodedString43>? sender, String? routeId)?
         appCall,
     TResult Function(AttachmentState state, bool publicInternetReady,
             bool localNetworkReady)?
@@ -3108,10 +3153,10 @@ class _$VeilidUpdateRouteChangeImpl implements VeilidUpdateRouteChange {
             VeilidLogLevel logLevel, String message, String? backtrace)
         log,
     required TResult Function(@Uint8ListJsonConverter() Uint8List message,
-            Typed<FixedEncodedString43>? sender)
+            Typed<FixedEncodedString43>? sender, String? routeId)
         appMessage,
     required TResult Function(@Uint8ListJsonConverter() Uint8List message,
-            String callId, Typed<FixedEncodedString43>? sender)
+            String callId, Typed<FixedEncodedString43>? sender, String? routeId)
         appCall,
     required TResult Function(AttachmentState state, bool publicInternetReady,
             bool localNetworkReady)
@@ -3137,10 +3182,13 @@ class _$VeilidUpdateRouteChangeImpl implements VeilidUpdateRouteChange {
             VeilidLogLevel logLevel, String message, String? backtrace)?
         log,
     TResult? Function(@Uint8ListJsonConverter() Uint8List message,
-            Typed<FixedEncodedString43>? sender)?
+            Typed<FixedEncodedString43>? sender, String? routeId)?
         appMessage,
-    TResult? Function(@Uint8ListJsonConverter() Uint8List message,
-            String callId, Typed<FixedEncodedString43>? sender)?
+    TResult? Function(
+            @Uint8ListJsonConverter() Uint8List message,
+            String callId,
+            Typed<FixedEncodedString43>? sender,
+            String? routeId)?
         appCall,
     TResult? Function(AttachmentState state, bool publicInternetReady,
             bool localNetworkReady)?
@@ -3165,10 +3213,10 @@ class _$VeilidUpdateRouteChangeImpl implements VeilidUpdateRouteChange {
             VeilidLogLevel logLevel, String message, String? backtrace)?
         log,
     TResult Function(@Uint8ListJsonConverter() Uint8List message,
-            Typed<FixedEncodedString43>? sender)?
+            Typed<FixedEncodedString43>? sender, String? routeId)?
         appMessage,
     TResult Function(@Uint8ListJsonConverter() Uint8List message, String callId,
-            Typed<FixedEncodedString43>? sender)?
+            Typed<FixedEncodedString43>? sender, String? routeId)?
         appCall,
     TResult Function(AttachmentState state, bool publicInternetReady,
             bool localNetworkReady)?
@@ -3393,10 +3441,10 @@ class _$VeilidUpdateValueChangeImpl implements VeilidUpdateValueChange {
             VeilidLogLevel logLevel, String message, String? backtrace)
         log,
     required TResult Function(@Uint8ListJsonConverter() Uint8List message,
-            Typed<FixedEncodedString43>? sender)
+            Typed<FixedEncodedString43>? sender, String? routeId)
         appMessage,
     required TResult Function(@Uint8ListJsonConverter() Uint8List message,
-            String callId, Typed<FixedEncodedString43>? sender)
+            String callId, Typed<FixedEncodedString43>? sender, String? routeId)
         appCall,
     required TResult Function(AttachmentState state, bool publicInternetReady,
             bool localNetworkReady)
@@ -3422,10 +3470,13 @@ class _$VeilidUpdateValueChangeImpl implements VeilidUpdateValueChange {
             VeilidLogLevel logLevel, String message, String? backtrace)?
         log,
     TResult? Function(@Uint8ListJsonConverter() Uint8List message,
-            Typed<FixedEncodedString43>? sender)?
+            Typed<FixedEncodedString43>? sender, String? routeId)?
         appMessage,
-    TResult? Function(@Uint8ListJsonConverter() Uint8List message,
-            String callId, Typed<FixedEncodedString43>? sender)?
+    TResult? Function(
+            @Uint8ListJsonConverter() Uint8List message,
+            String callId,
+            Typed<FixedEncodedString43>? sender,
+            String? routeId)?
         appCall,
     TResult? Function(AttachmentState state, bool publicInternetReady,
             bool localNetworkReady)?
@@ -3450,10 +3501,10 @@ class _$VeilidUpdateValueChangeImpl implements VeilidUpdateValueChange {
             VeilidLogLevel logLevel, String message, String? backtrace)?
         log,
     TResult Function(@Uint8ListJsonConverter() Uint8List message,
-            Typed<FixedEncodedString43>? sender)?
+            Typed<FixedEncodedString43>? sender, String? routeId)?
         appMessage,
     TResult Function(@Uint8ListJsonConverter() Uint8List message, String callId,
-            Typed<FixedEncodedString43>? sender)?
+            Typed<FixedEncodedString43>? sender, String? routeId)?
         appCall,
     TResult Function(AttachmentState state, bool publicInternetReady,
             bool localNetworkReady)?

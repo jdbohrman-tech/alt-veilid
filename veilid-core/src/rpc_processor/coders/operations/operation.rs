@@ -106,6 +106,7 @@ impl RPCOperation {
                 .validate(validate_context.crypto.clone())
                 .map_err(RPCError::protocol)?;
         }
+
         // Validate operation kind
         self.kind.validate(validate_context)
     }

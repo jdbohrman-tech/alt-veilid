@@ -84,6 +84,8 @@ async def test_routing_context_app_message_loopback():
 
                     assert isinstance(update.detail, veilid.VeilidAppMessage)
                     assert update.detail.message == message
+                    assert update.detail.route_id is not None
+
                 finally:
                         # release imported private route
                         await api.release_private_route(prr)
@@ -130,6 +132,7 @@ async def test_routing_context_app_call_loopback():
 
                     assert isinstance(appcall, veilid.VeilidAppCall)
                     assert appcall.message == request
+                    assert appcall.route_id is not None
 
                     # now we reply to the request
                     reply = b"qwer5678"

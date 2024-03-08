@@ -1613,12 +1613,12 @@ class VeilidFFI extends Veilid {
   }
 
   @override
-  Future<void> releasePrivateRoute(String key) async {
-    final nativeEncodedKey = key.toNativeUtf8();
+  Future<void> releasePrivateRoute(String routeId) async {
+    final nativeEncodedRouteId = routeId.toNativeUtf8();
 
     final recvPort = ReceivePort('release_private_route');
     final sendPort = recvPort.sendPort;
-    _releasePrivateRoute(sendPort.nativePort, nativeEncodedKey);
+    _releasePrivateRoute(sendPort.nativePort, nativeEncodedRouteId);
     return processFutureVoid(recvPort.first);
   }
 

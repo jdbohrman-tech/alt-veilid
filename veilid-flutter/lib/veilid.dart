@@ -150,7 +150,7 @@ abstract class Veilid {
   Future<RouteBlob> newCustomPrivateRoute(
       Stability stability, Sequencing sequencing);
   Future<String> importRemotePrivateRoute(Uint8List blob);
-  Future<void> releasePrivateRoute(String key);
+  Future<void> releasePrivateRoute(String routeId);
 
   // App calls
   Future<void> appCallReply(String callId, Uint8List message);

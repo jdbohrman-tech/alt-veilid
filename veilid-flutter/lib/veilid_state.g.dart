@@ -137,6 +137,7 @@ _$VeilidAppMessageImpl _$$VeilidAppMessageImplFromJson(
       sender: json['sender'] == null
           ? null
           : Typed<FixedEncodedString43>.fromJson(json['sender']),
+      routeId: json['route_id'] as String?,
       $type: json['kind'] as String?,
     );
 
@@ -145,6 +146,7 @@ Map<String, dynamic> _$$VeilidAppMessageImplToJson(
     <String, dynamic>{
       'message': const Uint8ListJsonConverter().toJson(instance.message),
       'sender': instance.sender?.toJson(),
+      'route_id': instance.routeId,
       'kind': instance.$type,
     };
 
@@ -155,6 +157,7 @@ _$VeilidAppCallImpl _$$VeilidAppCallImplFromJson(Map<String, dynamic> json) =>
       sender: json['sender'] == null
           ? null
           : Typed<FixedEncodedString43>.fromJson(json['sender']),
+      routeId: json['route_id'] as String?,
       $type: json['kind'] as String?,
     );
 
@@ -163,6 +166,7 @@ Map<String, dynamic> _$$VeilidAppCallImplToJson(_$VeilidAppCallImpl instance) =>
       'message': const Uint8ListJsonConverter().toJson(instance.message),
       'call_id': instance.callId,
       'sender': instance.sender?.toJson(),
+      'route_id': instance.routeId,
       'kind': instance.$type,
     };
 

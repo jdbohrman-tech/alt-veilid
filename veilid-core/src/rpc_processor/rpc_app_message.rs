@@ -36,6 +36,24 @@ impl RPCProcessor {
             ));
         }
 
+        // Get the private route this came over
+        let opt_pr_pubkey = match &msg.header.detail {
+            RPCMessageHeaderDetail::Direct(_) | RPCMessageHeaderDetail::SafetyRouted(_) => None,
+            RPCMessageHeaderDetail::PrivateRouted(pr) => Some(pr.private_route),
+        };
+        let route_id = if let Some(pr_pubkey) = opt_pr_pubkey {
+            let rss = routing_table.route_spec_store();
+            let Some(route_id) = rss.get_route_id_for_key(&pr_pubkey) else {
+                return Ok(NetworkResult::invalid_message(format!(
+                    "private route does not exist for key: {}",
+                    pr_pubkey
+                )));
+            };
+            Some(route_id)
+        } else {
+            None
+        };
+
         // Get the statement
         let (_, _, _, kind) = msg.operation.destructure();
         let app_message = match kind {
@@ -58,7 +76,7 @@ impl RPCProcessor {
         // Pass the message up through the update callback
         let message = app_message.destructure();
         (self.unlocked_inner.update_callback)(VeilidUpdate::AppMessage(Box::new(
-            VeilidAppMessage::new(sender, message),
+            VeilidAppMessage::new(sender, route_id, message),
         )));
 
         Ok(NetworkResult::value(()))

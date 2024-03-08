@@ -2437,6 +2437,12 @@
             "message": {
               "type": "string"
             },
+            "route_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "sender": {
               "type": [
                 "string",
@@ -2465,6 +2471,12 @@
             },
             "message": {
               "type": "string"
+            },
+            "route_id": {
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "sender": {
               "type": [
@@ -3982,7 +3994,7 @@
       }
     },
     "VeilidConfigWS": {
-      "description": "Enable and configure Web Sockets\n\n```yaml ws: connect: true listen: true max_connections: 16 listen_address: ':5150' path: 'ws' url: 'ws://localhost:5150/ws'",
+      "description": "Enable and configure Web Sockets\n\n```yaml ws: connect: true listen: true max_connections: 32 listen_address: ':5150' path: 'ws' url: 'ws://localhost:5150/ws'",
       "type": "object",
       "required": [
         "connect",
@@ -4018,7 +4030,7 @@
       }
     },
     "VeilidConfigWSS": {
-      "description": "Enable and configure Secure Web Sockets\n\n```yaml wss: connect: true listen: false max_connections: 16 listen_address: ':5150' path: 'ws' url: ''",
+      "description": "Enable and configure Secure Web Sockets\n\n```yaml wss: connect: true listen: false max_connections: 32 listen_address: ':5150' path: 'ws' url: ''",
       "type": "object",
       "required": [
         "connect",

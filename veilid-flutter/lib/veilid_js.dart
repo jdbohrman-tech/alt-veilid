@@ -672,8 +672,8 @@ class VeilidJS extends Veilid {
   }
 
   @override
-  Future<void> releasePrivateRoute(String key) =>
-      _wrapApiPromise(js_util.callMethod(wasm, 'release_private_route', [key]));
+  Future<void> releasePrivateRoute(String routeId) => _wrapApiPromise(
+      js_util.callMethod(wasm, 'release_private_route', [routeId]));
 
   @override
   Future<void> appCallReply(String callId, Uint8List message) {
