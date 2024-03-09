@@ -1,7 +1,7 @@
 use super::*;
 use crate::storage_manager::SignedValueData;
 
-const MAX_VALUE_CHANGED_SUBKEYS_LEN: usize = 512;
+const MAX_VALUE_CHANGED_SUBKEY_RANGES_LEN: usize = 512;
 
 #[derive(Debug, Clone)]
 pub(in crate::rpc_processor) struct RPCOperationValueChanged {
@@ -21,12 +21,12 @@ impl RPCOperationValueChanged {
         watch_id: u64,
         value: SignedValueData,
     ) -> Result<Self, RPCError> {
-        // Needed because RangeSetBlaze uses different types here all the time
-        #[allow(clippy::unnecessary_cast)]
         let subkeys_len = subkeys.ranges_len() as usize;
 
-        if subkeys_len > MAX_VALUE_CHANGED_SUBKEYS_LEN {
-            return Err(RPCError::protocol("ValueChanged subkeys length too long"));
+        if subkeys_len > MAX_VALUE_CHANGED_SUBKEY_RANGES_LEN {
+            return Err(RPCError::protocol(
+                "ValueChanged subkey ranges length too long",
+            ));
         }
 
         if watch_id == 0 {
@@ -93,8 +93,10 @@ impl RPCOperationValueChanged {
         let key = decode_typed_key(&k_reader)?;
 
         let sk_reader = reader.get_subkeys().map_err(RPCError::protocol)?;
-        if sk_reader.len() as usize > MAX_VALUE_CHANGED_SUBKEYS_LEN {
-            return Err(RPCError::protocol("ValueChanged subkeys length too long"));
+        if sk_reader.len() as usize > MAX_VALUE_CHANGED_SUBKEY_RANGES_LEN {
+            return Err(RPCError::protocol(
+                "ValueChanged subkey ranges length too long",
+            ));
         }
 
         let mut subkeys = ValueSubkeyRangeSet::new();

@@ -63,6 +63,7 @@ use super::*;
 pub(in crate::rpc_processor) enum QuestionContext {
     GetValue(ValidateGetValueContext),
     SetValue(ValidateSetValueContext),
+    InspectValue(ValidateInspectValueContext),
 }
 
 #[derive(Clone)]

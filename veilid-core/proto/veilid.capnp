@@ -368,6 +368,18 @@ struct OperationWatchValueA @0xa726cab7064ba893 {
     watchId                 @3  :UInt64;                # (0 = id not allocated if rejecting new watch) random id for watch instance on this node
 }
 
+struct OperationInspectValueQ @0xdef712d2fd16f55a {
+    key                     @0  :TypedKey;              # DHT Key = Hash(ownerKeyKind) of: [ ownerKeyValue, schema ]
+    subkeys                 @1  :List(SubkeyRange);     # subkey range to inspect (up to 512 total subkeys), if empty this implies 0..=511
+    wantDescriptor          @2  :Bool;                  # whether or not to include the descriptor for the key
+}
+
+struct OperationInspectValueA @0xb8b57faf960ee102 {
+    seqs                    @0  :List(ValueSeqNum);     # the list of subkey value sequence numbers in ascending order for each subkey in the requested range. if a subkey has not been written to, it is given a value of UINT32_MAX. these are not signed, and may be immediately out of date, and must be verified by a GetValueQ request.
+    peers                   @1  :List(PeerInfo);        # returned 'closer peer' information on either success or failure
+    descriptor              @2  :SignedValueDescriptor; # optional: the descriptor if requested if the value is also returned
+}
+
 struct OperationValueChanged @0xd1c59ebdd8cc1bf6 {
     key                     @0  :TypedKey;              # key for value that changed
     subkeys                 @1  :List(SubkeyRange);     # subkey range that changed (up to 512 ranges at a time, if empty this is a watch expiration notice)
@@ -487,15 +499,17 @@ struct Question @0xd8510bc33492ef70 {
         getValueQ           @5  :OperationGetValueQ;
         setValueQ           @6  :OperationSetValueQ;
         watchValueQ         @7  :OperationWatchValueQ;
+        inspectValueQ       @8  :OperationInspectValueQ;
+
         # #[cfg(feature="unstable-blockstore")]
-        # supplyBlockQ        @8  :OperationSupplyBlockQ;
-        # findBlockQ          @9  :OperationFindBlockQ;
+        # supplyBlockQ        @9  :OperationSupplyBlockQ;
+        # findBlockQ          @10  :OperationFindBlockQ;
         
         # Tunnel operations
         # #[cfg(feature="unstable-tunnels")]
-        # startTunnelQ        @10 :OperationStartTunnelQ;
-        # completeTunnelQ     @11 :OperationCompleteTunnelQ;
-        # cancelTunnelQ       @12 :OperationCancelTunnelQ; 
+        # startTunnelQ        @11 :OperationStartTunnelQ;
+        # completeTunnelQ     @12 :OperationCompleteTunnelQ;
+        # cancelTunnelQ       @13 :OperationCancelTunnelQ; 
     }
 }
 
@@ -526,16 +540,17 @@ struct Answer @0xacacb8b6988c1058 {
         getValueA           @3  :OperationGetValueA;
         setValueA           @4  :OperationSetValueA;
         watchValueA         @5  :OperationWatchValueA;
+        inspectValueA       @6  :OperationInspectValueA;
 
         # #[cfg(feature="unstable-blockstore")]
-        #supplyBlockA        @6  :OperationSupplyBlockA; 
-        #findBlockA          @7  :OperationFindBlockA;
+        #supplyBlockA        @7  :OperationSupplyBlockA; 
+        #findBlockA          @8  :OperationFindBlockA;
     
         # Tunnel operations
         # #[cfg(feature="unstable-tunnels")]
-        # startTunnelA        @8  :OperationStartTunnelA;
-        # completeTunnelA     @9  :OperationCompleteTunnelA;
-        # cancelTunnelA       @10  :OperationCancelTunnelA;
+        # startTunnelA        @9  :OperationStartTunnelA;
+        # completeTunnelA     @10  :OperationCompleteTunnelA;
+        # cancelTunnelA       @11  :OperationCancelTunnelA;
     }
 }
 

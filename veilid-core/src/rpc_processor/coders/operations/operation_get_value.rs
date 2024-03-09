@@ -111,29 +111,30 @@ impl RPCOperationGetValueA {
             panic!("Wrong context type for GetValueA");
         };
 
-        if let Some(value) = &self.value {
-            // Get descriptor to validate with
-            let descriptor = if let Some(descriptor) = &self.descriptor {
-                if let Some(last_descriptor) = &get_value_context.last_descriptor {
-                    if descriptor.cmp_no_sig(last_descriptor) != cmp::Ordering::Equal {
-                        return Err(RPCError::protocol(
-                            "getvalue descriptor does not match last descriptor",
-                        ));
-                    }
-                }
-                descriptor
-            } else {
-                let Some(descriptor) = &get_value_context.last_descriptor else {
+        // Validate descriptor
+        if let Some(descriptor) = &self.descriptor {
+            // Ensure descriptor matches last one
+            if let Some(last_descriptor) = &get_value_context.last_descriptor {
+                if descriptor.cmp_no_sig(last_descriptor) != cmp::Ordering::Equal {
                     return Err(RPCError::protocol(
-                        "no last descriptor, requires a descriptor",
+                        "GetValue descriptor does not match last descriptor",
                     ));
-                };
-                descriptor
-            };
+                }
+            }
             // Ensure the descriptor itself validates
             descriptor
                 .validate(get_value_context.vcrypto.clone())
                 .map_err(RPCError::protocol)?;
+        }
+
+        // Ensure the value validates
+        if let Some(value) = &self.value {
+            // Get descriptor to validate with
+            let Some(descriptor) = self.descriptor.or(get_value_context.last_descriptor) else {
+                return Err(RPCError::protocol(
+                    "no last descriptor, requires a descriptor",
+                ));
+            };
 
             // And the signed value data
             value

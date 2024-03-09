@@ -1,6 +1,6 @@
 use super::*;
 
-const MAX_WATCH_VALUE_Q_SUBKEYS_LEN: usize = 512;
+const MAX_WATCH_VALUE_Q_SUBKEY_RANGES_LEN: usize = 512;
 const MAX_WATCH_VALUE_A_PEERS_LEN: usize = 20;
 
 #[derive(Debug, Clone)]
@@ -25,11 +25,7 @@ impl RPCOperationWatchValueQ {
         watcher: KeyPair,
         vcrypto: CryptoSystemVersion,
     ) -> Result<Self, RPCError> {
-        // Needed because RangeSetBlaze uses different types here all the time
-        #[allow(clippy::unnecessary_cast)]
-        let subkeys_len = subkeys.ranges_len() as usize;
-
-        if subkeys_len > MAX_WATCH_VALUE_Q_SUBKEYS_LEN {
+        if subkeys.ranges_len() > MAX_WATCH_VALUE_Q_SUBKEY_RANGES_LEN {
             return Err(RPCError::protocol("WatchValueQ subkeys length too long"));
         }
 
@@ -62,9 +58,7 @@ impl RPCOperationWatchValueQ {
         count: u32,
         watch_id: Option<u64>,
     ) -> Vec<u8> {
-        // Needed because RangeSetBlaze uses different types here all the time
-        #[allow(clippy::unnecessary_cast)]
-        let subkeys_len = subkeys.ranges_len() as usize;
+        let subkeys_len = subkeys.ranges_len();
 
         let mut sig_data = Vec::with_capacity(PUBLIC_KEY_LENGTH + 4 + (subkeys_len * 8) + 8 + 8);
         sig_data.extend_from_slice(&key.kind.0);
@@ -168,8 +162,8 @@ impl RPCOperationWatchValueQ {
         let key = decode_typed_key(&k_reader)?;
 
         let sk_reader = reader.get_subkeys().map_err(RPCError::protocol)?;
-        if sk_reader.len() as usize > MAX_WATCH_VALUE_Q_SUBKEYS_LEN {
-            return Err(RPCError::protocol("WatchValueQ subkeys length too long"));
+        if sk_reader.len() as usize > MAX_WATCH_VALUE_Q_SUBKEY_RANGES_LEN {
+            return Err(RPCError::protocol("WatchValueQ too many subkey ranges"));
         }
         let mut subkeys = ValueSubkeyRangeSet::new();
         for skr in sk_reader.iter() {
