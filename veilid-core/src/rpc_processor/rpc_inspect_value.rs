@@ -252,14 +252,14 @@ impl RPCProcessor {
             log_dht!(debug "{}", debug_string_answer);
         }
             
-        // Make GetValue answer
+        // Make InspectValue answer
         let inspect_value_a = RPCOperationInspectValueA::new(
             inspect_result_seqs,
             closer_to_key_peers,
             inspect_result_descriptor.map(|x| (*x).clone()),
         )?;
 
-        // Send GetValue answer
+        // Send InspectValue answer
         self.answer(msg, RPCAnswer::new(RPCAnswerDetail::InspectValueA(Box::new(inspect_value_a))))
             .await
     }

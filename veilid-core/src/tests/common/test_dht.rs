@@ -62,10 +62,7 @@ pub async fn test_create_delete_dht_record_simple(api: VeilidAPI) {
         .unwrap();
 
     let rec = rc
-        .create_dht_record(
-            DHTSchema::DFLT(DHTSchemaDFLT { o_cnt: 1 }),
-            Some(CRYPTO_KIND_VLD0),
-        )
+        .create_dht_record(DHTSchema::dflt(1).unwrap(), Some(CRYPTO_KIND_VLD0))
         .await
         .unwrap();
 
@@ -82,10 +79,7 @@ pub async fn test_get_dht_value_nonexistent(api: VeilidAPI) {
         .unwrap();
 
     let rec = rc
-        .create_dht_record(
-            DHTSchema::DFLT(DHTSchemaDFLT { o_cnt: 1 }),
-            Some(CRYPTO_KIND_VLD0),
-        )
+        .create_dht_record(DHTSchema::dflt(1).unwrap(), Some(CRYPTO_KIND_VLD0))
         .await
         .unwrap();
     let dht_key = *rec.key();
@@ -104,10 +98,7 @@ pub async fn test_set_get_dht_value(api: VeilidAPI) {
         .unwrap();
 
     let rec = rc
-        .create_dht_record(
-            DHTSchema::DFLT(DHTSchemaDFLT { o_cnt: 2 }),
-            Some(CRYPTO_KIND_VLD0),
-        )
+        .create_dht_record(DHTSchema::dflt(2).unwrap(), Some(CRYPTO_KIND_VLD0))
         .await
         .unwrap();
     let dht_key = *rec.key();
@@ -159,10 +150,7 @@ pub async fn test_open_writer_dht_value(api: VeilidAPI) {
         .unwrap();
 
     let rec = rc
-        .create_dht_record(
-            DHTSchema::DFLT(DHTSchemaDFLT { o_cnt: 2 }),
-            Some(CRYPTO_KIND_VLD0),
-        )
+        .create_dht_record(DHTSchema::dflt(2).unwrap(), Some(CRYPTO_KIND_VLD0))
         .await
         .unwrap();
     let key = *rec.key();
@@ -252,10 +240,7 @@ pub async fn test_open_writer_dht_value(api: VeilidAPI) {
     assert_eq!(rec.key().kind, key.kind);
     assert_eq!(rec.owner(), owner);
     assert_eq!(rec.owner_secret().unwrap(), secret);
-    assert!(matches!(
-        rec.schema().clone(),
-        DHTSchema::DFLT(DHTSchemaDFLT { o_cnt: 2 })
-    ));
+    assert_eq!(rec.schema(), &DHTSchema::dflt(2).unwrap());
 
     //Verify subkey 1 can be set before it is get but newer is available online
     let set_dht_test_value_1_result = rc.set_dht_value(key, 1, test_data_3.clone(), None).await;
@@ -301,11 +286,7 @@ pub async fn test_open_writer_dht_value(api: VeilidAPI) {
     assert_eq!(rec.key().kind, key.kind);
     assert_eq!(rec.owner(), owner);
     assert_eq!(rec.owner_secret(), None);
-    let schema = rec.schema().clone();
-    assert!(matches!(
-        schema,
-        DHTSchema::DFLT(DHTSchemaDFLT { o_cnt: 2 })
-    ));
+    assert_eq!(rec.schema(), &DHTSchema::dflt(2).unwrap());
 
     // Verify subkey 1 can NOT be set because we have the wrong writer
     let set_dht_test_value_0_result = rc.set_dht_value(key, 1, test_value_1.clone(), None).await;

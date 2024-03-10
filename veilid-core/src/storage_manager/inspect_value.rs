@@ -114,7 +114,7 @@ impl StorageManager {
                     }
 
                     // If we have a prior seqs list, merge in the new seqs
-                    if ctx.seqs.len() == 0 {
+                    if ctx.seqs.is_empty() {
                         ctx.seqs = iva.answer.seqs.clone();
                         // One node has shown us the newest sequence numbers so far
                         ctx.value_nodes = vec![next_node];
@@ -157,7 +157,7 @@ impl StorageManager {
         let check_done = |_closest_nodes: &[NodeRef]| {
             // If we have reached sufficient consensus, return done
             let ctx = context.lock();
-            if ctx.seqs.len() > 0
+            if !ctx.seqs.is_empty()
                 && ctx.descriptor.is_some()
                 && ctx.value_nodes.len() >= consensus_count
             {

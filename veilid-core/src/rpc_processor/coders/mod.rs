@@ -60,6 +60,7 @@ pub use typed_signature::*;
 use super::*;
 
 #[derive(Debug, Clone)]
+#[allow(clippy::enum_variant_names)]
 pub(in crate::rpc_processor) enum QuestionContext {
     GetValue(ValidateGetValueContext),
     SetValue(ValidateSetValueContext),

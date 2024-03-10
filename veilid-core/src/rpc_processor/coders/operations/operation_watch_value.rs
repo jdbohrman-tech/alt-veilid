@@ -58,9 +58,10 @@ impl RPCOperationWatchValueQ {
         count: u32,
         watch_id: Option<u64>,
     ) -> Vec<u8> {
-        let subkeys_len = subkeys.ranges_len();
+        let subkeys_ranges_len = subkeys.ranges_len();
 
-        let mut sig_data = Vec::with_capacity(PUBLIC_KEY_LENGTH + 4 + (subkeys_len * 8) + 8 + 8);
+        let mut sig_data =
+            Vec::with_capacity(PUBLIC_KEY_LENGTH + 4 + (subkeys_ranges_len * 8) + 8 + 8);
         sig_data.extend_from_slice(&key.kind.0);
         sig_data.extend_from_slice(&key.value.bytes);
         for sk in subkeys.ranges() {
