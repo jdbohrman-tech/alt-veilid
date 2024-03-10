@@ -1427,7 +1427,7 @@ impl VeilidAPI {
             "dht_schema",
             get_dht_schema,
         )
-        .unwrap_or_else(|_| Ok(DHTSchema::dflt(1)))?;
+        .unwrap_or_else(|_| Ok(DHTSchema::default()))?;
 
         let csv = get_debug_argument_at(
             &args,

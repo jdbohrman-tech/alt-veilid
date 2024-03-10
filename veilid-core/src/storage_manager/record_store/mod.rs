@@ -59,6 +59,8 @@ where
     record_index: LruCache<RecordTableKey, Record<D>>,
     /// The in-memory cache of commonly accessed subkey data so we don't have to keep hitting the db
     subkey_cache: LruCache<SubkeyTableKey, RecordData>,
+    /// The in-memory cache of commonly accessed sequence number data so we don't have to keep hitting the db
+    seqs_cache: LruCache<SeqsCacheKey, Vec<ValueSeqNum>>,
     /// Total storage space or subkey data inclusive of structures in memory
     subkey_cache_total_size: LimitedSize<usize>,
     /// Total storage space of records in the tabledb inclusive of subkey data and structures
@@ -77,11 +79,20 @@ where
 
 /// The result of the do_get_value_operation
 #[derive(Default, Debug)]
-pub struct SubkeyResult {
+pub struct GetResult {
     /// The subkey value if we got one
-    pub value: Option<Arc<SignedValueData>>,
+    pub opt_value: Option<Arc<SignedValueData>>,
     /// The descriptor if we got a fresh one or empty if no descriptor was needed
-    pub descriptor: Option<Arc<SignedValueDescriptor>>,
+    pub opt_descriptor: Option<Arc<SignedValueDescriptor>>,
+}
+
+/// The result of the do_inspect_value_operation
+#[derive(Default, Debug)]
+pub struct InspectResult {
+    /// The sequence map
+    pub seqs: Vec<ValueSeqNum>,
+    /// The descriptor if we got a fresh one or empty if no descriptor was needed
+    pub opt_descriptor: Option<Arc<SignedValueDescriptor>>,
 }
 
 impl<D> RecordStore<D>
@@ -105,6 +116,7 @@ where
             subkey_table: None,
             record_index: LruCache::new(limits.max_records.unwrap_or(usize::MAX)),
             subkey_cache: LruCache::new(subkey_cache_size),
+            seqs_cache: LruCache::new(subkey_cache_size),
             subkey_cache_total_size: LimitedSize::new(
                 "subkey_cache_total_size",
                 0,
@@ -488,7 +500,7 @@ where
         key: TypedKey,
         subkey: ValueSubkey,
         want_descriptor: bool,
-    ) -> VeilidAPIResult<Option<SubkeyResult>> {
+    ) -> VeilidAPIResult<Option<GetResult>> {
         // Get record from index
         let Some((subkey_count, has_subkey, opt_descriptor)) = self.with_record(key, |record| {
             (
@@ -513,9 +525,9 @@ where
         // See if we have this subkey stored
         if !has_subkey {
             // If not, return no value but maybe with descriptor
-            return Ok(Some(SubkeyResult {
-                value: None,
-                descriptor: opt_descriptor,
+            return Ok(Some(GetResult {
+                opt_value: None,
+                opt_descriptor,
             }));
         }
 
@@ -529,9 +541,9 @@ where
         if let Some(record_data) = self.subkey_cache.get_mut(&stk) {
             let out = record_data.signed_value_data().clone();
 
-            return Ok(Some(SubkeyResult {
-                value: Some(out),
-                descriptor: opt_descriptor,
+            return Ok(Some(GetResult {
+                opt_value: Some(out),
+                opt_descriptor,
             }));
         }
         // If not in cache, try to pull from table store if it is in our stored subkey set
@@ -548,9 +560,9 @@ where
         // Add to cache, do nothing with lru out
         self.add_to_subkey_cache(stk, record_data);
 
-        Ok(Some(SubkeyResult {
-            value: Some(out),
-            descriptor: opt_descriptor,
+        Ok(Some(GetResult {
+            opt_value: Some(out),
+            opt_descriptor,
         }))
     }
 
@@ -559,7 +571,7 @@ where
         key: TypedKey,
         subkey: ValueSubkey,
         want_descriptor: bool,
-    ) -> VeilidAPIResult<Option<SubkeyResult>> {
+    ) -> VeilidAPIResult<Option<GetResult>> {
         // record from index
         let Some((subkey_count, has_subkey, opt_descriptor)) = self.peek_record(key, |record| {
             (
@@ -584,9 +596,9 @@ where
         // See if we have this subkey stored
         if !has_subkey {
             // If not, return no value but maybe with descriptor
-            return Ok(Some(SubkeyResult {
-                value: None,
-                descriptor: opt_descriptor,
+            return Ok(Some(GetResult {
+                opt_value: None,
+                opt_descriptor,
             }));
         }
 
@@ -600,9 +612,9 @@ where
         if let Some(record_data) = self.subkey_cache.peek(&stk) {
             let out = record_data.signed_value_data().clone();
 
-            return Ok(Some(SubkeyResult {
-                value: Some(out),
-                descriptor: opt_descriptor,
+            return Ok(Some(GetResult {
+                opt_value: Some(out),
+                opt_descriptor,
             }));
         }
         // If not in cache, try to pull from table store if it is in our stored subkey set
@@ -616,9 +628,9 @@ where
 
         let out = record_data.signed_value_data().clone();
 
-        Ok(Some(SubkeyResult {
-            value: Some(out),
-            descriptor: opt_descriptor,
+        Ok(Some(GetResult {
+            opt_value: Some(out),
+            opt_descriptor,
         }))
     }
 
@@ -758,6 +770,84 @@ where
             .await;
 
         Ok(())
+    }
+
+    pub async fn inspect_record(
+        &mut self,
+        key: TypedKey,
+        subkeys: ValueSubkeyRangeSet,
+        want_descriptor: bool,
+    ) -> VeilidAPIResult<Option<InspectResult>> {
+        // Get record from index
+        let Some((subkeys, opt_descriptor)) = self.with_record(key, |record| {
+            // Get number of subkeys from schema and ensure we are getting the
+            // right number of sequence numbers betwen that and what we asked for
+            let in_schema_subkeys = subkeys.intersect(&ValueSubkeyRangeSet::single_range(
+                0,
+                record.schema().max_subkey(),
+            ));
+            (
+                in_schema_subkeys,
+                if want_descriptor {
+                    Some(record.descriptor().clone())
+                } else {
+                    None
+                },
+            )
+        }) else {
+            // Record not available
+            return Ok(None);
+        };
+
+        // Check if we can return some subkeys
+        if subkeys.is_empty() {
+            apibail_invalid_argument!("subkeys set does not overlap schema", "subkeys", subkeys);
+        }
+
+        // See if we have this inspection cached
+        let sck = SeqsCacheKey {
+            key,
+            subkeys: subkeys.clone(),
+        };
+        if let Some(seqs) = self.seqs_cache.get(&sck) {
+            return Ok(Some(InspectResult {
+                seqs: seqs.clone(),
+                opt_descriptor,
+            }));
+        }
+
+        // Get subkey table
+        let Some(subkey_table) = self.subkey_table.clone() else {
+            apibail_internal!("record store not initialized");
+        };
+
+        // Build sequence number list to return
+        let mut seqs = Vec::with_capacity(subkeys.len());
+        for subkey in subkeys.iter() {
+            let stk = SubkeyTableKey { key, subkey };
+            let seq = if let Some(record_data) = self.subkey_cache.peek(&stk) {
+                record_data.signed_value_data().value_data().seq()
+            } else {
+                // If not in cache, try to pull from table store if it is in our stored subkey set
+                // XXX: This would be better if it didn't have to pull the whole record data to get the seq.
+                if let Some(record_data) = subkey_table
+                    .load_json::<RecordData>(0, &stk.bytes())
+                    .await
+                    .map_err(VeilidAPIError::internal)?
+                {
+                    record_data.signed_value_data().value_data().seq()
+                } else {
+                    // Subkey not written to
+                    ValueSubkey::MAX
+                }
+            };
+            seqs.push(seq)
+        }
+
+        Ok(Some(InspectResult {
+            seqs,
+            opt_descriptor,
+        }))
     }
 
     pub async fn _change_existing_watch(
@@ -1063,7 +1153,7 @@ where
                 log_stor!(error "first subkey should exist for value change notification");
                 continue;
             };
-            let subkey_result = match self.get_subkey(evci.key, first_subkey, false).await {
+            let get_result = match self.get_subkey(evci.key, first_subkey, false).await {
                 Ok(Some(skr)) => skr,
                 Ok(None) => {
                     log_stor!(error "subkey should have data for value change notification");
@@ -1074,7 +1164,7 @@ where
                     continue;
                 }
             };
-            let Some(value) = subkey_result.value else {
+            let Some(value) = get_result.opt_value else {
                 log_stor!(error "first subkey should have had value for value change notification");
                 continue;
             };

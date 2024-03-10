@@ -5,12 +5,32 @@ use super::*;
 #[cfg_attr(target_arch = "wasm32", derive(Tsify), tsify(from_wasm_abi))]
 pub struct DHTSchemaDFLT {
     /// Owner subkey count
-    pub o_cnt: u16,
+    o_cnt: u16,
 }
 
 impl DHTSchemaDFLT {
     pub const FCC: [u8; 4] = *b"DFLT";
     pub const FIXED_SIZE: usize = 6;
+
+    /// Make a schema
+    pub fn new(o_cnt: u16) -> VeilidAPIResult<Self> {
+        let out = Self { o_cnt };
+        out.validate()?;
+        Ok(out)
+    }
+
+    /// Validate the data representation
+    pub fn validate(&self) -> VeilidAPIResult<()> {
+        if self.o_cnt == 0 {
+            apibail_invalid_argument!("must have at least one subkey", "o_cnt", self.o_cnt);
+        }
+        Ok(())
+    }
+
+    /// Get the owner subkey count
+    pub fn o_cnt(&self) -> u16 {
+        self.o_cnt
+    }
 
     /// Build the data representation of the schema
     pub fn compile(&self) -> Vec<u8> {
@@ -22,9 +42,9 @@ impl DHTSchemaDFLT {
         out
     }
 
-    /// Get the number of subkeys this schema allocates
-    pub fn subkey_count(&self) -> usize {
-        self.o_cnt as usize
+    /// Get the maximum subkey this schema allocates
+    pub fn max_subkey(&self) -> ValueSubkey {
+        self.o_cnt as ValueSubkey - 1
     }
     /// Get the data size of this schema beyond the size of the structure itself
     pub fn data_size(&self) -> usize {
@@ -72,6 +92,6 @@ impl TryFrom<&[u8]> for DHTSchemaDFLT {
 
         let o_cnt = u16::from_le_bytes(b[4..6].try_into().map_err(VeilidAPIError::internal)?);
 
-        Ok(Self { o_cnt })
+        Self::new(o_cnt)
     }
 }

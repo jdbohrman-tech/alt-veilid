@@ -15,7 +15,7 @@ struct OutboundGetValueContext {
 /// The result of the outbound_get_value operation
 pub(super) struct OutboundGetValueResult {
     /// The subkey that was retrieved
-    pub subkey_result: SubkeyResult,
+    pub get_result: GetResult,
     /// And where it was retrieved from
     pub value_nodes: Vec<NodeRef>,
 }
@@ -28,7 +28,7 @@ impl StorageManager {
         key: TypedKey,
         subkey: ValueSubkey,
         safety_selection: SafetySelection,
-        last_subkey_result: SubkeyResult,
+        last_get_result: GetResult,
     ) -> VeilidAPIResult<OutboundGetValueResult> {
         let routing_table = rpc_processor.routing_table();
 
@@ -44,15 +44,15 @@ impl StorageManager {
         };
 
         // Make do-get-value answer context
-        let schema = if let Some(d) = &last_subkey_result.descriptor {
+        let schema = if let Some(d) = &last_get_result.opt_descriptor {
             Some(d.schema()?)
         } else {
             None
         };
         let context = Arc::new(Mutex::new(OutboundGetValueContext {
-            value: last_subkey_result.value,
+            value: last_get_result.opt_value,
             value_nodes: vec![],
-            descriptor: last_subkey_result.descriptor.clone(),
+            descriptor: last_get_result.opt_descriptor.clone(),
             schema,
         }));
 
@@ -60,7 +60,7 @@ impl StorageManager {
         let call_routine = |next_node: NodeRef| {
             let rpc_processor = rpc_processor.clone();
             let context = context.clone();
-            let last_descriptor = last_subkey_result.descriptor.clone();
+            let last_descriptor = last_get_result.opt_descriptor.clone();
             async move {
                 let gva = network_result_try!(
                     rpc_processor
@@ -184,9 +184,9 @@ impl StorageManager {
                     log_stor!(debug "GetValue Fanout Timeout Non-Consensus: {}", ctx.value_nodes.len());
                 }
                 Ok(OutboundGetValueResult {
-                    subkey_result: SubkeyResult {
-                        value: ctx.value.clone(),
-                        descriptor: ctx.descriptor.clone(),
+                    get_result: GetResult {
+                        opt_value: ctx.value.clone(),
+                        opt_descriptor: ctx.descriptor.clone(),
                     },
                     value_nodes: ctx.value_nodes.clone(),
                 })
@@ -201,9 +201,9 @@ impl StorageManager {
                     log_stor!(debug "GetValue Fanout Non-Consensus: {}", ctx.value_nodes.len());
                 }
                 Ok(OutboundGetValueResult {
-                    subkey_result: SubkeyResult {
-                        value: ctx.value.clone(),
-                        descriptor: ctx.descriptor.clone(),
+                    get_result: GetResult {
+                        opt_value: ctx.value.clone(),
+                        opt_descriptor: ctx.descriptor.clone(),
                     },
                     value_nodes: ctx.value_nodes.clone(),
                 })
@@ -218,9 +218,9 @@ impl StorageManager {
                     log_stor!(debug "GetValue Fanout Exhausted Non-Consensus: {}", ctx.value_nodes.len());
                 }
                 Ok(OutboundGetValueResult {
-                    subkey_result: SubkeyResult {
-                        value: ctx.value.clone(),
-                        descriptor: ctx.descriptor.clone(),
+                    get_result: GetResult {
+                        opt_value: ctx.value.clone(),
+                        opt_descriptor: ctx.descriptor.clone(),
                     },
                     value_nodes: ctx.value_nodes.clone(),
                 })
@@ -240,28 +240,28 @@ impl StorageManager {
         key: TypedKey,
         subkey: ValueSubkey,
         want_descriptor: bool,
-    ) -> VeilidAPIResult<NetworkResult<SubkeyResult>> {
+    ) -> VeilidAPIResult<NetworkResult<GetResult>> {
         let mut inner = self.lock().await?;
 
         // See if this is a remote or local value
-        let (_is_local, last_subkey_result) = {
+        let (_is_local, last_get_result) = {
             // See if the subkey we are getting has a last known local value
-            let mut last_subkey_result = inner.handle_get_local_value(key, subkey, true).await?;
+            let mut last_get_result = inner.handle_get_local_value(key, subkey, true).await?;
             // If this is local, it must have a descriptor already
-            if last_subkey_result.descriptor.is_some() {
+            if last_get_result.opt_descriptor.is_some() {
                 if !want_descriptor {
-                    last_subkey_result.descriptor = None;
+                    last_get_result.opt_descriptor = None;
                 }
-                (true, last_subkey_result)
+                (true, last_get_result)
             } else {
                 // See if the subkey we are getting has a last known remote value
-                let last_subkey_result = inner
+                let last_get_result = inner
                     .handle_get_remote_value(key, subkey, want_descriptor)
                     .await?;
-                (false, last_subkey_result)
+                (false, last_get_result)
             }
         };
 
-        Ok(NetworkResult::value(last_subkey_result))
+        Ok(NetworkResult::value(last_get_result))
     }
 }

@@ -241,6 +241,7 @@ impl RoutingContext {
     ) -> VeilidAPIResult<DHTRecordDescriptor> {
         event!(target: "veilid_api", Level::DEBUG, 
             "RoutingContext::create_dht_record(self: {:?}, schema: {:?}, kind: {:?})", self, schema, kind);
+        schema.validate()?;
 
         let kind = kind.unwrap_or(best_crypto_kind());
         Crypto::validate_crypto_kind(kind)?;

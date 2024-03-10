@@ -38,7 +38,7 @@ extension ValidateSMPL on DHTSchemaSMPL {
     return true;
   }
 
-  int subkeyCount() => members.fold(0, (acc, v) => acc + v.mCnt) + oCnt;
+  int subkeyCount() => members.fold(oCnt, (acc, v) => acc + v.mCnt);
 }
 
 extension Validate on DHTSchema {

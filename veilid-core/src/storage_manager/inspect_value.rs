@@ -1,9 +1,9 @@
 use super::*;
 
 /// The context of the outbound_get_value operation
-struct OutboundGxxx continue here etValueContext {
-    /// The latest value of the subkey, may be the value passed in
-    pub value: Option<Arc<SignedValueData>>,
+struct OutboundInspectValueContext {
+    /// The combined sequence map so far
+    pub seqs: Vec<ValueSeqNum>,
     /// The nodes that have returned the value so far (up to the consensus count)
     pub value_nodes: Vec<NodeRef>,
     /// The descriptor if we got a fresh one or empty if no descriptor was needed
@@ -13,26 +13,26 @@ struct OutboundGxxx continue here etValueContext {
 }
 
 /// The result of the outbound_get_value operation
-pub(super) struct OutboundGetValueResult {
+pub(super) struct OutboundInspectValueResult {
     /// The subkey that was retrieved
-    pub subkey_result: SubkeyResult,
+    pub inspect_result: InspectResult,
     /// And where it was retrieved from
     pub value_nodes: Vec<NodeRef>,
 }
 
 impl StorageManager {
     /// Perform a 'inspect value' query on the network
-    pub(super) async fn outbound_get_value(
+    pub(super) async fn outbound_inspect_value(
         &self,
         rpc_processor: RPCProcessor,
         key: TypedKey,
-        subkey: ValueSubkey,
+        subkeys: ValueSubkeyRangeSet,
         safety_selection: SafetySelection,
-        last_subkey_result: SubkeyResult,
-    ) -> VeilidAPIResult<OutboundGetValueResult> {
+        last_inspect_result: InspectResult,
+    ) -> VeilidAPIResult<OutboundInspectValueResult> {
         let routing_table = rpc_processor.routing_table();
 
-        // Get the DHT parameters for 'GetValue'
+        // Get the DHT parameters for 'InspectValue' (the same as for 'GetValue')
         let (key_count, consensus_count, fanout, timeout_us) = {
             let c = self.unlocked_inner.config.get();
             (
@@ -43,16 +43,16 @@ impl StorageManager {
             )
         };
 
-        // Make do-get-value answer context
-        let schema = if let Some(d) = &last_subkey_result.descriptor {
+        // Make do-inspect-value answer context
+        let schema = if let Some(d) = &last_inspect_result.opt_descriptor {
             Some(d.schema()?)
         } else {
             None
         };
-        let context = Arc::new(Mutex::new(OutboundGetValueContext {
-            value: last_subkey_result.value,
+        let context = Arc::new(Mutex::new(OutboundInspectValueContext {
+            seqs: last_inspect_result.seqs,
             value_nodes: vec![],
-            descriptor: last_subkey_result.descriptor.clone(),
+            descriptor: last_inspect_result.opt_descriptor.clone(),
             schema,
         }));
 
@@ -60,23 +60,24 @@ impl StorageManager {
         let call_routine = |next_node: NodeRef| {
             let rpc_processor = rpc_processor.clone();
             let context = context.clone();
-            let last_descriptor = last_subkey_result.descriptor.clone();
+            let last_descriptor = last_inspect_result.opt_descriptor.clone();
+            let subkeys = subkeys.clone();
             async move {
-                let gva = network_result_try!(
+                let iva = network_result_try!(
                     rpc_processor
                         .clone()
-                        .rpc_call_get_value(
+                        .rpc_call_inspect_value(
                             Destination::direct(next_node.clone()).with_safety(safety_selection),
                             key,
-                            subkey,
+                            subkeys.clone(),
                             last_descriptor.map(|x| (*x).clone()),
                         )
                         .await?
                 );
 
                 // Keep the descriptor if we got one. If we had a last_descriptor it will
-                // already be validated by rpc_call_get_value
-                if let Some(descriptor) = gva.answer.descriptor {
+                // already be validated by rpc_call_inspect_value
+                if let Some(descriptor) = iva.answer.descriptor {
                     let mut ctx = context.lock();
                     if ctx.descriptor.is_none() && ctx.schema.is_none() {
                         ctx.schema = Some(descriptor.schema().map_err(RPCError::invalid_format)?);
@@ -85,12 +86,12 @@ impl StorageManager {
                 }
 
                 // Keep the value if we got one and it is newer and it passes schema validation
-                if let Some(value) = gva.answer.value {
-                    log_stor!(debug "Got value back: len={} seq={}", value.value_data().data().len(), value.value_data().seq());
+                if !iva.answer.seqs.is_empty() {
+                    log_stor!(debug "Got seqs back: len={}", iva.answer.seqs.len());
                     let mut ctx = context.lock();
 
                     // Ensure we have a schema and descriptor
-                    let (Some(descriptor), Some(schema)) = (&ctx.descriptor, &ctx.schema) else {
+                    let (Some(_descriptor), Some(schema)) = (&ctx.descriptor, &ctx.schema) else {
                         // Got a value but no descriptor for it
                         // Move to the next node
                         return Ok(NetworkResult::invalid_message(
@@ -98,53 +99,57 @@ impl StorageManager {
                         ));
                     };
 
-                    // Validate with schema
-                    if !schema.check_subkey_value_data(
-                        descriptor.owner(),
-                        subkey,
-                        value.value_data(),
-                    ) {
-                        // Validation failed, ignore this value
+                    // Get number of subkeys from schema and ensure we are getting the
+                    // right number of sequence numbers betwen that and what we asked for
+                    let in_schema_subkeys = subkeys
+                        .intersect(&ValueSubkeyRangeSet::single_range(0, schema.max_subkey()));
+                    if iva.answer.seqs.len() != in_schema_subkeys.len() {
+                        // Not the right number of sequence numbers
                         // Move to the next node
                         return Ok(NetworkResult::invalid_message(format!(
-                            "Schema validation failed on subkey {}",
-                            subkey
+                            "wrong number of seqs returned {} (wanted {})",
+                            iva.answer.seqs.len(),
+                            in_schema_subkeys.len()
                         )));
                     }
 
-                    // If we have a prior value, see if this is a newer sequence number
-                    if let Some(prior_value) = &ctx.value {
-                        let prior_seq = prior_value.value_data().seq();
-                        let new_seq = value.value_data().seq();
-
-                        if new_seq == prior_seq {
-                            // If sequence number is the same, the data should be the same
-                            if prior_value.value_data() != value.value_data() {
-                                // Move to the next node
-                                return Ok(NetworkResult::invalid_message("value data mismatch"));
+                    // If we have a prior seqs list, merge in the new seqs
+                    if ctx.seqs.len() == 0 {
+                        ctx.seqs = iva.answer.seqs.clone();
+                        // One node has shown us the newest sequence numbers so far
+                        ctx.value_nodes = vec![next_node];
+                    } else {
+                        if ctx.seqs.len() != iva.answer.seqs.len() {
+                            return Err(RPCError::internal(
+                                "seqs list length should always be equal by now",
+                            ));
+                        }
+                        let mut newer_seq = false;
+                        for pair in ctx.seqs.iter_mut().zip(iva.answer.seqs.iter()) {
+                            // If the new seq isn't undefined and is better than the old seq (either greater or old is undefined)
+                            // Then take that sequence number and note that we have gotten newer sequence numbers so we keep
+                            // looking for consensus
+                            if *pair.1 != ValueSeqNum::MAX
+                                && (*pair.0 == ValueSeqNum::MAX || pair.1 > pair.0)
+                            {
+                                newer_seq = true;
+                                *pair.0 = *pair.1;
                             }
-                            // Increase the consensus count for the existing value
-                            ctx.value_nodes.push(next_node);
-                        } else if new_seq > prior_seq {
-                            // If the sequence number is greater, start over with the new value
-                            ctx.value = Some(Arc::new(value));
-                            // One node has shown us this value so far
+                        }
+                        if newer_seq {
+                            // One node has shown us the latest sequence numbers so far
                             ctx.value_nodes = vec![next_node];
                         } else {
-                            // If the sequence number is older, ignore it
+                            // Increase the consensus count for the seqs list
+                            ctx.value_nodes.push(next_node);
                         }
-                    } else {
-                        // If we have no prior value, keep it
-                        ctx.value = Some(Arc::new(value));
-                        // One node has shown us this value so far
-                        ctx.value_nodes = vec![next_node];
                     }
                 }
 
                 // Return peers if we have some
-                log_network_result!(debug "GetValue fanout call returned peers {}", gva.answer.peers.len());
+                log_network_result!(debug "InspectValue fanout call returned peers {}", iva.answer.peers.len());
 
-                Ok(NetworkResult::value(gva.answer.peers))
+                Ok(NetworkResult::value(iva.answer.peers))
             }
         };
 
@@ -152,7 +157,7 @@ impl StorageManager {
         let check_done = |_closest_nodes: &[NodeRef]| {
             // If we have reached sufficient consensus, return done
             let ctx = context.lock();
-            if ctx.value.is_some()
+            if ctx.seqs.len() > 0
                 && ctx.descriptor.is_some()
                 && ctx.value_nodes.len() >= consensus_count
             {
@@ -179,14 +184,14 @@ impl StorageManager {
                 // Return the best answer we've got
                 let ctx = context.lock();
                 if ctx.value_nodes.len() >= consensus_count {
-                    log_stor!(debug "GetValue Fanout Timeout Consensus");
+                    log_stor!(debug "InspectValue Fanout Timeout Consensus");
                 } else {
-                    log_stor!(debug "GetValue Fanout Timeout Non-Consensus: {}", ctx.value_nodes.len());
+                    log_stor!(debug "InspectValue Fanout Timeout Non-Consensus: {}", ctx.value_nodes.len());
                 }
-                Ok(OutboundGetValueResult {
-                    subkey_result: SubkeyResult {
-                        value: ctx.value.clone(),
-                        descriptor: ctx.descriptor.clone(),
+                Ok(OutboundInspectValueResult {
+                    inspect_result: InspectResult {
+                        seqs: ctx.seqs.clone(),
+                        opt_descriptor: ctx.descriptor.clone(),
                     },
                     value_nodes: ctx.value_nodes.clone(),
                 })
@@ -196,14 +201,14 @@ impl StorageManager {
                 // Return the best answer we've got
                 let ctx = context.lock();
                 if ctx.value_nodes.len() >= consensus_count {
-                    log_stor!(debug "GetValue Fanout Consensus");
+                    log_stor!(debug "InspectValue Fanout Consensus");
                 } else {
-                    log_stor!(debug "GetValue Fanout Non-Consensus: {}", ctx.value_nodes.len());
+                    log_stor!(debug "InspectValue Fanout Non-Consensus: {}", ctx.value_nodes.len());
                 }
-                Ok(OutboundGetValueResult {
-                    subkey_result: SubkeyResult {
-                        value: ctx.value.clone(),
-                        descriptor: ctx.descriptor.clone(),
+                Ok(OutboundInspectValueResult {
+                    inspect_result: InspectResult {
+                        seqs: ctx.seqs.clone(),
+                        opt_descriptor: ctx.descriptor.clone(),
                     },
                     value_nodes: ctx.value_nodes.clone(),
                 })
@@ -213,14 +218,14 @@ impl StorageManager {
                 // Return the best answer we've got
                 let ctx = context.lock();
                 if ctx.value_nodes.len() >= consensus_count {
-                    log_stor!(debug "GetValue Fanout Exhausted Consensus");
+                    log_stor!(debug "InspectValue Fanout Exhausted Consensus");
                 } else {
-                    log_stor!(debug "GetValue Fanout Exhausted Non-Consensus: {}", ctx.value_nodes.len());
+                    log_stor!(debug "InspectValue Fanout Exhausted Non-Consensus: {}", ctx.value_nodes.len());
                 }
-                Ok(OutboundGetValueResult {
-                    subkey_result: SubkeyResult {
-                        value: ctx.value.clone(),
-                        descriptor: ctx.descriptor.clone(),
+                Ok(OutboundInspectValueResult {
+                    inspect_result: InspectResult {
+                        seqs: ctx.seqs.clone(),
+                        opt_descriptor: ctx.descriptor.clone(),
                     },
                     value_nodes: ctx.value_nodes.clone(),
                 })
@@ -228,40 +233,42 @@ impl StorageManager {
             // Failed
             TimeoutOr::Value(Err(e)) => {
                 // If we finished with an error, return that
-                log_stor!(debug "GetValue Fanout Error: {}", e);
+                log_stor!(debug "InspectValue Fanout Error: {}", e);
                 Err(e.into())
             }
         }
     }
 
-    /// Handle a received 'Get Value' query
-    pub async fn inbound_get_value(
+    /// Handle a received 'Inspect Value' query
+    pub async fn inbound_inspect_value(
         &self,
         key: TypedKey,
-        subkey: ValueSubkey,
+        subkeys: ValueSubkeyRangeSet,
         want_descriptor: bool,
-    ) -> VeilidAPIResult<NetworkResult<SubkeyResult>> {
+    ) -> VeilidAPIResult<NetworkResult<InspectResult>> {
         let mut inner = self.lock().await?;
 
         // See if this is a remote or local value
-        let (_is_local, last_subkey_result) = {
+        let (_is_local, last_get_result) = {
             // See if the subkey we are getting has a last known local value
-            let mut last_subkey_result = inner.handle_get_local_value(key, subkey, true).await?;
+            let mut last_inspect_result = inner
+                .handle_inspect_local_value(key, subkeys.clone(), true)
+                .await?;
             // If this is local, it must have a descriptor already
-            if last_subkey_result.descriptor.is_some() {
+            if last_inspect_result.opt_descriptor.is_some() {
                 if !want_descriptor {
-                    last_subkey_result.descriptor = None;
+                    last_inspect_result.opt_descriptor = None;
                 }
-                (true, last_subkey_result)
+                (true, last_inspect_result)
             } else {
                 // See if the subkey we are getting has a last known remote value
-                let last_subkey_result = inner
-                    .handle_get_remote_value(key, subkey, want_descriptor)
+                let last_inspect_result = inner
+                    .handle_inspect_remote_value(key, subkeys, want_descriptor)
                     .await?;
-                (false, last_subkey_result)
+                (false, last_inspect_result)
             }
         };
 
-        Ok(NetworkResult::value(last_subkey_result))
+        Ok(NetworkResult::value(last_get_result))
     }
 }

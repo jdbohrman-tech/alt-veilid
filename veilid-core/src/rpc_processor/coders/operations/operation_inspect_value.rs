@@ -175,6 +175,11 @@ impl RPCOperationInspectValueA {
 
         // Validate descriptor
         if let Some(descriptor) = &self.descriptor {
+            // Ensure the descriptor itself validates
+            descriptor
+                .validate(inspect_value_context.vcrypto.clone())
+                .map_err(RPCError::protocol)?;
+
             // Ensure descriptor matches last one
             if let Some(last_descriptor) = &inspect_value_context.last_descriptor {
                 if descriptor.cmp_no_sig(last_descriptor) != cmp::Ordering::Equal {
@@ -183,10 +188,6 @@ impl RPCOperationInspectValueA {
                     ));
                 }
             }
-            // Ensure the descriptor itself validates
-            descriptor
-                .validate(inspect_value_context.vcrypto.clone())
-                .map_err(RPCError::protocol)?;
         }
 
         PeerInfo::validate_vec(&mut self.peers, validate_context.crypto.clone());

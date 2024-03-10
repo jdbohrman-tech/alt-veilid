@@ -234,7 +234,7 @@ impl RPCProcessor {
             let c = self.config.get();
             c.network.dht.set_value_count as usize
         };
-        let (subkey_result_value, subkey_result_descriptor) = if closer_to_key_peers.len() >= set_value_count {
+        let (get_result_value, get_result_descriptor) = if closer_to_key_peers.len() >= set_value_count {
             // Not close enough
             (None, None)
         } else {
@@ -242,15 +242,15 @@ impl RPCProcessor {
 
             // See if we have this record ourselves
             let storage_manager = self.storage_manager();
-            let subkey_result = network_result_try!(storage_manager
+            let get_result = network_result_try!(storage_manager
                 .inbound_get_value(key, subkey, want_descriptor)
                 .await
                 .map_err(RPCError::internal)?);
-            (subkey_result.value, subkey_result.descriptor)
+            (get_result.opt_value, get_result.opt_descriptor)
         };
 
         if debug_target_enabled!("dht") {
-            let debug_string_value = subkey_result_value.as_ref().map(|v| {
+            let debug_string_value = get_result_value.as_ref().map(|v| {
                 format!(" len={} seq={} writer={}",
                     v.value_data().data().len(),
                     v.value_data().seq(),
@@ -263,7 +263,7 @@ impl RPCProcessor {
                 key,
                 subkey,
                 debug_string_value,
-                if subkey_result_descriptor.is_some() {
+                if get_result_descriptor.is_some() {
                     " +desc"
                 } else {
                     ""
@@ -277,9 +277,9 @@ impl RPCProcessor {
             
         // Make GetValue answer
         let get_value_a = RPCOperationGetValueA::new(
-            subkey_result_value.map(|x| (*x).clone()),
+            get_result_value.map(|x| (*x).clone()),
             closer_to_key_peers,
-            subkey_result_descriptor.map(|x| (*x).clone()),
+            get_result_descriptor.map(|x| (*x).clone()),
         )?;
 
         // Send GetValue answer

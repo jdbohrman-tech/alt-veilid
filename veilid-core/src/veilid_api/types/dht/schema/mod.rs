@@ -16,11 +16,19 @@ pub enum DHTSchema {
 }
 
 impl DHTSchema {
-    pub fn dflt(o_cnt: u16) -> DHTSchema {
-        DHTSchema::DFLT(DHTSchemaDFLT { o_cnt })
+    pub fn dflt(o_cnt: u16) -> VeilidAPIResult<DHTSchema> {
+        Ok(DHTSchema::DFLT(DHTSchemaDFLT::new(o_cnt)?))
     }
-    pub fn smpl(o_cnt: u16, members: Vec<DHTSchemaSMPLMember>) -> DHTSchema {
-        DHTSchema::SMPL(DHTSchemaSMPL { o_cnt, members })
+    pub fn smpl(o_cnt: u16, members: Vec<DHTSchemaSMPLMember>) -> VeilidAPIResult<DHTSchema> {
+        Ok(DHTSchema::SMPL(DHTSchemaSMPL::new(o_cnt, members)?))
+    }
+
+    /// Validate the data representation
+    pub fn validate(&self) -> VeilidAPIResult<()> {
+        match self {
+            DHTSchema::DFLT(d) => d.validate(),
+            DHTSchema::SMPL(s) => s.validate(),
+        }
     }
 
     /// Build the data representation of the schema
@@ -31,11 +39,11 @@ impl DHTSchema {
         }
     }
 
-    /// Get the number of subkeys this schema allocates
-    pub fn subkey_count(&self) -> usize {
+    /// Get maximum subkey number for this schema
+    pub fn max_subkey(&self) -> ValueSubkey {
         match self {
-            DHTSchema::DFLT(d) => d.subkey_count(),
-            DHTSchema::SMPL(s) => s.subkey_count(),
+            DHTSchema::DFLT(d) => d.max_subkey(),
+            DHTSchema::SMPL(s) => s.max_subkey(),
         }
     }
 
@@ -71,7 +79,7 @@ impl DHTSchema {
 
 impl Default for DHTSchema {
     fn default() -> Self {
-        Self::dflt(1)
+        Self::dflt(1).unwrap()
     }
 }
 

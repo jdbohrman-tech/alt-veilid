@@ -23,7 +23,7 @@ where
         detail: D,
     ) -> VeilidAPIResult<Self> {
         let schema = descriptor.schema()?;
-        let subkey_count = schema.subkey_count();
+        let subkey_count = schema.max_subkey() as usize + 1;
         Ok(Self {
             descriptor,
             subkey_count,

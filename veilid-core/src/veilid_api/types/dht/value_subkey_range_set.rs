@@ -2,7 +2,9 @@ use super::*;
 use core::ops::{Deref, DerefMut};
 use range_set_blaze::*;
 
-#[derive(Clone, Default, PartialOrd, PartialEq, Eq, Ord, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Clone, Default, Hash, PartialOrd, PartialEq, Eq, Ord, Serialize, Deserialize, JsonSchema,
+)]
 #[serde(transparent)]
 pub struct ValueSubkeyRangeSet {
     #[serde(with = "serialize_range_set_blaze")]
@@ -27,6 +29,11 @@ impl ValueSubkeyRangeSet {
     pub fn single(value: ValueSubkey) -> Self {
         let mut data = RangeSetBlaze::new();
         data.insert(value);
+        Self { data }
+    }
+    pub fn single_range(low: ValueSubkey, high: ValueSubkey) -> Self {
+        let mut data = RangeSetBlaze::new();
+        data.ranges_insert(low..=high);
         Self { data }
     }
 

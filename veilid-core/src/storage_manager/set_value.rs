@@ -231,21 +231,21 @@ impl StorageManager {
         let mut inner = self.lock().await?;
 
         // See if this is a remote or local value
-        let (is_local, last_subkey_result) = {
+        let (is_local, last_get_result) = {
             // See if the subkey we are modifying has a last known local value
-            let last_subkey_result = inner.handle_get_local_value(key, subkey, true).await?;
+            let last_get_result = inner.handle_get_local_value(key, subkey, true).await?;
             // If this is local, it must have a descriptor already
-            if last_subkey_result.descriptor.is_some() {
-                (true, last_subkey_result)
+            if last_get_result.opt_descriptor.is_some() {
+                (true, last_get_result)
             } else {
                 // See if the subkey we are modifying has a last known remote value
-                let last_subkey_result = inner.handle_get_remote_value(key, subkey, true).await?;
-                (false, last_subkey_result)
+                let last_get_result = inner.handle_get_remote_value(key, subkey, true).await?;
+                (false, last_get_result)
             }
         };
 
         // Make sure this value would actually be newer
-        if let Some(last_value) = &last_subkey_result.value {
+        if let Some(last_value) = &last_get_result.opt_value {
             if value.value_data().seq() <= last_value.value_data().seq() {
                 // inbound value is older or equal sequence number than the one we have, just return the one we have
                 return Ok(NetworkResult::value(Some(last_value.clone())));
@@ -253,7 +253,7 @@ impl StorageManager {
         }
 
         // Get the descriptor and schema for the key
-        let actual_descriptor = match last_subkey_result.descriptor {
+        let actual_descriptor = match last_get_result.opt_descriptor {
             Some(last_descriptor) => {
                 if let Some(descriptor) = descriptor {
                     // Descriptor must match last one if it is provided

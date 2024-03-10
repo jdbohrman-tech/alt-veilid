@@ -21,9 +21,7 @@ impl RPCOperationValueChanged {
         watch_id: u64,
         value: SignedValueData,
     ) -> Result<Self, RPCError> {
-        let subkeys_len = subkeys.ranges_len() as usize;
-
-        if subkeys_len > MAX_VALUE_CHANGED_SUBKEY_RANGES_LEN {
+        if subkeys.ranges_len() > MAX_VALUE_CHANGED_SUBKEY_RANGES_LEN {
             return Err(RPCError::protocol(
                 "ValueChanged subkey ranges length too long",
             ));

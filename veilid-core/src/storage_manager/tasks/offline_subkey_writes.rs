@@ -26,19 +26,19 @@ impl StorageManager {
                 break;
             };
             for subkey in osw.subkeys.iter() {
-                let subkey_result = {
+                let get_result = {
                     let mut inner = self.lock().await?;
                     inner.handle_get_local_value(key, subkey, true).await
                 };
-                let Ok(subkey_result) = subkey_result else {
+                let Ok(get_result) = get_result else {
                     log_stor!(debug "Offline subkey write had no subkey result: {}:{}", key, subkey);
-                    continue;                    
+                    continue;
                 };
-                let Some(value) = subkey_result.value else {
+                let Some(value) = get_result.opt_value else {
                     log_stor!(debug "Offline subkey write had no subkey value: {}:{}", key, subkey);
                     continue;
                 };
-                let Some(descriptor) = subkey_result.descriptor else {
+                let Some(descriptor) = get_result.opt_descriptor else {
                     log_stor!(debug "Offline subkey write had no descriptor: {}:{}", key, subkey);
                     continue;
                 };

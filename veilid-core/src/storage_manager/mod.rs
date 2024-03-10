@@ -1,5 +1,6 @@
 mod debug;
 mod get_value;
+mod inspect_value;
 mod record_store;
 mod set_value;
 mod storage_manager_inner;
@@ -204,6 +205,7 @@ impl StorageManager {
         safety_selection: SafetySelection,
     ) -> VeilidAPIResult<DHTRecordDescriptor> {
         let mut inner = self.lock().await?;
+        schema.validate()?;
 
         // Create a new owned local record from scratch
         let (key, owner) = inner
@@ -254,12 +256,12 @@ impl StorageManager {
                 key,
                 subkey,
                 safety_selection,
-                SubkeyResult::default(),
+                GetResult::default(),
             )
             .await?;
 
         // If we got nothing back, the key wasn't found
-        if result.subkey_result.value.is_none() && result.subkey_result.descriptor.is_none() {
+        if result.get_result.opt_value.is_none() && result.get_result.opt_descriptor.is_none() {
             // No result
             apibail_key_not_found!(key);
         };
@@ -280,7 +282,7 @@ impl StorageManager {
 
         // Open the new record
         inner
-            .open_new_record(key, writer, subkey, result.subkey_result, safety_selection)
+            .open_new_record(key, writer, subkey, result.get_result, safety_selection)
             .await
     }
 
@@ -359,12 +361,12 @@ impl StorageManager {
         };
 
         // See if the requested subkey is our local record store
-        let last_subkey_result = inner.handle_get_local_value(key, subkey, true).await?;
+        let last_get_result = inner.handle_get_local_value(key, subkey, true).await?;
 
         // Return the existing value if we have one unless we are forcing a refresh
         if !force_refresh {
-            if let Some(last_subkey_result_value) = last_subkey_result.value {
-                return Ok(Some(last_subkey_result_value.value_data().clone()));
+            if let Some(last_get_result_value) = last_get_result.opt_value {
+                return Ok(Some(last_get_result_value.value_data().clone()));
             }
         }
 
@@ -373,8 +375,8 @@ impl StorageManager {
         // Get rpc processor and drop mutex so we don't block while getting the value from the network
         let Some(rpc_processor) = Self::online_ready_inner(&inner) else {
             // Return the existing value if we have one if we aren't online
-            if let Some(last_subkey_result_value) = last_subkey_result.value {
-                return Ok(Some(last_subkey_result_value.value_data().clone()));
+            if let Some(last_get_result_value) = last_get_result.opt_value {
+                return Ok(Some(last_get_result_value.value_data().clone()));
             }
             apibail_try_again!("offline, try again later");
         };
@@ -384,8 +386,8 @@ impl StorageManager {
 
         // May have last descriptor / value
         // Use the safety selection we opened the record with
-        let opt_last_seq = last_subkey_result
-            .value
+        let opt_last_seq = last_get_result
+            .opt_value
             .as_ref()
             .map(|v| v.value_data().seq());
         let result = self
@@ -394,12 +396,12 @@ impl StorageManager {
                 key,
                 subkey,
                 safety_selection,
-                last_subkey_result,
+                last_get_result,
             )
             .await?;
 
         // See if we got a value back
-        let Some(subkey_result_value) = result.subkey_result.value else {
+        let Some(get_result_value) = result.get_result.opt_value else {
             // If we got nothing back then we also had nothing beforehand, return nothing
             return Ok(None);
         };
@@ -409,17 +411,17 @@ impl StorageManager {
         inner.set_value_nodes(key, result.value_nodes)?;
 
         // If we got a new value back then write it to the opened record
-        if Some(subkey_result_value.value_data().seq()) != opt_last_seq {
+        if Some(get_result_value.value_data().seq()) != opt_last_seq {
             inner
                 .handle_set_local_value(
                     key,
                     subkey,
-                    subkey_result_value.clone(),
+                    get_result_value.clone(),
                     WatchUpdateMode::UpdateAll,
                 )
                 .await?;
         }
-        Ok(Some(subkey_result_value.value_data().clone()))
+        Ok(Some(get_result_value.value_data().clone()))
     }
 
     /// Set the value of a subkey on an opened local record
@@ -456,16 +458,16 @@ impl StorageManager {
         };
 
         // See if the subkey we are modifying has a last known local value
-        let last_subkey_result = inner.handle_get_local_value(key, subkey, true).await?;
+        let last_get_result = inner.handle_get_local_value(key, subkey, true).await?;
 
         // Get the descriptor and schema for the key
-        let Some(descriptor) = last_subkey_result.descriptor else {
+        let Some(descriptor) = last_get_result.opt_descriptor else {
             apibail_generic!("must have a descriptor");
         };
         let schema = descriptor.schema()?;
 
         // Make new subkey data
-        let value_data = if let Some(last_signed_value_data) = last_subkey_result.value {
+        let value_data = if let Some(last_signed_value_data) = last_get_result.opt_value {
             if last_signed_value_data.value_data().data() == data
                 && last_signed_value_data.value_data().writer() == &writer.key
             {

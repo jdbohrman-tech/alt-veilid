@@ -293,13 +293,12 @@ impl StorageManagerInner {
 
         // Move copy subkey data from remote to local store
         for subkey in remote_record.stored_subkeys().iter() {
-            let Some(subkey_result) = remote_record_store.get_subkey(key, subkey, false).await?
-            else {
+            let Some(get_result) = remote_record_store.get_subkey(key, subkey, false).await? else {
                 // Subkey was missing
                 warn!("Subkey was missing: {} #{}", key, subkey);
                 continue;
             };
-            let Some(subkey_data) = subkey_result.value else {
+            let Some(subkey_data) = get_result.opt_value else {
                 // Subkey was missing
                 warn!("Subkey data was missing: {} #{}", key, subkey);
                 continue;
@@ -388,7 +387,7 @@ impl StorageManagerInner {
         key: TypedKey,
         writer: Option<KeyPair>,
         subkey: ValueSubkey,
-        subkey_result: SubkeyResult,
+        get_result: GetResult,
         safety_selection: SafetySelection,
     ) -> VeilidAPIResult<DHTRecordDescriptor> {
         // Ensure the record is closed
@@ -397,7 +396,7 @@ impl StorageManagerInner {
         }
 
         // Must have descriptor
-        let Some(signed_value_descriptor) = subkey_result.descriptor else {
+        let Some(signed_value_descriptor) = get_result.opt_descriptor else {
             // No descriptor for new record, can't store this
             apibail_generic!("no descriptor");
         };
@@ -434,7 +433,7 @@ impl StorageManagerInner {
         local_record_store.new_record(key, record).await?;
 
         // If we got a subkey with the getvalue, it has already been validated against the schema, so store it
-        if let Some(signed_value_data) = subkey_result.value {
+        if let Some(signed_value_data) = get_result.opt_value {
             // Write subkey to local store
             local_record_store
                 .set_subkey(key, subkey, signed_value_data, WatchUpdateMode::NoUpdate)
@@ -513,21 +512,21 @@ impl StorageManagerInner {
         key: TypedKey,
         subkey: ValueSubkey,
         want_descriptor: bool,
-    ) -> VeilidAPIResult<SubkeyResult> {
+    ) -> VeilidAPIResult<GetResult> {
         // See if it's in the local record store
         let Some(local_record_store) = self.local_record_store.as_mut() else {
             apibail_not_initialized!();
         };
-        if let Some(subkey_result) = local_record_store
+        if let Some(get_result) = local_record_store
             .get_subkey(key, subkey, want_descriptor)
             .await?
         {
-            return Ok(subkey_result);
+            return Ok(get_result);
         }
 
-        Ok(SubkeyResult {
-            value: None,
-            descriptor: None,
+        Ok(GetResult {
+            opt_value: None,
+            opt_descriptor: None,
         })
     }
 
@@ -551,26 +550,49 @@ impl StorageManagerInner {
         Ok(())
     }
 
+    pub(super) async fn handle_inspect_local_value(
+        &mut self,
+        key: TypedKey,
+        subkeys: ValueSubkeyRangeSet,
+        want_descriptor: bool,
+    ) -> VeilidAPIResult<InspectResult> {
+        // See if it's in the local record store
+        let Some(local_record_store) = self.local_record_store.as_mut() else {
+            apibail_not_initialized!();
+        };
+        if let Some(inspect_result) = local_record_store
+            .inspect_record(key, subkeys, want_descriptor)
+            .await?
+        {
+            return Ok(inspect_result);
+        }
+
+        Ok(InspectResult {
+            seqs: vec![],
+            opt_descriptor: None,
+        })
+    }
+
     pub(super) async fn handle_get_remote_value(
         &mut self,
         key: TypedKey,
         subkey: ValueSubkey,
         want_descriptor: bool,
-    ) -> VeilidAPIResult<SubkeyResult> {
+    ) -> VeilidAPIResult<GetResult> {
         // See if it's in the remote record store
         let Some(remote_record_store) = self.remote_record_store.as_mut() else {
             apibail_not_initialized!();
         };
-        if let Some(subkey_result) = remote_record_store
+        if let Some(get_result) = remote_record_store
             .get_subkey(key, subkey, want_descriptor)
             .await?
         {
-            return Ok(subkey_result);
+            return Ok(get_result);
         }
 
-        Ok(SubkeyResult {
-            value: None,
-            descriptor: None,
+        Ok(GetResult {
+            opt_value: None,
+            opt_descriptor: None,
         })
     }
 
@@ -606,6 +628,29 @@ impl StorageManagerInner {
             .await?;
 
         Ok(())
+    }
+
+    pub(super) async fn handle_inspect_remote_value(
+        &mut self,
+        key: TypedKey,
+        subkeys: ValueSubkeyRangeSet,
+        want_descriptor: bool,
+    ) -> VeilidAPIResult<InspectResult> {
+        // See if it's in the local record store
+        let Some(remote_record_store) = self.remote_record_store.as_mut() else {
+            apibail_not_initialized!();
+        };
+        if let Some(inspect_result) = remote_record_store
+            .inspect_record(key, subkeys, want_descriptor)
+            .await?
+        {
+            return Ok(inspect_result);
+        }
+
+        Ok(InspectResult {
+            seqs: vec![],
+            opt_descriptor: None,
+        })
     }
 
     /// # DHT Key = Hash(ownerKeyKind) of: [ ownerKeyValue, schema ]

@@ -31,7 +31,7 @@ impl RPCProcessor {
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
         last_descriptor: Option<SignedValueDescriptor>,
-    ) ->RPCNetworkResult<Answer<InspectValueAnswer>> {
+    ) -> RPCNetworkResult<Answer<InspectValueAnswer>> {
         // Ensure destination never has a private route
         // and get the target noderef so we can validate the response
         let Some(target) = dest.node() else {
@@ -232,7 +232,7 @@ impl RPCProcessor {
                 .inbound_inspect_value(key, subkeys, want_descriptor)
                 .await
                 .map_err(RPCError::internal)?);
-            (inspect_result.seqs, inspect_result.descriptor)
+            (inspect_result.seqs, inspect_result.opt_descriptor)
         };
 
         if debug_target_enabled!("dht") {

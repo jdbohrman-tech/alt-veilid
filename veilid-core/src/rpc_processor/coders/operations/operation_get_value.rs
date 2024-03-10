@@ -113,6 +113,11 @@ impl RPCOperationGetValueA {
 
         // Validate descriptor
         if let Some(descriptor) = &self.descriptor {
+            // Ensure the descriptor itself validates
+            descriptor
+                .validate(get_value_context.vcrypto.clone())
+                .map_err(RPCError::protocol)?;
+
             // Ensure descriptor matches last one
             if let Some(last_descriptor) = &get_value_context.last_descriptor {
                 if descriptor.cmp_no_sig(last_descriptor) != cmp::Ordering::Equal {
@@ -121,16 +126,16 @@ impl RPCOperationGetValueA {
                     ));
                 }
             }
-            // Ensure the descriptor itself validates
-            descriptor
-                .validate(get_value_context.vcrypto.clone())
-                .map_err(RPCError::protocol)?;
         }
 
         // Ensure the value validates
         if let Some(value) = &self.value {
             // Get descriptor to validate with
-            let Some(descriptor) = self.descriptor.or(get_value_context.last_descriptor) else {
+            let Some(descriptor) = self
+                .descriptor
+                .as_ref()
+                .or(get_value_context.last_descriptor.as_ref())
+            else {
                 return Err(RPCError::protocol(
                     "no last descriptor, requires a descriptor",
                 ));
