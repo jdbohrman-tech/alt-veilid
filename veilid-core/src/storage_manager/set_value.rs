@@ -14,10 +14,12 @@ struct OutboundSetValueContext {
 
 /// The result of the outbound_set_value operation
 pub(super) struct OutboundSetValueResult {
+    /// Fanout result
+    pub fanout_result: FanoutResult,
+    /// Consensus count for this operation,
+    pub consensus_count: usize,
     /// The value that was set
     pub signed_value_data: Arc<SignedValueData>,
-    /// And where it was set to
-    pub value_nodes: Vec<NodeRef>,
 }
 
 impl StorageManager {
@@ -164,57 +166,32 @@ impl StorageManager {
             check_done,
         );
 
-        match fanout_call.run(vec![]).await {
+        let kind = match fanout_call.run(vec![]).await {
             // If we don't finish in the timeout (too much time passed checking for consensus)
-            TimeoutOr::Timeout => {
-                // Return the best answer we've got
-                let ctx = context.lock();
-                if ctx.value_nodes.len() >= consensus_count {
-                    log_stor!(debug "SetValue Fanout Timeout Consensus");
-                } else {
-                    log_stor!(debug "SetValue Fanout Timeout Non-Consensus: {}", ctx.value_nodes.len());
-                }
-
-                Ok(OutboundSetValueResult {
-                    signed_value_data: ctx.value.clone(),
-                    value_nodes: ctx.value_nodes.clone(),
-                })
-            }
+            TimeoutOr::Timeout => FanoutResultKind::Timeout,
             // If we finished with or without consensus (enough nodes returning the same value)
-            TimeoutOr::Value(Ok(Some(()))) => {
-                // Return the best answer we've got
-                let ctx = context.lock();
-                if ctx.value_nodes.len() >= consensus_count {
-                    log_stor!(debug "SetValue Fanout Consensus");
-                } else {
-                    log_stor!(debug "SetValue Fanout Non-Consensus: {}", ctx.value_nodes.len());
-                }
-                Ok(OutboundSetValueResult {
-                    signed_value_data: ctx.value.clone(),
-                    value_nodes: ctx.value_nodes.clone(),
-                })
-            }
+            TimeoutOr::Value(Ok(Some(()))) => FanoutResultKind::Finished,
             // If we ran out of nodes before getting consensus)
-            TimeoutOr::Value(Ok(None)) => {
-                // Return the best answer we've got
-                let ctx = context.lock();
-                if ctx.value_nodes.len() >= consensus_count {
-                    log_stor!(debug "SetValue Fanout Exhausted Consensus");
-                } else {
-                    log_stor!(debug "SetValue Fanout Exhausted Non-Consensus: {}", ctx.value_nodes.len());
-                }
-                Ok(OutboundSetValueResult {
-                    signed_value_data: ctx.value.clone(),
-                    value_nodes: ctx.value_nodes.clone(),
-                })
-            }
+            TimeoutOr::Value(Ok(None)) => FanoutResultKind::Exhausted,
             // Failed
             TimeoutOr::Value(Err(e)) => {
                 // If we finished with an error, return that
                 log_stor!(debug "SetValue Fanout Error: {}", e);
-                Err(e.into())
+                return Err(e.into());
             }
-        }
+        };
+        let ctx = context.lock();
+        let fanout_result = FanoutResult {
+            kind,
+            value_nodes: ctx.value_nodes.clone(),
+        };
+        log_stor!(debug "SetValue Fanout: {:?}", fanout_result);
+
+        Ok(OutboundSetValueResult {
+            fanout_result,
+            consensus_count,
+            signed_value_data: ctx.value.clone(),
+        })
     }
 
     /// Handle a received 'Set Value' query

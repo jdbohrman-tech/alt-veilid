@@ -8,6 +8,19 @@ where
     result: Option<Result<R, RPCError>>,
 }
 
+#[derive(Debug, Copy, Clone)]
+pub(crate) enum FanoutResultKind {
+    Timeout,
+    Finished,
+    Exhausted,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct FanoutResult {
+    pub kind: FanoutResultKind,
+    pub value_nodes: Vec<NodeRef>,
+}
+
 pub(crate) type FanoutCallReturnType = RPCNetworkResult<Vec<PeerInfo>>;
 pub(crate) type FanoutNodeInfoFilter = Arc<dyn Fn(&[TypedKey], &NodeInfo) -> bool + Send + Sync>;
 

@@ -89,6 +89,8 @@ pub struct GetResult {
 /// The result of the do_inspect_value_operation
 #[derive(Default, Debug)]
 pub struct InspectResult {
+    /// The actual in-schema subkey range being reported on
+    pub subkeys: ValueSubkeyRangeSet,
     /// The sequence map
     pub seqs: Vec<ValueSeqNum>,
     /// The descriptor if we got a fresh one or empty if no descriptor was needed
@@ -811,6 +813,7 @@ where
         };
         if let Some(seqs) = self.seqs_cache.get(&sck) {
             return Ok(Some(InspectResult {
+                subkeys,
                 seqs: seqs.clone(),
                 opt_descriptor,
             }));
@@ -845,6 +848,7 @@ where
         }
 
         Ok(Some(InspectResult {
+            subkeys,
             seqs,
             opt_descriptor,
         }))

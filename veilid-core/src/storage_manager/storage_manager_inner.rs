@@ -568,6 +568,7 @@ impl StorageManagerInner {
         }
 
         Ok(InspectResult {
+            subkeys: ValueSubkeyRangeSet::new(),
             seqs: vec![],
             opt_descriptor: None,
         })
@@ -648,6 +649,7 @@ impl StorageManagerInner {
         }
 
         Ok(InspectResult {
+            subkeys: ValueSubkeyRangeSet::new(),
             seqs: vec![],
             opt_descriptor: None,
         })

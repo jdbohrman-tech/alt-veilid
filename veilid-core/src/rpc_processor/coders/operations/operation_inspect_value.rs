@@ -1,8 +1,8 @@
 use super::*;
 use crate::storage_manager::SignedValueDescriptor;
 
-const MAX_INSPECT_VALUE_Q_SUBKEYS_LEN: usize = 512;
-const MAX_INSPECT_VALUE_A_SEQS_LEN: usize = MAX_INSPECT_VALUE_Q_SUBKEYS_LEN;
+const MAX_INSPECT_VALUE_Q_SUBKEY_RANGES_LEN: usize = 512;
+const MAX_INSPECT_VALUE_A_SEQS_LEN: usize = 512;
 const MAX_INSPECT_VALUE_A_PEERS_LEN: usize = 20;
 
 #[derive(Clone)]
@@ -34,12 +34,6 @@ impl RPCOperationInspectValueQ {
         subkeys: ValueSubkeyRangeSet,
         want_descriptor: bool,
     ) -> Result<Self, RPCError> {
-        // Needed because RangeSetBlaze uses different types here all the time
-        #[allow(clippy::unnecessary_cast)]
-        let subkeys_len = subkeys.len() as usize;
-        if subkeys_len > MAX_INSPECT_VALUE_Q_SUBKEYS_LEN {
-            return Err(RPCError::protocol("InspectValue subkeys length too long"));
-        }
         Ok(Self {
             key,
             subkeys,
@@ -70,7 +64,7 @@ impl RPCOperationInspectValueQ {
         let key = decode_typed_key(&k_reader)?;
         let sk_reader = reader.get_subkeys().map_err(RPCError::protocol)?;
         // Maximum number of ranges that can hold the maximum number of subkeys is one subkey per range
-        if sk_reader.len() as usize > MAX_INSPECT_VALUE_Q_SUBKEYS_LEN {
+        if sk_reader.len() as usize > MAX_INSPECT_VALUE_Q_SUBKEY_RANGES_LEN {
             return Err(RPCError::protocol("InspectValueQ too many subkey ranges"));
         }
         let mut subkeys = ValueSubkeyRangeSet::new();
@@ -87,11 +81,6 @@ impl RPCOperationInspectValueQ {
                 }
             }
             subkeys.ranges_insert(vskr.0..=vskr.1);
-        }
-        // Needed because RangeSetBlaze uses different types here all the time
-        #[allow(clippy::unnecessary_cast)]
-        if subkeys.len() as usize > MAX_INSPECT_VALUE_Q_SUBKEYS_LEN {
-            return Err(RPCError::protocol("InspectValueQ too many subkey ranges"));
         }
 
         let want_descriptor = reader.reborrow().get_want_descriptor();
@@ -218,6 +207,11 @@ impl RPCOperationInspectValueA {
     ) -> Result<Self, RPCError> {
         let seqs = if reader.has_seqs() {
             let seqs_reader = reader.get_seqs().map_err(RPCError::protocol)?;
+            if seqs_reader.len() as usize > MAX_INSPECT_VALUE_A_SEQS_LEN {
+                return Err(RPCError::protocol(
+                    "decoded InspectValueA seqs length too long",
+                ));
+            }
             let Some(seqs) = seqs_reader.as_slice().map(|s| s.to_vec()) else {
                 return Err(RPCError::protocol("invalid decoded InspectValueA seqs"));
             };

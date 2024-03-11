@@ -14,10 +14,12 @@ struct OutboundGetValueContext {
 
 /// The result of the outbound_get_value operation
 pub(super) struct OutboundGetValueResult {
+    /// Fanout result
+    pub fanout_result: FanoutResult,
+    /// Consensus count for this operation,
+    pub consensus_count: usize,
     /// The subkey that was retrieved
     pub get_result: GetResult,
-    /// And where it was retrieved from
-    pub value_nodes: Vec<NodeRef>,
 }
 
 impl StorageManager {
@@ -79,7 +81,13 @@ impl StorageManager {
                 if let Some(descriptor) = gva.answer.descriptor {
                     let mut ctx = context.lock();
                     if ctx.descriptor.is_none() && ctx.schema.is_none() {
-                        ctx.schema = Some(descriptor.schema().map_err(RPCError::invalid_format)?);
+                        let schema = match descriptor.schema() {
+                            Ok(v) => v,
+                            Err(e) => {
+                                return Ok(NetworkResult::invalid_message(e));
+                            }
+                        };
+                        ctx.schema = Some(schema);
                         ctx.descriptor = Some(Arc::new(descriptor));
                     }
                 }
@@ -173,65 +181,36 @@ impl StorageManager {
             check_done,
         );
 
-        match fanout_call.run(vec![]).await {
+        let kind = match fanout_call.run(vec![]).await {
             // If we don't finish in the timeout (too much time passed checking for consensus)
-            TimeoutOr::Timeout => {
-                // Return the best answer we've got
-                let ctx = context.lock();
-                if ctx.value_nodes.len() >= consensus_count {
-                    log_stor!(debug "GetValue Fanout Timeout Consensus");
-                } else {
-                    log_stor!(debug "GetValue Fanout Timeout Non-Consensus: {}", ctx.value_nodes.len());
-                }
-                Ok(OutboundGetValueResult {
-                    get_result: GetResult {
-                        opt_value: ctx.value.clone(),
-                        opt_descriptor: ctx.descriptor.clone(),
-                    },
-                    value_nodes: ctx.value_nodes.clone(),
-                })
-            }
-            // If we finished with consensus (enough nodes returning the same value)
-            TimeoutOr::Value(Ok(Some(()))) => {
-                // Return the best answer we've got
-                let ctx = context.lock();
-                if ctx.value_nodes.len() >= consensus_count {
-                    log_stor!(debug "GetValue Fanout Consensus");
-                } else {
-                    log_stor!(debug "GetValue Fanout Non-Consensus: {}", ctx.value_nodes.len());
-                }
-                Ok(OutboundGetValueResult {
-                    get_result: GetResult {
-                        opt_value: ctx.value.clone(),
-                        opt_descriptor: ctx.descriptor.clone(),
-                    },
-                    value_nodes: ctx.value_nodes.clone(),
-                })
-            }
-            // If we finished without consensus (ran out of nodes before getting consensus)
-            TimeoutOr::Value(Ok(None)) => {
-                // Return the best answer we've got
-                let ctx = context.lock();
-                if ctx.value_nodes.len() >= consensus_count {
-                    log_stor!(debug "GetValue Fanout Exhausted Consensus");
-                } else {
-                    log_stor!(debug "GetValue Fanout Exhausted Non-Consensus: {}", ctx.value_nodes.len());
-                }
-                Ok(OutboundGetValueResult {
-                    get_result: GetResult {
-                        opt_value: ctx.value.clone(),
-                        opt_descriptor: ctx.descriptor.clone(),
-                    },
-                    value_nodes: ctx.value_nodes.clone(),
-                })
-            }
+            TimeoutOr::Timeout => FanoutResultKind::Timeout,
+            // If we finished with or without consensus (enough nodes returning the same value)
+            TimeoutOr::Value(Ok(Some(()))) => FanoutResultKind::Finished,
+            // If we ran out of nodes before getting consensus)
+            TimeoutOr::Value(Ok(None)) => FanoutResultKind::Exhausted,
             // Failed
             TimeoutOr::Value(Err(e)) => {
                 // If we finished with an error, return that
                 log_stor!(debug "GetValue Fanout Error: {}", e);
-                Err(e.into())
+                return Err(e.into());
             }
-        }
+        };
+
+        let ctx = context.lock();
+        let fanout_result = FanoutResult {
+            kind,
+            value_nodes: ctx.value_nodes.clone(),
+        };
+        log_stor!(debug "GetValue Fanout: {:?}", fanout_result);
+
+        Ok(OutboundGetValueResult {
+            fanout_result,
+            consensus_count,
+            get_result: GetResult {
+                opt_value: ctx.value.clone(),
+                opt_descriptor: ctx.descriptor.clone(),
+            },
+        })
     }
 
     /// Handle a received 'Get Value' query

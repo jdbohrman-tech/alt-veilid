@@ -408,7 +408,7 @@ impl StorageManager {
 
         // Keep the list of nodes that returned a value for later reference
         let mut inner = self.lock().await?;
-        inner.set_value_nodes(key, result.value_nodes)?;
+        inner.set_value_nodes(key, result.fanout_result.value_nodes)?;
 
         // If we got a new value back then write it to the opened record
         if Some(get_result_value.value_data().seq()) != opt_last_seq {
@@ -541,7 +541,7 @@ impl StorageManager {
 
         // Keep the list of nodes that returned a value for later reference
         let mut inner = self.lock().await?;
-        inner.set_value_nodes(key, result.value_nodes)?;
+        inner.set_value_nodes(key, result.fanout_result.value_nodes)?;
 
         // Return the new value if it differs from what was asked to set
         if result.signed_value_data.value_data() != signed_value_data.value_data() {
@@ -730,6 +730,71 @@ impl StorageManager {
 
         // Return true because the the watch was changed
         Ok(true)
+    }
+
+    /// Inspect an opened DHT record for its subkey sequence numbers
+    pub async fn inspect_record(
+        &self,
+        key: TypedKey,
+        subkeys: ValueSubkeyRangeSet,
+        scope: DHTReportScope,
+    ) -> VeilidAPIResult<DHTRecordReport> {
+        let mut inner = self.lock().await?;
+        let safety_selection = {
+            let Some(opened_record) = inner.opened_records.get(&key) else {
+                apibail_generic!("record not open");
+            };
+            opened_record.safety_selection()
+        };
+
+        // See if the requested record is our local record store
+        let local_inspect_result = inner
+            .handle_inspect_local_value(key, subkeys.clone(), true)
+            .await?;
+
+        // If this is the maximum scope we're interested in, return the report
+        if matches!(scope, DHTReportScope::Local) {
+            return Ok(DHTRecordReport::new(
+                local_inspect_result.subkeys,
+                local_inspect_result.seqs,
+            ));
+        }
+
+        // Get rpc processor and drop mutex so we don't block while getting the value from the network
+        let Some(rpc_processor) = Self::online_ready_inner(&inner) else {
+            apibail_try_again!("offline, try again later");
+        };
+
+        // Drop the lock for network access
+        drop(inner);
+
+        // Get the inspect record report from the network
+        let result = self
+            .outbound_inspect_value(
+                rpc_processor,
+                key,
+                subkeys,
+                safety_selection,
+                local_inspect_result,
+                matches!(scope, DHTReportScope::NetworkSet),
+            )
+            .await?;
+
+        // See if we got a seqs list back
+        if result.inspect_result.seqs.is_empty() {
+            // If we got nothing back then we also had nothing beforehand, return nothing
+            return Ok(DHTRecordReport::default());
+        };
+
+        // Keep the list of nodes that returned a value for later reference
+        // xxx switch 'value nodes' to keeping ranges of subkeys per node
+        // let mut inner = self.lock().await?;
+        // inner.set_value_nodes(key, result.fanout_results.value_nodes)?;
+
+        Ok(DHTRecordReport::new(
+            result.inspect_result.subkeys,
+            result.inspect_result.seqs,
+        ))
     }
 
     // Send single value change out to the network

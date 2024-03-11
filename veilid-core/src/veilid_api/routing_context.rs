@@ -410,6 +410,35 @@ impl RoutingContext {
         storage_manager.cancel_watch_values(key, subkeys).await
     }
 
+    /// Inspects a DHT record for subkey state.
+    ///
+    /// * `key` is the record key to watch. it must first be opened for reading or writing.
+    /// * `subkeys` is the the range of subkeys to inspect. The range must not exceed 512 discrete non-overlapping or adjacent subranges.
+    ///    If no range is specified, this is equivalent to inspecting the entire range of subkeys. In total, the list of subkeys returned will be truncated at 512 elements.
+    /// * `scope` is what kind of range the inspection has:
+    ///   If scope is set to DHTReportScope::Local, results will be only for a locally stored record
+    ///   If scope is set to DHTReportScope::NetworkGet, results will be as if each subkey were get over the network as a GetValue
+    ///   If scope is set to DHTReportScope::NetworkSet, results will be as if each subkey were set over the network as a SetValue
+    ///
+    /// This is useful for checking if you should push new subkeys to the network, or retrieve the current state of a record from the network
+    /// to see what needs updating locally.
+    ///
+    /// Returns a DHTRecordReport with the subkey ranges that were returned that overlapped the schema, and sequence numbers for each of the subkeys in the range.
+    #[instrument(target = "veilid_api", level = "debug", ret, err)]
+    pub async fn inspect_dht_record(
+        &self,
+        key: TypedKey,
+        subkeys: ValueSubkeyRangeSet,
+        scope: DHTReportScope,
+    ) -> VeilidAPIResult<DHTRecordReport> {
+        event!(target: "veilid_api", Level::DEBUG, 
+            "RoutingContext::inspect_dht_record(self: {:?}, key: {:?}, subkeys: {:?}, scope: {:?})", self, key, subkeys, scope);
+
+        Crypto::validate_crypto_kind(key.kind)?;
+        let storage_manager = self.api.storage_manager()?;
+        storage_manager.inspect_record(key, subkeys, scope).await
+    }
+
     ///////////////////////////////////
     /// Block Store
 
