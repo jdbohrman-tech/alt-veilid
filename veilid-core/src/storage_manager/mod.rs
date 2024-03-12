@@ -408,7 +408,11 @@ impl StorageManager {
 
         // Keep the list of nodes that returned a value for later reference
         let mut inner = self.lock().await?;
-        inner.set_value_nodes(key, result.fanout_result.value_nodes)?;
+        inner.process_fanout_results(
+            key,
+            core::iter::once((subkey, &result.fanout_result)),
+            false,
+        )?;
 
         // If we got a new value back then write it to the opened record
         if Some(get_result_value.value_data().seq()) != opt_last_seq {
@@ -541,7 +545,11 @@ impl StorageManager {
 
         // Keep the list of nodes that returned a value for later reference
         let mut inner = self.lock().await?;
-        inner.set_value_nodes(key, result.fanout_result.value_nodes)?;
+        inner.process_fanout_results(
+            key,
+            core::iter::once((subkey, &result.fanout_result)),
+            true,
+        )?;
 
         // Return the new value if it differs from what was asked to set
         if result.signed_value_data.value_data() != signed_value_data.value_data() {
@@ -739,6 +747,12 @@ impl StorageManager {
         subkeys: ValueSubkeyRangeSet,
         scope: DHTReportScope,
     ) -> VeilidAPIResult<DHTRecordReport> {
+        let subkeys = if subkeys.is_empty() {
+            ValueSubkeyRangeSet::full()
+        } else {
+            subkeys
+        };
+
         let mut inner = self.lock().await?;
         let safety_selection = {
             let Some(opened_record) = inner.opened_records.get(&key) else {
@@ -748,15 +762,25 @@ impl StorageManager {
         };
 
         // See if the requested record is our local record store
-        let local_inspect_result = inner
+        let mut local_inspect_result = inner
             .handle_inspect_local_value(key, subkeys.clone(), true)
             .await?;
+
+        assert!(
+            local_inspect_result.subkeys.len() == local_inspect_result.seqs.len(),
+            "mismatch between local subkeys returned and sequence number list returned"
+        );
+        assert!(
+            local_inspect_result.subkeys.is_subset(&subkeys),
+            "mismatch between local subkeys returned and sequence number list returned"
+        );
 
         // If this is the maximum scope we're interested in, return the report
         if matches!(scope, DHTReportScope::Local) {
             return Ok(DHTRecordReport::new(
                 local_inspect_result.subkeys,
                 local_inspect_result.seqs,
+                vec![],
             ));
         }
 
@@ -768,6 +792,13 @@ impl StorageManager {
         // Drop the lock for network access
         drop(inner);
 
+        // If we're simulating a set, increase the previous sequence number we have by 1
+        if matches!(scope, DHTReportScope::UpdateSet) {
+            for seq in &mut local_inspect_result.seqs {
+                *seq = seq.overflowing_add(1).0;
+            }
+        }
+
         // Get the inspect record report from the network
         let result = self
             .outbound_inspect_value(
@@ -775,24 +806,40 @@ impl StorageManager {
                 key,
                 subkeys,
                 safety_selection,
-                local_inspect_result,
-                matches!(scope, DHTReportScope::NetworkSet),
+                if matches!(scope, DHTReportScope::SyncGet | DHTReportScope::SyncSet) {
+                    InspectResult::default()
+                } else {
+                    local_inspect_result.clone()
+                },
+                matches!(scope, DHTReportScope::UpdateSet | DHTReportScope::SyncSet),
             )
             .await?;
 
-        // See if we got a seqs list back
-        if result.inspect_result.seqs.is_empty() {
-            // If we got nothing back then we also had nothing beforehand, return nothing
-            return Ok(DHTRecordReport::default());
-        };
+        // Sanity check before zip
+        assert!(
+            result.inspect_result.subkeys.len() == result.fanout_results.len(),
+            "mismatch between subkeys returned and fanout results returned"
+        );
+        assert!(
+            local_inspect_result.subkeys.is_empty()
+                || result.inspect_result.subkeys.is_empty()
+                || result.inspect_result.subkeys.len() == local_inspect_result.subkeys.len(),
+            "mismatch between local subkeys returned and network results returned"
+        );
 
         // Keep the list of nodes that returned a value for later reference
-        // xxx switch 'value nodes' to keeping ranges of subkeys per node
-        // let mut inner = self.lock().await?;
-        // inner.set_value_nodes(key, result.fanout_results.value_nodes)?;
+        let mut inner = self.lock().await?;
+        let results_iter = result
+            .inspect_result
+            .subkeys
+            .iter()
+            .zip(result.fanout_results.iter());
+
+        inner.process_fanout_results(key, results_iter, false)?;
 
         Ok(DHTRecordReport::new(
             result.inspect_result.subkeys,
+            local_inspect_result.seqs,
             result.inspect_result.seqs,
         ))
     }

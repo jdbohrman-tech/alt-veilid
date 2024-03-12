@@ -16,8 +16,6 @@ struct OutboundGetValueContext {
 pub(super) struct OutboundGetValueResult {
     /// Fanout result
     pub fanout_result: FanoutResult,
-    /// Consensus count for this operation,
-    pub consensus_count: usize,
     /// The subkey that was retrieved
     pub get_result: GetResult,
 }
@@ -205,7 +203,6 @@ impl StorageManager {
 
         Ok(OutboundGetValueResult {
             fanout_result,
-            consensus_count,
             get_result: GetResult {
                 opt_value: ctx.value.clone(),
                 opt_descriptor: ctx.descriptor.clone(),

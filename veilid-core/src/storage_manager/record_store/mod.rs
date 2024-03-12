@@ -78,7 +78,7 @@ where
 }
 
 /// The result of the do_get_value_operation
-#[derive(Default, Debug)]
+#[derive(Default, Clone, Debug)]
 pub struct GetResult {
     /// The subkey value if we got one
     pub opt_value: Option<Arc<SignedValueData>>,
@@ -87,7 +87,7 @@ pub struct GetResult {
 }
 
 /// The result of the do_inspect_value_operation
-#[derive(Default, Debug)]
+#[derive(Default, Clone, Debug)]
 pub struct InspectResult {
     /// The actual in-schema subkey range being reported on
     pub subkeys: ValueSubkeyRangeSet,

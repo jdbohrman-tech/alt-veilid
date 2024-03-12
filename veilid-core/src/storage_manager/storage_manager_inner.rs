@@ -32,6 +32,9 @@ pub(super) struct StorageManagerInner {
     pub tick_future: Option<SendPinBoxFuture<()>>,
     /// Update callback to send ValueChanged notification to
     pub update_callback: Option<UpdateCallback>,
+
+    /// The maximum consensus count
+    set_consensus_count: usize,
 }
 
 fn local_limits_from_config(config: VeilidConfig) -> RecordStoreLimits {
@@ -72,6 +75,7 @@ fn remote_limits_from_config(config: VeilidConfig) -> RecordStoreLimits {
 
 impl StorageManagerInner {
     pub fn new(unlocked_inner: Arc<StorageManagerUnlockedInner>) -> Self {
+        let set_consensus_count = unlocked_inner.config.get().network.dht.set_value_count as usize;
         Self {
             unlocked_inner,
             initialized: false,
@@ -84,6 +88,7 @@ impl StorageManagerInner {
             opt_routing_table: Default::default(),
             tick_future: Default::default(),
             update_callback: None,
+            set_consensus_count,
         }
     }
 
@@ -242,10 +247,7 @@ impl StorageManagerInner {
 
         // Add new local value record
         let cur_ts = get_aligned_timestamp();
-        let local_record_detail = LocalRecordDetail {
-            safety_selection,
-            value_nodes: vec![],
-        };
+        let local_record_detail = LocalRecordDetail::new(safety_selection);
         let record =
             Record::<LocalRecordDetail>::new(cur_ts, signed_value_descriptor, local_record_detail)?;
 
@@ -284,10 +286,7 @@ impl StorageManagerInner {
         let local_record = Record::new(
             cur_ts,
             remote_record.descriptor().clone(),
-            LocalRecordDetail {
-                safety_selection,
-                value_nodes: vec![],
-            },
+            LocalRecordDetail::new(safety_selection),
         )?;
         local_record_store.new_record(key, local_record).await?;
 
@@ -425,10 +424,7 @@ impl StorageManagerInner {
         let record = Record::<LocalRecordDetail>::new(
             get_aligned_timestamp(),
             signed_value_descriptor,
-            LocalRecordDetail {
-                safety_selection,
-                value_nodes: vec![],
-            },
+            LocalRecordDetail::new(safety_selection),
         )?;
         local_record_store.new_record(key, record).await?;
 
@@ -462,8 +458,8 @@ impl StorageManagerInner {
 
         let opt_value_nodes = local_record_store.peek_record(key, |r| {
             let d = r.detail();
-            d.value_nodes
-                .iter()
+            d.nodes
+                .keys()
                 .copied()
                 .filter_map(|x| {
                     routing_table
@@ -477,21 +473,46 @@ impl StorageManagerInner {
         Ok(opt_value_nodes)
     }
 
-    pub fn set_value_nodes(
+    pub fn process_fanout_results<'a, I: IntoIterator<Item = (ValueSubkey, &'a FanoutResult)>>(
         &mut self,
         key: TypedKey,
-        value_nodes: Vec<NodeRef>,
+        subkey_results_iter: I,
+        is_set: bool,
     ) -> VeilidAPIResult<()> {
         // Get local record store
         let Some(local_record_store) = self.local_record_store.as_mut() else {
             apibail_not_initialized!();
         };
+        let cur_ts = get_aligned_timestamp();
         local_record_store.with_record_mut(key, |r| {
             let d = r.detail_mut();
-            d.value_nodes = value_nodes
-                .into_iter()
-                .filter_map(|x| x.node_ids().get(key.kind).map(|k| k.value))
-                .collect();
+
+            for (subkey, fanout_result) in subkey_results_iter {
+                for node_id in fanout_result
+                    .value_nodes
+                    .iter()
+                    .filter_map(|x| x.node_ids().get(key.kind).map(|k| k.value))
+                {
+                    let pnd = d.nodes.entry(node_id).or_default();
+                    if is_set || pnd.last_set == Timestamp::default() {
+                        pnd.last_set = cur_ts;
+                    }
+                    pnd.last_seen = cur_ts;
+                    pnd.subkeys.insert(subkey);
+                }
+            }
+
+            // Purge nodes down to the N most recently seen, where N is the consensus count for a set operation
+            let mut nodes_ts = d
+                .nodes
+                .iter()
+                .map(|kv| (*kv.0, kv.1.last_seen))
+                .collect::<Vec<_>>();
+            nodes_ts.sort_by(|a, b| b.1.cmp(&a.1));
+
+            for dead_node_key in nodes_ts.iter().skip(self.set_consensus_count) {
+                d.nodes.remove(&dead_node_key.0);
+            }
         });
         Ok(())
     }

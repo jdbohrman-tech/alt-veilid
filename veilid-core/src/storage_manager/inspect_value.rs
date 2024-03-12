@@ -44,8 +44,6 @@ struct OutboundInspectValueContext {
 pub(super) struct OutboundInspectValueResult {
     /// Fanout results for each subkey
     pub fanout_results: Vec<FanoutResult>,
-    /// Required count for consensus for this operation,
-    pub consensus_count: usize,
     /// The inspection that was retrieved
     pub inspect_result: InspectResult,
 }
@@ -58,7 +56,7 @@ impl StorageManager {
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
         safety_selection: SafetySelection,
-        mut local_inspect_result: InspectResult,
+        local_inspect_result: InspectResult,
         use_set_scope: bool,
     ) -> VeilidAPIResult<OutboundInspectValueResult> {
         let routing_table = rpc_processor.routing_table();
@@ -69,11 +67,6 @@ impl StorageManager {
             let c = self.unlocked_inner.config.get();
 
             if use_set_scope {
-                // If we're simulating a set, increase the previous sequence number we have by 1
-                for seq in &mut local_inspect_result.seqs {
-                    *seq += 1;
-                }
-
                 (
                     c.network.dht.max_find_node_count as usize,
                     c.network.dht.set_value_count as usize,
@@ -288,7 +281,6 @@ impl StorageManager {
 
         Ok(OutboundInspectValueResult {
             fanout_results,
-            consensus_count,
             inspect_result: InspectResult {
                 subkeys: ctx
                     .opt_descriptor_info

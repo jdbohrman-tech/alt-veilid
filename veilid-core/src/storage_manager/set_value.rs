@@ -16,8 +16,6 @@ struct OutboundSetValueContext {
 pub(super) struct OutboundSetValueResult {
     /// Fanout result
     pub fanout_result: FanoutResult,
-    /// Consensus count for this operation,
-    pub consensus_count: usize,
     /// The value that was set
     pub signed_value_data: Arc<SignedValueData>,
 }
@@ -189,7 +187,6 @@ impl StorageManager {
 
         Ok(OutboundSetValueResult {
             fanout_result,
-            consensus_count,
             signed_value_data: ctx.value.clone(),
         })
     }
