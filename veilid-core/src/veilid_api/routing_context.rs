@@ -411,17 +411,42 @@ impl RoutingContext {
     }
 
     /// Inspects a DHT record for subkey state.
+    /// This is useful for checking if you should push new subkeys to the network, or retrieve the current state of a record from the network
+    /// to see what needs updating locally.
     ///
     /// * `key` is the record key to watch. it must first be opened for reading or writing.
     /// * `subkeys` is the the range of subkeys to inspect. The range must not exceed 512 discrete non-overlapping or adjacent subranges.
     ///    If no range is specified, this is equivalent to inspecting the entire range of subkeys. In total, the list of subkeys returned will be truncated at 512 elements.
     /// * `scope` is what kind of range the inspection has:
-    ///   If scope is set to DHTReportScope::Local, results will be only for a locally stored record
-    ///   If scope is set to DHTReportScope::NetworkGet, results will be as if each subkey were get over the network as a GetValue
-    ///   If scope is set to DHTReportScope::NetworkSet, results will be as if each subkey were set over the network as a SetValue
     ///
-    /// This is useful for checking if you should push new subkeys to the network, or retrieve the current state of a record from the network
-    /// to see what needs updating locally.
+    ///   - DHTReportScope::Local
+    ///     Results will be only for a locally stored record.
+    ///     Useful for seeing what subkeys you have locally and which ones have not been retrieved
+    ///
+    ///   - DHTReportScope::SyncGet
+    ///     Return the local sequence numbers and the network sequence numbers with GetValue fanout parameters
+    ///     Provides an independent view of both the local sequence numbers and the network sequence numbers for nodes that
+    ///     would be reached as if the local copy did not exist locally.
+    ///     Useful for determining if the current local copy should be updated from the network.
+    ///
+    ///   - DHTReportScope::SyncSet
+    ///     Return the local sequence numbers and the network sequence numbers with SetValue fanout parameters
+    ///     Provides an independent view of both the local sequence numbers and the network sequence numbers for nodes that
+    ///     would be reached as if the local copy did not exist locally.
+    ///     Useful for determining if the unchanged local copy should be pushed to the network.
+    ///
+    ///   - DHTReportScope::UpdateGet
+    ///     Return the local sequence numbers and the network sequence numbers with GetValue fanout parameters
+    ///     Provides an view of both the local sequence numbers and the network sequence numbers for nodes that
+    ///     would be reached as if a GetValue operation were being performed, including accepting newer values from the network.
+    ///     Useful for determining which subkeys would change with a GetValue operation
+    ///
+    ///   - DHTReportScope::UpdateSet
+    ///     Return the local sequence numbers and the network sequence numbers with SetValue fanout parameters
+    ///     Provides an view of both the local sequence numbers and the network sequence numbers for nodes that
+    ///     would be reached as if a SetValue operation were being performed, including accepting newer values from the network.
+    ///     This simulates a SetValue with the initial sequence number incremented by 1, like a real SetValue would when updating.
+    ///     Useful for determine which subkeys would change with an SetValue operation
     ///
     /// Returns a DHTRecordReport with the subkey ranges that were returned that overlapped the schema, and sequence numbers for each of the subkeys in the range.
     #[instrument(target = "veilid_api", level = "debug", ret, err)]
