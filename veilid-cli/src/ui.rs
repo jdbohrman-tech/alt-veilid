@@ -11,7 +11,7 @@ pub enum UICallback {
     Cursive(CursiveUICallback),
     Interactive(InteractiveUICallback),
     IOReadWrite(IOReadWriteUICallback),
-    LogViewerUI(LogViewerUICallback),
+    LogViewer(LogViewerUICallback),
 }
 
 pub trait UISender: Send {

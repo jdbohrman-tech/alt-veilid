@@ -56,9 +56,9 @@ struct CmdlineArgs {
     /// evaluate
     #[arg(long, short = 'e', group = "execution_mode")]
     evaluate: Option<String>,
-    /// show log
+    /// show log only
     #[arg(long, short = 'l', group = "execution_mode")]
-    show_log: bool,
+    log: bool,
     /// read commands from file
     #[arg(
         long,
@@ -104,11 +104,7 @@ fn main() -> Result<(), String> {
 
         // If we are running in interactive mode disable some things
         let mut enable_cursive = true;
-        if args.interactive
-            || args.show_log
-            || args.command_file.is_some()
-            || args.evaluate.is_some()
-        {
+        if args.interactive || args.log || args.command_file.is_some() || args.evaluate.is_some() {
             settings.logging.terminal.enabled = false;
             enable_cursive = false;
         }
@@ -184,7 +180,7 @@ fn main() -> Result<(), String> {
                 Box::new(ui) as Box<dyn UI>,
                 Box::new(uisender) as Box<dyn UISender>,
             )
-        } else if args.show_log {
+        } else if args.log {
             let (ui, uisender) = log_viewer_ui::LogViewerUI::new(&settings);
             (
                 Box::new(ui) as Box<dyn UI>,

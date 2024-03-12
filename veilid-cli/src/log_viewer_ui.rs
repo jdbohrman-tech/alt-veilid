@@ -103,7 +103,7 @@ impl LogViewerUI {
                     'e' | 'E' => {
                         if let Err(e) = cmdproc.run_command(
                             "change_log_level api error",
-                            UICallback::LogViewerUI(Box::new(|| {})),
+                            UICallback::LogViewer(Box::new(|| {})),
                         ) {
                             eprintln!("Error: {:?}", e);
                             self.inner.lock().done.take();
@@ -112,7 +112,7 @@ impl LogViewerUI {
                     'w' | 'W' => {
                         if let Err(e) = cmdproc.run_command(
                             "change_log_level api warn",
-                            UICallback::LogViewerUI(Box::new(|| {})),
+                            UICallback::LogViewer(Box::new(|| {})),
                         ) {
                             eprintln!("Error: {:?}", e);
                             self.inner.lock().done.take();
@@ -121,7 +121,7 @@ impl LogViewerUI {
                     'i' | 'I' => {
                         if let Err(e) = cmdproc.run_command(
                             "change_log_level api info",
-                            UICallback::LogViewerUI(Box::new(|| {})),
+                            UICallback::LogViewer(Box::new(|| {})),
                         ) {
                             eprintln!("Error: {:?}", e);
                             self.inner.lock().done.take();
@@ -130,7 +130,7 @@ impl LogViewerUI {
                     'd' | 'D' => {
                         if let Err(e) = cmdproc.run_command(
                             "change_log_level api debug",
-                            UICallback::LogViewerUI(Box::new(|| {})),
+                            UICallback::LogViewer(Box::new(|| {})),
                         ) {
                             eprintln!("Error: {:?}", e);
                             self.inner.lock().done.take();
@@ -139,7 +139,7 @@ impl LogViewerUI {
                     't' | 'T' => {
                         if let Err(e) = cmdproc.run_command(
                             "change_log_level api trace",
-                            UICallback::LogViewerUI(Box::new(|| {})),
+                            UICallback::LogViewer(Box::new(|| {})),
                         ) {
                             eprintln!("Error: {:?}", e);
                             self.inner.lock().done.take();

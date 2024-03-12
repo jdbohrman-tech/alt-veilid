@@ -1,10 +1,12 @@
 use std::io::Write;
 
 use crate::command_processor::*;
+use crate::cursive_ui::CursiveUI;
 use crate::settings::*;
 use crate::tools::*;
 use crate::ui::*;
 
+use console::{style, Term};
 use flexi_logger::writers::LogWriter;
 use rustyline_async::SharedWriter;
 use rustyline_async::{Readline, ReadlineError, ReadlineEvent};
@@ -19,6 +21,8 @@ pub struct InteractiveUIInner {
     error: Option<String>,
     done: Option<StopSource>,
     connection_state_receiver: flume::Receiver<ConnectionState>,
+    log_enabled: bool,
+    enable_color: bool,
 }
 
 #[derive(Clone)]
@@ -30,6 +34,9 @@ impl InteractiveUI {
     pub fn new(_settings: &Settings) -> (Self, InteractiveUISender) {
         let (cssender, csreceiver) = flume::unbounded::<ConnectionState>();
 
+        let term = Term::stdout();
+        let enable_color = console::colors_enabled() && term.features().colors_supported();
+
         // Create the UI object
         let this = Self {
             inner: Arc::new(Mutex::new(InteractiveUIInner {
@@ -38,6 +45,8 @@ impl InteractiveUI {
                 error: None,
                 done: Some(StopSource::new()),
                 connection_state_receiver: csreceiver,
+                log_enabled: false,
+                enable_color,
             })),
         };
 
@@ -98,6 +107,78 @@ impl InteractiveUI {
                     if line == "clear" {
                         if let Err(e) = readline.clear() {
                             println!("Error: {:?}", e);
+                        }
+                    } else if line == "log error" {
+                        let opt_cmdproc = self.inner.lock().cmdproc.clone();
+                        if let Some(cmdproc) = opt_cmdproc {
+                            if let Err(e) = cmdproc.run_command(
+                                "change_log_level api error",
+                                UICallback::Interactive(Box::new(|| {})),
+                            ) {
+                                eprintln!("Error: {:?}", e);
+                                self.inner.lock().done.take();
+                            }
+                            self.inner.lock().log_enabled = true;
+                        }
+                    } else if line == "log warn" {
+                        let opt_cmdproc = self.inner.lock().cmdproc.clone();
+                        if let Some(cmdproc) = opt_cmdproc {
+                            if let Err(e) = cmdproc.run_command(
+                                "change_log_level api warn",
+                                UICallback::Interactive(Box::new(|| {})),
+                            ) {
+                                eprintln!("Error: {:?}", e);
+                                self.inner.lock().done.take();
+                            }
+                            self.inner.lock().log_enabled = true;
+                        }
+                    } else if line == "log info" {
+                        let opt_cmdproc = self.inner.lock().cmdproc.clone();
+                        if let Some(cmdproc) = opt_cmdproc {
+                            if let Err(e) = cmdproc.run_command(
+                                "change_log_level api info",
+                                UICallback::Interactive(Box::new(|| {})),
+                            ) {
+                                eprintln!("Error: {:?}", e);
+                                self.inner.lock().done.take();
+                            }
+                            self.inner.lock().log_enabled = true;
+                        }
+                    } else if line == "log debug" || line == "log" {
+                        let opt_cmdproc = self.inner.lock().cmdproc.clone();
+                        if let Some(cmdproc) = opt_cmdproc {
+                            if let Err(e) = cmdproc.run_command(
+                                "change_log_level api debug",
+                                UICallback::Interactive(Box::new(|| {})),
+                            ) {
+                                eprintln!("Error: {:?}", e);
+                                self.inner.lock().done.take();
+                            }
+                            self.inner.lock().log_enabled = true;
+                        }
+                    } else if line == "log trace" {
+                        let opt_cmdproc = self.inner.lock().cmdproc.clone();
+                        if let Some(cmdproc) = opt_cmdproc {
+                            if let Err(e) = cmdproc.run_command(
+                                "change_log_level api trace",
+                                UICallback::Interactive(Box::new(|| {})),
+                            ) {
+                                eprintln!("Error: {:?}", e);
+                                self.inner.lock().done.take();
+                            }
+                            self.inner.lock().log_enabled = true;
+                        }
+                    } else if line == "log off" {
+                        let opt_cmdproc = self.inner.lock().cmdproc.clone();
+                        if let Some(cmdproc) = opt_cmdproc {
+                            if let Err(e) = cmdproc.run_command(
+                                "change_log_level api off",
+                                UICallback::Interactive(Box::new(|| {})),
+                            ) {
+                                eprintln!("Error: {:?}", e);
+                                self.inner.lock().done.take();
+                            }
+                            self.inner.lock().log_enabled = false;
                         }
                     } else if !line.is_empty() {
                         readline.add_history_entry(line.to_string());
@@ -230,5 +311,38 @@ impl UISender for InteractiveUISender {
             self.inner.lock().error = Some(e.to_string());
         }
     }
-    fn add_log_event(&self, _log_color: Level, _event: &str) {}
+    fn add_log_event(&self, log_color: Level, event: &str) {
+        let (enable_color, mut stdout) = {
+            let inner = self.inner.lock();
+            if !inner.log_enabled {
+                return;
+            }
+            let Some(stdout) = inner.stdout.clone() else {
+                return;
+            };
+
+            (inner.enable_color, stdout)
+        };
+
+        let log_line = format!(
+            "{}: {}",
+            CursiveUI::cli_ts(CursiveUI::get_start_time()),
+            event
+        );
+        if enable_color {
+            let log_line = match log_color {
+                Level::Error => style(log_line).red().bright().to_string(),
+                Level::Warn => style(log_line).yellow().bright().to_string(),
+                Level::Info => log_line,
+                Level::Debug => style(log_line).green().bright().to_string(),
+                Level::Trace => style(log_line).blue().bright().to_string(),
+            };
+            if let Err(e) = writeln!(stdout, "{}", log_line) {
+                eprintln!("Error: {:?}", e);
+                self.inner.lock().done.take();
+            }
+        } else {
+            println!("{}", log_line);
+        }
+    }
 }
