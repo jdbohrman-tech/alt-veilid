@@ -1440,7 +1440,12 @@ impl RPCProcessor {
         Ok(operation)
     }
 
-    /// Cryptographic RPC validation
+    /// Cryptographic RPC validation and sanitization
+    /// 
+    /// This code may modify the RPC operation to remove elements that are inappropriate for this node
+    /// or reject the RPC operation entirely. For example, PeerInfo in fanout peer lists may be 
+    /// removed if they are deemed inappropriate for this node, without rejecting the entire operation.
+    /// 
     /// We do this as part of the RPC network layer to ensure that any RPC operations that are
     /// processed have already been validated cryptographically and it is not the job of the
     /// caller or receiver. This does not mean the operation is 'semantically correct'. For
