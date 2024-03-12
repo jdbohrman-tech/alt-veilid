@@ -4,6 +4,7 @@ use futures_util::stream::{FuturesUnordered, StreamExt};
 use stop_token::future::FutureExt as StopFutureExt;
 
 pub const BOOTSTRAP_TXT_VERSION_0: u8 = 0;
+pub const MIN_BOOTSTRAP_PEERS: usize = 4;
 
 #[derive(Clone, Debug)]
 pub struct BootstrapRecord {
@@ -345,7 +346,7 @@ impl RoutingTable {
             // Do we need to bootstrap this crypto kind?
             let eckey = (RoutingDomain::PublicInternet, crypto_kind);
             let cnt = entry_count.get(&eckey).copied().unwrap_or_default();
-            if cnt == 0 {
+            if cnt < MIN_BOOTSTRAP_PEERS {
                 crypto_kinds.push(crypto_kind);
             }
         }
