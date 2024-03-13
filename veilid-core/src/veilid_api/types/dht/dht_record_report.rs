@@ -1,9 +1,7 @@
 use super::*;
 
 /// DHT Record Report
-#[derive(
-    Debug, Default, Clone, PartialOrd, Ord, PartialEq, Eq, Serialize, Deserialize, JsonSchema,
-)]
+#[derive(Default, Clone, PartialOrd, Ord, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(
     target_arch = "wasm32",
     derive(Tsify),
@@ -45,6 +43,17 @@ impl DHTRecordReport {
     }
 }
 
+impl fmt::Debug for DHTRecordReport {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "DHTRecordReport {{\n  subkeys: {:?}\n  local_seqs:\n{}\n  remote_seqs:\n{}\n}}\n",
+            &self.subkeys,
+            &debug_seqs(&self.local_seqs),
+            &debug_seqs(&self.network_seqs)
+        )
+    }
+}
 /// DHT Record Report Scope
 #[derive(
     Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema,

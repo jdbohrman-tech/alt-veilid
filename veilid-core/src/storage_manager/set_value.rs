@@ -183,7 +183,7 @@ impl StorageManager {
             kind,
             value_nodes: ctx.value_nodes.clone(),
         };
-        log_dht!(debug "SetValue Fanout: {:?}", fanout_result);
+        log_network_result!(debug "SetValue Fanout: {:?}", fanout_result);
 
         Ok(OutboundSetValueResult {
             fanout_result,

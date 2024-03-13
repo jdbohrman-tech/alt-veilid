@@ -21,6 +21,36 @@ pub(crate) struct FanoutResult {
     pub value_nodes: Vec<NodeRef>,
 }
 
+pub(crate) fn debug_fanout_result(result: &FanoutResult) -> String {
+    let kc = match result.kind {
+        FanoutResultKind::Timeout => "T",
+        FanoutResultKind::Finished => "F",
+        FanoutResultKind::Exhausted => "E",
+    };
+    format!("{}:{}", kc, result.value_nodes.len())
+}
+
+pub(crate) fn debug_fanout_results(results: &[FanoutResult]) -> String {
+    let mut col = 0;
+    let mut out = String::new();
+    let mut left = results.len();
+    for r in results {
+        if col == 0 {
+            out += "    ";
+        }
+        let sr = debug_fanout_result(r);
+        out += &sr;
+        out += ",";
+        col += 1;
+        left -= 1;
+        if col == 32 && left != 0 {
+            col = 0;
+            out += "\n"
+        }
+    }
+    out
+}
+
 pub(crate) type FanoutCallReturnType = RPCNetworkResult<Vec<PeerInfo>>;
 pub(crate) type FanoutNodeInfoFilter = Arc<dyn Fn(&[TypedKey], &NodeInfo) -> bool + Send + Sync>;
 

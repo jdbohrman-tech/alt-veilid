@@ -801,23 +801,9 @@ where
         let Some((subkeys, opt_descriptor)) = self.with_record(key, |record| {
             // Get number of subkeys from schema and ensure we are getting the
             // right number of sequence numbers betwen that and what we asked for
-            let in_schema_subkeys = subkeys.intersect(&ValueSubkeyRangeSet::single_range(
-                0,
-                record.schema().max_subkey(),
-            ));
-
-            // Cap the number of total subkeys being inspected to the amount we can send across the wire
-            let truncated_subkeys = if let Some(nth_subkey) =
-                in_schema_subkeys.nth_subkey(MAX_INSPECT_VALUE_A_SEQS_LEN)
-            {
-                in_schema_subkeys.difference(&ValueSubkeyRangeSet::single_range(
-                    nth_subkey,
-                    ValueSubkey::MAX,
-                ))
-            } else {
-                in_schema_subkeys
-            };
-
+            let truncated_subkeys = record
+                .schema()
+                .truncate_subkeys(&subkeys, Some(MAX_INSPECT_VALUE_A_SEQS_LEN));
             (
                 truncated_subkeys,
                 if want_descriptor {

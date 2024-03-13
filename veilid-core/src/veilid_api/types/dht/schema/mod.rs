@@ -75,6 +75,32 @@ impl DHTSchema {
             DHTSchema::SMPL(s) => s.is_member(key),
         }
     }
+
+    /// Truncate a subkey range set to the schema
+    /// Optionally also trim to maximum number of subkeys in the range
+    pub fn truncate_subkeys(
+        &self,
+        subkeys: &ValueSubkeyRangeSet,
+        opt_max_subkey_len: Option<usize>,
+    ) -> ValueSubkeyRangeSet {
+        // Get number of subkeys from schema and trim to the bounds of the schema
+        let in_schema_subkeys =
+            subkeys.intersect(&ValueSubkeyRangeSet::single_range(0, self.max_subkey()));
+
+        // Cap the number of total subkeys being inspected to the amount we can send across the wire
+        if let Some(max_subkey_len) = opt_max_subkey_len {
+            if let Some(nth_subkey) = in_schema_subkeys.nth_subkey(max_subkey_len) {
+                in_schema_subkeys.difference(&ValueSubkeyRangeSet::single_range(
+                    nth_subkey,
+                    ValueSubkey::MAX,
+                ))
+            } else {
+                in_schema_subkeys
+            }
+        } else {
+            in_schema_subkeys
+        }
+    }
 }
 
 impl Default for DHTSchema {

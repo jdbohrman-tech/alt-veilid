@@ -149,6 +149,9 @@ fn get_dht_schema(text: &str) -> Option<VeilidAPIResult<DHTSchema>> {
     if text.is_empty() {
         return None;
     }
+    if let Ok(n) = u16::from_str(text) {
+        return Some(DHTSchema::dflt(n));
+    }
     Some(deserialize_json::<DHTSchema>(text))
 }
 
@@ -1479,7 +1482,13 @@ impl VeilidAPI {
         let mut dc = DEBUG_CACHE.lock();
         dc.opened_record_contexts.insert(*record.key(), rc);
 
-        Ok(format!("Created: {:?} : {:?}", record.key(), record))
+        Ok(format!(
+            "Created: {} {}:{}\n{:?}",
+            record.key(),
+            record.owner(),
+            record.owner_secret().unwrap(),
+            record
+        ))
     }
 
     async fn debug_record_open(&self, args: Vec<String>) -> VeilidAPIResult<String> {
@@ -1965,7 +1974,10 @@ record list <local|remote>
 <addresstype> is: ipv4|ipv6
 <routingdomain> is: public|local
 <cryptokind> is: VLD0
-<dhtschema> is: a json dht schema, default is '{"kind":"DFLT","o_cnt":1}'
+<dhtschema> is: 
+    * a single-quoted json dht schema, or 
+    * an integer number for a DFLT schema subkey count.
+    default is '{"kind":"DFLT","o_cnt":1}'
 <scope> is: local, syncget, syncset, updateget, updateset
 <subkey> is: a number: 2
 <subkeys> is: 

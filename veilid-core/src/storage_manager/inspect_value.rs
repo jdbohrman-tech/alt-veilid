@@ -15,8 +15,7 @@ impl DescriptorInfo {
         subkeys: &ValueSubkeyRangeSet,
     ) -> VeilidAPIResult<Self> {
         let schema = descriptor.schema().map_err(RPCError::invalid_format)?;
-        let subkeys = subkeys.intersect(&ValueSubkeyRangeSet::single_range(0, schema.max_subkey()));
-
+        let subkeys = schema.truncate_subkeys(subkeys, Some(MAX_INSPECT_VALUE_A_SEQS_LEN));
         Ok(Self {
             descriptor,
             subkeys,
@@ -85,6 +84,7 @@ impl StorageManager {
 
         // Make do-inspect-value answer context
         let opt_descriptor_info = if let Some(descriptor) = &local_inspect_result.opt_descriptor {
+            // Get the descriptor info. This also truncates the subkeys list to what can be returned from the network.
             Some(DescriptorInfo::new(descriptor.clone(), &subkeys)?)
         } else {
             None
@@ -127,6 +127,7 @@ impl StorageManager {
                 if let Some(descriptor) = answer.descriptor {
                     let mut ctx = context.lock();
                     if ctx.opt_descriptor_info.is_none() {
+                        // Get the descriptor info. This also truncates the subkeys list to what can be returned from the network.
                         let descriptor_info =
                             match DescriptorInfo::new(Arc::new(descriptor.clone()), &subkeys) {
                                 Ok(v) => v,
@@ -172,7 +173,11 @@ impl StorageManager {
                             .map(|s| SubkeySeqCount {
                                 seq: *s,
                                 // One node has shown us the newest sequence numbers so far
-                                value_nodes: vec![next_node.clone()],
+                                value_nodes: if *s == ValueSeqNum::MAX {
+                                    vec![]
+                                } else {
+                                    vec![next_node.clone()]
+                                },
                             })
                             .collect();
                     } else {
@@ -265,7 +270,7 @@ impl StorageManager {
         let ctx = context.lock();
         let mut fanout_results = vec![];
         for cs in &ctx.seqcounts {
-            let has_consensus = cs.value_nodes.len() > consensus_count;
+            let has_consensus = cs.value_nodes.len() >= consensus_count;
             let fanout_result = FanoutResult {
                 kind: if has_consensus {
                     FanoutResultKind::Finished
@@ -277,7 +282,7 @@ impl StorageManager {
             fanout_results.push(fanout_result);
         }
 
-        log_dht!(debug "InspectValue Fanout ({:?}): {:?}", kind, fanout_results.iter().map(|fr| (fr.kind, fr.value_nodes.len())).collect::<Vec<_>>());
+        log_network_result!(debug "InspectValue Fanout ({:?}):\n{}", kind, debug_fanout_results(&fanout_results));
 
         Ok(OutboundInspectValueResult {
             fanout_results,

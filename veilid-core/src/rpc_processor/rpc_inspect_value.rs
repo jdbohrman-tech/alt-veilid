@@ -105,16 +105,16 @@ impl RPCProcessor {
         let (seqs, peers, descriptor) = inspect_value_a.destructure();
         if debug_target_enabled!("dht") {
             let debug_string_answer = format!(
-                "OUT <== InspectValueA({} {:?}{} peers={}) <= {}",
+                "OUT <== InspectValueA({} {} peers={}) <= {} seqs:\n{}",
                 key,
-                seqs,
                 if descriptor.is_some() {
                     " +desc"
                 } else {
                     ""
                 },
                 peers.len(),
-                dest
+                dest,
+                debug_seqs(&seqs)
             );
 
             log_dht!(debug "{}", debug_string_answer);
