@@ -88,7 +88,7 @@ impl StorageManager {
 
                     // Keep the value if we got one and it is newer and it passes schema validation
                     if let Some(value) = sva.answer.value {
-                        log_stor!(debug "Got value back: len={} seq={}", value.value_data().data().len(), value.value_data().seq());
+                        log_dht!(debug "Got value back: len={} seq={}", value.value_data().data().len(), value.value_data().seq());
 
                         // Validate with schema
                         if !ctx.schema.check_subkey_value_data(
@@ -174,7 +174,7 @@ impl StorageManager {
             // Failed
             TimeoutOr::Value(Err(e)) => {
                 // If we finished with an error, return that
-                log_stor!(debug "SetValue Fanout Error: {}", e);
+                log_dht!(debug "SetValue Fanout Error: {}", e);
                 return Err(e.into());
             }
         };
@@ -183,7 +183,7 @@ impl StorageManager {
             kind,
             value_nodes: ctx.value_nodes.clone(),
         };
-        log_stor!(debug "SetValue Fanout: {:?}", fanout_result);
+        log_dht!(debug "SetValue Fanout: {:?}", fanout_result);
 
         Ok(OutboundSetValueResult {
             fanout_result,

@@ -61,9 +61,3 @@ impl TryFrom<&[u8]> for SubkeyTableKey {
         Ok(SubkeyTableKey { key, subkey })
     }
 }
-
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct SeqsCacheKey {
-    pub key: TypedKey,
-    pub subkeys: ValueSubkeyRangeSet,
-}

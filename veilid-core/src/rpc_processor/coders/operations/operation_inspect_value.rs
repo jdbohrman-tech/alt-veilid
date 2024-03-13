@@ -2,7 +2,7 @@ use super::*;
 use crate::storage_manager::SignedValueDescriptor;
 
 const MAX_INSPECT_VALUE_Q_SUBKEY_RANGES_LEN: usize = 512;
-const MAX_INSPECT_VALUE_A_SEQS_LEN: usize = 512;
+pub(crate) const MAX_INSPECT_VALUE_A_SEQS_LEN: usize = 512;
 const MAX_INSPECT_VALUE_A_PEERS_LEN: usize = 20;
 
 #[derive(Clone)]

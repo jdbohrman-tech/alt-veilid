@@ -4,6 +4,7 @@
 /// This store does not perform any validation on the schema, and all ValueRecordData passed in must have been previously validated.
 /// Uses an in-memory store for the records, backed by the TableStore. Subkey data is LRU cached and rotated out by a limits policy,
 /// and backed to the TableStore for persistence.
+mod inspect_cache;
 mod keys;
 mod limited_size;
 mod local_record_detail;
@@ -14,6 +15,7 @@ mod record_store_limits;
 mod remote_record_detail;
 mod watch;
 
+pub(super) use inspect_cache::*;
 pub(super) use keys::*;
 pub(super) use limited_size::*;
 pub(super) use local_record_detail::*;
@@ -60,7 +62,7 @@ where
     /// The in-memory cache of commonly accessed subkey data so we don't have to keep hitting the db
     subkey_cache: LruCache<SubkeyTableKey, RecordData>,
     /// The in-memory cache of commonly accessed sequence number data so we don't have to keep hitting the db
-    seqs_cache: LruCache<SeqsCacheKey, Vec<ValueSeqNum>>,
+    inspect_cache: InspectCache,
     /// Total storage space or subkey data inclusive of structures in memory
     subkey_cache_total_size: LimitedSize<usize>,
     /// Total storage space of records in the tabledb inclusive of subkey data and structures
@@ -118,7 +120,7 @@ where
             subkey_table: None,
             record_index: LruCache::new(limits.max_records.unwrap_or(usize::MAX)),
             subkey_cache: LruCache::new(subkey_cache_size),
-            seqs_cache: LruCache::new(subkey_cache_size),
+            inspect_cache: InspectCache::new(subkey_cache_size),
             subkey_cache_total_size: LimitedSize::new(
                 "subkey_cache_total_size",
                 0,
@@ -425,6 +427,9 @@ where
         // Remove watch changes
         self.changed_watched_values.remove(&rtk);
 
+        // Invalidate inspect cache for this key
+        self.inspect_cache.invalidate(&rtk.key);
+
         // Remove from table store immediately
         self.add_dead_record(rtk, record);
         self.purge_dead_records(false).await;
@@ -540,7 +545,7 @@ where
 
         // If subkey exists in subkey cache, use that
         let stk = SubkeyTableKey { key, subkey };
-        if let Some(record_data) = self.subkey_cache.get_mut(&stk) {
+        if let Some(record_data) = self.subkey_cache.get(&stk) {
             let out = record_data.signed_value_data().clone();
 
             return Ok(Some(GetResult {
@@ -754,6 +759,13 @@ where
             .await
             .map_err(VeilidAPIError::internal)?;
 
+        // Write to inspect cache
+        self.inspect_cache.replace_subkey_seq(
+            &stk.key,
+            subkey,
+            subkey_record_data.signed_value_data().value_data().seq(),
+        );
+
         // Write to subkey cache
         self.add_to_subkey_cache(stk, subkey_record_data);
 
@@ -780,6 +792,11 @@ where
         subkeys: ValueSubkeyRangeSet,
         want_descriptor: bool,
     ) -> VeilidAPIResult<Option<InspectResult>> {
+        // Get subkey table
+        let Some(subkey_table) = self.subkey_table.clone() else {
+            apibail_internal!("record store not initialized");
+        };
+
         // Get record from index
         let Some((subkeys, opt_descriptor)) = self.with_record(key, |record| {
             // Get number of subkeys from schema and ensure we are getting the
@@ -788,8 +805,21 @@ where
                 0,
                 record.schema().max_subkey(),
             ));
+
+            // Cap the number of total subkeys being inspected to the amount we can send across the wire
+            let truncated_subkeys = if let Some(nth_subkey) =
+                in_schema_subkeys.nth_subkey(MAX_INSPECT_VALUE_A_SEQS_LEN)
+            {
+                in_schema_subkeys.difference(&ValueSubkeyRangeSet::single_range(
+                    nth_subkey,
+                    ValueSubkey::MAX,
+                ))
+            } else {
+                in_schema_subkeys
+            };
+
             (
-                in_schema_subkeys,
+                truncated_subkeys,
                 if want_descriptor {
                     Some(record.descriptor().clone())
                 } else {
@@ -807,22 +837,13 @@ where
         }
 
         // See if we have this inspection cached
-        let sck = SeqsCacheKey {
-            key,
-            subkeys: subkeys.clone(),
-        };
-        if let Some(seqs) = self.seqs_cache.get(&sck) {
+        if let Some(icv) = self.inspect_cache.get(&key, &subkeys) {
             return Ok(Some(InspectResult {
                 subkeys,
-                seqs: seqs.clone(),
+                seqs: icv.seqs,
                 opt_descriptor,
             }));
         }
-
-        // Get subkey table
-        let Some(subkey_table) = self.subkey_table.clone() else {
-            apibail_internal!("record store not initialized");
-        };
 
         // Build sequence number list to return
         let mut seqs = Vec::with_capacity(subkeys.len());
@@ -846,6 +867,13 @@ where
             };
             seqs.push(seq)
         }
+
+        // Save seqs cache
+        self.inspect_cache.put(
+            key,
+            subkeys.clone(),
+            InspectCacheL2Value { seqs: seqs.clone() },
+        );
 
         Ok(Some(InspectResult {
             subkeys,

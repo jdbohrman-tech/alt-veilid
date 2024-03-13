@@ -93,10 +93,10 @@ impl StorageManager {
                 if wva.answer.accepted {
                     if wva.answer.expiration_ts.as_u64() > 0 {
                         // If the expiration time is greater than zero this watch is active
-                        log_stor!(debug "Watch active: id={} expiration_ts={}", wva.answer.watch_id, debug_ts(wva.answer.expiration_ts.as_u64()));
+                        log_dht!(debug "Watch active: id={} expiration_ts={}", wva.answer.watch_id, debug_ts(wva.answer.expiration_ts.as_u64()));
                     } else {
                         // If the returned expiration time is zero, this watch was cancelled, or inactive
-                        log_stor!(debug "Watch inactive: id={}", wva.answer.watch_id);
+                        log_dht!(debug "Watch inactive: id={}", wva.answer.watch_id);
                     }
                     let mut ctx = context.lock();
                     ctx.opt_watch_value_result = Some(OutboundWatchValueResult {
@@ -143,9 +143,9 @@ impl StorageManager {
                 // Return the best answer we've got
                 let ctx = context.lock();
                 if ctx.opt_watch_value_result.is_some() {
-                    log_stor!(debug "WatchValue Fanout Timeout Success");
+                    log_dht!(debug "WatchValue Fanout Timeout Success");
                 } else {
-                    log_stor!(debug "WatchValue Fanout Timeout Failure");
+                    log_dht!(debug "WatchValue Fanout Timeout Failure");
                 }
                 Ok(ctx.opt_watch_value_result.clone())
             }
@@ -154,9 +154,9 @@ impl StorageManager {
                 // Return the best answer we've got
                 let ctx = context.lock();
                 if ctx.opt_watch_value_result.is_some() {
-                    log_stor!(debug "WatchValue Fanout Success");
+                    log_dht!(debug "WatchValue Fanout Success");
                 } else {
-                    log_stor!(debug "WatchValue Fanout Failure");
+                    log_dht!(debug "WatchValue Fanout Failure");
                 }
                 Ok(ctx.opt_watch_value_result.clone())
             }
@@ -165,16 +165,16 @@ impl StorageManager {
                 // Return the best answer we've got
                 let ctx = context.lock();
                 if ctx.opt_watch_value_result.is_some() {
-                    log_stor!(debug "WatchValue Fanout Exhausted Success");
+                    log_dht!(debug "WatchValue Fanout Exhausted Success");
                 } else {
-                    log_stor!(debug "WatchValue Fanout Exhausted Failure");
+                    log_dht!(debug "WatchValue Fanout Exhausted Failure");
                 }
                 Ok(ctx.opt_watch_value_result.clone())
             }
             // Failed
             TimeoutOr::Value(Err(e)) => {
                 // If we finished with an error, return that
-                log_stor!(debug "WatchValue Fanout Error: {}", e);
+                log_dht!(debug "WatchValue Fanout Error: {}", e);
                 Err(e.into())
             }
         }

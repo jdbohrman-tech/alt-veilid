@@ -139,7 +139,7 @@ impl StorageManager {
 
                 // Keep the value if we got one and it is newer and it passes schema validation
                 if !iva.answer.seqs.is_empty() {
-                    log_stor!(debug "Got seqs back: len={}", iva.answer.seqs.len());
+                    log_dht!(debug "Got seqs back: len={}", iva.answer.seqs.len());
                     let mut ctx = context.lock();
 
                     // Ensure we have a schema and descriptor etc
@@ -257,7 +257,7 @@ impl StorageManager {
             // Failed
             TimeoutOr::Value(Err(e)) => {
                 // If we finished with an error, return that
-                log_stor!(debug "InspectValue Fanout Error: {}", e);
+                log_dht!(debug "InspectValue Fanout Error: {}", e);
                 return Err(e.into());
             }
         };
@@ -277,7 +277,7 @@ impl StorageManager {
             fanout_results.push(fanout_result);
         }
 
-        log_stor!(debug "InspectValue Fanout ({:?}): {:?}", kind, fanout_results.iter().map(|fr| (fr.kind, fr.value_nodes.len())).collect::<Vec<_>>());
+        log_dht!(debug "InspectValue Fanout ({:?}): {:?}", kind, fanout_results.iter().map(|fr| (fr.kind, fr.value_nodes.len())).collect::<Vec<_>>());
 
         Ok(OutboundInspectValueResult {
             fanout_results,

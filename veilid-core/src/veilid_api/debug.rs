@@ -1796,25 +1796,13 @@ impl VeilidAPI {
         let (key, rc) = get_opened_dht_record_context(&args, "debug_record_watch", "key", 1)?;
 
         let mut rest_defaults = false;
-        let subkeys = get_debug_argument_at(
-            &args,
-            1 + opt_arg_add,
-            "debug_record_inspect",
-            "subkeys",
-            get_subkeys,
-        )
-        .ok()
-        .unwrap_or_else(|| {
-            rest_defaults = true;
-            Default::default()
-        });
 
         let scope = if rest_defaults {
             Default::default()
         } else {
             get_debug_argument_at(
                 &args,
-                2 + opt_arg_add,
+                1 + opt_arg_add,
                 "debug_record_inspect",
                 "scope",
                 get_dht_report_scope,
@@ -1825,6 +1813,19 @@ impl VeilidAPI {
                 Default::default()
             })
         };
+
+        let subkeys = get_debug_argument_at(
+            &args,
+            2 + opt_arg_add,
+            "debug_record_inspect",
+            "subkeys",
+            get_subkeys,
+        )
+        .ok()
+        .unwrap_or_else(|| {
+            rest_defaults = true;
+            Default::default()
+        });
 
         // Do a record inspect
         let report = match rc.inspect_dht_record(key, subkeys, scope).await {
@@ -1945,9 +1946,9 @@ record list <local|remote>
        get [<key>] <subkey> [force]
        delete <key>
        info [<key>] [subkey]
-       watch [<key>] [<subkeys>] [<expiration>] [<count>]
+       watch [<key>] [<subkeys> [<expiration> [<count>]]]
        cancel [<key>] [<subkeys>]
-       inspect [<key>] [<subkeys>] [<scope>]
+       inspect [<key>] [<scope> [<subkeys>]]
 --------------------------------------------------------------------
 <key> is: VLD0:GsgXCRPrzSK6oBNgxhNpm-rTYFd02R0ySx6j9vbQBG4
     * also <node>, <relay>, <target>, <route>

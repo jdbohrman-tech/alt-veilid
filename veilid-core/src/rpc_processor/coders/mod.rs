@@ -27,6 +27,7 @@ mod tunnel;
 mod typed_key;
 mod typed_signature;
 
+pub(crate) use operations::MAX_INSPECT_VALUE_A_SEQS_LEN;
 pub(in crate::rpc_processor) use operations::*;
 
 pub(crate) use address::*;

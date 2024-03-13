@@ -53,6 +53,31 @@ impl ValueSubkeyRangeSet {
     pub fn into_data(self) -> RangeSetBlaze<ValueSubkey> {
         self.data
     }
+
+    pub fn nth_subkey(&self, idx: usize) -> Option<ValueSubkey> {
+        let mut idxleft = idx;
+        for range in self.data.ranges() {
+            let range_len = (*range.end() - *range.start() + 1) as usize;
+            if idxleft < range_len {
+                return Some(*range.start() + idxleft as u32);
+            }
+            idxleft -= range_len;
+        }
+        None
+    }
+
+    pub fn idx_of_subkey(&self, subkey: ValueSubkey) -> Option<usize> {
+        let mut idx = 0usize;
+        for range in self.data.ranges() {
+            if range.contains(&subkey) {
+                idx += (subkey - *range.start()) as usize;
+                return Some(idx);
+            } else {
+                idx += (*range.end() - *range.start() + 1) as usize;
+            }
+        }
+        None
+    }
 }
 
 impl FromStr for ValueSubkeyRangeSet {

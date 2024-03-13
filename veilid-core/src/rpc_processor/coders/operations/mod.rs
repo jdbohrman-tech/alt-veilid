@@ -62,3 +62,5 @@ pub(in crate::rpc_processor) use operation_complete_tunnel::*;
 pub(in crate::rpc_processor) use operation_start_tunnel::*;
 
 use super::*;
+
+pub(crate) use operation_inspect_value::MAX_INSPECT_VALUE_A_SEQS_LEN;
