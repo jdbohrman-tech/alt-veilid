@@ -120,10 +120,11 @@ impl StorageManager {
                         )
                         .await?
                 );
+                let answer = iva.answer;
 
                 // Keep the descriptor if we got one. If we had a last_descriptor it will
                 // already be validated by rpc_call_inspect_value
-                if let Some(descriptor) = iva.answer.descriptor {
+                if let Some(descriptor) = answer.descriptor {
                     let mut ctx = context.lock();
                     if ctx.opt_descriptor_info.is_none() {
                         let descriptor_info =
@@ -138,8 +139,8 @@ impl StorageManager {
                 }
 
                 // Keep the value if we got one and it is newer and it passes schema validation
-                if !iva.answer.seqs.is_empty() {
-                    log_dht!(debug "Got seqs back: len={}", iva.answer.seqs.len());
+                if !answer.seqs.is_empty() {
+                    log_dht!(debug "Got seqs back: len={}", answer.seqs.len());
                     let mut ctx = context.lock();
 
                     // Ensure we have a schema and descriptor etc
@@ -153,20 +154,19 @@ impl StorageManager {
 
                     // Get number of subkeys from schema and ensure we are getting the
                     // right number of sequence numbers betwen that and what we asked for
-                    if iva.answer.seqs.len() != descriptor_info.subkeys.len() {
+                    if answer.seqs.len() != descriptor_info.subkeys.len() {
                         // Not the right number of sequence numbers
                         // Move to the next node
                         return Ok(NetworkResult::invalid_message(format!(
                             "wrong number of seqs returned {} (wanted {})",
-                            iva.answer.seqs.len(),
+                            answer.seqs.len(),
                             descriptor_info.subkeys.len()
                         )));
                     }
 
                     // If we have a prior seqs list, merge in the new seqs
                     if ctx.seqcounts.is_empty() {
-                        ctx.seqcounts = iva
-                            .answer
+                        ctx.seqcounts = answer
                             .seqs
                             .iter()
                             .map(|s| SubkeySeqCount {
@@ -176,12 +176,12 @@ impl StorageManager {
                             })
                             .collect();
                     } else {
-                        if ctx.seqcounts.len() != iva.answer.seqs.len() {
+                        if ctx.seqcounts.len() != answer.seqs.len() {
                             return Err(RPCError::internal(
                                 "seqs list length should always be equal by now",
                             ));
                         }
-                        for pair in ctx.seqcounts.iter_mut().zip(iva.answer.seqs.iter()) {
+                        for pair in ctx.seqcounts.iter_mut().zip(answer.seqs.iter()) {
                             let ctx_seqcnt = pair.0;
                             let answer_seq = *pair.1;
 
@@ -212,9 +212,9 @@ impl StorageManager {
                 }
 
                 // Return peers if we have some
-                log_network_result!(debug "InspectValue fanout call returned peers {}", iva.answer.peers.len());
+                log_network_result!(debug "InspectValue fanout call returned peers {}", answer.peers.len());
 
-                Ok(NetworkResult::value(iva.answer.peers))
+                Ok(NetworkResult::value(answer.peers))
             }
         };
 
