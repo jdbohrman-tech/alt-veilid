@@ -306,26 +306,26 @@ impl StorageManager {
         let mut inner = self.lock().await?;
 
         // See if this is a remote or local value
-        let (_is_local, last_get_result) = {
+        let (_is_local, inspect_result) = {
             // See if the subkey we are getting has a last known local value
-            let mut last_inspect_result = inner
+            let mut local_inspect_result = inner
                 .handle_inspect_local_value(key, subkeys.clone(), true)
                 .await?;
             // If this is local, it must have a descriptor already
-            if last_inspect_result.opt_descriptor.is_some() {
+            if local_inspect_result.opt_descriptor.is_some() {
                 if !want_descriptor {
-                    last_inspect_result.opt_descriptor = None;
+                    local_inspect_result.opt_descriptor = None;
                 }
-                (true, last_inspect_result)
+                (true, local_inspect_result)
             } else {
                 // See if the subkey we are getting has a last known remote value
-                let last_inspect_result = inner
+                let remote_inspect_result = inner
                     .handle_inspect_remote_value(key, subkeys, want_descriptor)
                     .await?;
-                (false, last_inspect_result)
+                (false, remote_inspect_result)
             }
         };
 
-        Ok(NetworkResult::value(last_get_result))
+        Ok(NetworkResult::value(inspect_result))
     }
 }
