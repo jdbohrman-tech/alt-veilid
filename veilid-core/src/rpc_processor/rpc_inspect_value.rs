@@ -15,7 +15,10 @@ impl RPCProcessor {
     /// Because this leaks information about the identity of the node itself,
     /// replying to this request received over a private route will leak
     /// the identity of the node and defeat the private route.
-    
+    /// The number of subkey sequence numbers returned may either be:
+    ///  * the amount requested
+    ///  * an amount truncated to MAX_INSPECT_VALUE_A_SEQS_LEN subkeys
+    ///  * zero if nothing was found
     #[cfg_attr(
         feature = "verbose-tracing",        
         instrument(level = "trace", skip(self, last_descriptor), 

@@ -772,7 +772,7 @@ impl StorageManager {
         );
         assert!(
             local_inspect_result.subkeys.is_subset(&subkeys),
-            "mismatch between local subkeys returned and sequence number list returned"
+            "more subkeys returned locally than requested"
         );
 
         // If this is the maximum scope we're interested in, return the report
@@ -816,16 +816,18 @@ impl StorageManager {
             .await?;
 
         // Sanity check before zip
-        assert!(
-            result.inspect_result.subkeys.len() == result.fanout_results.len(),
+        assert_eq!(
+            result.inspect_result.subkeys.len(),
+            result.fanout_results.len(),
             "mismatch between subkeys returned and fanout results returned"
         );
-        assert!(
-            local_inspect_result.subkeys.is_empty()
-                || result.inspect_result.subkeys.is_empty()
-                || result.inspect_result.subkeys.len() == local_inspect_result.subkeys.len(),
-            "mismatch between local subkeys returned and network results returned"
-        );
+        if !local_inspect_result.subkeys.is_empty() && !result.inspect_result.subkeys.is_empty() {
+            assert_eq!(
+                result.inspect_result.subkeys.len(),
+                local_inspect_result.subkeys.len(),
+                "mismatch between local subkeys returned and network results returned"
+            );
+        }
 
         // Keep the list of nodes that returned a value for later reference
         let mut inner = self.lock().await?;
