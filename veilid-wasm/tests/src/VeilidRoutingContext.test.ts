@@ -108,7 +108,7 @@ describe('VeilidRoutingContext', () => {
       });
 
       after('free dht record', async () => {
-        await routingContext.closeDhtRecord(dhtRecord.key);
+        await routingContext.deleteDhtRecord(dhtRecord.key);
       });
 
       it('should set value', async () => {

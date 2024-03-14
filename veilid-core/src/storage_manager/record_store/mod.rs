@@ -832,7 +832,8 @@ where
         }
 
         // Build sequence number list to return
-        let mut seqs = Vec::with_capacity(subkeys.len());
+        #[allow(clippy::unnecessary_cast)]
+        let mut seqs = Vec::with_capacity(subkeys.len() as usize);
         for subkey in subkeys.iter() {
             let stk = SubkeyTableKey { key, subkey };
             let seq = if let Some(record_data) = self.subkey_cache.peek(&stk) {

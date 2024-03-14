@@ -766,10 +766,13 @@ impl StorageManager {
             .handle_inspect_local_value(key, subkeys.clone(), true)
             .await?;
 
-        assert!(
-            local_inspect_result.subkeys.len() == local_inspect_result.seqs.len(),
-            "mismatch between local subkeys returned and sequence number list returned"
-        );
+        #[allow(clippy::unnecessary_cast)]
+        {
+            assert!(
+                local_inspect_result.subkeys.len() as usize == local_inspect_result.seqs.len(),
+                "mismatch between local subkeys returned and sequence number list returned"
+            );
+        }
         assert!(
             local_inspect_result.subkeys.is_subset(&subkeys),
             "more subkeys returned locally than requested"
@@ -816,11 +819,14 @@ impl StorageManager {
             .await?;
 
         // Sanity check before zip
-        assert_eq!(
-            result.inspect_result.subkeys.len(),
-            result.fanout_results.len(),
-            "mismatch between subkeys returned and fanout results returned"
-        );
+        #[allow(clippy::unnecessary_cast)]
+        {
+            assert_eq!(
+                result.inspect_result.subkeys.len() as usize,
+                result.fanout_results.len(),
+                "mismatch between subkeys returned and fanout results returned"
+            );
+        }
         if !local_inspect_result.subkeys.is_empty() && !result.inspect_result.subkeys.is_empty() {
             assert_eq!(
                 result.inspect_result.subkeys.len(),

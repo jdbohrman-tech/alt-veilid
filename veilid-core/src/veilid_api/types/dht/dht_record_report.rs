@@ -58,7 +58,11 @@ impl fmt::Debug for DHTRecordReport {
 #[derive(
     Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema,
 )]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify), tsify(from_wasm_abi, namespace))]
+#[cfg_attr(
+    target_arch = "wasm32",
+    derive(Tsify),
+    tsify(from_wasm_abi, into_wasm_abi, namespace)
+)]
 pub enum DHTReportScope {
     /// Return only the local copy sequence numbers
     /// Useful for seeing what subkeys you have locally and which ones have not been retrieved

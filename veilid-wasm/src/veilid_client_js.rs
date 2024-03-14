@@ -195,6 +195,11 @@ impl VeilidClient {
         APIRESULT_UNDEFINED
     }
 
+    /// Get the current timestamp, in string format
+    pub fn now() -> String {
+        veilid_core::get_aligned_timestamp().as_u64().to_string()
+    }
+
     /// Execute an 'internal debug command'.
     pub async fn debug(command: String) -> APIResult<String> {
         let veilid_api = get_veilid_api()?;

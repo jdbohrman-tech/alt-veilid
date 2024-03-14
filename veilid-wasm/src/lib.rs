@@ -717,6 +717,37 @@ pub fn routing_context_cancel_dht_watch(id: u32, key: String, subkeys: String) -
 }
 
 #[wasm_bindgen()]
+pub fn routing_context_inspect_dht_record(
+    id: u32,
+    key: String,
+    subkeys: String,
+    scope: String,
+) -> Promise {
+    let key: veilid_core::TypedKey = veilid_core::deserialize_json(&key).unwrap();
+    let subkeys: veilid_core::ValueSubkeyRangeSet =
+        veilid_core::deserialize_json(&subkeys).unwrap();
+    let scope: veilid_core::DHTReportScope = veilid_core::deserialize_json(&scope).unwrap();
+
+    wrap_api_future_json(async move {
+        let routing_context = {
+            let rc = (*ROUTING_CONTEXTS).borrow();
+            let Some(routing_context) = rc.get(&id) else {
+                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
+                    "routing_context_inspect_dht_record",
+                    "id",
+                    id,
+                ));
+            };
+            routing_context.clone()
+        };
+        let res = routing_context
+            .inspect_dht_record(key, subkeys, scope)
+            .await?;
+        APIResult::Ok(res)
+    })
+}
+
+#[wasm_bindgen()]
 pub fn new_private_route() -> Promise {
     wrap_api_future_json(async move {
         let veilid_api = get_veilid_api()?;

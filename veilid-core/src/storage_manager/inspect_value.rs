@@ -155,7 +155,8 @@ impl StorageManager {
 
                     // Get number of subkeys from schema and ensure we are getting the
                     // right number of sequence numbers betwen that and what we asked for
-                    if answer.seqs.len() != descriptor_info.subkeys.len() {
+                    #[allow(clippy::unnecessary_cast)]
+                    if answer.seqs.len() != descriptor_info.subkeys.len() as usize {
                         // Not the right number of sequence numbers
                         // Move to the next node
                         return Ok(NetworkResult::invalid_message(format!(

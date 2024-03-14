@@ -5,6 +5,11 @@ use range_set_blaze::*;
 #[derive(
     Clone, Default, Hash, PartialOrd, PartialEq, Eq, Ord, Serialize, Deserialize, JsonSchema,
 )]
+#[cfg_attr(
+    target_arch = "wasm32",
+    derive(Tsify),
+    tsify(from_wasm_abi, into_wasm_abi)
+)]
 #[serde(transparent)]
 pub struct ValueSubkeyRangeSet {
     #[serde(with = "serialize_range_set_blaze")]
@@ -79,6 +84,45 @@ impl ValueSubkeyRangeSet {
         None
     }
 }
+
+// impl TryFrom<Box<[Box<[ValueSubkey]>]>> for ValueSubkeyRangeSet {
+//     type Error = VeilidAPIError;
+
+//     fn try_from(value: Box<[Box<[ValueSubkey]>]>) -> Result<Self, Self::Error> {
+//         let mut data = RangeSetBlaze::<ValueSubkey>::new();
+
+//         let mut last = None;
+
+//         for r in value.iter() {
+//             if r.len() != 2 {
+//                 apibail_generic!("not a pair");
+//             }
+//             let start = r[0];
+//             let end = r[1];
+//             if let Some(last) = last {
+//                 if start >= last {
+//                     apibail_generic!("pair out of order");
+//                 }
+//             }
+//             if start > end {
+//                 apibail_generic!("invalid pair");
+//             }
+//             last = Some(end);
+//             data.ranges_insert(start..=end);
+//         }
+
+//         Ok(Self::new_with_data(data))
+//     }
+// }
+
+// impl From<ValueSubkeyRangeSet> for Box<[Box<[ValueSubkey]>]> {
+//     fn from(value: ValueSubkeyRangeSet) -> Self {
+//         value
+//             .ranges()
+//             .map(|r| Box::new([*r.start(), *r.end()]) as Box<[ValueSubkey]>)
+//             .collect()
+//     }
+// }
 
 impl FromStr for ValueSubkeyRangeSet {
     type Err = VeilidAPIError;
