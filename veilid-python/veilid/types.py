@@ -85,6 +85,14 @@ class SafetySelectionKind(StrEnum):
     SAFE = "Safe"
 
 
+class DHTReportScope(StrEnum):
+    LOCAL = "Local"
+    SYNC_GET = "SyncGet"
+    SYNC_SET = "SyncSet"
+    UPDATE_GET = "UpdateGet"
+    UPDATE_SET = "UpdateSet"
+
+
 ####################################################################
 
 
@@ -353,7 +361,7 @@ class DHTRecordDescriptor:
         self.schema = schema
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__}(key={self.key!r})>"
+        return f"<{self.__class__.__name__}(key={self.key!r}, owner={self.owner!r}, owner_secret={self.owner_secret!r}, schema={self.schema!r})>"
 
     @classmethod
     def from_json(cls, j: dict) -> Self:
@@ -362,6 +370,37 @@ class DHTRecordDescriptor:
             PublicKey(j["owner"]),
             None if j["owner_secret"] is None else SecretKey(j["owner_secret"]),
             DHTSchema.from_json(j["schema"]),
+        )
+
+    def to_json(self) -> dict:
+        return self.__dict__
+
+
+
+class DHTRecordReport:
+    subkeys: list[tuple[ValueSubkey, ValueSubkey]]
+    local_seqs: list[ValueSeqNum]
+    network_seqs: list[ValueSeqNum]
+
+    def __init__(
+        self,
+        subkeys: list[tuple[ValueSubkey, ValueSubkey]],
+        local_seqs: list[ValueSeqNum],
+        network_seqs: list[ValueSeqNum],
+    ):
+        self.subkeys = subkeys
+        self.local_seqs = local_seqs
+        self.network_seqs = network_seqs
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__}(subkeys={self.subkeys!r}, local_seqs={self.local_seqs!r}, network_seqs={self.network_seqs!r})>"
+
+    @classmethod
+    def from_json(cls, j: dict) -> Self:
+        return cls(
+            [[p[0], p[1]] for p in j["subkeys"]],
+            [ValueSeqNum(s) for s in j["local_seqs"]],
+            [ValueSeqNum(s) for s in j["network_seqs"]],
         )
 
     def to_json(self) -> dict:

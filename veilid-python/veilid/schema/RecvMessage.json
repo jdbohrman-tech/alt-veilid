@@ -923,6 +923,44 @@
                   ]
                 }
               }
+            },
+            {
+              "type": "object",
+              "anyOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "value"
+                  ],
+                  "properties": {
+                    "value": {
+                      "$ref": "#/definitions/DHTRecordReport"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "$ref": "#/definitions/VeilidAPIError"
+                    }
+                  }
+                }
+              ],
+              "required": [
+                "rc_op"
+              ],
+              "properties": {
+                "rc_op": {
+                  "type": "string",
+                  "enum": [
+                    "InspectDhtRecord"
+                  ]
+                }
+              }
             }
           ],
           "required": [
@@ -2714,6 +2752,56 @@
               "$ref": "#/definitions/DHTSchema"
             }
           ]
+        }
+      }
+    },
+    "DHTRecordReport": {
+      "description": "DHT Record Report",
+      "type": "object",
+      "required": [
+        "local_seqs",
+        "network_seqs",
+        "subkeys"
+      ],
+      "properties": {
+        "local_seqs": {
+          "description": "The sequence numbers of each subkey requested from a locally stored DHT Record",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          }
+        },
+        "network_seqs": {
+          "description": "The sequence numbers of each subkey requested from the DHT over the network",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          }
+        },
+        "subkeys": {
+          "description": "The actual subkey range within the schema being reported on This may be a subset of the requested range if it exceeds the schema limits or has more than 512 subkeys",
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": [
+              {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            ],
+            "maxItems": 2,
+            "minItems": 2
+          }
         }
       }
     },

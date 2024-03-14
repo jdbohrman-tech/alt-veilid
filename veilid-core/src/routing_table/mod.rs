@@ -390,6 +390,15 @@ impl RoutingTable {
             for b in &c.network.routing_table.bootstrap {
                 cache_validity_key.append(&mut b.as_bytes().to_vec());
             }
+            cache_validity_key.append(
+                &mut c
+                    .network
+                    .network_key_password
+                    .clone()
+                    .unwrap_or_default()
+                    .as_bytes()
+                    .to_vec(),
+            );
         };
 
         // Deserialize bucket map and all entries from the table store

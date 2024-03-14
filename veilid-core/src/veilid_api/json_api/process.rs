@@ -354,6 +354,18 @@ impl JsonRequestProcessor {
                     ),
                 }
             }
+            RoutingContextRequestOp::InspectDhtRecord {
+                key,
+                subkeys,
+                scope,
+            } => RoutingContextResponseOp::InspectDhtRecord {
+                result: to_json_api_result(
+                    routing_context
+                        .inspect_dht_record(key, subkeys, scope)
+                        .await
+                        .map(Box::new),
+                ),
+            },
         };
         RoutingContextResponse {
             rc_id: rcr.rc_id,

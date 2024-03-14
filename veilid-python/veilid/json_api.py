@@ -23,6 +23,8 @@ from .types import (
     CryptoKeyDistance,
     CryptoKind,
     DHTRecordDescriptor,
+    DHTRecordReport,
+    DHTReportScope,
     DHTSchema,
     HashDigest,
     KeyPair,
@@ -680,6 +682,28 @@ class _JsonRoutingContext(RoutingContext):
                 subkeys=subkeys,
             )
         )
+
+    async def inspect_dht_record(
+        self,
+        key: TypedKey,
+        subkeys: list[tuple[ValueSubkey, ValueSubkey]],
+        scope: DHTReportScope,
+    ) -> DHTRecordReport:
+        return DHTRecordReport.from_json(            
+            raise_api_result(
+                await self.api.send_ndjson_request(
+                    Operation.ROUTING_CONTEXT,
+                    validate=validate_rc_op,
+                    rc_id=self.rc_id,
+                    rc_op=RoutingContextOperation.INSPECT_DHT_RECORD,
+                    key=key,
+                    subkeys=subkeys,
+                    scope=scope,
+                )
+            )
+        )
+        
+
 
 
 ######################################################

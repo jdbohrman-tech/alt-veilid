@@ -48,6 +48,7 @@ class RoutingContextOperation(StrEnum):
     SET_DHT_VALUE = "SetDhtValue"
     WATCH_DHT_VALUES = "WatchDhtValues"
     CANCEL_DHT_WATCH = "CancelDhtWatch"
+    INSPECT_DHT_RECORD = "InspectDhtRecord"
 
 
 class TableDbOperation(StrEnum):

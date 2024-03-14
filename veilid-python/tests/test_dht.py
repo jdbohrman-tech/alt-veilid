@@ -202,3 +202,28 @@ async def test_open_writer_dht_value(api_connection: veilid.VeilidAPI):
         # Clean up
         await rc.close_dht_record(key)
         await rc.delete_dht_record(key)
+
+
+@pytest.mark.asyncio
+async def test_inspect_dht_record(api_connection: veilid.VeilidAPI):
+    rc = await api_connection.new_routing_context()
+    async with rc:
+        rec = await rc.create_dht_record(veilid.DHTSchema.dflt(2))
+
+        vd = await rc.set_dht_value(rec.key, 0, b"BLAH BLAH BLAH")
+        assert vd == None
+
+        rr = await rc.inspect_dht_record(rec.key, [], veilid.DHTReportScope.LOCAL)
+        print("rr: {}", rr.__dict__)
+        assert rr.subkeys == [[0,1]]
+        assert rr.local_seqs == [0, 0xFFFFFFFF]
+        assert rr.network_seqs == []
+
+        rr2 = await rc.inspect_dht_record(rec.key, [], veilid.DHTReportScope.SYNC_GET)
+        print("rr2: {}", rr2.__dict__)
+        assert rr2.subkeys == [[0,1]]
+        assert rr2.local_seqs == [0, 0xFFFFFFFF]
+        assert rr2.network_seqs == [0, 0xFFFFFFFF]
+
+        await rc.close_dht_record(rec.key)
+        await rc.delete_dht_record(rec.key)

@@ -97,6 +97,16 @@ class RoutingContext(ABC):
     ) -> bool:
         pass
 
+    @abstractmethod
+    async def inspect_dht_record(
+        self,
+        key: types.TypedKey,
+        subkeys: list[tuple[types.ValueSubkey, types.ValueSubkey]],
+        scope: types.DHTReportScope,
+    ) -> types.DHTRecordReport:
+        pass
+
+
 
 class TableDbTransaction(ABC):
     async def __aenter__(self) -> Self:
