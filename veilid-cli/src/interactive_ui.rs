@@ -78,6 +78,8 @@ impl InteractiveUI {
 
         self.inner.lock().stdout = Some(stdout.clone());
 
+        CursiveUI::set_start_time();
+
         // Wait for connection to be established
         loop {
             match connection_state_receiver.recv_async().await {
