@@ -222,7 +222,7 @@ impl VeilidClient {
         veilid_core::veilid_version_string()
     }
 
-    /// Return the default veilid configuration in json string format.
+    /// Return the default veilid configuration, in string format
     pub fn defaultConfig() -> String {
         veilid_core::default_veilid_config()
     }

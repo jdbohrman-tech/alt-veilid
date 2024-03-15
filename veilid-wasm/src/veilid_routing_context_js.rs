@@ -101,6 +101,7 @@ impl VeilidRoutingContext {
     // --------------------------------
     // Instance methods
     // --------------------------------
+
     fn getRoutingContext(&self) -> APIResult<RoutingContext> {
         APIResult::Ok(self.inner_routing_context.clone())
     }
@@ -323,13 +324,18 @@ impl VeilidRoutingContext {
     pub async fn watchDhtValues(
         &self,
         key: String,
-        subkeys: ValueSubkeyRangeSet,
-        expiration: String,
-        count: u32,
+        subkeys: Option<ValueSubkeyRangeSet>,
+        expiration: Option<String>,
+        count: Option<u32>,
     ) -> APIResult<String> {
         let key = TypedKey::from_str(&key)?;
-        let expiration =
-            veilid_core::Timestamp::from_str(&expiration).map_err(VeilidAPIError::generic)?;
+        let subkeys = subkeys.unwrap_or_default();
+        let expiration = if let Some(expiration) = expiration {
+            veilid_core::Timestamp::from_str(&expiration).map_err(VeilidAPIError::generic)?
+        } else {
+            veilid_core::Timestamp::default()
+        };
+        let count = count.unwrap_or(u32::MAX);
 
         let routing_context = self.getRoutingContext()?;
         let res = routing_context
@@ -349,9 +355,10 @@ impl VeilidRoutingContext {
     pub async fn cancelDhtWatch(
         &self,
         key: String,
-        subkeys: ValueSubkeyRangeSet,
+        subkeys: Option<ValueSubkeyRangeSet>,
     ) -> APIResult<bool> {
         let key = TypedKey::from_str(&key)?;
+        let subkeys = subkeys.unwrap_or_default();
 
         let routing_context = self.getRoutingContext()?;
         let res = routing_context.cancel_dht_watch(key, subkeys).await?;

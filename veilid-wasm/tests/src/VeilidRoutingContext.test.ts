@@ -12,7 +12,7 @@ import {
   veilidCrypto,
 } from 'veilid-wasm';
 import { textEncoder, textDecoder } from './utils/marshalling-utils';
-import { waitForMs } from './utils/wait-utils';
+import { asyncCallWithTimeout, waitForPublicAttachment } from './utils/wait-utils';
 
 describe('VeilidRoutingContext', () => {
   before('veilid startup', async () => {
@@ -23,10 +23,12 @@ describe('VeilidRoutingContext', () => {
       // }
     }, JSON.stringify(veilidCoreStartupConfig));
     await veilidClient.attach();
-    await waitForMs(2000);
+    await asyncCallWithTimeout(waitForPublicAttachment(), 10000);
+    //console.log("---Started Up---");
   });
 
   after('veilid shutdown', async () => {
+    //console.log("---Shutting Down---");
     await veilidClient.detach();
     await veilidClient.shutdownCore();
   });
@@ -35,22 +37,16 @@ describe('VeilidRoutingContext', () => {
     it('should create using .create()', async () => {
       const routingContext = VeilidRoutingContext.create();
       expect(routingContext instanceof VeilidRoutingContext).toBe(true);
-
-      routingContext.free();
     });
 
     it('should create using new', async () => {
       const routingContext = new VeilidRoutingContext();
       expect(routingContext instanceof VeilidRoutingContext).toBe(true);
-
-      routingContext.free();
     });
 
     it('should create with default safety', async () => {
       const routingContext = VeilidRoutingContext.create().withDefaultSafety();
       expect(routingContext instanceof VeilidRoutingContext).toBe(true);
-
-      routingContext.free();
     });
 
     it('should create with safety', async () => {
@@ -62,16 +58,12 @@ describe('VeilidRoutingContext', () => {
         },
       });
       expect(routingContext instanceof VeilidRoutingContext).toBe(true);
-
-      routingContext.free();
     });
 
     it('should create with sequencing', async () => {
       const routingContext =
         VeilidRoutingContext.create().withSequencing('EnsureOrdered');
       expect(routingContext instanceof VeilidRoutingContext).toBe(true);
-
-      routingContext.free();
     });
   });
 
@@ -79,19 +71,16 @@ describe('VeilidRoutingContext', () => {
     let routingContext: VeilidRoutingContext;
 
     before('create routing context', () => {
-      routingContext = VeilidRoutingContext.create()
-        .withSequencing('EnsureOrdered');
+      routingContext = VeilidRoutingContext.create().withSafety({
+        Unsafe: 'EnsureOrdered',
+      });
     });
 
-    after('free routing context', () => {
-      routingContext.free();
-    });
-
-    describe('DHT kitchen sink', async () => {
+    describe('DHT kitchen sink', () => {
       let dhtRecord: DHTRecordDescriptor;
       const data = '🚀 This example DHT data with unicode a Ā 𐀀 文 🚀';
 
-      before('create dht record', async () => {
+      beforeEach('create dht record', async () => {
         const bestKind = veilidCrypto.bestCryptoKind();
         dhtRecord = await routingContext.createDhtRecord(
           {
@@ -107,7 +96,7 @@ describe('VeilidRoutingContext', () => {
         expect(dhtRecord.schema).toEqual({ kind: 'DFLT', o_cnt: 1 });
       });
 
-      after('free dht record', async () => {
+      afterEach('free dht record', async () => {
         await routingContext.deleteDhtRecord(dhtRecord.key);
       });
 
@@ -121,6 +110,14 @@ describe('VeilidRoutingContext', () => {
       });
 
       it('should get value with force refresh', async () => {
+
+        const setValueRes = await routingContext.setDhtValue(
+          dhtRecord.key,
+          0,
+          textEncoder.encode(data)
+        );
+        expect(setValueRes).toBeUndefined();
+
         const getValueRes = await routingContext.getDhtValue(
           dhtRecord.key,
           0,
@@ -192,6 +189,57 @@ describe('VeilidRoutingContext', () => {
         );
         expect(setValueRes).toBeUndefined();
       });
+
+      it('should watch value and cancel watch', async () => {
+        const setValueRes = await routingContext.setDhtValue(
+          dhtRecord.key,
+          0,
+          textEncoder.encode(data)
+        );
+        expect(setValueRes).toBeUndefined();
+
+        // With typical values
+        const watchValueRes = await routingContext.watchDhtValues(
+          dhtRecord.key,
+          [[0, 0]],
+          "0",
+          0xFFFFFFFF,
+        );
+        expect(watchValueRes).toBeDefined();
+        expect(watchValueRes).not.toEqual("");
+        expect(watchValueRes).not.toEqual("0");
+
+        const cancelValueRes = await routingContext.cancelDhtWatch(
+          dhtRecord.key,
+          [],
+        )
+
+        expect(cancelValueRes).toEqual(false);
+
+      });
+
+      it('should watch value and cancel watch with default values', async () => {
+        const setValueRes = await routingContext.setDhtValue(
+          dhtRecord.key,
+          0,
+          textEncoder.encode(data)
+        );
+        expect(setValueRes).toBeUndefined();
+
+        // Again with default values
+        const watchValueRes = await routingContext.watchDhtValues(
+          dhtRecord.key,
+        );
+        expect(watchValueRes).toBeDefined();
+        expect(watchValueRes).not.toEqual("");
+        expect(watchValueRes).not.toEqual("0");
+
+        const cancelValueRes = await routingContext.cancelDhtWatch(
+          dhtRecord.key,
+        )
+        expect(cancelValueRes).toEqual(false);
+      });
+
     });
   });
 });

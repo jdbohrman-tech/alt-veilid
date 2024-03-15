@@ -531,6 +531,8 @@ impl StorageManager {
         // Drop the lock for network access
         drop(inner);
 
+        log_stor!(debug "Writing subkey to the network: {}:{} len={}", key, subkey, signed_value_data.value_data().data().len() );
+
         // Use the safety selection we opened the record with
         let result = self
             .outbound_set_value(

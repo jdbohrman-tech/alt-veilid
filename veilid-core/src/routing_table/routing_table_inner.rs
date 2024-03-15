@@ -888,11 +888,16 @@ impl RoutingTableInner {
             }
         }
 
+        // Public internet routing domain is ready for app use,
+        // when we have proper dialinfo/networkclass
         let public_internet_ready = !matches!(
             self.get_network_class(RoutingDomain::PublicInternet)
                 .unwrap_or_default(),
             NetworkClass::Invalid
         );
+
+        // Local internet routing domain is ready for app use
+        // when we have proper dialinfo/networkclass
         let local_network_ready = !matches!(
             self.get_network_class(RoutingDomain::LocalNetwork)
                 .unwrap_or_default(),

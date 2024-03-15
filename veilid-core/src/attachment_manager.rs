@@ -179,7 +179,14 @@ impl AttachmentManager {
     fn update_attaching_detaching_state(&self, state: AttachmentState) {
         let update_callback = {
             let mut inner = self.inner.lock();
+
+            // Clear routing table health so when we start measuring it we start from scratch
+            inner.last_routing_table_health = None;
+
+            // Set attachment state directly
             inner.last_attachment_state = state;
+
+            // Set timestamps
             if state == AttachmentState::Attaching {
                 inner.attach_ts = Some(get_aligned_timestamp());
             } else if state == AttachmentState::Detached {
@@ -189,9 +196,12 @@ impl AttachmentManager {
             } else {
                 unreachable!("don't use this for attached states, use update_attachment()");
             }
+
+            // Get callback
             inner.update_callback.clone()
         };
 
+        // Send update
         if let Some(update_callback) = update_callback {
             update_callback(VeilidUpdate::Attachment(Box::new(VeilidStateAttachment {
                 state,
