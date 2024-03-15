@@ -407,10 +407,12 @@ impl VeilidRoutingContext {
     pub async fn inspectDhtRecord(
         &self,
         key: String,
-        subkeys: ValueSubkeyRangeSet,
-        scope: DHTReportScope,
+        subkeys: Option<ValueSubkeyRangeSet>,
+        scope: Option<DHTReportScope>,
     ) -> APIResult<DHTRecordReport> {
         let key = TypedKey::from_str(&key)?;
+        let subkeys = subkeys.unwrap_or_default();
+        let scope = scope.unwrap_or_default();
 
         let routing_context = self.getRoutingContext()?;
         let res = routing_context

@@ -879,7 +879,15 @@ impl RoutingTable {
                     // does it have some dial info we need?
                     let filter = |n: &NodeInfo| {
                         let mut keep = false;
+                        // Bootstraps must have -only- inbound capable network class
+                        if !matches!(n.network_class(), NetworkClass::InboundCapable) {
+                            return false;
+                        }
                         for did in n.dial_info_detail_list() {
+                            // Bootstraps must have -only- direct dial info
+                            if !matches!(did.class, DialInfoClass::Direct) {
+                                return false;
+                            }
                             if matches!(did.dial_info.address_type(), AddressType::IPV4) {
                                 for (n, protocol_type) in protocol_types.iter().enumerate() {
                                     if nodes_proto_v4[n] < max_per_type

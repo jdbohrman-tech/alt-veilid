@@ -21,7 +21,5 @@ export const veilidCoreInitConfig: VeilidWASMConfig = {
 export var veilidCoreStartupConfig = (() => {
   var defaultConfig = JSON.parse(veilidClient.defaultConfig());
   defaultConfig.program_name = 'veilid-wasm-test';
-  defaultConfig.network.routing_table.bootstrap = ['ws://bootstrap.dev.veilid.net:5150/ws'];
-  defaultConfig.network.network_key_password = 'dev';
   return defaultConfig;
 })(); 

@@ -286,8 +286,7 @@ impl RoutingTable {
                     {
                         Ok(NodeContactMethod::Direct(v)) => v,
                         Ok(v) => {
-                            log_rtab!(warn "invalid contact method for bootstrap, restarting network: {:?}", v);
-                            routing_table.network_manager().restart_network();
+                            log_rtab!(warn "invalid contact method for bootstrap, ignoring peer: {:?}", v);
                             return;
                         }
                         Err(e) => {

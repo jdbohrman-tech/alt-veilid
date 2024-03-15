@@ -240,6 +240,54 @@ describe('VeilidRoutingContext', () => {
         expect(cancelValueRes).toEqual(false);
       });
 
+      it('should set a value and inspect it', async () => {
+        const setValueRes = await routingContext.setDhtValue(
+          dhtRecord.key,
+          0,
+          textEncoder.encode(data)
+        );
+        expect(setValueRes).toBeUndefined();
+
+        // Inspect locally
+        const inspectRes = await routingContext.inspectDhtRecord(
+          dhtRecord.key,
+          [[0, 0]],
+          "Local",
+        );
+        expect(inspectRes).toBeDefined();
+        expect(inspectRes.subkeys).toEqual([[0, 0]]);
+        expect(inspectRes.local_seqs).toEqual([0]);
+        expect(inspectRes.network_seqs).toEqual([]);
+
+        // Inspect network
+        const inspectRes2 = await routingContext.inspectDhtRecord(
+          dhtRecord.key,
+          [[0, 0]],
+          "SyncGet",
+        );
+        expect(inspectRes2).toBeDefined();
+        expect(inspectRes2.subkeys).toEqual([[0, 0]]);
+        expect(inspectRes2.local_seqs).toEqual([0]);
+        expect(inspectRes2.network_seqs).toEqual([0]);
+      });
+
+      it('should set a value and inspect it with defaults', async () => {
+        const setValueRes = await routingContext.setDhtValue(
+          dhtRecord.key,
+          0,
+          textEncoder.encode(data)
+        );
+        expect(setValueRes).toBeUndefined();
+
+        // Inspect locally
+        const inspectRes = await routingContext.inspectDhtRecord(
+          dhtRecord.key,
+        );
+        expect(inspectRes).toBeDefined();
+        expect(inspectRes.subkeys).toEqual([[0, 0]]);
+        expect(inspectRes.local_seqs).toEqual([0]);
+        expect(inspectRes.network_seqs).toEqual([]);
+      });
     });
   });
 });
