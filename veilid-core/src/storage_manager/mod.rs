@@ -582,13 +582,6 @@ impl StorageManager {
     ) -> VeilidAPIResult<Timestamp> {
         let inner = self.lock().await?;
 
-        // Rewrite subkey range if empty to full
-        let subkeys = if subkeys.is_empty() {
-            ValueSubkeyRangeSet::full()
-        } else {
-            subkeys
-        };
-
         // Get the safety selection and the writer we opened this record
         // and whatever active watch id and watch node we may have in case this is a watch update
         let (safety_selection, opt_writer, opt_watch_id, opt_watch_node) = {
@@ -602,6 +595,24 @@ impl StorageManager {
                 opened_record.active_watch().map(|aw| aw.watch_node.clone()),
             )
         };
+
+        // Rewrite subkey range if empty to full
+        let subkeys = if subkeys.is_empty() {
+            ValueSubkeyRangeSet::full()
+        } else {
+            subkeys
+        };
+
+        // Get the schema so we can truncate the watch to the number of subkeys
+        let schema = if let Some(lrs) = inner.local_record_store.as_ref() {
+            let Some(schema) = lrs.peek_record(key, |r| r.schema()) else {
+                apibail_generic!("no local record found");
+            };
+            schema
+        } else {
+            apibail_not_initialized!();
+        };
+        let subkeys = schema.truncate_subkeys(&subkeys, None);
 
         // Get rpc processor and drop mutex so we don't block while requesting the watch from the network
         let Some(rpc_processor) = Self::online_ready_inner(&inner) else {

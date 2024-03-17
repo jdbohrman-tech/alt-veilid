@@ -203,6 +203,35 @@ async def test_open_writer_dht_value(api_connection: veilid.VeilidAPI):
         await rc.close_dht_record(key)
         await rc.delete_dht_record(key)
 
+@pytest.mark.asyncio
+async def test_watch_dht_values(api_connection: veilid.VeilidAPI):
+    rc = await api_connection.new_routing_context()
+    async with rc:
+        rec = await rc.create_dht_record(veilid.DHTSchema.dflt(10))
+
+        vd = await rc.set_dht_value(rec.key, 3, b"BLAH BLAH BLAH")
+        assert vd == None
+
+        ts = await rc.watch_dht_values(rec.key, [], 0, 0xFFFFFFFF)
+        assert ts != 0
+
+        vd = await rc.set_dht_value(rec.key, 3, b"BLAH")
+        assert vd == None
+
+        all_gone = await rc.cancel_dht_watch(rec.key, [(0, 2)])
+        assert all_gone == True
+
+        vd = await rc.set_dht_value(rec.key, 3, b"BLAH BLAH BLAH")
+        assert vd == None
+
+        all_gone = await rc.cancel_dht_watch(rec.key, [(3, 9)])
+        assert all_gone == False
+
+        vd = await rc.set_dht_value(rec.key, 3, b"BLAH")
+        assert vd == None
+        
+        await rc.close_dht_record(rec.key)
+        await rc.delete_dht_record(rec.key)
 
 @pytest.mark.asyncio
 async def test_inspect_dht_record(api_connection: veilid.VeilidAPI):

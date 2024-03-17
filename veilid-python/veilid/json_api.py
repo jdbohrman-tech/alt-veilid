@@ -663,7 +663,7 @@ class _JsonRoutingContext(RoutingContext):
                     rc_op=RoutingContextOperation.WATCH_DHT_VALUES,
                     key=key,
                     subkeys=subkeys,
-                    expiration=expiration,
+                    expiration=str(expiration),
                     count=count,
                 )
             )
