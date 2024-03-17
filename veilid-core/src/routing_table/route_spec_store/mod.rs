@@ -1001,7 +1001,7 @@ impl RouteSpecStore {
                 first_hop.set_sequencing(sequencing);
 
                 // Return the compiled safety route
-                //println!("compile_safety_route profile (stub): {} us", (get_timestamp() - profile_start_ts));
+                //info!("compile_safety_route profile (stub): {} us", (get_timestamp() - profile_start_ts));
                 return Ok(CompiledRoute {
                     safety_route: SafetyRoute::new_stub(
                         routing_table.node_id(crypto_kind),
@@ -1073,7 +1073,7 @@ impl RouteSpecStore {
                     first_hop,
                 };
                 // Return compiled route
-                //println!("compile_safety_route profile (cached): {} us", (get_timestamp() - profile_start_ts));
+                //info!("compile_safety_route profile (cached): {} us", (get_timestamp() - profile_start_ts));
                 return Ok(compiled_route);
             }
         }
@@ -1192,7 +1192,7 @@ impl RouteSpecStore {
         };
 
         // Return compiled route
-        //println!("compile_safety_route profile (uncached): {} us", (get_timestamp() - profile_start_ts));
+        //info!("compile_safety_route profile (uncached): {} us", (get_timestamp() - profile_start_ts));
         Ok(compiled_route)
     }
 

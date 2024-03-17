@@ -91,7 +91,7 @@ impl PlatformSupportNetlink {
             .execute();
         while let Some(routev4) = routesv4.try_next().await.unwrap_or_default() {
             if let Some(index) = routev4.output_interface() {
-                //println!("*** ipv4 route: {:#?}", routev4);
+                //info!("*** ipv4 route: {:#?}", routev4);
                 if routev4.header.destination_prefix_length == 0 {
                     self.default_route_interfaces.insert(index);
                 }
@@ -106,7 +106,7 @@ impl PlatformSupportNetlink {
             .execute();
         while let Some(routev6) = routesv6.try_next().await.unwrap_or_default() {
             if let Some(index) = routev6.output_interface() {
-                //println!("*** ipv6 route: {:#?}", routev6);
+                //info!("*** ipv6 route: {:#?}", routev6);
                 if routev6.header.destination_prefix_length == 0 {
                     self.default_route_interfaces.insert(index);
                 }

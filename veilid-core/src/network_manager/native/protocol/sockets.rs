@@ -4,7 +4,7 @@ use std::io;
 
 cfg_if! {
     if #[cfg(feature="rt-async-std")] {
-        pub use async_std::net::{TcpStream, TcpListener, Shutdown, UdpSocket};
+        pub use async_std::net::{TcpStream, TcpListener, UdpSocket};
     } else if #[cfg(feature="rt-tokio")] {
         pub use tokio::net::{TcpStream, TcpListener, UdpSocket};
         pub use tokio_util::compat::*;

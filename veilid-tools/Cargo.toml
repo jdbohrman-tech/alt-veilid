@@ -40,7 +40,9 @@ tracing = { version = "0.1.40", features = [
     "log",
     "attributes",
 ], optional = true }
-tracing-subscriber = { version = "0.3.18", optional = true }
+tracing-subscriber = { version = "0.3.18", features = [
+    "env-filter",
+], optional = true }
 log = { version = "0.4.20" }
 eyre = "0.6.11"
 static_assertions = "1.1.0"

@@ -96,8 +96,8 @@ cfg_if! {
 
         pub fn setup() {
             SETUP_ONCE.call_once(|| {
-                use tracing_subscriber::{EnvFilter, filter::LevelFilter, fmt, prelude::*};
-                let mut env_filter = EnvFilter::builder().with_default_directive(LevelFilter::INFO.into()).from_env_lossy();
+                use tracing_subscriber::{EnvFilter, fmt, prelude::*};
+                let mut env_filter = EnvFilter::builder().from_env_lossy();
                 for ig in DEFAULT_LOG_IGNORE_LIST {
                     env_filter = env_filter.add_directive(format!("{}=off", ig).parse().unwrap());
                 }

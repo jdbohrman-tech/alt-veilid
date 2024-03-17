@@ -16,7 +16,7 @@ pub extern "C" fn run_veilid_core_tests() {
 
 pub fn veilid_core_setup_ios_tests() {
     // Set up subscriber and layers
-    let filter = VeilidLayerFilter::new(VeilidConfigLogLevel::Trace, None);
+    let filter = VeilidLayerFilter::new(VeilidConfigLogLevel::Info, None);
     tracing_subscriber::registry()
         .with(OsLogger::new("com.veilid.veilidcore-tests", "").with_filter(filter))
         .init();

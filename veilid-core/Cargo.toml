@@ -120,7 +120,7 @@ chacha20 = "0.9.1"
 argon2 = "0.5.2"
 
 # Network
-async-std-resolver = { version = "0.23.2", optional = true }
+async-std-resolver = { version = "0.24.0", optional = true }
 hickory-resolver = { version = "0.24.0", optional = true }
 
 # Serialization

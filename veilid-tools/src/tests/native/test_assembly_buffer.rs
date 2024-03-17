@@ -84,7 +84,7 @@ pub async fn test_one_frag_out_in() {
     let mut all_sent = HashSet::new();
 
     // Sending
-    println!("sending");
+    info!("sending");
     for _ in 0..10000 {
         let random_len = (get_random_u32() % 1000) as usize + FRAGMENT_LEN;
         let mut message = vec![1u8; random_len];
@@ -101,14 +101,14 @@ pub async fn test_one_frag_out_in() {
         ));
     }
 
-    println!("all_sent len={}", all_sent.len());
+    info!("all_sent len={}", all_sent.len());
 
-    println!("fragments sent = {}", net_rx.len());
+    info!("fragments sent = {}", net_rx.len());
 
     drop(net_tx);
 
     // Receiving
-    println!("receiving");
+    info!("receiving");
 
     while let Ok((frame, r_remote_addr)) = net_rx.recv_async().await {
         // Send to input
@@ -122,7 +122,7 @@ pub async fn test_one_frag_out_in() {
             assert!(all_sent.remove(&(r_message, r_remote_addr)));
         }
     }
-    println!("all_sent len={}", all_sent.len());
+    info!("all_sent len={}", all_sent.len());
 
     // Shoud have dropped no packets
     assert_eq!(all_sent.len(), 0);
@@ -148,7 +148,7 @@ pub async fn test_many_frags_out_in() {
 
     // Sending
     let mut total_sent_size = 0usize;
-    println!("sending");
+    info!("sending");
     for _ in 0..1000 {
         let random_len = (get_random_u32() % 65536) as usize;
         total_sent_size += random_len;
@@ -166,14 +166,14 @@ pub async fn test_many_frags_out_in() {
         ));
     }
 
-    println!("all_sent len={}", all_sent.len());
-    println!("total_sent_size = {}", total_sent_size);
-    println!("fragments sent = {}", net_rx.len());
+    info!("all_sent len={}", all_sent.len());
+    info!("total_sent_size = {}", total_sent_size);
+    info!("fragments sent = {}", net_rx.len());
 
     drop(net_tx);
 
     // Receiving
-    println!("receiving");
+    info!("receiving");
 
     while let Ok((frame, r_remote_addr)) = net_rx.recv_async().await {
         // Send to input
@@ -187,7 +187,7 @@ pub async fn test_many_frags_out_in() {
             assert!(all_sent.remove(&(r_message, r_remote_addr)));
         }
     }
-    println!("all_sent len={}", all_sent.len());
+    info!("all_sent len={}", all_sent.len());
 
     // Shoud have dropped no packets
     assert_eq!(all_sent.len(), 0);
@@ -213,7 +213,7 @@ pub async fn test_many_frags_out_in_single_host() {
 
     // Sending
     let mut total_sent_size = 0usize;
-    println!("sending");
+    info!("sending");
     for _ in 0..1000 {
         let random_len = (get_random_u32() % 65536) as usize;
         total_sent_size += random_len;
@@ -231,14 +231,14 @@ pub async fn test_many_frags_out_in_single_host() {
         ));
     }
 
-    println!("all_sent len={}", all_sent.len());
-    println!("total_sent_size = {}", total_sent_size);
-    println!("fragments sent = {}", net_rx.len());
+    info!("all_sent len={}", all_sent.len());
+    info!("total_sent_size = {}", total_sent_size);
+    info!("fragments sent = {}", net_rx.len());
 
     drop(net_tx);
 
     // Receiving
-    println!("receiving");
+    info!("receiving");
 
     while let Ok((frame, r_remote_addr)) = net_rx.recv_async().await {
         // Send to input
@@ -252,7 +252,7 @@ pub async fn test_many_frags_out_in_single_host() {
             assert!(all_sent.remove(&(r_message, r_remote_addr)));
         }
     }
-    println!("all_sent len={}", all_sent.len());
+    info!("all_sent len={}", all_sent.len());
 
     // Shoud have dropped no packets
     assert_eq!(all_sent.len(), 0);
@@ -286,7 +286,7 @@ pub async fn test_many_frags_with_drops() {
     // Sending
     let mut total_sent_size = 0usize;
     let mut total_fragged = 0usize;
-    println!("sending");
+    info!("sending");
     for _ in 0..1000 {
         let random_len = (get_random_u32() % 65536) as usize;
         if random_len > FRAGMENT_LEN {
@@ -309,14 +309,14 @@ pub async fn test_many_frags_with_drops() {
         first.store(true, Ordering::Release);
     }
 
-    println!("all_sent len={}", all_sent.len());
-    println!("total_sent_size = {}", total_sent_size);
-    println!("fragments sent = {}", net_rx.len());
-    println!("total_fragged = {}", total_fragged);
+    info!("all_sent len={}", all_sent.len());
+    info!("total_sent_size = {}", total_sent_size);
+    info!("fragments sent = {}", net_rx.len());
+    info!("total_fragged = {}", total_fragged);
     drop(net_tx);
 
     // Receiving
-    println!("receiving");
+    info!("receiving");
 
     while let Ok((frame, r_remote_addr)) = net_rx.recv_async().await {
         // Send to input
@@ -330,7 +330,7 @@ pub async fn test_many_frags_with_drops() {
             assert!(all_sent.remove(&(r_message, r_remote_addr)));
         }
     }
-    println!("all_sent len={}", all_sent.len());
+    info!("all_sent len={}", all_sent.len());
 
     // Shoud have dropped all fragged packets
     assert_eq!(all_sent.len(), total_fragged);
@@ -356,7 +356,7 @@ pub async fn test_many_frags_reordered() {
     // Sending
     let mut total_sent_size = 0usize;
     let mut rng = rand::thread_rng();
-    println!("sending");
+    info!("sending");
     for _ in 0..1000 {
         let random_len = (get_random_u32() % 65536) as usize;
         total_sent_size += random_len;
@@ -386,14 +386,14 @@ pub async fn test_many_frags_reordered() {
         }
     }
 
-    println!("all_sent len={}", all_sent.len());
-    println!("total_sent_size = {}", total_sent_size);
-    println!("fragments sent = {}", net_rx.len());
+    info!("all_sent len={}", all_sent.len());
+    info!("total_sent_size = {}", total_sent_size);
+    info!("fragments sent = {}", net_rx.len());
 
     drop(net_tx);
 
     // Receiving
-    println!("receiving");
+    info!("receiving");
 
     while let Ok((frame, r_remote_addr)) = net_rx.recv_async().await {
         // Send to input
@@ -407,7 +407,7 @@ pub async fn test_many_frags_reordered() {
             assert!(all_sent.remove(&(r_message, r_remote_addr)));
         }
     }
-    println!("all_sent len={}", all_sent.len());
+    info!("all_sent len={}", all_sent.len());
 
     // Shoud have dropped no packets
     assert_eq!(all_sent.len(), 0);
