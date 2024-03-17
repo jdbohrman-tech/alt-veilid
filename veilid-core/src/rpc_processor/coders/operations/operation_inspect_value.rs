@@ -156,10 +156,12 @@ impl RPCOperationInspectValueA {
 
         // Ensure seqs returned does not exceeed subkeys requested
         #[allow(clippy::unnecessary_cast)]
-        if self.seqs.len() > inspect_value_context.subkeys.len() as usize {
-            return Err(RPCError::protocol(
-                "InspectValue seqs length is greater than subkeys requested",
-            ));
+        if self.seqs.len() as u64 > inspect_value_context.subkeys.len() as u64 {
+            return Err(RPCError::protocol(format!(
+                "InspectValue seqs length is greater than subkeys requested: {} > {}",
+                self.seqs.len(),
+                inspect_value_context.subkeys.len()
+            )));
         }
 
         // Validate descriptor

@@ -771,7 +771,7 @@ impl StorageManager {
         #[allow(clippy::unnecessary_cast)]
         {
             assert!(
-                local_inspect_result.subkeys.len() as usize == local_inspect_result.seqs.len(),
+                local_inspect_result.subkeys.len() as u64 == local_inspect_result.seqs.len() as u64,
                 "mismatch between local subkeys returned and sequence number list returned"
             );
         }
@@ -824,8 +824,8 @@ impl StorageManager {
         #[allow(clippy::unnecessary_cast)]
         {
             assert_eq!(
-                result.inspect_result.subkeys.len() as usize,
-                result.fanout_results.len(),
+                result.inspect_result.subkeys.len() as u64,
+                result.fanout_results.len() as u64,
                 "mismatch between subkeys returned and fanout results returned"
             );
         }

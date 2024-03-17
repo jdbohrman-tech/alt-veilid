@@ -133,7 +133,8 @@ Map<String, dynamic> _$$VeilidLogImplToJson(_$VeilidLogImpl instance) =>
 _$VeilidAppMessageImpl _$$VeilidAppMessageImplFromJson(
         Map<String, dynamic> json) =>
     _$VeilidAppMessageImpl(
-      message: const Uint8ListJsonConverter().fromJson(json['message']),
+      message:
+          const Uint8ListJsonConverter.jsIsArray().fromJson(json['message']),
       sender: json['sender'] == null
           ? null
           : Typed<FixedEncodedString43>.fromJson(json['sender']),
@@ -144,7 +145,8 @@ _$VeilidAppMessageImpl _$$VeilidAppMessageImplFromJson(
 Map<String, dynamic> _$$VeilidAppMessageImplToJson(
         _$VeilidAppMessageImpl instance) =>
     <String, dynamic>{
-      'message': const Uint8ListJsonConverter().toJson(instance.message),
+      'message':
+          const Uint8ListJsonConverter.jsIsArray().toJson(instance.message),
       'sender': instance.sender?.toJson(),
       'route_id': instance.routeId,
       'kind': instance.$type,
@@ -152,7 +154,8 @@ Map<String, dynamic> _$$VeilidAppMessageImplToJson(
 
 _$VeilidAppCallImpl _$$VeilidAppCallImplFromJson(Map<String, dynamic> json) =>
     _$VeilidAppCallImpl(
-      message: const Uint8ListJsonConverter().fromJson(json['message']),
+      message:
+          const Uint8ListJsonConverter.jsIsArray().fromJson(json['message']),
       callId: json['call_id'] as String,
       sender: json['sender'] == null
           ? null
@@ -163,7 +166,8 @@ _$VeilidAppCallImpl _$$VeilidAppCallImplFromJson(Map<String, dynamic> json) =>
 
 Map<String, dynamic> _$$VeilidAppCallImplToJson(_$VeilidAppCallImpl instance) =>
     <String, dynamic>{
-      'message': const Uint8ListJsonConverter().toJson(instance.message),
+      'message':
+          const Uint8ListJsonConverter.jsIsArray().toJson(instance.message),
       'call_id': instance.callId,
       'sender': instance.sender?.toJson(),
       'route_id': instance.routeId,

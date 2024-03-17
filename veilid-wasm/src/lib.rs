@@ -644,6 +644,7 @@ pub fn routing_context_inspect_dht_record(
         let res = routing_context
             .inspect_dht_record(key, subkeys, scope)
             .await?;
+
         APIResult::Ok(res)
     })
 }
@@ -695,7 +696,7 @@ pub fn import_remote_private_route(blob: String) -> Promise {
 
 #[wasm_bindgen()]
 pub fn release_private_route(route_id: String) -> Promise {
-    let route_id: veilid_core::RouteId = veilid_core::deserialize_json(&route_id).unwrap();
+    let route_id: veilid_core::RouteId = veilid_core::RouteId::try_decode(&route_id).unwrap();
     wrap_api_future_void(async move {
         let veilid_api = get_veilid_api()?;
         veilid_api.release_private_route(route_id)?;

@@ -16,7 +16,7 @@ Future<void> testOpenDeleteTableDb() async {
 
   final tdb = await Veilid.instance.openTableDB(testDb, 1);
   try {
-    expect(() async => await Veilid.instance.deleteTableDB(testDb),
+    await expectLater(() async => await Veilid.instance.deleteTableDB(testDb),
         throwsA(isA<VeilidAPIException>()));
   } finally {
     tdb.close();
