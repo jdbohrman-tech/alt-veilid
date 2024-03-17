@@ -702,7 +702,7 @@ class VeilidRoutingContextFFI extends VeilidRoutingContext {
       Timestamp? expiration,
       int? count}) async {
     subkeys ??= [];
-    expiration ??= Timestamp(value: BigInt.zero);
+    expiration ??= Timestamp.zero();
     count ??= 0xFFFFFFFF;
 
     _ctx.ensureValid();

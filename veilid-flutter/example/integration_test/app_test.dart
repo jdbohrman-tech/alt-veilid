@@ -66,6 +66,8 @@ void main() {
         test('get dht value nonexistent', testGetDHTValueNonexistent);
         test('set get dht value', testSetGetDHTValue);
         test('open writer dht value', testOpenWriterDHTValue);
+        test(
+            'watch dht values', () => testWatchDHTValues(fixture.updateStream));
         test('inspect dht record', testInspectDHTRecord);
       });
     });

@@ -55,7 +55,8 @@ Future<void> testAppMessageLoopback(Stream<VeilidUpdate> updateStream) async {
     await Veilid.instance.debug("purge routes");
 
     // make a routing context that uses a safety route
-    final rc = await Veilid.instance.routingContext();
+    final rc = await Veilid.instance
+        .safeRoutingContext(sequencing: Sequencing.ensureOrdered);
     try {
       // make a new local private route
       final prl = await Veilid.instance.newPrivateRoute();
@@ -96,7 +97,8 @@ Future<void> testAppCallLoopback(Stream<VeilidUpdate> updateStream) async {
     await Veilid.instance.debug("purge routes");
 
     // make a routing context that uses a safety route
-    final rc = await Veilid.instance.routingContext();
+    final rc = await Veilid.instance
+        .safeRoutingContext(sequencing: Sequencing.ensureOrdered);
     try {
       // make a new local private route
       final prl = await Veilid.instance.newPrivateRoute();
@@ -153,7 +155,8 @@ Future<void> testAppMessageLoopbackBigPackets(
     await Veilid.instance.debug("purge routes");
 
     // make a routing context that uses a safety route
-    final rc = await Veilid.instance.routingContext();
+    final rc = await Veilid.instance
+        .safeRoutingContext(sequencing: Sequencing.ensureOrdered);
     try {
       // make a new local private route
       final prl = await Veilid.instance.newPrivateRoute();

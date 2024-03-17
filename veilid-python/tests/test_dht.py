@@ -218,14 +218,14 @@ async def test_watch_dht_values(api_connection: veilid.VeilidAPI):
         vd = await rc.set_dht_value(rec.key, 3, b"BLAH")
         assert vd == None
 
-        all_gone = await rc.cancel_dht_watch(rec.key, [(0, 2)])
-        assert all_gone == True
+        still_active = await rc.cancel_dht_watch(rec.key, [(0, 2)])
+        assert still_active == True
 
         vd = await rc.set_dht_value(rec.key, 3, b"BLAH BLAH BLAH")
         assert vd == None
 
-        all_gone = await rc.cancel_dht_watch(rec.key, [(3, 9)])
-        assert all_gone == False
+        still_active = await rc.cancel_dht_watch(rec.key, [(3, 9)])
+        assert still_active == False
 
         vd = await rc.set_dht_value(rec.key, 3, b"BLAH")
         assert vd == None

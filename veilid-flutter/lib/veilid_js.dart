@@ -207,7 +207,7 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
       Timestamp? expiration,
       int? count}) async {
     subkeys ??= [];
-    expiration ??= Timestamp(value: BigInt.zero);
+    expiration ??= Timestamp.zero();
     count ??= 0xFFFFFFFF;
 
     final id = _ctx.requireId();

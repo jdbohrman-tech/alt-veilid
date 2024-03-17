@@ -63,6 +63,7 @@ class VeilidVersion extends Equatable {
 @immutable
 class Timestamp extends Equatable implements Comparable<Timestamp> {
   const Timestamp({required this.value});
+  factory Timestamp.zero() => Timestamp(value: BigInt.zero);
   factory Timestamp.fromInt64(Int64 i64) => Timestamp(
       value: (BigInt.from((i64 >> 32).toUnsigned(32).toInt()) << 32) |
           BigInt.from(i64.toUnsigned(32).toInt()));
@@ -144,6 +145,21 @@ abstract class Veilid {
 
   // Routing context
   Future<VeilidRoutingContext> routingContext();
+  Future<VeilidRoutingContext> safeRoutingContext(
+      {Stability stability = Stability.lowLatency,
+      Sequencing sequencing = Sequencing.preferOrdered}) async {
+    final rc = await routingContext();
+    final originalSafety = await rc.safety() as SafetySelectionSafe;
+    final safetySpec = originalSafety.safetySpec
+        .copyWith(stability: stability, sequencing: sequencing);
+    return rc.withSafety(SafetySelectionSafe(safetySpec: safetySpec),
+        closeSelf: true);
+  }
+
+  Future<VeilidRoutingContext> unsafeRoutingContext(
+          {Sequencing sequencing = Sequencing.preferOrdered}) async =>
+      (await routingContext())
+          .withSafety(SafetySelectionUnsafe(sequencing: sequencing));
 
   // Private route allocation
   Future<RouteBlob> newPrivateRoute();

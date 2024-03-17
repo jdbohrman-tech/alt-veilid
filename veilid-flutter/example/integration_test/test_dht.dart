@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -7,7 +8,8 @@ final bogusKey =
     TypedKey.fromString("VLD0:qD10lHHPD1_Qr23_Qy-1JnxTht12eaWwENVG_m2v7II");
 
 Future<void> testGetDHTValueUnopened() async {
-  final rc = await Veilid.instance.routingContext();
+  final rc = await Veilid.instance
+      .safeRoutingContext(sequencing: Sequencing.ensureOrdered);
   try {
     await expectLater(
         () async => await rc.getDHTValue(bogusKey, 0, forceRefresh: false),
@@ -18,7 +20,8 @@ Future<void> testGetDHTValueUnopened() async {
 }
 
 Future<void> testOpenDHTRecordNonexistentNoWriter() async {
-  final rc = await Veilid.instance.routingContext();
+  final rc = await Veilid.instance
+      .safeRoutingContext(sequencing: Sequencing.ensureOrdered);
   try {
     await expectLater(() async => await rc.openDHTRecord(bogusKey),
         throwsA(isA<VeilidAPIException>()));
@@ -28,7 +31,8 @@ Future<void> testOpenDHTRecordNonexistentNoWriter() async {
 }
 
 Future<void> testCloseDHTRecordNonexistent() async {
-  final rc = await Veilid.instance.routingContext();
+  final rc = await Veilid.instance
+      .safeRoutingContext(sequencing: Sequencing.ensureOrdered);
   try {
     await expectLater(() async => await rc.closeDHTRecord(bogusKey),
         throwsA(isA<VeilidAPIException>()));
@@ -38,7 +42,8 @@ Future<void> testCloseDHTRecordNonexistent() async {
 }
 
 Future<void> testDeleteDHTRecordNonexistent() async {
-  final rc = await Veilid.instance.routingContext();
+  final rc = await Veilid.instance
+      .safeRoutingContext(sequencing: Sequencing.ensureOrdered);
   try {
     await expectLater(() async => await rc.deleteDHTRecord(bogusKey),
         throwsA(isA<VeilidAPIException>()));
@@ -48,7 +53,8 @@ Future<void> testDeleteDHTRecordNonexistent() async {
 }
 
 Future<void> testCreateDeleteDHTRecordSimple() async {
-  final rc = await Veilid.instance.routingContext();
+  final rc = await Veilid.instance
+      .safeRoutingContext(sequencing: Sequencing.ensureOrdered);
   try {
     final rec = await rc.createDHTRecord(const DHTSchema.dflt(oCnt: 1));
     await rc.closeDHTRecord(rec.key);
@@ -59,7 +65,8 @@ Future<void> testCreateDeleteDHTRecordSimple() async {
 }
 
 Future<void> testCreateDeleteDHTRecordNoClose() async {
-  final rc = await Veilid.instance.routingContext();
+  final rc = await Veilid.instance
+      .safeRoutingContext(sequencing: Sequencing.ensureOrdered);
   try {
     final rec = await rc.createDHTRecord(const DHTSchema.dflt(oCnt: 1));
     await rc.deleteDHTRecord(rec.key);
@@ -69,7 +76,8 @@ Future<void> testCreateDeleteDHTRecordNoClose() async {
 }
 
 Future<void> testGetDHTValueNonexistent() async {
-  final rc = await Veilid.instance.routingContext();
+  final rc = await Veilid.instance
+      .safeRoutingContext(sequencing: Sequencing.ensureOrdered);
   try {
     final rec = await rc.createDHTRecord(const DHTSchema.dflt(oCnt: 1));
     expect(await rc.getDHTValue(rec.key, 0), isNull);
@@ -80,7 +88,8 @@ Future<void> testGetDHTValueNonexistent() async {
 }
 
 Future<void> testSetGetDHTValue() async {
-  final rc = await Veilid.instance.routingContext();
+  final rc = await Veilid.instance
+      .safeRoutingContext(sequencing: Sequencing.ensureOrdered);
   try {
     final rec = await rc.createDHTRecord(const DHTSchema.dflt(oCnt: 2));
     expect(await rc.setDHTValue(rec.key, 0, utf8.encode("BLAH BLAH BLAH")),
@@ -103,7 +112,8 @@ Future<void> testSetGetDHTValue() async {
 }
 
 Future<void> testOpenWriterDHTValue() async {
-  final rc = await Veilid.instance.routingContext();
+  final rc = await Veilid.instance
+      .safeRoutingContext(sequencing: Sequencing.ensureOrdered);
   try {
     var rec = await rc.createDHTRecord(const DHTSchema.dflt(oCnt: 2));
     final key = rec.key;
@@ -223,8 +233,132 @@ Future<void> testOpenWriterDHTValue() async {
   }
 }
 
+Future<void> testWatchDHTValues(Stream<VeilidUpdate> updateStream) async {
+  final valueChangeQueue = StreamController<VeilidUpdateValueChange>();
+  final valueChangeSubscription = updateStream.listen((update) {
+    if (update is VeilidUpdateValueChange) {
+      // print("valuechange: " + update.toString());
+      valueChangeQueue.sink.add(update);
+    }
+  });
+  final valueChangeQueueIterator = StreamIterator(valueChangeQueue.stream);
+
+  try {
+    // Make two routing contexts, one with and one without safety
+    // So we can pretend to be a different node and get the watch updates
+    // Normally they would not get sent if the set comes from the same target
+    // as the watch's target
+
+    final rcWatch = (await Veilid.instance.routingContext())
+        .withSequencing(Sequencing.ensureOrdered, closeSelf: true);
+    final rcSet = (await Veilid.instance.routingContext()).withSafety(
+        const SafetySelectionUnsafe(sequencing: Sequencing.ensureOrdered),
+        closeSelf: true);
+    try {
+      // Make a DHT record
+      var rec = await rcWatch.createDHTRecord(const DHTSchema.dflt(oCnt: 10));
+
+      // Set some subkey we care about
+      expect(
+          await rcWatch.setDHTValue(rec.key, 3, utf8.encode("BLAH BLAH BLAH")),
+          isNull);
+
+      // Make a watch on that subkey
+      expect(await rcWatch.watchDHTValues(rec.key),
+          isNot(equals(Timestamp.zero())));
+
+      // Reopen without closing to change routing context and not lose watch
+      rec = await rcSet.openDHTRecord(rec.key, writer: rec.ownerKeyPair());
+
+      // Now set the subkey and trigger an update
+      expect(await rcSet.setDHTValue(rec.key, 3, utf8.encode("BLAH")), isNull);
+
+      // Wait for the update
+      await valueChangeQueueIterator
+          .moveNext()
+          .timeout(const Duration(seconds: 5), onTimeout: () {
+        fail("should have a change");
+      });
+
+      // Verify the update
+      expect(valueChangeQueueIterator.current.key, equals(rec.key));
+      expect(valueChangeQueueIterator.current.count, equals(0xFFFFFFFE));
+      expect(valueChangeQueueIterator.current.subkeys,
+          equals([ValueSubkeyRange.single(3)]));
+      expect(valueChangeQueueIterator.current.value.seq, equals(1));
+      expect(valueChangeQueueIterator.current.value.data,
+          equals(utf8.encode("BLAH")));
+      expect(valueChangeQueueIterator.current.value.writer, equals(rec.owner));
+
+      // Reopen without closing to change routing context and not lose watch
+      rec = await rcWatch.openDHTRecord(rec.key, writer: rec.ownerKeyPair());
+
+      // Cancel some subkeys we don't care about
+      expect(
+          await rcWatch
+              .cancelDHTWatch(rec.key, subkeys: [ValueSubkeyRange.make(0, 2)]),
+          isTrue);
+
+      // Reopen without closing to change routing context and not lose watch
+      rec = await rcSet.openDHTRecord(rec.key, writer: rec.ownerKeyPair());
+
+      // Change our subkey
+      expect(await rcSet.setDHTValue(rec.key, 3, utf8.encode("BLAH BLAH BLAH")),
+          isNull);
+
+      // Wait for the update
+      await valueChangeQueueIterator
+          .moveNext()
+          .timeout(const Duration(seconds: 5), onTimeout: () {
+        fail("should have a change");
+      });
+
+      // Verify the update
+      expect(valueChangeQueueIterator.current.key, equals(rec.key));
+      expect(valueChangeQueueIterator.current.count, equals(0xFFFFFFFD));
+      expect(valueChangeQueueIterator.current.subkeys,
+          equals([ValueSubkeyRange.single(3)]));
+      expect(valueChangeQueueIterator.current.value.seq, equals(2));
+      expect(valueChangeQueueIterator.current.value.data,
+          equals(utf8.encode("BLAH BLAH BLAH")));
+      expect(valueChangeQueueIterator.current.value.writer, equals(rec.owner));
+
+      // Reopen without closing to change routing context and not lose watch
+      rec = await rcWatch.openDHTRecord(rec.key, writer: rec.ownerKeyPair());
+
+      // Now cancel the update
+      expect(
+          await rcWatch
+              .cancelDHTWatch(rec.key, subkeys: [ValueSubkeyRange.make(3, 9)]),
+          isFalse);
+
+      // Reopen without closing to change routing context and not lose watch
+      rec = await rcSet.openDHTRecord(rec.key, writer: rec.ownerKeyPair());
+
+      expect(await rcSet.setDHTValue(rec.key, 3, utf8.encode("BLAH")), isNull);
+
+      if (await valueChangeQueueIterator
+          .moveNext()
+          .timeout(const Duration(seconds: 5), onTimeout: () {
+        return false;
+      })) {
+        fail("should not have a change");
+      }
+
+      await rcSet.closeDHTRecord(rec.key);
+      await rcSet.deleteDHTRecord(rec.key);
+    } finally {
+      rcWatch.close();
+      rcSet.close();
+    }
+  } finally {
+    await valueChangeSubscription.cancel();
+  }
+}
+
 Future<void> testInspectDHTRecord() async {
-  final rc = await Veilid.instance.routingContext();
+  final rc = await Veilid.instance
+      .safeRoutingContext(sequencing: Sequencing.ensureOrdered);
   try {
     var rec = await rc.createDHTRecord(const DHTSchema.dflt(oCnt: 2));
 
