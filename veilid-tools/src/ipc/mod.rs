@@ -7,6 +7,7 @@ cfg_if! {
         pub use ipc_tokio::*;
     } else if #[cfg(feature="rt-async-std")] {
         mod ipc_async_std;
+        #[cfg_attr(windows, allow(unused_imports))]
         pub use ipc_async_std::*;
     }
 }
