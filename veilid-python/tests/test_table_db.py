@@ -67,7 +67,7 @@ async def test_open_twice_table_db_store_load(api_connection: veilid.VeilidAPI):
             # store into first db copy
             await tdb.store(b"asdf", b"1234")
             # load from second db copy
-            assert await tdb.load(b"asdf") == b"1234"
+            assert await tdb2.load(b"asdf") == b"1234"
 
     # delete should now succeed
     deleted = await api_connection.delete_table_db(TEST_DB)

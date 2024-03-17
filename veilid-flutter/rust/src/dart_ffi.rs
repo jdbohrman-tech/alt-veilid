@@ -9,12 +9,12 @@ use opentelemetry::*;
 use opentelemetry_otlp::WithExportConfig;
 use parking_lot::Mutex;
 use serde::*;
+use std::io::Write;
 use std::os::raw::c_char;
 use std::sync::Arc;
 use tracing::*;
 use tracing_subscriber::prelude::*;
-use veilid_core::tools::*;
-use veilid_core::Encodable as _;
+use veilid_core::{tools::*, Encodable};
 
 // Detect flutter load/unload
 cfg_if! {
@@ -141,35 +141,55 @@ pub struct VeilidFFIRouteBlob {
 // Initializer
 #[no_mangle]
 #[instrument]
-pub extern "C" fn initialize_veilid_flutter(dart_post_c_object_ptr: ffi::DartPostCObjectFnType) {
+pub extern "C" fn initialize_veilid_flutter(
+    dart_post_c_object_ptr: ffi::DartPostCObjectFnType,
+    crash_path: FfiStr,
+) {
     unsafe {
         store_dart_post_cobject(dart_post_c_object_ptr);
     }
+    let crash_path = crash_path.into_opt_string().unwrap_or_default();
 
     use std::sync::Once;
     static INIT_BACKTRACE: Once = Once::new();
     INIT_BACKTRACE.call_once(move || {
         std::env::set_var("RUST_BACKTRACE", "1");
         std::panic::set_hook(Box::new(move |panic_info| {
+            let crash_file = if crash_path.is_empty() {
+                None
+            } else {
+                Some(std::fs::File::create(&crash_path).unwrap())
+            };
+
             let (file, line) = if let Some(loc) = panic_info.location() {
                 (loc.file(), loc.line())
             } else {
                 ("<unknown>", 0)
             };
-            eprintln!("### Rust `panic!` hit at file '{}', line {}", file, line);
+
+            let mut out = String::new();
+
+            out += &format!("### Rust `panic!` hit at file '{}', line {}\n", file, line);
             if let Some(s) = panic_info.payload().downcast_ref::<&str>() {
-                eprintln!("panic payload: {:?}", s);
+                out += &format!("panic payload: {:?}\n", s);
             } else if let Some(s) = panic_info.payload().downcast_ref::<String>() {
-                eprintln!("panic payload: {:?}", s);
+                out += &format!("panic payload: {:?}\n", s);
             } else if let Some(a) = panic_info.payload().downcast_ref::<std::fmt::Arguments>() {
-                eprintln!("panic payload: {:?}", a);
+                out += &format!("panic payload: {:?}\n", a);
             } else {
-                eprintln!("no panic payload");
+                out += "no panic payload\n";
             }
-            eprintln!(
+            out += &format!(
                 "  Complete stack trace:\n{:?}\n",
                 backtrace::Backtrace::new()
             );
+
+            if let Some(mut crash_file) = crash_file {
+                write!(crash_file, "{}", out).unwrap();
+                crash_file.flush().unwrap();
+            } else {
+                eprintln!("{}", out);
+            }
 
             // And stop the process, no recovery is going to be possible here
             eprintln!("aborting!");
@@ -521,20 +541,20 @@ pub extern "C" fn routing_context_with_sequencing(id: u32, sequencing: FfiStr) -
     add_routing_context(&mut rc, routing_context)
 }
 
+fn get_routing_context(id: u32, func_name: &str) -> APIResult<veilid_core::RoutingContext> {
+    let rc = ROUTING_CONTEXTS.lock();
+    let Some(routing_context) = rc.get(&id) else {
+        return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
+            func_name, "id", id,
+        ));
+    };
+    Ok(routing_context.clone())
+}
+
 #[no_mangle]
 pub extern "C" fn routing_context_safety(port: i64, id: u32) {
     DartIsolateWrapper::new(port).spawn_result_json(async move {
-        let routing_context = {
-            let rc = ROUTING_CONTEXTS.lock();
-            let Some(routing_context) = rc.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "routing_context_app_call",
-                    "id",
-                    id,
-                ));
-            };
-            routing_context.clone()
-        };
+        let routing_context = get_routing_context(id, "routing_context_safety")?;
         APIResult::Ok(routing_context.safety())
     });
 }
@@ -545,17 +565,8 @@ pub extern "C" fn routing_context_app_call(port: i64, id: u32, target: FfiStr, r
         .decode(request.into_opt_string().unwrap().as_bytes())
         .unwrap();
     DartIsolateWrapper::new(port).spawn_result(async move {
-        let routing_context = {
-            let rc = ROUTING_CONTEXTS.lock();
-            let Some(routing_context) = rc.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "routing_context_app_call",
-                    "id",
-                    id,
-                ));
-            };
-            routing_context.clone()
-        };
+        let routing_context = get_routing_context(id, "routing_context_app_call")?;
+
         let veilid_api = get_veilid_api().await?;
         let target = veilid_api.parse_as_target(target_string).await?;
         let answer = routing_context.app_call(target, request).await?;
@@ -571,17 +582,7 @@ pub extern "C" fn routing_context_app_message(port: i64, id: u32, target: FfiStr
         .decode(message.into_opt_string().unwrap().as_bytes())
         .unwrap();
     DartIsolateWrapper::new(port).spawn_result(async move {
-        let routing_context = {
-            let rc = ROUTING_CONTEXTS.lock();
-            let Some(routing_context) = rc.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "routing_context_app_message",
-                    "id",
-                    id,
-                ));
-            };
-            routing_context.clone()
-        };
+        let routing_context = get_routing_context(id, "routing_context_app_message")?;
 
         let veilid_api = get_veilid_api().await?;
         let target = veilid_api.parse_as_target(target_string).await?;
@@ -601,17 +602,7 @@ pub extern "C" fn routing_context_create_dht_record(port: i64, id: u32, schema: 
         veilid_core::deserialize_opt_json(schema.into_opt_string()).unwrap();
 
     DartIsolateWrapper::new(port).spawn_result_json(async move {
-        let routing_context = {
-            let rc = ROUTING_CONTEXTS.lock();
-            let Some(routing_context) = rc.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "routing_context_create_dht_record",
-                    "id",
-                    id,
-                ));
-            };
-            routing_context.clone()
-        };
+        let routing_context = get_routing_context(id, "routing_context_create_dht_record")?;
 
         let dht_record_descriptor = routing_context
             .create_dht_record(schema, crypto_kind)
@@ -628,17 +619,8 @@ pub extern "C" fn routing_context_open_dht_record(port: i64, id: u32, key: FfiSt
         .into_opt_string()
         .map(|s| veilid_core::deserialize_json(&s).unwrap());
     DartIsolateWrapper::new(port).spawn_result_json(async move {
-        let routing_context = {
-            let rc = ROUTING_CONTEXTS.lock();
-            let Some(routing_context) = rc.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "routing_context_open_dht_record",
-                    "id",
-                    id,
-                ));
-            };
-            routing_context.clone()
-        };
+        let routing_context = get_routing_context(id, "routing_context_open_dht_record")?;
+
         let dht_record_descriptor = routing_context.open_dht_record(key, writer).await?;
         APIResult::Ok(dht_record_descriptor)
     });
@@ -649,17 +631,8 @@ pub extern "C" fn routing_context_close_dht_record(port: i64, id: u32, key: FfiS
     let key: veilid_core::TypedKey =
         veilid_core::deserialize_opt_json(key.into_opt_string()).unwrap();
     DartIsolateWrapper::new(port).spawn_result(async move {
-        let routing_context = {
-            let rc = ROUTING_CONTEXTS.lock();
-            let Some(routing_context) = rc.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "routing_context_close_dht_record",
-                    "id",
-                    id,
-                ));
-            };
-            routing_context.clone()
-        };
+        let routing_context = get_routing_context(id, "routing_context_close_dht_record")?;
+
         routing_context.close_dht_record(key).await?;
         APIRESULT_VOID
     });
@@ -670,17 +643,8 @@ pub extern "C" fn routing_context_delete_dht_record(port: i64, id: u32, key: Ffi
     let key: veilid_core::TypedKey =
         veilid_core::deserialize_opt_json(key.into_opt_string()).unwrap();
     DartIsolateWrapper::new(port).spawn_result(async move {
-        let routing_context = {
-            let rc = ROUTING_CONTEXTS.lock();
-            let Some(routing_context) = rc.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "routing_context_delete_dht_record",
-                    "id",
-                    id,
-                ));
-            };
-            routing_context.clone()
-        };
+        let routing_context = get_routing_context(id, "routing_context_delete_dht_record")?;
+
         routing_context.delete_dht_record(key).await?;
         APIRESULT_VOID
     });
@@ -697,17 +661,8 @@ pub extern "C" fn routing_context_get_dht_value(
     let key: veilid_core::TypedKey =
         veilid_core::deserialize_opt_json(key.into_opt_string()).unwrap();
     DartIsolateWrapper::new(port).spawn_result_json(async move {
-        let routing_context = {
-            let rc = ROUTING_CONTEXTS.lock();
-            let Some(routing_context) = rc.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "routing_context_get_dht_value",
-                    "id",
-                    id,
-                ));
-            };
-            routing_context.clone()
-        };
+        let routing_context = get_routing_context(id, "routing_context_get_dht_value")?;
+
         let res = routing_context
             .get_dht_value(key, subkey, force_refresh)
             .await?;
@@ -734,17 +689,8 @@ pub extern "C" fn routing_context_set_dht_value(
         .map(|s| veilid_core::deserialize_json(&s).unwrap());
 
     DartIsolateWrapper::new(port).spawn_result_json(async move {
-        let routing_context = {
-            let rc = ROUTING_CONTEXTS.lock();
-            let Some(routing_context) = rc.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "routing_context_set_dht_value",
-                    "id",
-                    id,
-                ));
-            };
-            routing_context.clone()
-        };
+        let routing_context = get_routing_context(id, "routing_context_set_dht_value")?;
+
         let res = routing_context
             .set_dht_value(key, subkey, data, writer)
             .await?;
@@ -768,17 +714,8 @@ pub extern "C" fn routing_context_watch_dht_values(
     let expiration = veilid_core::Timestamp::from(expiration);
 
     DartIsolateWrapper::new(port).spawn_result(async move {
-        let routing_context = {
-            let rc = ROUTING_CONTEXTS.lock();
-            let Some(routing_context) = rc.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "routing_context_watch_dht_values",
-                    "id",
-                    id,
-                ));
-            };
-            routing_context.clone()
-        };
+        let routing_context = get_routing_context(id, "routing_context_watch_dht_values")?;
+
         let res = routing_context
             .watch_dht_values(key, subkeys, expiration, count)
             .await?;
@@ -799,18 +736,34 @@ pub extern "C" fn routing_context_cancel_dht_watch(
         veilid_core::deserialize_opt_json(subkeys.into_opt_string()).unwrap();
 
     DartIsolateWrapper::new(port).spawn_result(async move {
-        let routing_context = {
-            let rc = ROUTING_CONTEXTS.lock();
-            let Some(routing_context) = rc.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "routing_context_set_dht_value",
-                    "id",
-                    id,
-                ));
-            };
-            routing_context.clone()
-        };
+        let routing_context = get_routing_context(id, "routing_context_cancel_dht_watch")?;
+
         let res = routing_context.cancel_dht_watch(key, subkeys).await?;
+        APIResult::Ok(res)
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn routing_context_inspect_dht_record(
+    port: i64,
+    id: u32,
+    key: FfiStr,
+    subkeys: FfiStr,
+    scope: FfiStr,
+) {
+    let key: veilid_core::TypedKey =
+        veilid_core::deserialize_opt_json(key.into_opt_string()).unwrap();
+    let subkeys: veilid_core::ValueSubkeyRangeSet =
+        veilid_core::deserialize_opt_json(subkeys.into_opt_string()).unwrap();
+    let scope: veilid_core::DHTReportScope =
+        veilid_core::deserialize_opt_json(scope.into_opt_string()).unwrap();
+
+    DartIsolateWrapper::new(port).spawn_result_json(async move {
+        let routing_context = get_routing_context(id, "routing_context_inspect_dht_record")?;
+
+        let res = routing_context
+            .inspect_dht_record(key, subkeys, scope)
+            .await?;
         APIResult::Ok(res)
     });
 }
@@ -851,25 +804,20 @@ pub extern "C" fn new_custom_private_route(port: i64, stability: FfiStr, sequenc
 #[no_mangle]
 pub extern "C" fn import_remote_private_route(port: i64, blob: FfiStr) {
     let blob: Vec<u8> = data_encoding::BASE64URL_NOPAD
-        .decode(
-            veilid_core::deserialize_opt_json::<String>(blob.into_opt_string())
-                .unwrap()
-                .as_bytes(),
-        )
+        .decode(blob.into_opt_string().unwrap().as_bytes())
         .unwrap();
     DartIsolateWrapper::new(port).spawn_result(async move {
         let veilid_api = get_veilid_api().await?;
 
-        let route_id = veilid_api.import_remote_private_route(blob)?;
+        let route_id = veilid_api.import_remote_private_route(blob)?.encode();
 
-        APIResult::Ok(route_id.encode())
+        APIResult::Ok(route_id)
     });
 }
 
 #[no_mangle]
 pub extern "C" fn release_private_route(port: i64, route_id: FfiStr) {
-    let route_id: veilid_core::RouteId =
-        veilid_core::deserialize_opt_json(route_id.into_opt_string()).unwrap();
+    let route_id = veilid_core::RouteId::try_decode(route_id.into_string()).unwrap();
     DartIsolateWrapper::new(port).spawn_result(async move {
         let veilid_api = get_veilid_api().await?;
         veilid_api.release_private_route(route_id)?;
@@ -880,7 +828,10 @@ pub extern "C" fn release_private_route(port: i64, route_id: FfiStr) {
 #[no_mangle]
 pub extern "C" fn app_call_reply(port: i64, call_id: FfiStr, message: FfiStr) {
     let call_id = call_id.into_opt_string().unwrap_or_default();
-    let message = message.into_opt_string().unwrap_or_default();
+    let message = data_encoding::BASE64URL_NOPAD
+        .decode(message.into_opt_string().unwrap().as_bytes())
+        .unwrap();
+
     DartIsolateWrapper::new(port).spawn_result(async move {
         let call_id = match call_id.parse() {
             Ok(v) => v,
@@ -890,9 +841,7 @@ pub extern "C" fn app_call_reply(port: i64, call_id: FfiStr, message: FfiStr) {
                 ))
             }
         };
-        let message = data_encoding::BASE64URL_NOPAD
-            .decode(message.as_bytes())
-            .map_err(|e| veilid_core::VeilidAPIError::invalid_argument(e, "message", message))?;
+
         let veilid_api = get_veilid_api().await?;
         veilid_api.app_call_reply(call_id, message).await?;
         APIRESULT_VOID
@@ -959,20 +908,20 @@ pub extern "C" fn table_db_get_column_count(id: u32) -> u32 {
     cc
 }
 
+fn get_table_db(id: u32, func_name: &str) -> APIResult<veilid_core::TableDB> {
+    let table_dbs = TABLE_DBS.lock();
+    let Some(table_db) = table_dbs.get(&id) else {
+        return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
+            func_name, "id", id,
+        ));
+    };
+    Ok(table_db.clone())
+}
+
 #[no_mangle]
 pub extern "C" fn table_db_get_keys(port: i64, id: u32, col: u32) {
     DartIsolateWrapper::new(port).spawn_result_json(async move {
-        let table_db = {
-            let table_dbs = TABLE_DBS.lock();
-            let Some(table_db) = table_dbs.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "table_db_get_keys",
-                    "id",
-                    id,
-                ));
-            };
-            table_db.clone()
-        };
+        let table_db = get_table_db(id, "table_db_get_keys")?;
 
         let keys = table_db.get_keys(col).await?;
         let out: Vec<String> = keys
@@ -1013,20 +962,23 @@ pub extern "C" fn release_table_db_transaction(id: u32) -> i32 {
     1
 }
 
+fn get_table_db_transaction(
+    id: u32,
+    func_name: &str,
+) -> APIResult<veilid_core::TableDBTransaction> {
+    let tdbts = TABLE_DB_TRANSACTIONS.lock();
+    let Some(tdbt) = tdbts.get(&id) else {
+        return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
+            func_name, "id", id,
+        ));
+    };
+    Ok(tdbt.clone())
+}
+
 #[no_mangle]
 pub extern "C" fn table_db_transaction_commit(port: i64, id: u32) {
     DartIsolateWrapper::new(port).spawn_result(async move {
-        let tdbt = {
-            let tdbts = TABLE_DB_TRANSACTIONS.lock();
-            let Some(tdbt) = tdbts.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "table_db_transaction_commit",
-                    "id",
-                    id,
-                ));
-            };
-            tdbt.clone()
-        };
+        let tdbt = get_table_db_transaction(id, "table_db_transaction_commit")?;
 
         tdbt.commit().await?;
         APIRESULT_VOID
@@ -1035,17 +987,7 @@ pub extern "C" fn table_db_transaction_commit(port: i64, id: u32) {
 #[no_mangle]
 pub extern "C" fn table_db_transaction_rollback(port: i64, id: u32) {
     DartIsolateWrapper::new(port).spawn_result(async move {
-        let tdbt = {
-            let tdbts = TABLE_DB_TRANSACTIONS.lock();
-            let Some(tdbt) = tdbts.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "table_db_transaction_rollback",
-                    "id",
-                    id,
-                ));
-            };
-            tdbt.clone()
-        };
+        let tdbt = get_table_db_transaction(id, "table_db_transaction_rollback")?;
 
         tdbt.rollback();
         APIRESULT_VOID
@@ -1067,17 +1009,7 @@ pub extern "C" fn table_db_transaction_store(
         .decode(value.into_opt_string().unwrap().as_bytes())
         .unwrap();
     DartIsolateWrapper::new(port).spawn_result(async move {
-        let tdbt = {
-            let tdbts = TABLE_DB_TRANSACTIONS.lock();
-            let Some(tdbt) = tdbts.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "table_db_transaction_store",
-                    "id",
-                    id,
-                ));
-            };
-            tdbt.clone()
-        };
+        let tdbt = get_table_db_transaction(id, "table_db_transaction_store")?;
 
         tdbt.store(col, &key, &value)?;
         APIRESULT_VOID
@@ -1090,17 +1022,7 @@ pub extern "C" fn table_db_transaction_delete(port: i64, id: u32, col: u32, key:
         .decode(key.into_opt_string().unwrap().as_bytes())
         .unwrap();
     DartIsolateWrapper::new(port).spawn_result(async move {
-        let tdbt = {
-            let tdbts = TABLE_DB_TRANSACTIONS.lock();
-            let Some(tdbt) = tdbts.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "table_db_transaction_delete",
-                    "id",
-                    id,
-                ));
-            };
-            tdbt.clone()
-        };
+        let tdbt = get_table_db_transaction(id, "table_db_transaction_delete")?;
 
         tdbt.delete(col, &key)?;
         APIRESULT_VOID
@@ -1116,17 +1038,7 @@ pub extern "C" fn table_db_store(port: i64, id: u32, col: u32, key: FfiStr, valu
         .decode(value.into_opt_string().unwrap().as_bytes())
         .unwrap();
     DartIsolateWrapper::new(port).spawn_result(async move {
-        let table_db = {
-            let table_dbs = TABLE_DBS.lock();
-            let Some(table_db) = table_dbs.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "table_db_store",
-                    "id",
-                    id,
-                ));
-            };
-            table_db.clone()
-        };
+        let table_db = get_table_db(id, "table_db_store")?;
 
         table_db.store(col, &key, &value).await?;
         APIRESULT_VOID
@@ -1139,17 +1051,7 @@ pub extern "C" fn table_db_load(port: i64, id: u32, col: u32, key: FfiStr) {
         .decode(key.into_opt_string().unwrap().as_bytes())
         .unwrap();
     DartIsolateWrapper::new(port).spawn_result(async move {
-        let table_db = {
-            let table_dbs = TABLE_DBS.lock();
-            let Some(table_db) = table_dbs.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "table_db_load",
-                    "id",
-                    id,
-                ));
-            };
-            table_db.clone()
-        };
+        let table_db = get_table_db(id, "table_db_load")?;
 
         let out = table_db.load(col, &key).await?;
         let out = out.map(|x| data_encoding::BASE64URL_NOPAD.encode(&x));
@@ -1163,17 +1065,7 @@ pub extern "C" fn table_db_delete(port: i64, id: u32, col: u32, key: FfiStr) {
         .decode(key.into_opt_string().unwrap().as_bytes())
         .unwrap();
     DartIsolateWrapper::new(port).spawn_result(async move {
-        let table_db = {
-            let table_dbs = TABLE_DBS.lock();
-            let Some(table_db) = table_dbs.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "table_db_delete",
-                    "id",
-                    id,
-                ));
-            };
-            table_db.clone()
-        };
+        let table_db = get_table_db(id, "table_db_delete")?;
 
         let out = table_db.delete(col, &key).await?;
         let out = out.map(|x| data_encoding::BASE64URL_NOPAD.encode(&x));

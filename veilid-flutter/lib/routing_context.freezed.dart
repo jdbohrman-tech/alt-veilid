@@ -1355,3 +1355,210 @@ abstract class _RouteBlob implements RouteBlob {
   _$$RouteBlobImplCopyWith<_$RouteBlobImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
+
+DHTRecordReport _$DHTRecordReportFromJson(Map<String, dynamic> json) {
+  return _DHTRecordReport.fromJson(json);
+}
+
+/// @nodoc
+mixin _$DHTRecordReport {
+  List<ValueSubkeyRange> get subkeys => throw _privateConstructorUsedError;
+  List<int> get localSeqs => throw _privateConstructorUsedError;
+  List<int> get networkSeqs => throw _privateConstructorUsedError;
+
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+  @JsonKey(ignore: true)
+  $DHTRecordReportCopyWith<DHTRecordReport> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $DHTRecordReportCopyWith<$Res> {
+  factory $DHTRecordReportCopyWith(
+          DHTRecordReport value, $Res Function(DHTRecordReport) then) =
+      _$DHTRecordReportCopyWithImpl<$Res, DHTRecordReport>;
+  @useResult
+  $Res call(
+      {List<ValueSubkeyRange> subkeys,
+      List<int> localSeqs,
+      List<int> networkSeqs});
+}
+
+/// @nodoc
+class _$DHTRecordReportCopyWithImpl<$Res, $Val extends DHTRecordReport>
+    implements $DHTRecordReportCopyWith<$Res> {
+  _$DHTRecordReportCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? subkeys = null,
+    Object? localSeqs = null,
+    Object? networkSeqs = null,
+  }) {
+    return _then(_value.copyWith(
+      subkeys: null == subkeys
+          ? _value.subkeys
+          : subkeys // ignore: cast_nullable_to_non_nullable
+              as List<ValueSubkeyRange>,
+      localSeqs: null == localSeqs
+          ? _value.localSeqs
+          : localSeqs // ignore: cast_nullable_to_non_nullable
+              as List<int>,
+      networkSeqs: null == networkSeqs
+          ? _value.networkSeqs
+          : networkSeqs // ignore: cast_nullable_to_non_nullable
+              as List<int>,
+    ) as $Val);
+  }
+}
+
+/// @nodoc
+abstract class _$$DHTRecordReportImplCopyWith<$Res>
+    implements $DHTRecordReportCopyWith<$Res> {
+  factory _$$DHTRecordReportImplCopyWith(_$DHTRecordReportImpl value,
+          $Res Function(_$DHTRecordReportImpl) then) =
+      __$$DHTRecordReportImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call(
+      {List<ValueSubkeyRange> subkeys,
+      List<int> localSeqs,
+      List<int> networkSeqs});
+}
+
+/// @nodoc
+class __$$DHTRecordReportImplCopyWithImpl<$Res>
+    extends _$DHTRecordReportCopyWithImpl<$Res, _$DHTRecordReportImpl>
+    implements _$$DHTRecordReportImplCopyWith<$Res> {
+  __$$DHTRecordReportImplCopyWithImpl(
+      _$DHTRecordReportImpl _value, $Res Function(_$DHTRecordReportImpl) _then)
+      : super(_value, _then);
+
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? subkeys = null,
+    Object? localSeqs = null,
+    Object? networkSeqs = null,
+  }) {
+    return _then(_$DHTRecordReportImpl(
+      subkeys: null == subkeys
+          ? _value._subkeys
+          : subkeys // ignore: cast_nullable_to_non_nullable
+              as List<ValueSubkeyRange>,
+      localSeqs: null == localSeqs
+          ? _value._localSeqs
+          : localSeqs // ignore: cast_nullable_to_non_nullable
+              as List<int>,
+      networkSeqs: null == networkSeqs
+          ? _value._networkSeqs
+          : networkSeqs // ignore: cast_nullable_to_non_nullable
+              as List<int>,
+    ));
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$DHTRecordReportImpl implements _DHTRecordReport {
+  const _$DHTRecordReportImpl(
+      {required final List<ValueSubkeyRange> subkeys,
+      required final List<int> localSeqs,
+      required final List<int> networkSeqs})
+      : _subkeys = subkeys,
+        _localSeqs = localSeqs,
+        _networkSeqs = networkSeqs;
+
+  factory _$DHTRecordReportImpl.fromJson(Map<String, dynamic> json) =>
+      _$$DHTRecordReportImplFromJson(json);
+
+  final List<ValueSubkeyRange> _subkeys;
+  @override
+  List<ValueSubkeyRange> get subkeys {
+    if (_subkeys is EqualUnmodifiableListView) return _subkeys;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_subkeys);
+  }
+
+  final List<int> _localSeqs;
+  @override
+  List<int> get localSeqs {
+    if (_localSeqs is EqualUnmodifiableListView) return _localSeqs;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_localSeqs);
+  }
+
+  final List<int> _networkSeqs;
+  @override
+  List<int> get networkSeqs {
+    if (_networkSeqs is EqualUnmodifiableListView) return _networkSeqs;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_networkSeqs);
+  }
+
+  @override
+  String toString() {
+    return 'DHTRecordReport(subkeys: $subkeys, localSeqs: $localSeqs, networkSeqs: $networkSeqs)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$DHTRecordReportImpl &&
+            const DeepCollectionEquality().equals(other._subkeys, _subkeys) &&
+            const DeepCollectionEquality()
+                .equals(other._localSeqs, _localSeqs) &&
+            const DeepCollectionEquality()
+                .equals(other._networkSeqs, _networkSeqs));
+  }
+
+  @JsonKey(ignore: true)
+  @override
+  int get hashCode => Object.hash(
+      runtimeType,
+      const DeepCollectionEquality().hash(_subkeys),
+      const DeepCollectionEquality().hash(_localSeqs),
+      const DeepCollectionEquality().hash(_networkSeqs));
+
+  @JsonKey(ignore: true)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$DHTRecordReportImplCopyWith<_$DHTRecordReportImpl> get copyWith =>
+      __$$DHTRecordReportImplCopyWithImpl<_$DHTRecordReportImpl>(
+          this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$DHTRecordReportImplToJson(
+      this,
+    );
+  }
+}
+
+abstract class _DHTRecordReport implements DHTRecordReport {
+  const factory _DHTRecordReport(
+      {required final List<ValueSubkeyRange> subkeys,
+      required final List<int> localSeqs,
+      required final List<int> networkSeqs}) = _$DHTRecordReportImpl;
+
+  factory _DHTRecordReport.fromJson(Map<String, dynamic> json) =
+      _$DHTRecordReportImpl.fromJson;
+
+  @override
+  List<ValueSubkeyRange> get subkeys;
+  @override
+  List<int> get localSeqs;
+  @override
+  List<int> get networkSeqs;
+  @override
+  @JsonKey(ignore: true)
+  _$$DHTRecordReportImplCopyWith<_$DHTRecordReportImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}

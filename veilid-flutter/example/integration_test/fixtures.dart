@@ -7,15 +7,17 @@ import 'package:veilid/veilid.dart';
 class DefaultFixture {
   DefaultFixture();
 
-  StreamSubscription<VeilidUpdate>? _updateSubscription;
-  Stream<VeilidUpdate>? _updateStream;
+  StreamSubscription<VeilidUpdate>? _veilidUpdateSubscription;
+  Stream<VeilidUpdate>? _veilidUpdateStream;
+  final StreamController<VeilidUpdate> _updateStreamController =
+      StreamController.broadcast();
 
   static final _fixtureMutex = Mutex();
 
   Future<void> setUp() async {
     await _fixtureMutex.acquire();
 
-    assert(_updateStream == null, 'should not set up fixture twice');
+    assert(_veilidUpdateStream == null, 'should not set up fixture twice');
 
     final Map<String, dynamic> platformConfigJson;
     if (kIsWeb) {
@@ -53,16 +55,26 @@ class DefaultFixture {
     }
     Veilid.instance.initializeVeilidCore(platformConfigJson);
 
-    final defaultConfig = await getDefaultVeilidConfig(
-        isWeb: kIsWeb, programName: 'Veilid Tests');
+    var config = await getDefaultVeilidConfig(
+      isWeb: kIsWeb,
+      programName: 'Veilid Tests',
+      // ignore: avoid_redundant_argument_values, do_not_use_environment
+      bootstrap: const String.fromEnvironment('BOOTSTRAP'),
+      // ignore: avoid_redundant_argument_values, do_not_use_environment
+      networkKeyPassword: const String.fromEnvironment('NETWORK_KEY'),
+    );
 
-    final updateStream =
-        _updateStream = await Veilid.instance.startupVeilidCore(defaultConfig);
-    if (_updateStream == null) {
-      throw Exception('failed to start up veilid core');
-    }
+    config =
+        config.copyWith(tableStore: config.tableStore.copyWith(delete: true));
+    config = config.copyWith(
+        protectedStore: config.protectedStore.copyWith(delete: true));
+    config =
+        config.copyWith(blockStore: config.blockStore.copyWith(delete: true));
 
-    _updateSubscription = updateStream.listen((update) {
+    final us =
+        _veilidUpdateStream = await Veilid.instance.startupVeilidCore(config);
+
+    _veilidUpdateSubscription = us.listen((update) {
       if (update is VeilidLog) {
       } else if (update is VeilidUpdateAttachment) {
       } else if (update is VeilidUpdateConfig) {
@@ -70,21 +82,56 @@ class DefaultFixture {
       } else if (update is VeilidAppMessage) {
       } else if (update is VeilidAppCall) {
       } else if (update is VeilidUpdateValueChange) {
+      } else if (update is VeilidUpdateRouteChange) {
       } else {
         throw Exception('unexpected update: $update');
       }
+      _updateStreamController.sink.add(update);
     });
   }
 
-  Future<void> tearDown() async {
-    assert(_updateStream != null, 'should not tearDown without setUp');
+  Stream<VeilidUpdate> get updateStream => _updateStreamController.stream;
 
-    final cancelFut = _updateSubscription?.cancel();
+  Future<void> attach() async {
+    await Veilid.instance.attach();
+
+    // Wait for attached state
+    while (true) {
+      final state = await Veilid.instance.getVeilidState();
+      var done = false;
+      if (state.attachment.publicInternetReady) {
+        switch (state.attachment.state) {
+          case AttachmentState.detached:
+            break;
+          case AttachmentState.attaching:
+            break;
+          case AttachmentState.detaching:
+            break;
+          default:
+            done = true;
+            break;
+        }
+      }
+      if (done) {
+        break;
+      }
+      await Future.delayed(const Duration(seconds: 1));
+    }
+  }
+
+  Future<void> detach() async {
+    await Veilid.instance.detach();
+  }
+
+  Future<void> tearDown() async {
+    assert(_veilidUpdateStream != null, 'should not tearDown without setUp');
+
+    final cancelFut = _veilidUpdateSubscription?.cancel();
     await Veilid.instance.shutdownVeilidCore();
     await cancelFut;
 
-    _updateSubscription = null;
-    _updateStream = null;
+    _veilidUpdateSubscription = null;
+    _veilidUpdateStream = null;
 
     _fixtureMutex.release();
   }

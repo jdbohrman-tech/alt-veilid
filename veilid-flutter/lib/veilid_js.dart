@@ -68,28 +68,41 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
   }
 
   @override
-  VeilidRoutingContextJS withDefaultSafety() {
+  VeilidRoutingContextJS withDefaultSafety({bool closeSelf = false}) {
     final id = _ctx.requireId();
     final int newId =
         js_util.callMethod(wasm, 'routing_context_with_default_safety', [id]);
-    return VeilidRoutingContextJS._(_Ctx(newId, _ctx.js));
+    final out = VeilidRoutingContextJS._(_Ctx(newId, _ctx.js));
+    if (closeSelf) {
+      close();
+    }
+    return out;
   }
 
   @override
-  VeilidRoutingContextJS withSafety(SafetySelection safetySelection) {
+  VeilidRoutingContextJS withSafety(SafetySelection safetySelection,
+      {bool closeSelf = false}) {
     final id = _ctx.requireId();
     final newId = js_util.callMethod<int>(
         wasm, 'routing_context_with_safety', [id, jsonEncode(safetySelection)]);
-
-    return VeilidRoutingContextJS._(_Ctx(newId, _ctx.js));
+    final out = VeilidRoutingContextJS._(_Ctx(newId, _ctx.js));
+    if (closeSelf) {
+      close();
+    }
+    return out;
   }
 
   @override
-  VeilidRoutingContextJS withSequencing(Sequencing sequencing) {
+  VeilidRoutingContextJS withSequencing(Sequencing sequencing,
+      {bool closeSelf = false}) {
     final id = _ctx.requireId();
     final newId = js_util.callMethod<int>(
         wasm, 'routing_context_with_sequencing', [id, jsonEncode(sequencing)]);
-    return VeilidRoutingContextJS._(_Ctx(newId, _ctx.js));
+    final out = VeilidRoutingContextJS._(_Ctx(newId, _ctx.js));
+    if (closeSelf) {
+      close();
+    }
+    return out;
   }
 
   @override
@@ -218,6 +231,18 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
         wasm,
         'routing_context_cancel_dht_watch',
         [id, jsonEncode(key), jsonEncode(subkeys)]));
+  }
+
+  @override
+  Future<DHTRecordReport> inspectDHTRecord(TypedKey key,
+      {List<ValueSubkeyRange>? subkeys,
+      DHTReportScope scope = DHTReportScope.local}) async {
+    subkeys ??= [];
+
+    final id = _ctx.requireId();
+    return DHTRecordReport.fromJson(jsonDecode(await _wrapApiPromise(js_util
+        .callMethod(wasm, 'routing_context_inspect_dht_record',
+            [id, jsonEncode(key), jsonEncode(subkeys), jsonEncode(scope)]))));
   }
 }
 

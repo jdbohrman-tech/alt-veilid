@@ -109,3 +109,23 @@ Map<String, dynamic> _$$RouteBlobImplToJson(_$RouteBlobImpl instance) =>
       'route_id': instance.routeId,
       'blob': const Uint8ListJsonConverter().toJson(instance.blob),
     };
+
+_$DHTRecordReportImpl _$$DHTRecordReportImplFromJson(
+        Map<String, dynamic> json) =>
+    _$DHTRecordReportImpl(
+      subkeys: (json['subkeys'] as List<dynamic>)
+          .map(ValueSubkeyRange.fromJson)
+          .toList(),
+      localSeqs:
+          (json['local_seqs'] as List<dynamic>).map((e) => e as int).toList(),
+      networkSeqs:
+          (json['network_seqs'] as List<dynamic>).map((e) => e as int).toList(),
+    );
+
+Map<String, dynamic> _$$DHTRecordReportImplToJson(
+        _$DHTRecordReportImpl instance) =>
+    <String, dynamic>{
+      'subkeys': instance.subkeys.map((e) => e.toJson()).toList(),
+      'local_seqs': instance.localSeqs,
+      'network_seqs': instance.networkSeqs,
+    };

@@ -241,15 +241,42 @@ class RouteBlob with _$RouteBlob {
 }
 
 //////////////////////////////////////
+/// Inspect
+@freezed
+class DHTRecordReport with _$DHTRecordReport {
+  const factory DHTRecordReport({
+    required List<ValueSubkeyRange> subkeys,
+    required List<int> localSeqs,
+    required List<int> networkSeqs,
+  }) = _DHTRecordReport;
+  factory DHTRecordReport.fromJson(dynamic json) =>
+      _$DHTRecordReportFromJson(json as Map<String, dynamic>);
+}
+
+enum DHTReportScope {
+  local,
+  syncGet,
+  syncSet,
+  updateGet,
+  updateSet;
+
+  factory DHTReportScope.fromJson(dynamic j) =>
+      DHTReportScope.values.byName((j as String).toCamelCase());
+  String toJson() => name.toPascalCase();
+}
+
+//////////////////////////////////////
 /// VeilidRoutingContext
 
 abstract class VeilidRoutingContext {
   void close();
 
   // Modifiers
-  VeilidRoutingContext withDefaultSafety();
-  VeilidRoutingContext withSafety(SafetySelection safetySelection);
-  VeilidRoutingContext withSequencing(Sequencing sequencing);
+  VeilidRoutingContext withDefaultSafety({bool closeSelf = false});
+  VeilidRoutingContext withSafety(SafetySelection safetySelection,
+      {bool closeSelf = false});
+  VeilidRoutingContext withSequencing(Sequencing sequencing,
+      {bool closeSelf = false});
   Future<SafetySelection> safety();
 
   // App call/message
@@ -269,4 +296,7 @@ abstract class VeilidRoutingContext {
   Future<Timestamp> watchDHTValues(TypedKey key,
       {List<ValueSubkeyRange>? subkeys, Timestamp? expiration, int? count});
   Future<bool> cancelDHTWatch(TypedKey key, {List<ValueSubkeyRange>? subkeys});
+  Future<DHTRecordReport> inspectDHTRecord(TypedKey key,
+      {List<ValueSubkeyRange>? subkeys,
+      DHTReportScope scope = DHTReportScope.local});
 }
