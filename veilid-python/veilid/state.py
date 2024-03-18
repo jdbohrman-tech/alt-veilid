@@ -356,11 +356,11 @@ class VeilidRouteChange:
 
 class VeilidValueChange:
     key: TypedKey
-    subkeys: list[ValueSubkey]
+    subkeys: list[tuple[ValueSubkey, ValueSubkey]]
     count: int
     value: ValueData
 
-    def __init__(self, key: TypedKey, subkeys: list[ValueSubkey], count: int, value: ValueData):
+    def __init__(self, key: TypedKey, subkeys: list[tuple[ValueSubkey, ValueSubkey]], count: int, value: ValueData):
         self.key = key
         self.subkeys = subkeys
         self.count = count
@@ -371,7 +371,7 @@ class VeilidValueChange:
         """JSON object hook"""
         return cls(
             TypedKey(j["key"]),
-            [ValueSubkey(key) for key in j["subkeys"]],
+            [(p[0], p[1]) for p in j["subkeys"]],
             j["count"],
             ValueData.from_json(j["value"]),
         )

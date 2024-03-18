@@ -111,8 +111,12 @@ class _JsonVeilidAPI(VeilidAPI):
         try:
             self.reader = None
             assert self.writer is not None
-            self.writer.close()
-            await self.writer.wait_closed()
+            try:
+                self.writer.close()
+                await self.writer.wait_closed()
+            except:
+                # Already closed
+                pass
             self.writer = None
 
             for reqid, reqfuture in self.in_flight_requests.items():

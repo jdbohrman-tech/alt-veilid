@@ -335,8 +335,10 @@ Future<void> testWatchDHTValues(Stream<VeilidUpdate> updateStream) async {
       // Reopen without closing to change routing context and not lose watch
       rec = await rcSet.openDHTRecord(rec.key, writer: rec.ownerKeyPair());
 
+      // Set the value without a watch
       expect(await rcSet.setDHTValue(rec.key, 3, utf8.encode("BLAH")), isNull);
 
+      // Now we should NOT get an update
       if (await valueChangeQueueIterator
           .moveNext()
           .timeout(const Duration(seconds: 5), onTimeout: () {
@@ -345,6 +347,7 @@ Future<void> testWatchDHTValues(Stream<VeilidUpdate> updateStream) async {
         fail("should not have a change");
       }
 
+      // Clean up
       await rcSet.closeDHTRecord(rec.key);
       await rcSet.deleteDHTRecord(rec.key);
     } finally {

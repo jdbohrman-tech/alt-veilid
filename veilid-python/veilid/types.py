@@ -363,6 +363,9 @@ class DHTRecordDescriptor:
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}(key={self.key!r}, owner={self.owner!r}, owner_secret={self.owner_secret!r}, schema={self.schema!r})>"
 
+    def owner_key_pair(self) -> Optional[KeyPair]:
+        return KeyPair.from_parts(self.owner, self.owner_secret)
+
     @classmethod
     def from_json(cls, j: dict) -> Self:
         return cls(
