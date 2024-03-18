@@ -58,6 +58,30 @@ impl VeilidCrypto {
         APIResult::Ok(out.to_string())
     }
 
+    pub fn generateSharedSecret(
+        kind: String,
+        key: String,
+        secret: String,
+        domain: Box<[u8]>,
+    ) -> APIResult<String> {
+        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
+
+        let key: veilid_core::PublicKey = veilid_core::PublicKey::from_str(&key)?;
+        let secret: veilid_core::SecretKey = veilid_core::SecretKey::from_str(&secret)?;
+
+        let veilid_api = get_veilid_api()?;
+        let crypto = veilid_api.crypto()?;
+        let crypto_system = crypto.get(kind).ok_or_else(|| {
+            veilid_core::VeilidAPIError::invalid_argument(
+                "crypto_generate_shared_secret",
+                "kind",
+                kind.to_string(),
+            )
+        })?;
+        let out = crypto_system.generate_shared_secret(&key, &secret, &domain)?;
+        APIResult::Ok(out.to_string())
+    }
+
     pub fn randomBytes(kind: String, len: u32) -> APIResult<Box<[u8]>> {
         let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
 

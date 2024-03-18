@@ -271,6 +271,16 @@ class VeilidCryptoSystemJS extends VeilidCryptoSystem {
           wasm,
           'crypto_compute_dh',
           [_kind, jsonEncode(key), jsonEncode(secret)]))));
+  @override
+  Future<SharedSecret> generateSharedSecret(
+          PublicKey key, SecretKey secret, Uint8List domain) async =>
+      SharedSecret.fromJson(jsonDecode(await _wrapApiPromise(js_util.callMethod(
+          wasm, 'crypto_generate_shared_secret', [
+        _kind,
+        jsonEncode(key),
+        jsonEncode(secret),
+        base64UrlNoPadEncode(domain)
+      ]))));
 
   @override
   Future<Uint8List> randomBytes(int len) async =>

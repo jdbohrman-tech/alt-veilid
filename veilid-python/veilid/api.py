@@ -205,6 +205,12 @@ class CryptoSystem(ABC):
         pass
 
     @abstractmethod
+    async def generate_shared_secret(
+        self, key: types.PublicKey, secret: types.SecretKey, domain: bytes
+    ) -> types.SharedSecret:
+        pass
+
+    @abstractmethod
     async def random_bytes(self, len: int) -> bytes:
         pass
 

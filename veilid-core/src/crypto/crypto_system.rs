@@ -1,5 +1,7 @@
 use super::*;
 
+const VEILID_DOMAIN_API: &[u8] = b"VEILID_API";
+
 pub trait CryptoSystem {
     // Accessors
     fn kind(&self) -> CryptoKind;
@@ -17,6 +19,15 @@ pub trait CryptoSystem {
     fn random_nonce(&self) -> Nonce;
     fn random_shared_secret(&self) -> SharedSecret;
     fn compute_dh(&self, key: &PublicKey, secret: &SecretKey) -> VeilidAPIResult<SharedSecret>;
+    fn generate_shared_secret(
+        &self,
+        key: &PublicKey,
+        secret: &SecretKey,
+        domain: &[u8],
+    ) -> VeilidAPIResult<SharedSecret> {
+        let dh = self.compute_dh(key, secret)?;
+        Ok(self.generate_hash(&[&dh.bytes, domain, VEILID_DOMAIN_API].concat()))
+    }
     fn generate_keypair(&self) -> KeyPair;
     fn generate_hash(&self, data: &[u8]) -> HashDigest;
     fn generate_hash_reader(&self, reader: &mut dyn std::io::Read) -> VeilidAPIResult<HashDigest>;

@@ -1187,6 +1187,39 @@ pub extern "C" fn crypto_compute_dh(port: i64, kind: u32, key: FfiStr, secret: F
 }
 
 #[no_mangle]
+pub extern "C" fn crypto_generate_shared_secret(
+    port: i64,
+    kind: u32,
+    key: FfiStr,
+    secret: FfiStr,
+    domain: FfiStr,
+) {
+    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+
+    let key: veilid_core::PublicKey =
+        veilid_core::deserialize_opt_json(key.into_opt_string()).unwrap();
+    let secret: veilid_core::SecretKey =
+        veilid_core::deserialize_opt_json(secret.into_opt_string()).unwrap();
+    let domain: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(domain.into_opt_string().unwrap().as_bytes())
+        .unwrap();
+
+    DartIsolateWrapper::new(port).spawn_result_json(async move {
+        let veilid_api = get_veilid_api().await?;
+        let crypto = veilid_api.crypto()?;
+        let csv = crypto.get(kind).ok_or_else(|| {
+            veilid_core::VeilidAPIError::invalid_argument(
+                "crypto_generate_shared_secret",
+                "kind",
+                kind.to_string(),
+            )
+        })?;
+        let out = csv.generate_shared_secret(&key, &secret, &domain)?;
+        APIResult::Ok(out)
+    });
+}
+
+#[no_mangle]
 pub extern "C" fn crypto_random_bytes(port: i64, kind: u32, len: u32) {
     let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
 

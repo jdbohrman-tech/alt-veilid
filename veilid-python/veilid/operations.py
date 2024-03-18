@@ -75,6 +75,7 @@ class CryptoSystemOperation(StrEnum):
     RELEASE = "Release"
     CACHED_DH = "CachedDh"
     COMPUTE_DH = "ComputeDh"
+    GENERATE_SHARED_SECRET = "GenerateSharedSecret"
     RANDOM_BYTES = "RandomBytes"
     DEFAULT_SALT_LENGTH = "DefaultSaltLength"
     HASH_PASSWORD = "HashPassword"

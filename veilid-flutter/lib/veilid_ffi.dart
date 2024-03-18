@@ -163,6 +163,10 @@ typedef _CryptoCachedDHDart = void Function(
 // fn crypto_compute_dh(port: i64, kind: u32, key: FfiStr, secret: FfiStr)
 typedef _CryptoComputeDHDart = void Function(
     int, int, Pointer<Utf8>, Pointer<Utf8>);
+// fn crypto_generate_shared_secret(port: i64, kind: u32, key: FfiStr,
+//   secret: FfiStr, domain: FfiStr)
+typedef _CryptoGenerateSharedSecretDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
 // fn crypto_random_bytes(port: i64, kind: u32, len: u32)
 typedef _CryptoRandomBytesDart = void Function(int, int, int);
 // fn crypto_default_salt_length(port: i64, kind: u32)
@@ -999,6 +1003,20 @@ class VeilidCryptoSystemFFI extends VeilidCryptoSystem {
   }
 
   @override
+  Future<SharedSecret> generateSharedSecret(
+      PublicKey key, SecretKey secret, Uint8List domain) async {
+    final nativeKey = jsonEncode(key).toNativeUtf8();
+    final nativeSecret = jsonEncode(secret).toNativeUtf8();
+    final nativeDomain = base64UrlNoPadEncode(domain).toNativeUtf8();
+
+    final recvPort = ReceivePort('crypto_generate_shared_secret');
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoGenerateSharedSecret(
+        sendPort.nativePort, _kind, nativeKey, nativeSecret, nativeDomain);
+    return processFutureJson(SharedSecret.fromJson, recvPort.first);
+  }
+
+  @override
   Future<Uint8List> randomBytes(int len) async {
     final recvPort = ReceivePort('crypto_random_bytes');
     final sendPort = recvPort.sendPort;
@@ -1377,6 +1395,10 @@ class VeilidFFI extends Veilid {
         _cryptoComputeDH = dylib.lookupFunction<
             Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>),
             _CryptoComputeDHDart>('crypto_compute_dh'),
+        _cryptoGenerateSharedSecret = dylib.lookupFunction<
+            Void Function(
+                Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>),
+            _CryptoGenerateSharedSecretDart>('crypto_generate_shared_secret'),
         _cryptoRandomBytes = dylib.lookupFunction<
             Void Function(Int64, Uint32, Uint32),
             _CryptoRandomBytesDart>('crypto_random_bytes'),
@@ -1516,6 +1538,7 @@ class VeilidFFI extends Veilid {
 
   final _CryptoCachedDHDart _cryptoCachedDH;
   final _CryptoComputeDHDart _cryptoComputeDH;
+  final _CryptoGenerateSharedSecretDart _cryptoGenerateSharedSecret;
 
   final _CryptoRandomBytesDart _cryptoRandomBytes;
   final _CryptoDefaultSaltLengthDart _cryptoDefaultSaltLength;

@@ -30,6 +30,15 @@ pub enum CryptoSystemRequestOp {
         #[schemars(with = "String")]
         secret: SecretKey,
     },
+    GenerateSharedSecret {
+        #[schemars(with = "String")]
+        key: PublicKey,
+        #[schemars(with = "String")]
+        secret: SecretKey,
+        #[serde(with = "as_human_base64")]
+        #[schemars(with = "String")]
+        domain: Vec<u8>,
+    },
     RandomBytes {
         len: u32,
     },
@@ -147,6 +156,11 @@ pub enum CryptoSystemResponseOp {
         result: ApiResultWithString<SharedSecret>,
     },
     ComputeDh {
+        #[serde(flatten)]
+        #[schemars(with = "ApiResult<String>")]
+        result: ApiResultWithString<SharedSecret>,
+    },
+    GenerateSharedSecret {
         #[serde(flatten)]
         #[schemars(with = "ApiResult<String>")]
         result: ApiResultWithString<SharedSecret>,

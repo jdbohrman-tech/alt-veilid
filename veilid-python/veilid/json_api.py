@@ -977,6 +977,21 @@ class _JsonCryptoSystem(CryptoSystem):
             )
         )
 
+    async def generate_shared_secret(self, key: PublicKey, secret: SecretKey, domain: bytes) -> SharedSecret:
+        return SharedSecret(
+            raise_api_result(
+                await self.api.send_ndjson_request(
+                    Operation.CRYPTO_SYSTEM,
+                    validate=validate_cs_op,
+                    cs_id=self.cs_id,
+                    cs_op=CryptoSystemOperation.GENERATE_SHARED_SECRET,
+                    key=key,
+                    secret=secret,
+                    domain=domain,
+                )
+            )
+        )
+
     async def random_bytes(self, len: int) -> bytes:
         return urlsafe_b64decode_no_pad(
             raise_api_result(

@@ -1049,6 +1049,36 @@ pub fn crypto_compute_dh(kind: u32, key: String, secret: String) -> Promise {
 }
 
 #[wasm_bindgen()]
+pub fn crypto_generate_shared_secret(
+    kind: u32,
+    key: String,
+    secret: String,
+    domain: String,
+) -> Promise {
+    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+
+    let key: veilid_core::PublicKey = veilid_core::deserialize_json(&key).unwrap();
+    let secret: veilid_core::SecretKey = veilid_core::deserialize_json(&secret).unwrap();
+    let domain: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(domain.as_bytes())
+        .unwrap();
+
+    wrap_api_future_json(async move {
+        let veilid_api = get_veilid_api()?;
+        let crypto = veilid_api.crypto()?;
+        let csv = crypto.get(kind).ok_or_else(|| {
+            veilid_core::VeilidAPIError::invalid_argument(
+                "crypto_generate_shared_secret",
+                "kind",
+                kind.to_string(),
+            )
+        })?;
+        let out = csv.generate_shared_secret(&key, &secret, &domain)?;
+        APIResult::Ok(out)
+    })
+}
+
+#[wasm_bindgen()]
 pub fn crypto_random_bytes(kind: u32, len: u32) -> Promise {
     let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
 

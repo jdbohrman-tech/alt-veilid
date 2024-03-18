@@ -65,7 +65,9 @@ async def test_routing_context_app_message_loopback():
         await api.debug("purge routes")
 
         # make a routing context that uses a safety route
-        rc = await api.new_routing_context()
+        rc = await (await api.new_routing_context()).with_sequencing(
+                veilid.Sequencing.ENSURE_ORDERED
+            )
         async with rc:
             # make a new local private route
             prl, blob = await api.new_private_route()
@@ -113,7 +115,9 @@ async def test_routing_context_app_call_loopback():
         await api.debug("purge routes")
 
         # make a routing context
-        rc = await api.new_routing_context()
+        rc = await (await api.new_routing_context()).with_sequencing(
+                veilid.Sequencing.ENSURE_ORDERED
+            )
         async with rc:
             # make a new local private route
             prl, blob = await api.new_private_route()
@@ -174,7 +178,9 @@ async def test_routing_context_app_message_loopback_big_packets():
         await api.debug("purge routes")
 
         # make a routing context that uses a safety route
-        rc = await api.new_routing_context()
+        rc = await (await api.new_routing_context()).with_sequencing(
+                veilid.Sequencing.ENSURE_ORDERED
+            )
         async with rc:
             # make a new local private route
             prl, blob = await api.new_private_route()
@@ -291,7 +297,9 @@ async def test_routing_context_app_message_loopback_bandwidth():
         await api.debug("purge routes")
 
         # make a routing context that uses a safety route
-        rc = await api.new_routing_context()
+        rc = await (await api.new_routing_context()).with_sequencing(
+                veilid.Sequencing.ENSURE_ORDERED
+            )
         async with rc:
             # make a new local private route
             prl, blob = await api.new_private_route()

@@ -468,6 +468,16 @@ impl JsonRequestProcessor {
             CryptoSystemRequestOp::ComputeDh { key, secret } => CryptoSystemResponseOp::ComputeDh {
                 result: to_json_api_result_with_string(csv.compute_dh(&key, &secret)),
             },
+            CryptoSystemRequestOp::GenerateSharedSecret {
+                key,
+                secret,
+                domain,
+            } => CryptoSystemResponseOp::GenerateSharedSecret {
+                result: to_json_api_result_with_string(
+                    csv.generate_shared_secret(&key, &secret, &domain),
+                ),
+            },
+
             CryptoSystemRequestOp::RandomBytes { len } => CryptoSystemResponseOp::RandomBytes {
                 value: csv.random_bytes(len),
             },

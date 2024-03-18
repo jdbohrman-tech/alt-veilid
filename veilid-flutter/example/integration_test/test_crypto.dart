@@ -32,3 +32,28 @@ Future<void> testHashAndVerifyPassword() async {
   await cs.hashPassword(utf8.encode("abc1234"), salt);
   expect(await cs.verifyPassword(utf8.encode("abc1235"), phash), isFalse);
 }
+
+Future<void> testGenerateSharedSecret() async {
+  final cs = await Veilid.instance.bestCryptoSystem();
+
+  final kp1 = await cs.generateKeyPair();
+  final kp2 = await cs.generateKeyPair();
+  final kp3 = await cs.generateKeyPair();
+
+  final ssA =
+      await cs.generateSharedSecret(kp1.key, kp2.secret, utf8.encode("abc123"));
+  final ssB =
+      await cs.generateSharedSecret(kp2.key, kp1.secret, utf8.encode("abc123"));
+
+  expect(ssA, equals(ssB));
+
+  final ssC = await cs.generateSharedSecret(
+      kp2.key, kp1.secret, utf8.encode("abc1234"));
+
+  expect(ssA, isNot(equals(ssC)));
+
+  final ssD =
+      await cs.generateSharedSecret(kp3.key, kp1.secret, utf8.encode("abc123"));
+
+  expect(ssA, isNot(equals(ssD)));
+}

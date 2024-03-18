@@ -1011,6 +1011,32 @@
           "type": "object",
           "required": [
             "cs_op",
+            "domain",
+            "key",
+            "secret"
+          ],
+          "properties": {
+            "cs_op": {
+              "type": "string",
+              "enum": [
+                "GenerateSharedSecret"
+              ]
+            },
+            "domain": {
+              "type": "string"
+            },
+            "key": {
+              "type": "string"
+            },
+            "secret": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "cs_op",
             "len"
           ],
           "properties": {

@@ -1677,6 +1677,44 @@
             },
             {
               "type": "object",
+              "anyOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "value"
+                  ],
+                  "properties": {
+                    "value": {
+                      "type": "string"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "$ref": "#/definitions/VeilidAPIError"
+                    }
+                  }
+                }
+              ],
+              "required": [
+                "cs_op"
+              ],
+              "properties": {
+                "cs_op": {
+                  "type": "string",
+                  "enum": [
+                    "GenerateSharedSecret"
+                  ]
+                }
+              }
+            },
+            {
+              "type": "object",
               "required": [
                 "cs_op",
                 "value"

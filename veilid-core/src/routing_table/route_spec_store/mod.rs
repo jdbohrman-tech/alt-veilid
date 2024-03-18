@@ -849,8 +849,7 @@ impl RouteSpecStore {
         // Get all valid routes, allow routes that need testing
         // but definitely prefer routes that have been recently tested
         for (id, rssd) in inner.content.iter_details() {
-            if rssd.get_stability() >= stability
-                && rssd.is_sequencing_match(sequencing)
+            if rssd.is_sequencing_match(sequencing)
                 && rssd.hop_count() >= min_hop_count
                 && rssd.hop_count() <= max_hop_count
                 && rssd.get_directions().is_superset(directions)
@@ -864,6 +863,7 @@ impl RouteSpecStore {
 
         // Sort the routes by preference
         routes.sort_by(|a, b| {
+            // Prefer routes that don't need testing
             let a_needs_testing = a.1.get_stats().needs_testing(cur_ts);
             let b_needs_testing = b.1.get_stats().needs_testing(cur_ts);
             if !a_needs_testing && b_needs_testing {
@@ -872,6 +872,18 @@ impl RouteSpecStore {
             if !b_needs_testing && a_needs_testing {
                 return cmp::Ordering::Greater;
             }
+
+            // Prefer routes that meet the stability selection
+            let a_meets_stability = a.1.get_stability() >= stability;
+            let b_meets_stability = b.1.get_stability() >= stability;
+            if a_meets_stability && !b_meets_stability {
+                return cmp::Ordering::Less;
+            }
+            if b_meets_stability && !a_meets_stability {
+                return cmp::Ordering::Greater;
+            }
+
+            // Prefer faster routes
             let a_latency = a.1.get_stats().latency_stats().average;
             let b_latency = b.1.get_stats().latency_stats().average;
 
