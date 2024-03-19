@@ -8,8 +8,7 @@ final bogusKey =
     TypedKey.fromString("VLD0:qD10lHHPD1_Qr23_Qy-1JnxTht12eaWwENVG_m2v7II");
 
 Future<void> testGetDHTValueUnopened() async {
-  final rc = await Veilid.instance
-      .safeRoutingContext(sequencing: Sequencing.ensureOrdered);
+  final rc = await Veilid.instance.routingContext();
   try {
     await expectLater(
         () async => await rc.getDHTValue(bogusKey, 0, forceRefresh: false),
@@ -20,8 +19,7 @@ Future<void> testGetDHTValueUnopened() async {
 }
 
 Future<void> testOpenDHTRecordNonexistentNoWriter() async {
-  final rc = await Veilid.instance
-      .safeRoutingContext(sequencing: Sequencing.ensureOrdered);
+  final rc = await Veilid.instance.routingContext();
   try {
     await expectLater(() async => await rc.openDHTRecord(bogusKey),
         throwsA(isA<VeilidAPIException>()));
@@ -31,8 +29,7 @@ Future<void> testOpenDHTRecordNonexistentNoWriter() async {
 }
 
 Future<void> testCloseDHTRecordNonexistent() async {
-  final rc = await Veilid.instance
-      .safeRoutingContext(sequencing: Sequencing.ensureOrdered);
+  final rc = await Veilid.instance.routingContext();
   try {
     await expectLater(() async => await rc.closeDHTRecord(bogusKey),
         throwsA(isA<VeilidAPIException>()));
@@ -42,8 +39,7 @@ Future<void> testCloseDHTRecordNonexistent() async {
 }
 
 Future<void> testDeleteDHTRecordNonexistent() async {
-  final rc = await Veilid.instance
-      .safeRoutingContext(sequencing: Sequencing.ensureOrdered);
+  final rc = await Veilid.instance.routingContext();
   try {
     await expectLater(() async => await rc.deleteDHTRecord(bogusKey),
         throwsA(isA<VeilidAPIException>()));
@@ -53,8 +49,7 @@ Future<void> testDeleteDHTRecordNonexistent() async {
 }
 
 Future<void> testCreateDeleteDHTRecordSimple() async {
-  final rc = await Veilid.instance
-      .safeRoutingContext(sequencing: Sequencing.ensureOrdered);
+  final rc = await Veilid.instance.routingContext();
   try {
     final rec = await rc.createDHTRecord(const DHTSchema.dflt(oCnt: 1));
     await rc.closeDHTRecord(rec.key);
@@ -65,8 +60,7 @@ Future<void> testCreateDeleteDHTRecordSimple() async {
 }
 
 Future<void> testCreateDeleteDHTRecordNoClose() async {
-  final rc = await Veilid.instance
-      .safeRoutingContext(sequencing: Sequencing.ensureOrdered);
+  final rc = await Veilid.instance.routingContext();
   try {
     final rec = await rc.createDHTRecord(const DHTSchema.dflt(oCnt: 1));
     await rc.deleteDHTRecord(rec.key);
@@ -76,8 +70,7 @@ Future<void> testCreateDeleteDHTRecordNoClose() async {
 }
 
 Future<void> testGetDHTValueNonexistent() async {
-  final rc = await Veilid.instance
-      .safeRoutingContext(sequencing: Sequencing.ensureOrdered);
+  final rc = await Veilid.instance.routingContext();
   try {
     final rec = await rc.createDHTRecord(const DHTSchema.dflt(oCnt: 1));
     expect(await rc.getDHTValue(rec.key, 0), isNull);
@@ -88,8 +81,7 @@ Future<void> testGetDHTValueNonexistent() async {
 }
 
 Future<void> testSetGetDHTValue() async {
-  final rc = await Veilid.instance
-      .safeRoutingContext(sequencing: Sequencing.ensureOrdered);
+  final rc = await Veilid.instance.routingContext();
   try {
     final rec = await rc.createDHTRecord(const DHTSchema.dflt(oCnt: 2));
     expect(await rc.setDHTValue(rec.key, 0, utf8.encode("BLAH BLAH BLAH")),
@@ -112,8 +104,7 @@ Future<void> testSetGetDHTValue() async {
 }
 
 Future<void> testOpenWriterDHTValue() async {
-  final rc = await Veilid.instance
-      .safeRoutingContext(sequencing: Sequencing.ensureOrdered);
+  final rc = await Veilid.instance.routingContext();
   try {
     var rec = await rc.createDHTRecord(const DHTSchema.dflt(oCnt: 2));
     final key = rec.key;
@@ -249,11 +240,9 @@ Future<void> testWatchDHTValues(Stream<VeilidUpdate> updateStream) async {
     // Normally they would not get sent if the set comes from the same target
     // as the watch's target
 
-    final rcWatch = (await Veilid.instance.routingContext())
-        .withSequencing(Sequencing.ensureOrdered, closeSelf: true);
-    final rcSet = (await Veilid.instance.routingContext()).withSafety(
-        const SafetySelectionUnsafe(sequencing: Sequencing.ensureOrdered),
-        closeSelf: true);
+    final rcWatch = await Veilid.instance.routingContext();
+    final rcSet = await Veilid.instance
+        .unsafeRoutingContext(sequencing: Sequencing.ensureOrdered);
     try {
       // Make a DHT record
       var rec = await rcWatch.createDHTRecord(const DHTSchema.dflt(oCnt: 10));
@@ -360,8 +349,7 @@ Future<void> testWatchDHTValues(Stream<VeilidUpdate> updateStream) async {
 }
 
 Future<void> testInspectDHTRecord() async {
-  final rc = await Veilid.instance
-      .safeRoutingContext(sequencing: Sequencing.ensureOrdered);
+  final rc = await Veilid.instance.routingContext();
   try {
     var rec = await rc.createDHTRecord(const DHTSchema.dflt(oCnt: 2));
 

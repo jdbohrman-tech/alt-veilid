@@ -17,6 +17,7 @@ pub enum Sequencing {
 
 impl Default for Sequencing {
     fn default() -> Self {
+        // This is the default for veilid-core, and should not be the default used in any API-level code
         Self::NoPreference
     }
 }
@@ -37,6 +38,7 @@ pub enum Stability {
 
 impl Default for Stability {
     fn default() -> Self {
+        // This is the default for veilid-core, and should not be the default used in any API-level code
         Self::LowLatency
     }
 }

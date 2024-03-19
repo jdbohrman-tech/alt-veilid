@@ -55,8 +55,7 @@ Future<void> testAppMessageLoopback(Stream<VeilidUpdate> updateStream) async {
     await Veilid.instance.debug("purge routes");
 
     // make a routing context that uses a safety route
-    final rc = await Veilid.instance
-        .safeRoutingContext(sequencing: Sequencing.ensureOrdered);
+    final rc = await Veilid.instance.routingContext();
     try {
       // make a new local private route
       final prl = await Veilid.instance.newPrivateRoute();
@@ -97,8 +96,7 @@ Future<void> testAppCallLoopback(Stream<VeilidUpdate> updateStream) async {
     await Veilid.instance.debug("purge routes");
 
     // make a routing context that uses a safety route
-    final rc = await Veilid.instance
-        .safeRoutingContext(sequencing: Sequencing.ensureOrdered);
+    final rc = await Veilid.instance.routingContext();
     try {
       // make a new local private route
       final prl = await Veilid.instance.newPrivateRoute();
@@ -155,8 +153,7 @@ Future<void> testAppMessageLoopbackBigPackets(
     await Veilid.instance.debug("purge routes");
 
     // make a routing context that uses a safety route
-    final rc = await Veilid.instance
-        .safeRoutingContext(sequencing: Sequencing.ensureOrdered);
+    final rc = await Veilid.instance.routingContext();
     try {
       // make a new local private route
       final prl = await Veilid.instance.newPrivateRoute();
@@ -220,12 +217,10 @@ Future<void> testAppCallLoopbackBigPackets(
     await Veilid.instance.debug("purge routes");
 
     // make a routing context that uses a safety route
-    final rc = (await Veilid.instance.routingContext())
-        .withSequencing(Sequencing.ensureOrdered, closeSelf: true);
+    final rc = await Veilid.instance.routingContext();
     try {
       // make a new local private route
-      final prl = await Veilid.instance
-          .newCustomPrivateRoute(Stability.reliable, Sequencing.ensureOrdered);
+      final prl = await Veilid.instance.newPrivateRoute();
       try {
         // import it as a remote route as well so we can send to it
         final prr = await Veilid.instance.importRemotePrivateRoute(prl.blob);

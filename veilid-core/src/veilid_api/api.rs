@@ -200,7 +200,7 @@ impl VeilidAPI {
     ////////////////////////////////////////////////////////////////
     // Routing Context
 
-    /// Get a new `RoutingContext` object to use to send messages over the Veilid network.
+    /// Get a new `RoutingContext` object to use to send messages over the Veilid network with default safety, sequencing, and stability parameters.
     #[instrument(target = "veilid_api", level = "debug", skip_all, err, ret)]
     pub fn routing_context(&self) -> VeilidAPIResult<RoutingContext> {
         event!(target: "veilid_api", Level::DEBUG, 
@@ -246,6 +246,7 @@ impl VeilidAPI {
     // Private route allocation
 
     /// Allocate a new private route set with default cryptography and network options
+    /// Default settings are for Stability::Reliable and Sequencing::EnsureOrdered
     /// Returns a route id and a publishable 'blob' with the route encrypted with each crypto kind
     /// Those nodes importing the blob will have their choice of which crypto kind to use
     ///
@@ -256,12 +257,14 @@ impl VeilidAPI {
         self.new_custom_private_route(
             &VALID_CRYPTO_KINDS,
             Stability::Reliable,
-            Sequencing::PreferOrdered,
+            Sequencing::EnsureOrdered,
         )
         .await
     }
 
     /// Allocate a new private route and specify a specific cryptosystem, stability and sequencing preference
+    /// Faster connections may be possible with Stability::LowLatency, and Sequencing::NoPreference at the 
+    /// expense of some loss of messages
     /// Returns a route id and a publishable 'blob' with the route encrypted with each crypto kind
     /// Those nodes importing the blob will have their choice of which crypto kind to use
     ///

@@ -14,9 +14,8 @@ BOGUS_KEY = veilid.TypedKey.from_value(
 
 @pytest.mark.asyncio
 async def test_get_dht_value_unopened(api_connection: veilid.VeilidAPI):
-    rc = await (await api_connection.new_routing_context()).with_sequencing(
-        veilid.Sequencing.ENSURE_ORDERED
-    )
+    rc = await api_connection.new_routing_context()
+    
     async with rc:
         with pytest.raises(veilid.VeilidAPIError):
             out = await rc.get_dht_value(BOGUS_KEY, veilid.ValueSubkey(0), False)
@@ -24,9 +23,7 @@ async def test_get_dht_value_unopened(api_connection: veilid.VeilidAPI):
 
 @pytest.mark.asyncio
 async def test_open_dht_record_nonexistent_no_writer(api_connection: veilid.VeilidAPI):
-    rc = await (await api_connection.new_routing_context()).with_sequencing(
-        veilid.Sequencing.ENSURE_ORDERED
-    )
+    rc = await api_connection.new_routing_context()
     async with rc:
         with pytest.raises(veilid.VeilidAPIError):
             out = await rc.open_dht_record(BOGUS_KEY, None)
@@ -34,9 +31,7 @@ async def test_open_dht_record_nonexistent_no_writer(api_connection: veilid.Veil
 
 @pytest.mark.asyncio
 async def test_close_dht_record_nonexistent(api_connection: veilid.VeilidAPI):
-    rc = await (await api_connection.new_routing_context()).with_sequencing(
-        veilid.Sequencing.ENSURE_ORDERED
-    )
+    rc = await api_connection.new_routing_context()
     async with rc:
         with pytest.raises(veilid.VeilidAPIError):
             await rc.close_dht_record(BOGUS_KEY)
@@ -44,9 +39,7 @@ async def test_close_dht_record_nonexistent(api_connection: veilid.VeilidAPI):
 
 @pytest.mark.asyncio
 async def test_delete_dht_record_nonexistent(api_connection: veilid.VeilidAPI):
-    rc = await (await api_connection.new_routing_context()).with_sequencing(
-        veilid.Sequencing.ENSURE_ORDERED
-    )
+    rc = await api_connection.new_routing_context()
     async with rc:
         with pytest.raises(veilid.VeilidAPIError):
             await rc.delete_dht_record(BOGUS_KEY)
@@ -54,9 +47,7 @@ async def test_delete_dht_record_nonexistent(api_connection: veilid.VeilidAPI):
 
 @pytest.mark.asyncio
 async def test_create_delete_dht_record_simple(api_connection: veilid.VeilidAPI):
-    rc = await (await api_connection.new_routing_context()).with_sequencing(
-        veilid.Sequencing.ENSURE_ORDERED
-    )
+    rc = await api_connection.new_routing_context()
     async with rc:
         rec = await rc.create_dht_record(
             veilid.DHTSchema.dflt(1), veilid.CryptoKind.CRYPTO_KIND_VLD0
@@ -67,9 +58,7 @@ async def test_create_delete_dht_record_simple(api_connection: veilid.VeilidAPI)
 
 @pytest.mark.asyncio
 async def test_get_dht_value_nonexistent(api_connection: veilid.VeilidAPI):
-    rc = await (await api_connection.new_routing_context()).with_sequencing(
-        veilid.Sequencing.ENSURE_ORDERED
-    )
+    rc = await api_connection.new_routing_context()
     async with rc:
         rec = await rc.create_dht_record(veilid.DHTSchema.dflt(1))
         assert await rc.get_dht_value(rec.key, 0, False) == None
@@ -79,9 +68,7 @@ async def test_get_dht_value_nonexistent(api_connection: veilid.VeilidAPI):
 
 @pytest.mark.asyncio
 async def test_set_get_dht_value(api_connection: veilid.VeilidAPI):
-    rc = await (await api_connection.new_routing_context()).with_sequencing(
-        veilid.Sequencing.ENSURE_ORDERED
-    )
+    rc = await api_connection.new_routing_context()
     async with rc:
         rec = await rc.create_dht_record(veilid.DHTSchema.dflt(2))
 
@@ -108,9 +95,7 @@ async def test_set_get_dht_value(api_connection: veilid.VeilidAPI):
 
 @pytest.mark.asyncio
 async def test_open_writer_dht_value(api_connection: veilid.VeilidAPI):
-    rc = await (await api_connection.new_routing_context()).with_sequencing(
-        veilid.Sequencing.ENSURE_ORDERED
-    )
+    rc = await api_connection.new_routing_context()
     async with rc:
         rec = await rc.create_dht_record(veilid.DHTSchema.dflt(2))
         key = rec.key
@@ -239,9 +224,8 @@ async def test_watch_dht_values():
     # So we can pretend to be a different node and get the watch updates
     # Normally they would not get sent if the set comes from the same target
     # as the watch's target
-    rcWatch = await (await api.new_routing_context()).with_sequencing(
-        veilid.Sequencing.ENSURE_ORDERED
-    )
+    rcWatch = await api.new_routing_context()
+    
     rcSet = await (await api.new_routing_context()).with_safety(
         veilid.SafetySelection.unsafe(veilid.Sequencing.ENSURE_ORDERED)
     )
@@ -328,9 +312,7 @@ async def test_watch_dht_values():
 
 @pytest.mark.asyncio
 async def test_inspect_dht_record(api_connection: veilid.VeilidAPI):
-    rc = await (await api_connection.new_routing_context()).with_sequencing(
-        veilid.Sequencing.ENSURE_ORDERED
-    )
+    rc = await api_connection.new_routing_context()
     async with rc:
         rec = await rc.create_dht_record(veilid.DHTSchema.dflt(2))
 

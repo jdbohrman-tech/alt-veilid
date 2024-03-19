@@ -55,8 +55,8 @@ impl RoutingContext {
                 safety_selection: SafetySelection::Safe(SafetySpec {
                     preferred_route: None,
                     hop_count: c.network.rpc.default_route_hop_count as usize,
-                    stability: Stability::default(),
-                    sequencing: Sequencing::PreferOrdered,
+                    stability: Stability::Reliable,
+                    sequencing: Sequencing::EnsureOrdered,
                 }),
             }),
         })
@@ -83,8 +83,8 @@ impl RoutingContext {
         self.with_safety(SafetySelection::Safe(SafetySpec {
             preferred_route: None,
             hop_count: c.network.rpc.default_route_hop_count as usize,
-            stability: Stability::default(),
-            sequencing: Sequencing::PreferOrdered,
+            stability: Stability::Reliable,
+            sequencing: Sequencing::EnsureOrdered,
         }))
     }
 
