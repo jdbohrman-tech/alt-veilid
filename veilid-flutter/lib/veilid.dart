@@ -77,6 +77,11 @@ class Timestamp extends Equatable implements Comparable<Timestamp> {
   @override
   int compareTo(Timestamp other) => value.compareTo(other.value);
 
+  bool operator <(Timestamp other) => compareTo(other) < 0;
+  bool operator <=(Timestamp other) => compareTo(other) <= 0;
+  bool operator >(Timestamp other) => compareTo(other) > 0;
+  bool operator >=(Timestamp other) => compareTo(other) >= 0;
+
   @override
   String toString() => value.toString();
   String toJson() => toString();
@@ -97,6 +102,11 @@ class TimestampDuration extends Equatable
   factory TimestampDuration.fromInt64(Int64 i64) => TimestampDuration(
       value: (BigInt.from((i64 >> 32).toUnsigned(32).toInt()) << 32) |
           BigInt.from(i64.toUnsigned(32).toInt()));
+  factory TimestampDuration.fromMillis(int millis) =>
+      TimestampDuration(value: BigInt.from(millis) * BigInt.from(1000));
+  factory TimestampDuration.fromDuration(Duration d) => TimestampDuration(
+      value: BigInt.from(d.inSeconds) * BigInt.from(1000000) +
+          BigInt.from(d.inMicroseconds % 1000000));
   factory TimestampDuration.fromString(String s) =>
       TimestampDuration(value: BigInt.parse(s));
   factory TimestampDuration.fromJson(dynamic json) =>
@@ -107,6 +117,11 @@ class TimestampDuration extends Equatable
 
   @override
   int compareTo(TimestampDuration other) => value.compareTo(other.value);
+
+  bool operator <(TimestampDuration other) => compareTo(other) < 0;
+  bool operator <=(TimestampDuration other) => compareTo(other) <= 0;
+  bool operator >(TimestampDuration other) => compareTo(other) > 0;
+  bool operator >=(TimestampDuration other) => compareTo(other) >= 0;
 
   @override
   String toString() => value.toString();
