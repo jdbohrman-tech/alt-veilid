@@ -10,7 +10,7 @@ const kDefaultTerminalStyle = TerminalStyle(
     fontFamily: kDefaultMonoTerminalFontFamily);
 
 class LogTerminal extends StatefulWidget {
-  const LogTerminal({Key? key}) : super(key: key);
+  const LogTerminal({super.key});
 
   @override
   // ignore: library_private_types_in_public_api

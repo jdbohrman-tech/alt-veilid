@@ -13,7 +13,7 @@ import 'history_wrapper.dart';
 
 // Main App
 class MyApp extends StatefulWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   State<MyApp> createState() => _MyAppState();
