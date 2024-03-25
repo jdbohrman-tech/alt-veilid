@@ -938,12 +938,12 @@ impl RPCProcessor {
         // If safety route was in use, record failure to send there
         if let Some(sr_pubkey) = &safety_route {
             let rss = self.routing_table.route_spec_store();
-            rss.with_route_stats(send_ts, sr_pubkey, |s| s.record_send_failed());
+            rss.with_route_stats_mut(send_ts, sr_pubkey, |s| s.record_send_failed());
         } else {
             // If no safety route was in use, then it's the private route's fault if we have one
             if let Some(pr_pubkey) = &remote_private_route {
                 let rss = self.routing_table.route_spec_store();
-                rss.with_route_stats(send_ts, pr_pubkey, |s| s.record_send_failed());
+                rss.with_route_stats_mut(send_ts, pr_pubkey, |s| s.record_send_failed());
             }
         }
     }
@@ -972,19 +972,19 @@ impl RPCProcessor {
         // If safety route was used, record question lost there
         if let Some(sr_pubkey) = &safety_route {
             let rss = self.routing_table.route_spec_store();
-            rss.with_route_stats(send_ts, sr_pubkey, |s| {
+            rss.with_route_stats_mut(send_ts, sr_pubkey, |s| {
                 s.record_question_lost();
             });
         }
         // If remote private route was used, record question lost there
         if let Some(rpr_pubkey) = &remote_private_route {
-            rss.with_route_stats(send_ts, rpr_pubkey, |s| {
+            rss.with_route_stats_mut(send_ts, rpr_pubkey, |s| {
                 s.record_question_lost();
             });
         }
         // If private route was used, record question lost there
         if let Some(pr_pubkey) = &private_route {
-            rss.with_route_stats(send_ts, pr_pubkey, |s| {
+            rss.with_route_stats_mut(send_ts, pr_pubkey, |s| {
                 s.record_question_lost();
             });
         }
@@ -1018,7 +1018,7 @@ impl RPCProcessor {
 
         // If safety route was used, record send there
         if let Some(sr_pubkey) = &safety_route {
-            rss.with_route_stats(send_ts, sr_pubkey, |s| {
+            rss.with_route_stats_mut(send_ts, sr_pubkey, |s| {
                 s.record_sent(send_ts, bytes);
             });
         }
@@ -1026,7 +1026,7 @@ impl RPCProcessor {
         // If remote private route was used, record send there
         if let Some(pr_pubkey) = &remote_private_route {
             let rss = self.routing_table.route_spec_store();
-            rss.with_route_stats(send_ts, pr_pubkey, |s| {
+            rss.with_route_stats_mut(send_ts, pr_pubkey, |s| {
                 s.record_sent(send_ts, bytes);
             });
         }
@@ -1059,7 +1059,7 @@ impl RPCProcessor {
 
         // If safety route was used, record route there
         if let Some(sr_pubkey) = &safety_route {
-            rss.with_route_stats(send_ts, sr_pubkey, |s| {
+            rss.with_route_stats_mut(send_ts, sr_pubkey, |s| {
                 // If we received an answer, the safety route we sent over can be considered tested
                 s.record_tested(recv_ts);
 
@@ -1070,7 +1070,7 @@ impl RPCProcessor {
 
         // If local private route was used, record route there
         if let Some(pr_pubkey) = &reply_private_route {
-            rss.with_route_stats(send_ts, pr_pubkey, |s| {
+            rss.with_route_stats_mut(send_ts, pr_pubkey, |s| {
                 // Record received bytes
                 s.record_received(recv_ts, bytes);
 
@@ -1081,7 +1081,7 @@ impl RPCProcessor {
 
         // If remote private route was used, record there
         if let Some(rpr_pubkey) = &remote_private_route {
-            rss.with_route_stats(send_ts, rpr_pubkey, |s| {
+            rss.with_route_stats_mut(send_ts, rpr_pubkey, |s| {
                 // Record received bytes
                 s.record_received(recv_ts, bytes);
 
@@ -1106,12 +1106,12 @@ impl RPCProcessor {
             // then we must have received with a local private route too, per the design rules
             if let Some(sr_pubkey) = &safety_route {
                 let rss = self.routing_table.route_spec_store();
-                rss.with_route_stats(send_ts, sr_pubkey, |s| {
+                rss.with_route_stats_mut(send_ts, sr_pubkey, |s| {
                     s.record_latency(total_latency / 2u64);
                 });
             }
             if let Some(pr_pubkey) = &reply_private_route {
-                rss.with_route_stats(send_ts, pr_pubkey, |s| {
+                rss.with_route_stats_mut(send_ts, pr_pubkey, |s| {
                     s.record_latency(total_latency / 2u64);
                 });
             }
@@ -1137,7 +1137,7 @@ impl RPCProcessor {
 
                 // This may record nothing if the remote safety route is not also
                 // a remote private route that been imported, but that's okay
-                rss.with_route_stats(recv_ts, &d.remote_safety_route, |s| {
+                rss.with_route_stats_mut(recv_ts, &d.remote_safety_route, |s| {
                     s.record_received(recv_ts, bytes);
                 });
             }
@@ -1149,12 +1149,12 @@ impl RPCProcessor {
                 // a remote private route that been imported, but that's okay
                 // it could also be a node id if no remote safety route was used
                 // in which case this also will do nothing
-                rss.with_route_stats(recv_ts, &d.remote_safety_route, |s| {
+                rss.with_route_stats_mut(recv_ts, &d.remote_safety_route, |s| {
                     s.record_received(recv_ts, bytes);
                 });
 
                 // Record for our local private route we received over
-                rss.with_route_stats(recv_ts, &d.private_route, |s| {
+                rss.with_route_stats_mut(recv_ts, &d.private_route, |s| {
                     s.record_received(recv_ts, bytes);
                 });
             }

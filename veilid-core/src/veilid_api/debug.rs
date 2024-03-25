@@ -1724,6 +1724,7 @@ impl VeilidAPI {
                 parse_duration,
             )
             .ok()
+            .map(|dur| dur + get_timestamp())
             .unwrap_or_else(|| {
                 rest_defaults = true;
                 Default::default()

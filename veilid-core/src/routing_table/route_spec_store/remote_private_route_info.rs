@@ -45,7 +45,7 @@ impl RemotePrivateRouteInfo {
         &mut self.stats
     }
 
-    pub fn has_seen_our_node_info_ts(&mut self, our_node_info_ts: Timestamp) -> bool {
+    pub fn has_seen_our_node_info_ts(&self, our_node_info_ts: Timestamp) -> bool {
         self.last_seen_our_node_info_ts == our_node_info_ts
     }
     pub fn set_last_seen_our_node_info_ts(&mut self, last_seen_our_node_info_ts: Timestamp) {
