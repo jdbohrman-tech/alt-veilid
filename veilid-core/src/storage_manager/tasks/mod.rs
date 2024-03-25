@@ -1,4 +1,5 @@
 pub mod check_active_watches;
+pub mod check_watched_records;
 pub mod flush_record_stores;
 pub mod offline_subkey_writes;
 pub mod send_value_changes;
@@ -91,6 +92,27 @@ impl StorageManager {
                     )
                 });
         }
+        // Set check watched records tick task
+        log_stor!(debug "starting checked watched records task");
+        {
+            let this = self.clone();
+            self.unlocked_inner
+                .check_watched_records_task
+                .set_routine(move |s, l, t| {
+                    Box::pin(
+                        this.clone()
+                            .check_watched_records_task_routine(
+                                s,
+                                Timestamp::new(l),
+                                Timestamp::new(t),
+                            )
+                            .instrument(trace_span!(
+                                parent: None,
+                                "StorageManager check watched records task routine"
+                            )),
+                    )
+                });
+        }
     }
 
     pub async fn tick(&self) -> EyreResult<()> {
@@ -99,6 +121,12 @@ impl StorageManager {
 
         // Check active watches
         self.unlocked_inner.check_active_watches_task.tick().await?;
+
+        // Check watched records
+        self.unlocked_inner
+            .check_watched_records_task
+            .tick()
+            .await?;
 
         // Run online-only tasks
         if self.online_writes_ready().await?.is_some() {
@@ -117,6 +145,10 @@ impl StorageManager {
     }
 
     pub(crate) async fn cancel_tasks(&self) {
+        log_stor!(debug "stopping check watched records task");
+        if let Err(e) = self.unlocked_inner.check_watched_records_task.stop().await {
+            warn!("check_watched_records_task not stopped: {}", e);
+        }
         log_stor!(debug "stopping check active watches task");
         if let Err(e) = self.unlocked_inner.check_active_watches_task.stop().await {
             warn!("check_active_watches_task not stopped: {}", e);

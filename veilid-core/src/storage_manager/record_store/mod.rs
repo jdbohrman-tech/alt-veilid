@@ -1109,6 +1109,23 @@ where
         out.map(|r| (r, is_watched))
     }
 
+    /// See if any watched records have expired and clear them out
+    pub fn check_watched_records(&mut self) {
+        let now = get_aligned_timestamp();
+        self.watched_records.retain(|key, watch_list| {
+            watch_list.watches.retain(|w| {
+                w.params.count != 0 && w.params.expiration > now && !w.params.subkeys.is_empty()
+            });
+            if watch_list.watches.is_empty() {
+                // If we're removing the watched record, drop any changed watch values too
+                self.changed_watched_values.remove(key);
+                false
+            } else {
+                true
+            }
+        });
+    }
+
     pub async fn take_value_changes(&mut self, changes: &mut Vec<ValueChangedInfo>) {
         // ValueChangedInfo but without the subkey data that requires a double mutable borrow to get
         struct EarlyValueChangedInfo {

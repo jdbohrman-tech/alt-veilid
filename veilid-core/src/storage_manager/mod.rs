@@ -28,8 +28,10 @@ const FLUSH_RECORD_STORES_INTERVAL_SECS: u32 = 1;
 const OFFLINE_SUBKEY_WRITES_INTERVAL_SECS: u32 = 1;
 /// Frequency to send ValueChanged notifications to the network
 const SEND_VALUE_CHANGES_INTERVAL_SECS: u32 = 1;
-/// Frequence to check for dead nodes and routes for active watches
+/// Frequency to check for dead nodes and routes for client-side active watches
 const CHECK_ACTIVE_WATCHES_INTERVAL_SECS: u32 = 1;
+/// Frequency to check for expired server-side watched records
+const CHECK_WATCHED_RECORDS_INTERVAL_SECS: u32 = 1;
 
 #[derive(Debug, Clone)]
 /// A single 'value changed' message to send
@@ -54,6 +56,7 @@ struct StorageManagerUnlockedInner {
     offline_subkey_writes_task: TickTask<EyreReport>,
     send_value_changes_task: TickTask<EyreReport>,
     check_active_watches_task: TickTask<EyreReport>,
+    check_watched_records_task: TickTask<EyreReport>,
 
     // Anonymous watch keys
     anonymous_watch_keys: TypedKeyPairGroup,
@@ -90,6 +93,7 @@ impl StorageManager {
             offline_subkey_writes_task: TickTask::new(OFFLINE_SUBKEY_WRITES_INTERVAL_SECS),
             send_value_changes_task: TickTask::new(SEND_VALUE_CHANGES_INTERVAL_SECS),
             check_active_watches_task: TickTask::new(CHECK_ACTIVE_WATCHES_INTERVAL_SECS),
+            check_watched_records_task: TickTask::new(CHECK_WATCHED_RECORDS_INTERVAL_SECS),
 
             anonymous_watch_keys,
         }
