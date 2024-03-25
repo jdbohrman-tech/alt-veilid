@@ -46,7 +46,7 @@ impl NetworkManager {
         flow: Flow,                    // the flow used
         reporting_peer: NodeRef,       // the peer's noderef reporting the socket address
     ) {
-        log_network_result!(debug "report_global_socket_address\nsocket_address: {:#?}\nflow: {:#?}\nreporting_peer: {:#?}", socket_address, flow, reporting_peer);
+        log_network_result!(trace "report_global_socket_address\nsocket_address: {:#?}\nflow: {:#?}\nreporting_peer: {:#?}", socket_address, flow, reporting_peer);
 
         // Ignore these reports if we are currently detecting public dial info
         let net = self.net();
