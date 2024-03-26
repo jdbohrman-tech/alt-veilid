@@ -1423,7 +1423,7 @@ impl RPCProcessor {
     /// Decoding RPC from the wire
     /// This performs a capnp decode on the data, and if it passes the capnp schema
     /// it performs the cryptographic validation required to pass the operation up for processing
-    #[instrument(skip_all, err)]
+    #[instrument(skip_all)]
     fn decode_rpc_operation(
         &self,
         encoded_msg: &RPCMessageEncoded,
@@ -1492,15 +1492,29 @@ impl RPCProcessor {
                 let sender_node_id = detail.envelope.get_sender_typed_id();
 
                 // Decode and validate the RPC operation
-                let operation = match self.decode_rpc_operation(&encoded_msg) {
+                let decode_res = self.decode_rpc_operation(&encoded_msg);
+                let operation = match decode_res {
                     Ok(v) => v,
                     Err(e) => {
-                        // Punish nodes that send direct undecodable crap
-                        if matches!(e, RPCError::Protocol(_) | RPCError::InvalidFormat(_)) {
-                            address_filter.punish_node_id(sender_node_id);
-                        }
+                        match e {
+                            // Invalid messages that should be punished
+                            RPCError::Protocol(_) | RPCError::InvalidFormat(_) => {
+                                log_rpc!(debug "Invalid RPC Operation: {}", e);
+
+                                // Punish nodes that send direct undecodable crap
+                                address_filter.punish_node_id(sender_node_id);
+                            },
+                            // Ignored messages that should be dropped
+                            RPCError::Ignore(_) | RPCError::Network(_) | RPCError::TryAgain(_) => {
+                                log_rpc!(debug "Dropping RPC Operation: {}", e);
+                            },
+                            // Internal errors that deserve louder logging
+                            RPCError::Unimplemented(_) | RPCError::Internal(_) => {
+                                log_rpc!(error "Error decoding RPC operation: {}", e);
+                            }
+                        };
                         return Ok(NetworkResult::invalid_message(e));
-                    }
+                    },
                 };
 
                 // Get the routing domain this message came over
@@ -1572,7 +1586,10 @@ impl RPCProcessor {
                 let operation = match self.decode_rpc_operation(&encoded_msg) {
                     Ok(v) => v,
                     Err(e) => {
-                        // Punish routes that send routed undecodable crap
+                        // Debug on error
+                        log_rpc!(debug "Dropping RPC operation: {}", e);
+
+                        // XXX: Punish routes that send routed undecodable crap
                         // address_filter.punish_route_id(xxx);
                         return Ok(NetworkResult::invalid_message(e));
                     }
