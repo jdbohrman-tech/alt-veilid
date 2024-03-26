@@ -405,6 +405,12 @@ fn main() -> EyreResult<()> {
         // Init combined console/file logger
         let veilid_logs = VeilidLogs::setup(settings.clone())?;
 
-        run_veilid_server(settings, server_mode, veilid_logs).await
+        cfg_if! {
+            if #[cfg(windows)] {
+                run_veilid_server(settings, server_mode, veilid_logs).await
+            } else if #[cfg(unix)] {
+                unix::run_veilid_server_with_signals(settings, server_mode, veilid_logs).await
+            }
+        }
     })
 }

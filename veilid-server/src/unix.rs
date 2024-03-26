@@ -24,6 +24,28 @@ async fn handle_signals(mut signals: Signals) {
     }
 }
 
+pub async fn run_veilid_server_with_signals(
+    settings: Settings,
+    server_mode: ServerMode,
+    veilid_logs: VeilidLogs,
+) -> EyreResult<()> {
+    // Catch signals
+    let signals =
+        Signals::new([SIGHUP, SIGTERM, SIGINT, SIGQUIT]).wrap_err("failed to init signals")?;
+    let handle = signals.handle();
+
+    let signals_task = spawn(handle_signals(signals));
+
+    // Run veilid server
+    let res = run_veilid_server(settings, server_mode, veilid_logs).await;
+
+    // Terminate the signal stream.
+    handle.close();
+    let _ = signals_task.await;
+
+    res
+}
+
 #[warn(missing_docs)]
 #[instrument(err)]
 pub fn run_daemon(settings: Settings, _args: CmdlineArgs) -> EyreResult<()> {
@@ -82,19 +104,6 @@ pub fn run_daemon(settings: Settings, _args: CmdlineArgs) -> EyreResult<()> {
         // Daemonize
         daemon.start().wrap_err("Failed to daemonize")?;
 
-        // Catch signals
-        let signals =
-            Signals::new([SIGHUP, SIGTERM, SIGINT, SIGQUIT]).wrap_err("failed to init signals")?;
-        let handle = signals.handle();
-
-        let signals_task = spawn(handle_signals(signals));
-
-        let res = run_veilid_server(settings, ServerMode::Normal, veilid_logs).await;
-
-        // Terminate the signal stream.
-        handle.close();
-        let _ = signals_task.await;
-
-        res
+        run_veilid_server_with_signals(settings, ServerMode::Normal, veilid_logs).await
     })
 }
