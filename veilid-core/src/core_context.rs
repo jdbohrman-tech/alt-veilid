@@ -1,6 +1,6 @@
-use crate::api_tracing_layer::*;
 use crate::attachment_manager::*;
 use crate::crypto::Crypto;
+use crate::logging::*;
 use crate::storage_manager::*;
 use crate::veilid_api::*;
 use crate::veilid_config::*;
@@ -70,7 +70,6 @@ impl ServicesContext {
         ApiTracingLayer::init(self.update_callback.clone()).await;
 
         // Set up protected store
-        trace!("init protected store");
         let protected_store = ProtectedStore::new(self.config.clone());
         if let Err(e) = protected_store.init().await {
             error!("failed to init protected store: {}", e);
@@ -80,7 +79,6 @@ impl ServicesContext {
         self.protected_store = Some(protected_store.clone());
 
         // Set up tablestore and crypto system
-        trace!("create table store and crypto system");
         let table_store = TableStore::new(self.config.clone(), protected_store.clone());
         let crypto = Crypto::new(self.config.clone(), table_store.clone());
         table_store.set_crypto(crypto.clone());
@@ -88,7 +86,6 @@ impl ServicesContext {
         // Initialize table store first, so crypto code can load caches
         // Tablestore can use crypto during init, just not any cached operations or things
         // that require flushing back to the tablestore
-        trace!("init table store");
         if let Err(e) = table_store.init().await {
             error!("failed to init table store: {}", e);
             self.shutdown().await;
@@ -97,7 +94,6 @@ impl ServicesContext {
         self.table_store = Some(table_store.clone());
 
         // Set up crypto
-        trace!("init crypto");
         if let Err(e) = crypto.init().await {
             error!("failed to init crypto: {}", e);
             self.shutdown().await;
@@ -108,7 +104,6 @@ impl ServicesContext {
         // Set up block store
         #[cfg(feature = "unstable-blockstore")]
         {
-            trace!("init block store");
             let block_store = BlockStore::new(self.config.clone());
             if let Err(e) = block_store.init().await {
                 error!("failed to init block store: {}", e);
@@ -119,7 +114,6 @@ impl ServicesContext {
         }
 
         // Set up storage manager
-        trace!("init storage manager");
         let update_callback = self.update_callback.clone();
 
         let storage_manager = StorageManager::new(
@@ -137,7 +131,6 @@ impl ServicesContext {
         self.storage_manager = Some(storage_manager.clone());
 
         // Set up attachment manager
-        trace!("init attachment manager");
         let update_callback = self.update_callback.clone();
         let attachment_manager = AttachmentManager::new(
             self.config.clone(),
@@ -163,28 +156,22 @@ impl ServicesContext {
         info!("Veilid API shutting down");
 
         if let Some(attachment_manager) = &mut self.attachment_manager {
-            trace!("terminate attachment manager");
             attachment_manager.terminate().await;
         }
         if let Some(storage_manager) = &mut self.storage_manager {
-            trace!("terminate storage manager");
             storage_manager.terminate().await;
         }
         #[cfg(feature = "unstable-blockstore")]
         if let Some(block_store) = &mut self.block_store {
-            trace!("terminate block store");
             block_store.terminate().await;
         }
         if let Some(crypto) = &mut self.crypto {
-            trace!("terminate crypto");
             crypto.terminate().await;
         }
         if let Some(table_store) = &mut self.table_store {
-            trace!("terminate table store");
             table_store.terminate().await;
         }
         if let Some(protected_store) = &mut self.protected_store {
-            trace!("terminate protected store");
             protected_store.terminate().await;
         }
 
@@ -220,7 +207,6 @@ impl VeilidCoreContext {
         config_callback: ConfigCallback,
     ) -> VeilidAPIResult<VeilidCoreContext> {
         // Set up config from callback
-        trace!("setup config with callback");
         let mut config = VeilidConfig::new();
         config.setup(config_callback, update_callback.clone())?;
 
@@ -233,12 +219,10 @@ impl VeilidCoreContext {
         config_json: String,
     ) -> VeilidAPIResult<VeilidCoreContext> {
         // Set up config from json
-        trace!("setup config with json");
         let mut config = VeilidConfig::new();
         config.setup_from_json(config_json, update_callback.clone())?;
         Self::new_common(update_callback, config).await
     }
-
 
     #[instrument(err, skip_all)]
     async fn new_with_config(
@@ -246,7 +230,6 @@ impl VeilidCoreContext {
         config_inner: VeilidConfigInner,
     ) -> VeilidAPIResult<VeilidCoreContext> {
         // Set up config from json
-        trace!("setup config with json");
         let mut config = VeilidConfig::new();
         config.setup_from_config(config_inner, update_callback.clone())?;
         Self::new_common(update_callback, config).await

@@ -15,6 +15,8 @@ pub enum RPCError {
     Network(String),
     #[error("[RPCError: TryAgain({0})]")]
     TryAgain(String),
+    #[error("[RPCError: Ignore({0})]")]
+    Ignore(String),
 }
 
 impl RPCError {
@@ -48,6 +50,18 @@ impl RPCError {
     pub fn map_network<M: ToString, X: ToString>(message: M) -> impl FnOnce(X) -> Self {
         move |x| Self::Network(format!("{}: {}", message.to_string(), x.to_string()))
     }
+    pub fn try_again<X: ToString>(x: X) -> Self {
+        Self::TryAgain(x.to_string())
+    }
+    pub fn map_try_again<M: ToString, X: ToString>(message: M) -> impl FnOnce(X) -> Self {
+        move |x| Self::TryAgain(format!("{}: {}", message.to_string(), x.to_string()))
+    }
+    pub fn ignore<X: ToString>(x: X) -> Self {
+        Self::Ignore(x.to_string())
+    }
+    pub fn map_ignore<M: ToString, X: ToString>(message: M) -> impl FnOnce(X) -> Self {
+        move |x| Self::Ignore(format!("{}: {}", message.to_string(), x.to_string()))
+    }
 }
 
 impl From<RPCError> for VeilidAPIError {
@@ -59,6 +73,7 @@ impl From<RPCError> for VeilidAPIError {
             RPCError::Internal(message) => VeilidAPIError::Internal { message },
             RPCError::Network(message) => VeilidAPIError::Generic { message },
             RPCError::TryAgain(message) => VeilidAPIError::TryAgain { message },
+            RPCError::Ignore(message) => VeilidAPIError::Generic { message },
         }
     }
 }

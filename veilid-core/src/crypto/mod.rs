@@ -128,8 +128,8 @@ impl Crypto {
         self.unlocked_inner.config.clone()
     }
 
+    #[instrument(skip_all, err)]
     pub async fn init(&self) -> EyreResult<()> {
-        trace!("Crypto::init");
         let table_store = self.unlocked_inner.table_store.clone();
         // Init node id from config
         if let Err(e) = self
@@ -190,7 +190,6 @@ impl Crypto {
     }
 
     pub async fn flush(&self) -> EyreResult<()> {
-        //trace!("Crypto::flush");
         let cache_bytes = {
             let inner = self.inner.lock();
             cache_to_bytes(&inner.dh_cache)
@@ -206,15 +205,14 @@ impl Crypto {
     }
 
     pub async fn terminate(&self) {
-        trace!("Crypto::terminate");
         let flush_future = self.inner.lock().flush_future.take();
         if let Some(f) = flush_future {
             f.await;
         }
-        trace!("starting termination flush");
+        log_crypto!("starting termination flush");
         match self.flush().await {
             Ok(_) => {
-                trace!("finished termination flush");
+                log_crypto!("finished termination flush");
             }
             Err(e) => {
                 error!("failed termination flush: {}", e);

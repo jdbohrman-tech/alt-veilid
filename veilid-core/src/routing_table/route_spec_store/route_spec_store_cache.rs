@@ -173,16 +173,18 @@ impl RouteSpecStoreCache {
         id
     }
 
-    /// get count of remote private routes in cache
-    pub fn get_remote_private_route_count(&self) -> usize {
-        self.remote_private_route_set_cache.len()
-    }
-
     /// iterate all of the remote private routes we have in the cache
-    pub fn iter_remote_private_routes(
-        &self,
-    ) -> hashlink::linked_hash_map::Iter<RouteId, RemotePrivateRouteInfo> {
-        self.remote_private_route_set_cache.iter()
+    pub fn get_remote_private_route_ids(&self, cur_ts: Timestamp) -> Vec<RouteId> {
+        self.remote_private_route_set_cache
+            .iter()
+            .filter_map(|(id, rpri)| {
+                if !rpri.did_expire(cur_ts) {
+                    Some(*id)
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 
     /// remote private route cache accessor
@@ -211,6 +213,21 @@ impl RouteSpecStoreCache {
         if let Some(rpri) = self.remote_private_route_set_cache.get_mut(id) {
             if !rpri.did_expire(cur_ts) {
                 rpri.touch(cur_ts);
+                return Some(rpri);
+            }
+        }
+        None
+    }
+
+    /// remote private route cache accessor without lru action
+    /// will not LRU entries but may expire entries and not return them if they are stale
+    pub fn peek_remote_private_route(
+        &self,
+        cur_ts: Timestamp,
+        id: &RouteId,
+    ) -> Option<&RemotePrivateRouteInfo> {
+        if let Some(rpri) = self.remote_private_route_set_cache.peek(id) {
+            if !rpri.did_expire(cur_ts) {
                 return Some(rpri);
             }
         }

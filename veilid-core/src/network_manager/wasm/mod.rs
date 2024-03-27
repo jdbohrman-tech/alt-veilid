@@ -334,6 +334,7 @@ impl Network {
     /////////////////////////////////////////////////////////////////
 
     pub async fn startup(&self) -> EyreResult<()> {
+        log_net!(debug "starting network");
         // get protocol config
         let protocol_config = {
             let c = self.config.get();
@@ -396,6 +397,7 @@ impl Network {
         editor_public_internet.commit(true).await;
 
         self.inner.lock().network_started = true;
+        log_net!(debug "network started");
         Ok(())
     }
 
@@ -412,7 +414,7 @@ impl Network {
     }
 
     pub async fn shutdown(&self) {
-        trace!("stopping network");
+        log_net!(debug "stopping network");
 
         // Reset state
         let routing_table = self.routing_table();
@@ -429,7 +431,7 @@ impl Network {
         // Cancels all async background tasks by dropping join handles
         *self.inner.lock() = Self::new_inner();
 
-        trace!("network stopped");
+        log_net!(debug "network stopped");
     }
 
     pub fn get_preferred_local_address(&self, _dial_info: &DialInfo) -> Option<SocketAddr> {

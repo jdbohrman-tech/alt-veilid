@@ -84,6 +84,8 @@ impl RPCProcessor {
         )))
     }
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+
     #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]
     pub(crate) async fn process_find_node_q(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
         // Ensure this never came over a private route, safety route is okay though

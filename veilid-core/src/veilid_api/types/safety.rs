@@ -4,7 +4,11 @@ use super::*;
 #[derive(
     Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema,
 )]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify), tsify(from_wasm_abi, namespace))]
+#[cfg_attr(
+    target_arch = "wasm32",
+    derive(Tsify),
+    tsify(from_wasm_abi, into_wasm_abi, namespace)
+)]
 pub enum Sequencing {
     NoPreference = 0,
     PreferOrdered = 1,
@@ -13,6 +17,7 @@ pub enum Sequencing {
 
 impl Default for Sequencing {
     fn default() -> Self {
+        // This is the default for veilid-core, and should not be the default used in any API-level code
         Self::NoPreference
     }
 }
@@ -21,7 +26,11 @@ impl Default for Sequencing {
 #[derive(
     Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema,
 )]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify), tsify(from_wasm_abi, namespace))]
+#[cfg_attr(
+    target_arch = "wasm32",
+    derive(Tsify),
+    tsify(from_wasm_abi, into_wasm_abi, namespace)
+)]
 pub enum Stability {
     LowLatency = 0,
     Reliable = 1,
@@ -29,6 +38,7 @@ pub enum Stability {
 
 impl Default for Stability {
     fn default() -> Self {
+        // This is the default for veilid-core, and should not be the default used in any API-level code
         Self::LowLatency
     }
 }

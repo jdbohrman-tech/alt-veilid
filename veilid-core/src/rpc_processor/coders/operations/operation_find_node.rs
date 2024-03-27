@@ -73,6 +73,8 @@ impl RPCOperationFindNodeQ {
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #[derive(Debug, Clone)]
 pub(in crate::rpc_processor) struct RPCOperationFindNodeA {
     peers: Vec<PeerInfo>,

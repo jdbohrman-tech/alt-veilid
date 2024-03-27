@@ -78,10 +78,21 @@ fn get_data(text: &str) -> Option<Vec<u8>> {
 }
 
 fn get_subkeys(text: &str) -> Option<ValueSubkeyRangeSet> {
-    if let Some(n) = get_number(text) {
-        Some(ValueSubkeyRangeSet::single(n.try_into().ok()?))
+    if let Some(n) = get_number::<u32>(text) {
+        Some(ValueSubkeyRangeSet::single(n))
     } else {
         ValueSubkeyRangeSet::from_str(text).ok()
+    }
+}
+
+fn get_dht_report_scope(text: &str) -> Option<DHTReportScope> {
+    match text.to_ascii_lowercase().trim() {
+        "local" => Some(DHTReportScope::Local),
+        "syncget" => Some(DHTReportScope::SyncGet),
+        "syncset" => Some(DHTReportScope::SyncSet),
+        "updateget" => Some(DHTReportScope::UpdateGet),
+        "updateset" => Some(DHTReportScope::UpdateSet),
+        _ => None,
     }
 }
 
@@ -134,8 +145,14 @@ fn get_route_id(
     }
 }
 
-fn get_dht_schema(text: &str) -> Option<DHTSchema> {
-    deserialize_json::<DHTSchema>(text).ok()
+fn get_dht_schema(text: &str) -> Option<VeilidAPIResult<DHTSchema>> {
+    if text.is_empty() {
+        return None;
+    }
+    if let Ok(n) = u16::from_str(text) {
+        return Some(DHTSchema::dflt(n));
+    }
+    Some(deserialize_json::<DHTSchema>(text))
 }
 
 fn get_safety_selection(routing_table: RoutingTable) -> impl Fn(&str) -> Option<SafetySelection> {
@@ -284,8 +301,8 @@ fn get_destination(
     }
 }
 
-fn get_number(text: &str) -> Option<usize> {
-    usize::from_str(text).ok()
+fn get_number<T: num_traits::Num + FromStr>(text: &str) -> Option<T> {
+    T::from_str(text).ok()
 }
 
 fn get_typed_key(text: &str) -> Option<TypedKey> {
@@ -1388,6 +1405,11 @@ impl VeilidAPI {
                 out += &storage_manager.debug_remote_records().await;
                 out
             }
+            "opened" => {
+                let mut out = "Opened Records:\n".to_string();
+                out += &storage_manager.debug_opened_records().await;
+                out
+            }
             _ => "Invalid scope\n".to_owned(),
         };
         Ok(out)
@@ -1419,7 +1441,7 @@ impl VeilidAPI {
             "dht_schema",
             get_dht_schema,
         )
-        .unwrap_or_else(|_| DHTSchema::dflt(1));
+        .unwrap_or_else(|_| Ok(DHTSchema::default()))?;
 
         let csv = get_debug_argument_at(
             &args,
@@ -1450,7 +1472,7 @@ impl VeilidAPI {
             rc
         };
 
-        // Do a record get
+        // Do a record create
         let record = match rc.create_dht_record(schema, Some(csv.kind())).await {
             Err(e) => return Ok(format!("Can't open DHT record: {}", e)),
             Ok(v) => v,
@@ -1460,8 +1482,13 @@ impl VeilidAPI {
         let mut dc = DEBUG_CACHE.lock();
         dc.opened_record_contexts.insert(*record.key(), rc);
 
-        debug!("DHT Record Created:\n{:#?}", record);
-        Ok(format!("Created: {:?} : {:?}", record.key(), record))
+        Ok(format!(
+            "Created: {} {}:{}\n{:?}",
+            record.key(),
+            record.owner(),
+            record.owner_secret().unwrap(),
+            record
+        ))
     }
 
     async fn debug_record_open(&self, args: Vec<String>) -> VeilidAPIResult<String> {
@@ -1514,12 +1541,35 @@ impl VeilidAPI {
     }
 
     async fn debug_record_set(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+        let opt_arg_add = if args.len() >= 2 && get_dht_key_no_safety(&args[1]).is_some() {
+            1
+        } else {
+            0
+        };
         let (key, rc) = get_opened_dht_record_context(&args, "debug_record_set", "key", 1)?;
-        let subkey = get_debug_argument_at(&args, 2, "debug_record_set", "subkey", get_number)?;
-        let data = get_debug_argument_at(&args, 3, "debug_record_set", "data", get_data)?;
+        let subkey = get_debug_argument_at(
+            &args,
+            1 + opt_arg_add,
+            "debug_record_set",
+            "subkey",
+            get_number::<u32>,
+        )?;
+        let data =
+            get_debug_argument_at(&args, 2 + opt_arg_add, "debug_record_set", "data", get_data)?;
+        let writer = get_debug_argument_at(
+            &args,
+            3 + opt_arg_add,
+            "debug_record_set",
+            "writer",
+            get_keypair,
+        )
+        .ok();
 
         // Do a record set
-        let value = match rc.set_dht_value(key, subkey as ValueSubkey, data).await {
+        let value = match rc
+            .set_dht_value(key, subkey as ValueSubkey, data, writer)
+            .await
+        {
             Err(e) => {
                 return Ok(format!("Can't set DHT value: {}", e));
             }
@@ -1534,12 +1584,24 @@ impl VeilidAPI {
     }
 
     async fn debug_record_get(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+        let opt_arg_add = if args.len() >= 2 && get_dht_key_no_safety(&args[1]).is_some() {
+            1
+        } else {
+            0
+        };
+
         let (key, rc) = get_opened_dht_record_context(&args, "debug_record_get", "key", 1)?;
-        let subkey = get_debug_argument_at(&args, 2, "debug_record_get", "subkey", get_number)?;
+        let subkey = get_debug_argument_at(
+            &args,
+            1 + opt_arg_add,
+            "debug_record_get",
+            "subkey",
+            get_number::<u32>,
+        )?;
         let force_refresh = if args.len() >= 4 {
             Some(get_debug_argument_at(
                 &args,
-                3,
+                2 + opt_arg_add,
                 "debug_record_get",
                 "force_refresh",
                 get_string,
@@ -1600,15 +1662,21 @@ impl VeilidAPI {
         let key =
             get_debug_argument_at(&args, 1, "debug_record_info", "key", get_dht_key_no_safety)?;
 
-        let subkey =
-            get_debug_argument_at(&args, 2, "debug_record_info", "subkey", get_number).ok();
+        let subkey = get_debug_argument_at(
+            &args,
+            2,
+            "debug_record_info",
+            "subkey",
+            get_number::<ValueSubkey>,
+        )
+        .ok();
 
         let out = if let Some(subkey) = subkey {
             let li = storage_manager
-                .debug_local_record_subkey_info(key, subkey as ValueSubkey)
+                .debug_local_record_subkey_info(key, subkey)
                 .await;
             let ri = storage_manager
-                .debug_remote_record_subkey_info(key, subkey as ValueSubkey)
+                .debug_remote_record_subkey_info(key, subkey)
                 .await;
             format!(
                 "Local Subkey Info:\n{}\n\nRemote Subkey Info:\n{}\n",
@@ -1623,17 +1691,61 @@ impl VeilidAPI {
     }
 
     async fn debug_record_watch(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+        let opt_arg_add = if args.len() >= 2 && get_dht_key_no_safety(&args[1]).is_some() {
+            1
+        } else {
+            0
+        };
+
         let (key, rc) = get_opened_dht_record_context(&args, "debug_record_watch", "key", 1)?;
-        let subkeys = get_debug_argument_at(&args, 2, "debug_record_watch", "subkeys", get_subkeys)
+
+        let mut rest_defaults = false;
+        let subkeys = get_debug_argument_at(
+            &args,
+            1 + opt_arg_add,
+            "debug_record_watch",
+            "subkeys",
+            get_subkeys,
+        )
+        .ok()
+        .unwrap_or_else(|| {
+            rest_defaults = true;
+            Default::default()
+        });
+
+        let expiration = if rest_defaults {
+            Default::default()
+        } else {
+            get_debug_argument_at(
+                &args,
+                2 + opt_arg_add,
+                "debug_record_watch",
+                "expiration",
+                parse_duration,
+            )
             .ok()
-            .unwrap_or_default();
-        let expiration =
-            get_debug_argument_at(&args, 3, "debug_record_watch", "expiration", parse_duration)
-                .ok()
-                .unwrap_or_default();
-        let count = get_debug_argument_at(&args, 4, "debug_record_watch", "count", get_number)
+            .map(|dur| dur + get_timestamp())
+            .unwrap_or_else(|| {
+                rest_defaults = true;
+                Default::default()
+            })
+        };
+        let count = if rest_defaults {
+            Default::default()
+        } else {
+            get_debug_argument_at(
+                &args,
+                3 + opt_arg_add,
+                "debug_record_watch",
+                "count",
+                get_number,
+            )
             .ok()
-            .unwrap_or(usize::MAX) as u32;
+            .unwrap_or_else(|| {
+                rest_defaults = true;
+                u32::MAX
+            })
+        };
 
         // Do a record watch
         let ts = match rc
@@ -1652,10 +1764,22 @@ impl VeilidAPI {
     }
 
     async fn debug_record_cancel(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+        let opt_arg_add = if args.len() >= 2 && get_dht_key_no_safety(&args[1]).is_some() {
+            1
+        } else {
+            0
+        };
+
         let (key, rc) = get_opened_dht_record_context(&args, "debug_record_watch", "key", 1)?;
-        let subkeys = get_debug_argument_at(&args, 2, "debug_record_watch", "subkeys", get_subkeys)
-            .ok()
-            .unwrap_or_default();
+        let subkeys = get_debug_argument_at(
+            &args,
+            1 + opt_arg_add,
+            "debug_record_watch",
+            "subkeys",
+            get_subkeys,
+        )
+        .ok()
+        .unwrap_or_default();
 
         // Do a record watch cancel
         let still_active = match rc.cancel_dht_watch(key, subkeys).await {
@@ -1670,6 +1794,58 @@ impl VeilidAPI {
         } else {
             "Watch cancelled".to_owned()
         })
+    }
+
+    async fn debug_record_inspect(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+        let opt_arg_add = if args.len() >= 2 && get_dht_key_no_safety(&args[1]).is_some() {
+            1
+        } else {
+            0
+        };
+
+        let (key, rc) = get_opened_dht_record_context(&args, "debug_record_watch", "key", 1)?;
+
+        let mut rest_defaults = false;
+
+        let scope = if rest_defaults {
+            Default::default()
+        } else {
+            get_debug_argument_at(
+                &args,
+                1 + opt_arg_add,
+                "debug_record_inspect",
+                "scope",
+                get_dht_report_scope,
+            )
+            .ok()
+            .unwrap_or_else(|| {
+                rest_defaults = true;
+                Default::default()
+            })
+        };
+
+        let subkeys = get_debug_argument_at(
+            &args,
+            2 + opt_arg_add,
+            "debug_record_inspect",
+            "subkeys",
+            get_subkeys,
+        )
+        .ok()
+        .unwrap_or_else(|| {
+            rest_defaults = true;
+            Default::default()
+        });
+
+        // Do a record inspect
+        let report = match rc.inspect_dht_record(key, subkeys, scope).await {
+            Err(e) => {
+                return Ok(format!("Can't inspect DHT record: {}", e));
+            }
+            Ok(v) => v,
+        };
+
+        Ok(format!("Success: report={:?}", report))
     }
 
     async fn debug_record(&self, args: String) -> VeilidAPIResult<String> {
@@ -1700,6 +1876,8 @@ impl VeilidAPI {
             self.debug_record_watch(args).await
         } else if command == "cancel" {
             self.debug_record_cancel(args).await
+        } else if command == "inspect" {
+            self.debug_record_inspect(args).await
         } else {
             Ok(">>> Unknown command\n".to_owned())
         }
@@ -1778,8 +1956,9 @@ record list <local|remote>
        get [<key>] <subkey> [force]
        delete <key>
        info [<key>] [subkey]
-       watch [<key>] [<subkeys>] [<expiration>] [<count>]
+       watch [<key>] [<subkeys> [<expiration> [<count>]]]
        cancel [<key>] [<subkeys>]
+       inspect [<key>] [<scope> [<subkeys>]]
 --------------------------------------------------------------------
 <key> is: VLD0:GsgXCRPrzSK6oBNgxhNpm-rTYFd02R0ySx6j9vbQBG4
     * also <node>, <relay>, <target>, <route>
@@ -1796,7 +1975,11 @@ record list <local|remote>
 <addresstype> is: ipv4|ipv6
 <routingdomain> is: public|local
 <cryptokind> is: VLD0
-<dhtschema> is: a json dht schema, default is '{"kind":"DFLT","o_cnt":1}'
+<dhtschema> is: 
+    * a single-quoted json dht schema, or 
+    * an integer number for a DFLT schema subkey count.
+    default is '{"kind":"DFLT","o_cnt":1}'
+<scope> is: local, syncget, syncset, updateget, updateset
 <subkey> is: a number: 2
 <subkeys> is: 
     * a number: 2

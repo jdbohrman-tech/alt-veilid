@@ -9,7 +9,7 @@ pub async fn test_dhtrecorddescriptor() {
         fix_typedkey(),
         fix_cryptokey(),
         Some(fix_cryptokey()),
-        DHTSchema::DFLT(DHTSchemaDFLT { o_cnt: 4321 }),
+        DHTSchema::dflt(4321).unwrap(),
     );
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();
 

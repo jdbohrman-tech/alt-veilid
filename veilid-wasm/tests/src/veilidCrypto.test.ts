@@ -142,7 +142,7 @@ describe('veilidCrypto', () => {
     }).not.toThrow();
   });
 
-  describe('contants', () => {
+  describe('constants', () => {
     it('CRYPTO_KEY_LENGTH', () => {
       expect(typeof veilidCrypto.CRYPTO_KEY_LENGTH).toBe('number');
     });

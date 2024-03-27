@@ -38,7 +38,7 @@ extension ValidateSMPL on DHTSchemaSMPL {
     return true;
   }
 
-  int subkeyCount() => members.fold(0, (acc, v) => acc + v.mCnt) + oCnt;
+  int subkeyCount() => members.fold(oCnt, (acc, v) => acc + v.mCnt);
 }
 
 extension Validate on DHTSchema {
@@ -121,30 +121,6 @@ extension DHTRecordDescriptorExt on DHTRecordDescriptor {
     }
     return TypedKeyPair(kind: key.kind, key: owner, secret: ownerSecret!);
   }
-}
-
-//////////////////////////////////////
-/// ValueSubkeyRange
-
-@freezed
-class ValueSubkeyRange with _$ValueSubkeyRange {
-  @Assert('low < 0 || low > high', 'low out of range')
-  @Assert('high < 0', 'high out of range')
-  const factory ValueSubkeyRange({
-    required int low,
-    required int high,
-  }) = _ValueSubkeyRange;
-
-  factory ValueSubkeyRange.fromJson(dynamic json) =>
-      _$ValueSubkeyRangeFromJson(json as Map<String, dynamic>);
-}
-
-extension ValueSubkeyRangeExt on ValueSubkeyRange {
-  bool contains(int v) => low <= v && v <= high;
-}
-
-extension ListValueSubkeyRangeExt on List<ValueSubkeyRange> {
-  bool containsSubkey(int v) => indexWhere((e) => e.contains(v)) != -1;
 }
 
 //////////////////////////////////////
@@ -265,15 +241,42 @@ class RouteBlob with _$RouteBlob {
 }
 
 //////////////////////////////////////
+/// Inspect
+@freezed
+class DHTRecordReport with _$DHTRecordReport {
+  const factory DHTRecordReport({
+    required List<ValueSubkeyRange> subkeys,
+    required List<int> localSeqs,
+    required List<int> networkSeqs,
+  }) = _DHTRecordReport;
+  factory DHTRecordReport.fromJson(dynamic json) =>
+      _$DHTRecordReportFromJson(json as Map<String, dynamic>);
+}
+
+enum DHTReportScope {
+  local,
+  syncGet,
+  syncSet,
+  updateGet,
+  updateSet;
+
+  factory DHTReportScope.fromJson(dynamic j) =>
+      DHTReportScope.values.byName((j as String).toCamelCase());
+  String toJson() => name.toPascalCase();
+}
+
+//////////////////////////////////////
 /// VeilidRoutingContext
 
 abstract class VeilidRoutingContext {
   void close();
 
   // Modifiers
-  VeilidRoutingContext withDefaultSafety();
-  VeilidRoutingContext withSafety(SafetySelection safetySelection);
-  VeilidRoutingContext withSequencing(Sequencing sequencing);
+  VeilidRoutingContext withDefaultSafety({bool closeSelf = false});
+  VeilidRoutingContext withSafety(SafetySelection safetySelection,
+      {bool closeSelf = false});
+  VeilidRoutingContext withSequencing(Sequencing sequencing,
+      {bool closeSelf = false});
   Future<SafetySelection> safety();
 
   // App call/message
@@ -283,12 +286,17 @@ abstract class VeilidRoutingContext {
   // DHT Operations
   Future<DHTRecordDescriptor> createDHTRecord(DHTSchema schema,
       {CryptoKind kind = 0});
-  Future<DHTRecordDescriptor> openDHTRecord(TypedKey key, KeyPair? writer);
+  Future<DHTRecordDescriptor> openDHTRecord(TypedKey key, {KeyPair? writer});
   Future<void> closeDHTRecord(TypedKey key);
   Future<void> deleteDHTRecord(TypedKey key);
-  Future<ValueData?> getDHTValue(TypedKey key, int subkey, bool forceRefresh);
-  Future<ValueData?> setDHTValue(TypedKey key, int subkey, Uint8List data);
+  Future<ValueData?> getDHTValue(TypedKey key, int subkey,
+      {bool forceRefresh = false});
+  Future<ValueData?> setDHTValue(TypedKey key, int subkey, Uint8List data,
+      {KeyPair? writer});
   Future<Timestamp> watchDHTValues(TypedKey key,
       {List<ValueSubkeyRange>? subkeys, Timestamp? expiration, int? count});
   Future<bool> cancelDHTWatch(TypedKey key, {List<ValueSubkeyRange>? subkeys});
+  Future<DHTRecordReport> inspectDHTRecord(TypedKey key,
+      {List<ValueSubkeyRange>? subkeys,
+      DHTReportScope scope = DHTReportScope.local});
 }

@@ -227,7 +227,7 @@ impl NetworkManager {
                     Some(
                         bcs.derive_shared_secret(
                             network_key_password.as_bytes(),
-                            network_key_password.as_bytes(),
+                            &bcs.generate_hash(network_key_password.as_bytes()).bytes,
                         )
                         .expect("failed to derive network key"),
                     )
@@ -363,9 +363,8 @@ impl NetworkManager {
 
     #[instrument(level = "debug", skip_all, err)]
     pub async fn internal_startup(&self) -> EyreResult<()> {
-        trace!("NetworkManager::internal_startup begin");
         if self.unlocked_inner.components.read().is_some() {
-            debug!("NetworkManager::internal_startup already started");
+            log_net!(debug "NetworkManager::internal_startup already started");
             return Ok(());
         }
 
@@ -402,7 +401,7 @@ impl NetworkManager {
         rpc_processor.startup().await?;
         receipt_manager.startup().await?;
 
-        trace!("NetworkManager::internal_startup end");
+        log_net!("NetworkManager::internal_startup end");
 
         Ok(())
     }
@@ -422,13 +421,13 @@ impl NetworkManager {
 
     #[instrument(level = "debug", skip_all)]
     pub async fn shutdown(&self) {
-        debug!("starting network manager shutdown");
+        log_net!(debug "starting network manager shutdown");
 
         // Cancel all tasks
         self.cancel_tasks().await;
 
         // Shutdown network components if they started up
-        debug!("shutting down network components");
+        log_net!(debug "shutting down network components");
 
         let components = self.unlocked_inner.components.read().clone();
         if let Some(components) = components {
@@ -441,16 +440,16 @@ impl NetworkManager {
         }
 
         // reset the state
-        debug!("resetting network manager state");
+        log_net!(debug "resetting network manager state");
         {
             *self.inner.lock() = NetworkManager::new_inner();
         }
 
         // send update
-        debug!("sending network state update to api clients");
+        log_net!(debug "sending network state update to api clients");
         self.send_network_update();
 
-        debug!("finished network manager shutdown");
+        log_net!(debug "finished network manager shutdown");
     }
 
     pub fn update_client_allowlist(&self, client: TypedKey) {
@@ -493,7 +492,7 @@ impl NetworkManager {
             .unwrap_or_default()
         {
             let (k, v) = inner.client_allowlist.remove_lru().unwrap();
-            trace!(key=?k, value=?v, "purge_client_allowlist: remove_lru")
+            trace!(target: "net", key=?k, value=?v, "purge_client_allowlist: remove_lru")
         }
     }
 

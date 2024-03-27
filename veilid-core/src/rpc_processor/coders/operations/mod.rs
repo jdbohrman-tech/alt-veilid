@@ -4,6 +4,7 @@ mod operation_app_call;
 mod operation_app_message;
 mod operation_find_node;
 mod operation_get_value;
+mod operation_inspect_value;
 mod operation_return_receipt;
 mod operation_route;
 mod operation_set_value;
@@ -35,6 +36,7 @@ pub(in crate::rpc_processor) use operation_app_call::*;
 pub(in crate::rpc_processor) use operation_app_message::*;
 pub(in crate::rpc_processor) use operation_find_node::*;
 pub(in crate::rpc_processor) use operation_get_value::*;
+pub(in crate::rpc_processor) use operation_inspect_value::*;
 pub(in crate::rpc_processor) use operation_return_receipt::*;
 pub(in crate::rpc_processor) use operation_route::*;
 pub(in crate::rpc_processor) use operation_set_value::*;
@@ -60,3 +62,5 @@ pub(in crate::rpc_processor) use operation_complete_tunnel::*;
 pub(in crate::rpc_processor) use operation_start_tunnel::*;
 
 use super::*;
+
+pub(crate) use operation_inspect_value::MAX_INSPECT_VALUE_A_SEQS_LEN;

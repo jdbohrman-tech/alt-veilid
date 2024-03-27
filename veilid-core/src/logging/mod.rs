@@ -1,12 +1,10 @@
-// LogThru
-// Pass errors through and log them simultaneously via map_err()
-// Also contains common log facilities (net, rpc, rtab, stor, pstore, crypto, etc )
+mod api_tracing_layer;
+mod veilid_layer_filter;
 
 use super::*;
 
-pub fn map_to_string<X: ToString>(arg: X) -> String {
-    arg.to_string()
-}
+pub use api_tracing_layer::*;
+pub use veilid_layer_filter::*;
 
 #[macro_export]
 macro_rules! fn_string {
@@ -52,6 +50,78 @@ macro_rules! log_net {
 }
 
 #[macro_export]
+macro_rules! log_client_api {
+    (error $text:expr) => {error!(
+        target: "client_api",
+        "{}",
+        $text,
+    )};
+    (error $fmt:literal, $($arg:expr),+) => {
+        error!(target:"client_api", $fmt, $($arg),+);
+    };
+    (warn $text:expr) => {warn!(
+        target: "client_api",
+        "{}",
+        $text,
+    )};
+    (warn $fmt:literal, $($arg:expr),+) => {
+        warn!(target:"client_api", $fmt, $($arg),+);
+    };
+    (debug $text:expr) => {debug!(
+        target: "client_api",
+        "{}",
+        $text,
+    )};
+    (debug $fmt:literal, $($arg:expr),+) => {
+        debug!(target:"client_api", $fmt, $($arg),+);
+    };
+    ($text:expr) => {trace!(
+        target: "client_api",
+        "{}",
+        $text,
+    )};
+    ($fmt:literal, $($arg:expr),+) => {
+        trace!(target:"client_api", $fmt, $($arg),+);
+    }
+}
+
+#[macro_export]
+macro_rules! log_network_result {
+    (error $text:expr) => {error!(
+        target: "network_result",
+        "{}",
+        $text,
+    )};
+    (error $fmt:literal, $($arg:expr),+) => {
+        error!(target: "network_result", $fmt, $($arg),+);
+    };
+    (warn $text:expr) => {warn!(
+        target: "network_result",
+        "{}",
+        $text,
+    )};
+    (warn $fmt:literal, $($arg:expr),+) => {
+        warn!(target:"network_result", $fmt, $($arg),+);
+    };
+    (debug $text:expr) => {debug!(
+        target: "network_result",
+        "{}",
+        $text,
+    )};
+    (debug $fmt:literal, $($arg:expr),+) => {
+        debug!(target:"network_result", $fmt, $($arg),+);
+    };
+    ($text:expr) => {trace!(
+        target: "network_result",
+        "{}",
+        $text,
+    )};
+    ($fmt:literal, $($arg:expr),+) => {
+        trace!(target:"network_result", $fmt, $($arg),+);
+    }
+}
+
+#[macro_export]
 macro_rules! log_rpc {
     (error $text:expr) => { error!(
         target: "rpc",
@@ -69,7 +139,7 @@ macro_rules! log_rpc {
     (warn $fmt:literal, $($arg:expr),+) => {
         warn!(target:"rpc", $fmt, $($arg),+);
     };
-    (debug $text:expr) => { error!(
+    (debug $text:expr) => { debug!(
         target: "rpc",
         "{}",
         $text,
@@ -84,6 +154,42 @@ macro_rules! log_rpc {
     )};
     ($fmt:literal, $($arg:expr),+) => {
         trace!(target:"rpc", $fmt, $($arg),+);
+    }
+}
+
+#[macro_export]
+macro_rules! log_dht {
+    (error $text:expr) => { error!(
+        target: "dht",
+        "{}",
+        $text,
+    )};
+    (error $fmt:literal, $($arg:expr),+) => {
+        error!(target:"dht", $fmt, $($arg),+);
+    };
+    (warn $text:expr) => { warn!(
+        target: "dht",
+        "{}",
+        $text,
+    )};
+    (warn $fmt:literal, $($arg:expr),+) => {
+        warn!(target:"dht", $fmt, $($arg),+);
+    };
+    (debug $text:expr) => { debug!(
+        target: "dht",
+        "{}",
+        $text,
+    )};
+    (debug $fmt:literal, $($arg:expr),+) => {
+        debug!(target:"dht", $fmt, $($arg),+);
+    };
+    ($text:expr) => {trace!(
+        target: "dht",
+        "{}",
+        $text,
+    )};
+    ($fmt:literal, $($arg:expr),+) => {
+        trace!(target:"dht", $fmt, $($arg),+);
     }
 }
 
@@ -196,6 +302,42 @@ macro_rules! log_pstore {
 }
 
 #[macro_export]
+macro_rules! log_tstore {
+    (error $text:expr) => { error!(
+        target: "tstore",
+        "{}",
+        $text,
+    )};
+    (error $fmt:literal, $($arg:expr),+) => {
+        error!(target:"tstore", $fmt, $($arg),+);
+    };
+    (warn $text:expr) => { warn!(
+        target: "tstore",
+        "{}",
+        $text,
+    )};
+    (warn $fmt:literal, $($arg:expr),+) => {
+        warn!(target:"tstore", $fmt, $($arg),+);
+    };
+    (debug $text:expr) => { debug!(
+        target: "tstore",
+        "{}",
+        $text,
+    )};
+    (debug $fmt:literal, $($arg:expr),+) => {
+        debug!(target:"tstore", $fmt, $($arg),+);
+    };
+    ($text:expr) => {trace!(
+        target: "tstore",
+        "{}",
+        $text,
+    )};
+    ($fmt:literal, $($arg:expr),+) => {
+        trace!(target:"tstore", $fmt, $($arg),+);
+    }
+}
+
+#[macro_export]
 macro_rules! log_crypto {
     (error $text:expr) => { error!(
         target: "crypto",
@@ -221,189 +363,4 @@ macro_rules! log_crypto {
     ($fmt:literal, $($arg:expr),+) => {
         trace!(target:"crypto", $fmt, $($arg),+);
     }
-}
-
-#[macro_export]
-macro_rules! logthru_net {
-    ($($level:ident)?) => {
-        logthru!($($level)? "net")
-    };
-    ($($level:ident)? $text:literal) => {
-        logthru!($($level)? "net", $text)
-    };
-    ($($level:ident)? $fmt:literal, $($arg:expr),+) => {
-        logthru!($($level)? "net", $fmt, $($arg),+)
-    }
-}
-#[macro_export]
-macro_rules! logthru_rpc {
-    ($($level:ident)?) => {
-        logthru!($($level)? "rpc")
-    };
-    ($($level:ident)? $text:literal) => {
-        logthru!($($level)? "rpc", $text)
-    };
-    ($($level:ident)? $fmt:literal, $($arg:expr),+) => {
-        logthru!($($level)? "rpc", $fmt, $($arg),+)
-    }
-}
-#[macro_export]
-macro_rules! logthru_rtab {
-    ($($level:ident)?) => {
-        logthru!($($level)? "rtab")
-    };
-    ($($level:ident)? $text:literal) => {
-        logthru!($($level)? "rtab", $text)
-    };
-    ($($level:ident)? $fmt:literal, $($arg:expr),+) => {
-        logthru!($($level)? "rtab", $fmt, $($arg),+)
-    }
-}
-#[macro_export]
-macro_rules! logthru_stor {
-    ($($level:ident)?) => {
-        logthru!($($level)? "stor")
-    };
-    ($($level:ident)? $text:literal) => {
-        logthru!($($level)? "stor", $text)
-    };
-    ($($level:ident)? $fmt:literal, $($arg:expr),+) => {
-        logthru!($($level)? "stor", $fmt, $($arg),+)
-    }
-}
-#[macro_export]
-macro_rules! logthru_pstore {
-    ($($level:ident)?) => {
-        logthru!($($level)? "pstore")
-    };
-    ($($level:ident)? $text:literal) => {
-        logthru!($($level)? "pstore", $text)
-    };
-    ($($level:ident)? $fmt:literal, $($arg:expr),+) => {
-        logthru!($($level)? "pstore", $fmt, $($arg),+)
-    }
-}
-#[macro_export]
-macro_rules! logthru_crypto {
-    ($($level:ident)?) => {
-        logthru!($($level)? "crypto")
-    };
-    ($($level:ident)? $text:literal) => {
-        logthru!($($level)? "crypto", $text)
-    };
-    ($($level:ident)? $fmt:literal, $($arg:expr),+) => {
-        logthru!($($level)? "crypto", $fmt, $($arg),+)
-    }
-}
-
-#[macro_export]
-macro_rules! logthru {
-    // error
-    (error $target:literal) => (|e__| {
-        error!(
-            target: $target,
-            "[{:?}]",
-            e__,
-        );
-        e__
-    });
-    (error $target:literal, $text:literal) => (|e__| {
-        error!(
-            target: $target,
-            "[{:?}] {}",
-            e__,
-            $text
-        );
-        e__
-    });
-    (error $target:literal, $fmt:literal, $($arg:expr),+) => (|e__| {
-        error!(
-            target: $target,
-            concat!("[{:?}] ", $fmt),
-            e__,
-            $($arg),+
-        );
-        e__
-    });
-    // warn
-    (warn $target:literal) => (|e__| {
-        warn!(
-            target: $target,
-            "[{:?}]",
-            e__,
-        );
-        e__
-    });
-    (warn $target:literal, $text:literal) => (|e__| {
-        warn!(
-            target: $target,
-            "[{:?}] {}",
-            e__,
-            $text
-        );
-        e__
-    });
-    (warn $target:literal, $fmt:literal, $($arg:expr),+) => (|e__| {
-        warn!(
-            target: $target,
-            concat!("[{:?}] ", $fmt),
-            e__,
-            $($arg),+
-        );
-        e__
-    });
-    // debug
-    (debug $target:literal) => (|e__| {
-        debug!(
-            target: $target,
-            "[{:?}]",
-            e__,
-        );
-        e__
-    });
-    (debug $target:literal, $text:literal) => (|e__| {
-        debug!(
-            target: $target,
-            "[{:?}] {}",
-            e__,
-            $text
-        );
-        e__
-    });
-    (debug $target:literal, $fmt:literal, $($arg:expr),+) => (|e__| {
-        debug!(
-            target: $target,
-            concat!("[{:?}] ", $fmt),
-            e__,
-            $($arg),+
-        );
-        e__
-    });
-    // trace
-    ($target:literal) => (|e__| {
-        trace!(
-            target: $target,
-            "[{:?}]",
-            e__,
-        );
-        e__
-    });
-    ($target:literal, $text:literal) => (|e__| {
-        trace!(
-            target: $target,
-            "[{:?}] {}",
-            e__,
-            $text
-        );
-        e__
-    });
-    ($target:literal, $fmt:literal, $($arg:expr),+) => (|e__| {
-        trace!(
-            target: $target,
-            concat!("[{:?}] ", $fmt),
-            e__,
-            $($arg),+
-        );
-        e__
-    })
 }

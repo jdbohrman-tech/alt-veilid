@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:veilid/veilid.dart';
 import 'package:loggy/loggy.dart';
@@ -12,7 +13,7 @@ import 'history_wrapper.dart';
 
 // Main App
 class MyApp extends StatefulWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -109,7 +110,8 @@ class _MyAppState extends State<MyApp> with UiLoggy {
 
   Future<void> toggleStartup(bool startup) async {
     if (startup && !_startedUp) {
-      var config = await getDefaultVeilidConfig("Veilid Plugin Example");
+      var config = await getDefaultVeilidConfig(
+          isWeb: kIsWeb, programName: "Veilid Plugin Example");
       if (const String.fromEnvironment("DELETE_TABLE_STORE") == "1") {
         config = config.copyWith(
             tableStore: config.tableStore.copyWith(delete: true));

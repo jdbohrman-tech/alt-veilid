@@ -14,9 +14,16 @@ impl RPCProcessor {
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
         count: u32,
+        watch_id: u64,
         value: SignedValueData,
     ) -> RPCNetworkResult<()> {
-        let value_changed = RPCOperationValueChanged::new(key, subkeys, count, value)?;
+        // Ensure destination is never using a safety route
+        if matches!(dest.get_safety_selection(), SafetySelection::Safe(_)) {
+            return Err(RPCError::internal(
+                "Never send value changes over safety routes",
+            ));
+        }
+        let value_changed = RPCOperationValueChanged::new(key, subkeys, count, watch_id, value)?;
         let statement =
             RPCStatement::new(RPCStatementDetail::ValueChanged(Box::new(value_changed)));
 
@@ -24,10 +31,12 @@ impl RPCProcessor {
         self.statement(dest, statement).await
     }
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+
     pub(crate) async fn process_value_changed(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
         // Get the statement
         let (_, _, _, kind) = msg.operation.destructure();
-        let (key, subkeys, count, value) = match kind {
+        let (key, subkeys, count, watch_id, value) = match kind {
             RPCOperationKind::Statement(s) => match s.destructure() {
                 RPCStatementDetail::ValueChanged(s) => s.destructure(),
                 _ => panic!("not a value changed statement"),
@@ -35,8 +44,25 @@ impl RPCProcessor {
             _ => panic!("not a statement"),
         };
 
-        #[cfg(feature = "debug-dht")]
-        {
+        // Get the inbound node if if this came in directly
+        // If this was received over just a safety route, ignore it
+        // It this was received over a private route, the inbound node id could be either the actual
+        // node id, or a safety route (can't tell if a stub was used).
+        // Try it as the node if, and the storage manager will reject the
+        // value change if it doesn't match the active watch's node id
+        let inbound_node_id = match &msg.header.detail {
+            RPCMessageHeaderDetail::Direct(d) => d.envelope.get_sender_typed_id(),
+            RPCMessageHeaderDetail::SafetyRouted(_) => {
+                return Ok(NetworkResult::invalid_message(
+                    "not processing value change over safety route",
+                ));
+            }
+            RPCMessageHeaderDetail::PrivateRouted(p) => {
+                TypedKey::new(p.direct.envelope.get_crypto_kind(), p.remote_safety_route)
+            }
+        };
+
+        if debug_target_enabled!("dht") {
             let debug_string_value = format!(
                 " len={} seq={} writer={}",
                 value.value_data().data().len(),
@@ -45,21 +71,30 @@ impl RPCProcessor {
             );
 
             let debug_string_stmt = format!(
-                "IN <== ValueChanged({} #{:?}+{}{}) <= {}",
+                "IN <== ValueChanged(id={} {} #{:?}+{}{}) from {} <= {}",
+                watch_id,
                 key,
                 subkeys,
                 count,
                 debug_string_value,
-                msg.header.direct_sender_node_id()
+                inbound_node_id,
+                msg.header.direct_sender_node_id(),
             );
 
-            log_rpc!(debug "{}", debug_string_stmt);
+            log_dht!(debug "{}", debug_string_stmt);
         }
 
         // Save the subkey, creating a new record if necessary
         let storage_manager = self.storage_manager();
         storage_manager
-            .inbound_value_changed(key, subkeys, count, Arc::new(value))
+            .inbound_value_changed(
+                key,
+                subkeys,
+                count,
+                Arc::new(value),
+                inbound_node_id,
+                watch_id,
+            )
             .await
             .map_err(RPCError::internal)?;
 

@@ -1,7 +1,7 @@
 use super::*;
 
 impl StorageManager {
-    // Check if watches either have dead nodes or if the watch has expired
+    // Check if client-side watches on opened records either have dead nodes or if the watch has expired
     #[instrument(level = "trace", skip(self), err)]
     pub(super) async fn check_active_watches_task_routine(
         self,

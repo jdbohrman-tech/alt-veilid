@@ -32,22 +32,12 @@ pub fn shutdown() {
     }
 }
 
+//#[instrument(err, skip_all)]
 pub async fn run_veilid_server(
     settings: Settings,
     server_mode: ServerMode,
     veilid_logs: VeilidLogs,
 ) -> EyreResult<()> {
-    run_veilid_server_internal(settings, server_mode, veilid_logs).await
-}
-
-//#[instrument(err, skip_all)]
-pub async fn run_veilid_server_internal(
-    settings: Settings,
-    server_mode: ServerMode,
-    veilid_logs: VeilidLogs,
-) -> EyreResult<()> {
-    trace!(?settings, ?server_mode);
-
     let (
         settings_auto_attach,
         settings_client_api_ipc_enabled,

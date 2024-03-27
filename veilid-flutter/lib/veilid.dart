@@ -18,6 +18,7 @@ import 'veilid_table_db.dart';
 
 export 'default_config.dart';
 export 'routing_context.dart';
+export 'value_subkey_range.dart';
 export 'veilid.dart';
 export 'veilid_api_exception.dart';
 export 'veilid_config.dart';
@@ -42,7 +43,7 @@ Object? veilidApiToEncodable(Object? value) {
 
 List<T> Function(dynamic) jsonListConstructor<T>(
         T Function(dynamic) jsonConstructor) =>
-    (dynamic j) => (j as List<dynamic>).map((e) => jsonConstructor(e)).toList();
+    (dynamic j) => (j as List<dynamic>).map(jsonConstructor).toList();
 
 //////////////////////////////////////
 /// VeilidVersion
@@ -62,6 +63,7 @@ class VeilidVersion extends Equatable {
 @immutable
 class Timestamp extends Equatable implements Comparable<Timestamp> {
   const Timestamp({required this.value});
+  factory Timestamp.zero() => Timestamp(value: BigInt.zero);
   factory Timestamp.fromInt64(Int64 i64) => Timestamp(
       value: (BigInt.from((i64 >> 32).toUnsigned(32).toInt()) << 32) |
           BigInt.from(i64.toUnsigned(32).toInt()));
@@ -74,6 +76,11 @@ class Timestamp extends Equatable implements Comparable<Timestamp> {
 
   @override
   int compareTo(Timestamp other) => value.compareTo(other.value);
+
+  bool operator <(Timestamp other) => compareTo(other) < 0;
+  bool operator <=(Timestamp other) => compareTo(other) <= 0;
+  bool operator >(Timestamp other) => compareTo(other) > 0;
+  bool operator >=(Timestamp other) => compareTo(other) >= 0;
 
   @override
   String toString() => value.toString();
@@ -95,6 +102,11 @@ class TimestampDuration extends Equatable
   factory TimestampDuration.fromInt64(Int64 i64) => TimestampDuration(
       value: (BigInt.from((i64 >> 32).toUnsigned(32).toInt()) << 32) |
           BigInt.from(i64.toUnsigned(32).toInt()));
+  factory TimestampDuration.fromMillis(int millis) =>
+      TimestampDuration(value: BigInt.from(millis) * BigInt.from(1000));
+  factory TimestampDuration.fromDuration(Duration d) => TimestampDuration(
+      value: BigInt.from(d.inSeconds) * BigInt.from(1000000) +
+          BigInt.from(d.inMicroseconds % 1000000));
   factory TimestampDuration.fromString(String s) =>
       TimestampDuration(value: BigInt.parse(s));
   factory TimestampDuration.fromJson(dynamic json) =>
@@ -105,6 +117,11 @@ class TimestampDuration extends Equatable
 
   @override
   int compareTo(TimestampDuration other) => value.compareTo(other.value);
+
+  bool operator <(TimestampDuration other) => compareTo(other) < 0;
+  bool operator <=(TimestampDuration other) => compareTo(other) <= 0;
+  bool operator >(TimestampDuration other) => compareTo(other) > 0;
+  bool operator >=(TimestampDuration other) => compareTo(other) >= 0;
 
   @override
   String toString() => value.toString();
@@ -124,6 +141,7 @@ abstract class Veilid {
 
   void initializeVeilidCore(Map<String, dynamic> platformConfigJson);
   void changeLogLevel(String layer, VeilidConfigLogLevel logLevel);
+  void changeLogIgnore(String layer, List<String> changes);
   Future<Stream<VeilidUpdate>> startupVeilidCore(VeilidConfig config);
   Future<VeilidState> getVeilidState();
   Future<void> attach();
@@ -142,13 +160,28 @@ abstract class Veilid {
 
   // Routing context
   Future<VeilidRoutingContext> routingContext();
+  Future<VeilidRoutingContext> safeRoutingContext(
+      {Stability stability = Stability.lowLatency,
+      Sequencing sequencing = Sequencing.preferOrdered}) async {
+    final rc = await routingContext();
+    final originalSafety = await rc.safety() as SafetySelectionSafe;
+    final safetySpec = originalSafety.safetySpec
+        .copyWith(stability: stability, sequencing: sequencing);
+    return rc.withSafety(SafetySelectionSafe(safetySpec: safetySpec),
+        closeSelf: true);
+  }
+
+  Future<VeilidRoutingContext> unsafeRoutingContext(
+          {Sequencing sequencing = Sequencing.preferOrdered}) async =>
+      (await routingContext())
+          .withSafety(SafetySelectionUnsafe(sequencing: sequencing));
 
   // Private route allocation
   Future<RouteBlob> newPrivateRoute();
   Future<RouteBlob> newCustomPrivateRoute(
       Stability stability, Sequencing sequencing);
   Future<String> importRemotePrivateRoute(Uint8List blob);
-  Future<void> releasePrivateRoute(String key);
+  Future<void> releasePrivateRoute(String routeId);
 
   // App calls
   Future<void> appCallReply(String callId, Uint8List message);
@@ -161,5 +194,6 @@ abstract class Veilid {
   Timestamp now();
   String veilidVersionString();
   VeilidVersion veilidVersion();
+  String defaultVeilidConfig();
   Future<String> debug(String command);
 }

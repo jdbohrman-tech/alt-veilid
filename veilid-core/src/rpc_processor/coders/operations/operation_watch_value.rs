@@ -1,6 +1,6 @@
 use super::*;
 
-const MAX_WATCH_VALUE_Q_SUBKEYS_LEN: usize = 512;
+const MAX_WATCH_VALUE_Q_SUBKEY_RANGES_LEN: usize = 512;
 const MAX_WATCH_VALUE_A_PEERS_LEN: usize = 20;
 
 #[derive(Debug, Clone)]
@@ -9,6 +9,7 @@ pub(in crate::rpc_processor) struct RPCOperationWatchValueQ {
     subkeys: ValueSubkeyRangeSet,
     expiration: u64,
     count: u32,
+    watch_id: Option<u64>,
     watcher: PublicKey,
     signature: Signature,
 }
@@ -20,18 +21,20 @@ impl RPCOperationWatchValueQ {
         subkeys: ValueSubkeyRangeSet,
         expiration: u64,
         count: u32,
+        watch_id: Option<u64>,
         watcher: KeyPair,
         vcrypto: CryptoSystemVersion,
     ) -> Result<Self, RPCError> {
-        // Needed because RangeSetBlaze uses different types here all the time
-        #[allow(clippy::unnecessary_cast)]
-        let subkeys_len = subkeys.ranges_len() as usize;
-
-        if subkeys_len > MAX_WATCH_VALUE_Q_SUBKEYS_LEN {
+        if subkeys.ranges_len() > MAX_WATCH_VALUE_Q_SUBKEY_RANGES_LEN {
             return Err(RPCError::protocol("WatchValueQ subkeys length too long"));
         }
 
-        let signature_data = Self::make_signature_data(&key, &subkeys, expiration, count);
+        // Count is zero means cancelling, so there should always be a watch id in this case
+        if count == 0 && watch_id.is_none() {
+            return Err(RPCError::protocol("can't cancel zero watch id"));
+        }
+
+        let signature_data = Self::make_signature_data(&key, &subkeys, expiration, count, watch_id);
         let signature = vcrypto
             .sign(&watcher.key, &watcher.secret, &signature_data)
             .map_err(RPCError::protocol)?;
@@ -41,6 +44,7 @@ impl RPCOperationWatchValueQ {
             subkeys,
             expiration,
             count,
+            watch_id,
             watcher: watcher.key,
             signature,
         })
@@ -52,12 +56,12 @@ impl RPCOperationWatchValueQ {
         subkeys: &ValueSubkeyRangeSet,
         expiration: u64,
         count: u32,
+        watch_id: Option<u64>,
     ) -> Vec<u8> {
-        // Needed because RangeSetBlaze uses different types here all the time
-        #[allow(clippy::unnecessary_cast)]
-        let subkeys_len = subkeys.ranges_len() as usize;
+        let subkeys_ranges_len = subkeys.ranges_len();
 
-        let mut sig_data = Vec::with_capacity(PUBLIC_KEY_LENGTH + 4 + (subkeys_len * 8) + 8 + 4);
+        let mut sig_data =
+            Vec::with_capacity(PUBLIC_KEY_LENGTH + 4 + (subkeys_ranges_len * 8) + 8 + 8);
         sig_data.extend_from_slice(&key.kind.0);
         sig_data.extend_from_slice(&key.value.bytes);
         for sk in subkeys.ranges() {
@@ -66,6 +70,9 @@ impl RPCOperationWatchValueQ {
         }
         sig_data.extend_from_slice(&expiration.to_le_bytes());
         sig_data.extend_from_slice(&count.to_le_bytes());
+        if let Some(watch_id) = watch_id {
+            sig_data.extend_from_slice(&watch_id.to_le_bytes());
+        }
         sig_data
     }
 
@@ -74,11 +81,22 @@ impl RPCOperationWatchValueQ {
             return Err(RPCError::protocol("unsupported cryptosystem"));
         };
 
-        let sig_data =
-            Self::make_signature_data(&self.key, &self.subkeys, self.expiration, self.count);
+        let sig_data = Self::make_signature_data(
+            &self.key,
+            &self.subkeys,
+            self.expiration,
+            self.count,
+            self.watch_id,
+        );
         vcrypto
             .verify(&self.watcher, &sig_data, &self.signature)
             .map_err(RPCError::protocol)?;
+
+        // Count is zero means cancelling, so there should always be a watch id in this case
+        if self.count == 0 && self.watch_id.is_none() {
+            return Err(RPCError::protocol("can't cancel zero watch id"));
+        }
+
         Ok(())
     }
 
@@ -103,6 +121,11 @@ impl RPCOperationWatchValueQ {
     }
 
     #[allow(dead_code)]
+    pub fn watch_id(&self) -> Option<u64> {
+        self.watch_id
+    }
+
+    #[allow(dead_code)]
     pub fn watcher(&self) -> &PublicKey {
         &self.watcher
     }
@@ -118,6 +141,7 @@ impl RPCOperationWatchValueQ {
         ValueSubkeyRangeSet,
         u64,
         u32,
+        Option<u64>,
         PublicKey,
         Signature,
     ) {
@@ -126,6 +150,7 @@ impl RPCOperationWatchValueQ {
             self.subkeys,
             self.expiration,
             self.count,
+            self.watch_id,
             self.watcher,
             self.signature,
         )
@@ -138,8 +163,8 @@ impl RPCOperationWatchValueQ {
         let key = decode_typed_key(&k_reader)?;
 
         let sk_reader = reader.get_subkeys().map_err(RPCError::protocol)?;
-        if sk_reader.len() as usize > MAX_WATCH_VALUE_Q_SUBKEYS_LEN {
-            return Err(RPCError::protocol("WatchValueQ subkeys length too long"));
+        if sk_reader.len() as usize > MAX_WATCH_VALUE_Q_SUBKEY_RANGES_LEN {
+            return Err(RPCError::protocol("WatchValueQ too many subkey ranges"));
         }
         let mut subkeys = ValueSubkeyRangeSet::new();
         for skr in sk_reader.iter() {
@@ -159,6 +184,11 @@ impl RPCOperationWatchValueQ {
 
         let expiration = reader.get_expiration();
         let count = reader.get_count();
+        let watch_id = if reader.get_watch_id() != 0 {
+            Some(reader.get_watch_id())
+        } else {
+            None
+        };
 
         let w_reader = reader.get_watcher().map_err(RPCError::protocol)?;
         let watcher = decode_key256(&w_reader);
@@ -171,6 +201,7 @@ impl RPCOperationWatchValueQ {
             subkeys,
             expiration,
             count,
+            watch_id,
             watcher,
             signature,
         })
@@ -196,6 +227,7 @@ impl RPCOperationWatchValueQ {
         }
         builder.set_expiration(self.expiration);
         builder.set_count(self.count);
+        builder.set_watch_id(self.watch_id.unwrap_or(0u64));
 
         let mut w_builder = builder.reborrow().init_watcher();
         encode_key256(&self.watcher, &mut w_builder);
@@ -207,19 +239,33 @@ impl RPCOperationWatchValueQ {
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #[derive(Debug, Clone)]
 pub(in crate::rpc_processor) struct RPCOperationWatchValueA {
+    accepted: bool,
     expiration: u64,
     peers: Vec<PeerInfo>,
+    watch_id: u64,
 }
 
 impl RPCOperationWatchValueA {
     #[allow(dead_code)]
-    pub fn new(expiration: u64, peers: Vec<PeerInfo>) -> Result<Self, RPCError> {
+    pub fn new(
+        accepted: bool,
+        expiration: u64,
+        peers: Vec<PeerInfo>,
+        watch_id: u64,
+    ) -> Result<Self, RPCError> {
         if peers.len() > MAX_WATCH_VALUE_A_PEERS_LEN {
             return Err(RPCError::protocol("WatchValueA peers length too long"));
         }
-        Ok(Self { expiration, peers })
+        Ok(Self {
+            accepted,
+            expiration,
+            peers,
+            watch_id,
+        })
     }
 
     pub fn validate(&mut self, validate_context: &RPCValidateContext) -> Result<(), RPCError> {
@@ -227,6 +273,10 @@ impl RPCOperationWatchValueA {
         Ok(())
     }
 
+    #[allow(dead_code)]
+    pub fn accepted(&self) -> bool {
+        self.accepted
+    }
     #[allow(dead_code)]
     pub fn expiration(&self) -> u64 {
         self.expiration
@@ -236,13 +286,18 @@ impl RPCOperationWatchValueA {
         &self.peers
     }
     #[allow(dead_code)]
-    pub fn destructure(self) -> (u64, Vec<PeerInfo>) {
-        (self.expiration, self.peers)
+    pub fn watch_id(&self) -> u64 {
+        self.watch_id
+    }
+    #[allow(dead_code)]
+    pub fn destructure(self) -> (bool, u64, Vec<PeerInfo>, u64) {
+        (self.accepted, self.expiration, self.peers, self.watch_id)
     }
 
     pub fn decode(
         reader: &veilid_capnp::operation_watch_value_a::Reader,
     ) -> Result<Self, RPCError> {
+        let accepted = reader.get_accepted();
         let expiration = reader.get_expiration();
         let peers_reader = reader.get_peers().map_err(RPCError::protocol)?;
         if peers_reader.len() as usize > MAX_WATCH_VALUE_A_PEERS_LEN {
@@ -258,13 +313,20 @@ impl RPCOperationWatchValueA {
             let peer_info = decode_peer_info(&p)?;
             peers.push(peer_info);
         }
+        let watch_id = reader.get_watch_id();
 
-        Ok(Self { expiration, peers })
+        Ok(Self {
+            accepted,
+            expiration,
+            peers,
+            watch_id,
+        })
     }
     pub fn encode(
         &self,
         builder: &mut veilid_capnp::operation_watch_value_a::Builder,
     ) -> Result<(), RPCError> {
+        builder.set_accepted(self.accepted);
         builder.set_expiration(self.expiration);
 
         let mut peers_builder = builder.reborrow().init_peers(
@@ -277,6 +339,7 @@ impl RPCOperationWatchValueA {
             let mut pi_builder = peers_builder.reborrow().get(i as u32);
             encode_peer_info(peer, &mut pi_builder)?;
         }
+        builder.set_watch_id(self.watch_id);
 
         Ok(())
     }

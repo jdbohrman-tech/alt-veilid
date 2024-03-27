@@ -5,6 +5,7 @@ import pytest
 import asyncio
 import json
 from . import *
+from .api import VeilidTestConnectionError, api_connector
 
 ##################################################################
 BOGUS_KEY = veilid.TypedKey.from_value(
@@ -14,6 +15,7 @@ BOGUS_KEY = veilid.TypedKey.from_value(
 @pytest.mark.asyncio
 async def test_get_dht_value_unopened(api_connection: veilid.VeilidAPI):
     rc = await api_connection.new_routing_context()
+    
     async with rc:
         with pytest.raises(veilid.VeilidAPIError):
             out = await rc.get_dht_value(BOGUS_KEY, veilid.ValueSubkey(0), False)
@@ -195,6 +197,139 @@ async def test_open_writer_dht_value(api_connection: veilid.VeilidAPI):
         with pytest.raises(veilid.VeilidAPIError):
             vdtemp = await rc.set_dht_value(key, 0, va)
 
+        # Verify subkey 0 can be set because override with the right writer
+        vdtemp = await rc.set_dht_value(key, 0, va, veilid.KeyPair.from_parts(owner, secret))
+        assert vdtemp == None
+
         # Clean up
         await rc.close_dht_record(key)
         await rc.delete_dht_record(key)
+
+@pytest.mark.asyncio
+async def test_watch_dht_values():
+
+    value_change_queue: asyncio.Queue[veilid.VeilidUpdate] = asyncio.Queue()
+
+    async def value_change_update_callback(update: veilid.VeilidUpdate):
+        if update.kind == veilid.VeilidUpdateKind.VALUE_CHANGE:
+            await value_change_queue.put(update)
+
+    try:
+        api = await api_connector(value_change_update_callback)
+    except VeilidTestConnectionError:
+        pytest.skip("Unable to connect to veilid-server.")
+        return
+
+    # Make two routing contexts, one with and one without safety
+    # So we can pretend to be a different node and get the watch updates
+    # Normally they would not get sent if the set comes from the same target
+    # as the watch's target
+    rcWatch = await api.new_routing_context()
+    
+    rcSet = await (await api.new_routing_context()).with_safety(
+        veilid.SafetySelection.unsafe(veilid.Sequencing.ENSURE_ORDERED)
+    )
+    async with rcWatch, rcSet:
+        # Make a DHT record
+        rec = await rcWatch.create_dht_record(veilid.DHTSchema.dflt(10))
+
+        # Set some subkey we care about
+        vd = await rcWatch.set_dht_value(rec.key, 3, b"BLAH BLAH BLAH")
+        assert vd == None
+
+        # Make a watch on that subkey
+        ts = await rcWatch.watch_dht_values(rec.key, [], 0, 0xFFFFFFFF)
+        assert ts != 0
+
+        # Reopen without closing to change routing context and not lose watch
+        rec = await rcSet.open_dht_record(rec.key, rec.owner_key_pair())
+        
+        # Now set the subkey and trigger an update
+        vd = await rcSet.set_dht_value(rec.key, 3, b"BLAH")
+        assert vd == None
+
+        # Wait for the update
+        upd = await asyncio.wait_for(value_change_queue.get(), timeout=5)
+
+        # Verify the update
+        assert upd.detail.key == rec.key
+        assert upd.detail.count == 0xFFFFFFFE
+        assert upd.detail.subkeys == [(3,3)]
+        assert upd.detail.value.seq == 1
+        assert upd.detail.value.data == b"BLAH"
+        assert upd.detail.value.writer == rec.owner
+
+        # Reopen without closing to change routing context and not lose watch
+        rec = await rcWatch.open_dht_record(rec.key, rec.owner_key_pair())
+
+        # Cancel some subkeys we don't care about
+        still_active = await rcWatch.cancel_dht_watch(rec.key, [(0, 2)])
+        assert still_active == True
+
+        # Reopen without closing to change routing context and not lose watch
+        rec = await rcSet.open_dht_record(rec.key, rec.owner_key_pair())
+
+        # Change our subkey
+        vd = await rcSet.set_dht_value(rec.key, 3, b"BLAH BLAH BLAH")
+        assert vd == None
+
+        # Wait for the update
+        upd = await asyncio.wait_for(value_change_queue.get(), timeout=5)
+
+        # Verify the update
+        assert upd.detail.key == rec.key
+        assert upd.detail.count == 0xFFFFFFFD
+        assert upd.detail.subkeys == [(3,3)]
+        assert upd.detail.value.seq == 2
+        assert upd.detail.value.data == b"BLAH BLAH BLAH"
+        assert upd.detail.value.writer == rec.owner
+
+        # Reopen without closing to change routing context and not lose watch
+        rec = await rcWatch.open_dht_record(rec.key, rec.owner_key_pair())
+
+        # Now cancel the update
+        still_active = await rcWatch.cancel_dht_watch(rec.key, [(3, 9)])
+        assert still_active == False
+
+        # Reopen without closing to change routing context and not lose watch
+        rec = await rcSet.open_dht_record(rec.key, rec.owner_key_pair())
+
+        # Set the value without a watch
+        vd = await rcSet.set_dht_value(rec.key, 3, b"BLAH")
+        assert vd == None
+        
+        # Now we should NOT get an update
+        update = None
+        try:
+            update = await asyncio.wait_for(value_change_queue.get(), timeout=5)
+        except asyncio.TimeoutError:
+            pass
+        assert update == None
+
+        # Clean up
+        await rcSet.close_dht_record(rec.key)
+        await rcSet.delete_dht_record(rec.key)
+
+@pytest.mark.asyncio
+async def test_inspect_dht_record(api_connection: veilid.VeilidAPI):
+    rc = await api_connection.new_routing_context()
+    async with rc:
+        rec = await rc.create_dht_record(veilid.DHTSchema.dflt(2))
+
+        vd = await rc.set_dht_value(rec.key, 0, b"BLAH BLAH BLAH")
+        assert vd == None
+
+        rr = await rc.inspect_dht_record(rec.key, [], veilid.DHTReportScope.LOCAL)
+        print("rr: {}", rr.__dict__)
+        assert rr.subkeys == [[0,1]]
+        assert rr.local_seqs == [0, 0xFFFFFFFF]
+        assert rr.network_seqs == []
+
+        rr2 = await rc.inspect_dht_record(rec.key, [], veilid.DHTReportScope.SYNC_GET)
+        print("rr2: {}", rr2.__dict__)
+        assert rr2.subkeys == [[0,1]]
+        assert rr2.local_seqs == [0, 0xFFFFFFFF]
+        assert rr2.network_seqs == [0, 0xFFFFFFFF]
+
+        await rc.close_dht_record(rec.key)
+        await rc.delete_dht_record(rec.key)

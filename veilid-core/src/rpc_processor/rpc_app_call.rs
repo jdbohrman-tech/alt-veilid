@@ -55,6 +55,8 @@ impl RPCProcessor {
         )))
     }
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+
     #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]
     pub(crate) async fn process_app_call_q(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
         // Ignore if disabled
@@ -70,6 +72,24 @@ impl RPCProcessor {
                 "app call is not available",
             ));
         }
+
+        // Get the private route this came over
+        let opt_pr_pubkey = match &msg.header.detail {
+            RPCMessageHeaderDetail::Direct(_) | RPCMessageHeaderDetail::SafetyRouted(_) => None,
+            RPCMessageHeaderDetail::PrivateRouted(pr) => Some(pr.private_route),
+        };
+        let route_id = if let Some(pr_pubkey) = opt_pr_pubkey {
+            let rss = routing_table.route_spec_store();
+            let Some(route_id) = rss.get_route_id_for_key(&pr_pubkey) else {
+                return Ok(NetworkResult::invalid_message(format!(
+                    "private route does not exist for key: {}",
+                    pr_pubkey
+                )));
+            };
+            Some(route_id)
+        } else {
+            None
+        };
 
         // Get the question
         let (op_id, _, _, kind) = msg.operation.clone().destructure();
@@ -99,7 +119,7 @@ impl RPCProcessor {
         // Pass the call up through the update callback
         let message_q = app_call_q.destructure();
         (self.unlocked_inner.update_callback)(VeilidUpdate::AppCall(Box::new(VeilidAppCall::new(
-            sender, message_q, op_id,
+            sender, route_id, message_q, op_id,
         ))));
 
         // Wait for an app call answer to come back from the app

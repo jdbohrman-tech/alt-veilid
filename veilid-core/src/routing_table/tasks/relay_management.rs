@@ -23,13 +23,13 @@ impl RoutingTable {
                 let state = relay_node.state(cur_ts);
                 // Relay node is dead or no longer needed
                 if matches!(state, BucketEntryState::Dead) {
-                    debug!("Relay node died, dropping relay {}", relay_node);
+                    log_rtab!(debug "Relay node died, dropping relay {}", relay_node);
                     editor.clear_relay_node();
                     false
                 }
                 // Relay node no longer can relay
                 else if relay_node.operate(|_rti, e| !relay_node_filter(e)) {
-                    debug!(
+                    log_rtab!(debug
                         "Relay node can no longer relay, dropping relay {}",
                         relay_node
                     );
@@ -38,7 +38,7 @@ impl RoutingTable {
                 }
                 // Relay node is no longer required
                 else if !own_node_info.requires_relay() {
-                    debug!(
+                    log_rtab!(debug
                         "Relay node no longer required, dropping relay {}",
                         relay_node
                     );
@@ -47,7 +47,7 @@ impl RoutingTable {
                 }
                 // Should not have relay for invalid network class
                 else if !self.has_valid_network_class(RoutingDomain::PublicInternet) {
-                    debug!(
+                    log_rtab!(debug
                         "Invalid network class does not get a relay, dropping relay {}",
                         relay_node
                     );
@@ -75,7 +75,7 @@ impl RoutingTable {
                         false,
                     ) {
                         Ok(nr) => {
-                            debug!("Outbound relay node selected: {}", nr);
+                            log_rtab!(debug "Outbound relay node selected: {}", nr);
                             editor.set_relay_node(nr);
                             got_outbound_relay = true;
                         }
@@ -84,13 +84,13 @@ impl RoutingTable {
                         }
                     }
                 } else {
-                    debug!("Outbound relay desired but not available");
+                    log_rtab!(debug "Outbound relay desired but not available");
                 }
             }
             if !got_outbound_relay {
                 // Find a node in our routing table that is an acceptable inbound relay
                 if let Some(nr) = self.find_inbound_relay(RoutingDomain::PublicInternet, cur_ts) {
-                    debug!("Inbound relay node selected: {}", nr);
+                    log_rtab!(debug "Inbound relay node selected: {}", nr);
                     editor.set_relay_node(nr);
                 }
             }

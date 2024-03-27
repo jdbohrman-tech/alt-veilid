@@ -15,7 +15,7 @@ impl TableStoreDriver {
         let db = Database::open(table_name, column_count, false)
             .await
             .map_err(VeilidAPIError::generic)?;
-        trace!(
+        log_tstore!(
             "opened table store '{}' with {} columns",
             table_name,
             column_count
@@ -28,9 +28,9 @@ impl TableStoreDriver {
         if is_browser() {
             let out = Database::delete(table_name).await.is_ok();
             if out {
-                trace!("TableStore::delete {} deleted", table_name);
+                log_tstore!("TableStore::delete {} deleted", table_name);
             } else {
-                debug!("TableStore::delete {} not deleted", table_name);
+                log_tstore!(debug "TableStore::delete {} not deleted", table_name);
             }
             Ok(out)
         } else {

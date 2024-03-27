@@ -144,13 +144,15 @@ sealed class VeilidUpdate with _$VeilidUpdate {
     String? backtrace,
   }) = VeilidLog;
   const factory VeilidUpdate.appMessage({
-    @Uint8ListJsonConverter() required Uint8List message,
+    @Uint8ListJsonConverter.jsIsArray() required Uint8List message,
     TypedKey? sender,
+    String? routeId,
   }) = VeilidAppMessage;
   const factory VeilidUpdate.appCall({
-    @Uint8ListJsonConverter() required Uint8List message,
+    @Uint8ListJsonConverter.jsIsArray() required Uint8List message,
     required String callId,
     TypedKey? sender,
+    String? routeId,
   }) = VeilidAppCall;
   const factory VeilidUpdate.attachment(
       {required AttachmentState state,
@@ -172,7 +174,7 @@ sealed class VeilidUpdate with _$VeilidUpdate {
     required TypedKey key,
     required List<ValueSubkeyRange> subkeys,
     required int count,
-    required ValueData valueData,
+    required ValueData value,
   }) = VeilidUpdateValueChange;
 
   factory VeilidUpdate.fromJson(dynamic json) =>

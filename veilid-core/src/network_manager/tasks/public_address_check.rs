@@ -46,8 +46,7 @@ impl NetworkManager {
         flow: Flow,                    // the flow used
         reporting_peer: NodeRef,       // the peer's noderef reporting the socket address
     ) {
-        #[cfg(feature = "network-result-extra")]
-        debug!("report_global_socket_address\nsocket_address: {:#?}\nflow: {:#?}\nreporting_peer: {:#?}", socket_address, flow, reporting_peer);
+        log_network_result!("report_global_socket_address\nsocket_address: {:#?}\nflow: {:#?}\nreporting_peer: {:#?}", socket_address, flow, reporting_peer);
 
         // Ignore these reports if we are currently detecting public dial info
         let net = self.net();
@@ -172,8 +171,7 @@ impl NetworkManager {
                         .unwrap_or(false)
                 {
                     // Record the origin of the inconsistency
-                    #[cfg(feature = "network-result-extra")]
-                    debug!("inconsistency added from {:?}: reported {:?} with current_addresses = {:?}", reporting_ip_block, a, current_addresses);
+                    log_network_result!(debug "inconsistency added from {:?}: reported {:?} with current_addresses = {:?}", reporting_ip_block, a, current_addresses);
 
                     inconsistencies.push(*reporting_ip_block);
                 }
@@ -214,7 +212,7 @@ impl NetworkManager {
 
             // // debug code
             // if inconsistent {
-            //     trace!("public_address_check_cache: {:#?}\ncurrent_addresses: {:#?}\ninconsistencies: {}", inner
+            //     log_net!("public_address_check_cache: {:#?}\ncurrent_addresses: {:#?}\ninconsistencies: {}", inner
             //                 .public_address_check_cache, current_addresses, inconsistencies);
             // }
 

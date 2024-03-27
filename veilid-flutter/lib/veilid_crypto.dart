@@ -156,6 +156,8 @@ abstract class VeilidCryptoSystem {
   CryptoKind kind();
   Future<SharedSecret> cachedDH(PublicKey key, SecretKey secret);
   Future<SharedSecret> computeDH(PublicKey key, SecretKey secret);
+  Future<SharedSecret> generateSharedSecret(
+      PublicKey key, SecretKey secret, Uint8List domain);
   Future<Uint8List> randomBytes(int len);
   Future<int> defaultSaltLength();
   Future<String> hashPassword(Uint8List password, Uint8List salt);

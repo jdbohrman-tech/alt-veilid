@@ -45,6 +45,8 @@ impl RPCOperationAppCallQ {
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #[derive(Debug, Clone)]
 pub(in crate::rpc_processor) struct RPCOperationAppCallA {
     message: Vec<u8>,

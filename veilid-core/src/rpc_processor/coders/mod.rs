@@ -27,6 +27,7 @@ mod tunnel;
 mod typed_key;
 mod typed_signature;
 
+pub(crate) use operations::MAX_INSPECT_VALUE_A_SEQS_LEN;
 pub(in crate::rpc_processor) use operations::*;
 
 pub(crate) use address::*;
@@ -60,9 +61,11 @@ pub use typed_signature::*;
 use super::*;
 
 #[derive(Debug, Clone)]
+#[allow(clippy::enum_variant_names)]
 pub(in crate::rpc_processor) enum QuestionContext {
     GetValue(ValidateGetValueContext),
     SetValue(ValidateSetValueContext),
+    InspectValue(ValidateInspectValueContext),
 }
 
 #[derive(Clone)]

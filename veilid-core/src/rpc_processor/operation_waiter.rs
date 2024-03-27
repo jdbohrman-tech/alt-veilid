@@ -116,7 +116,7 @@ where
     pub fn get_op_context(&self, op_id: OperationId) -> Result<C, RPCError> {
         let inner = self.inner.lock();
         let Some(waiting_op) = inner.waiting_op_table.get(&op_id) else {
-            return Err(RPCError::internal("Missing operation id getting op context"));
+            return Err(RPCError::ignore("Missing operation id getting op context"));
         };
         Ok(waiting_op.context.clone())
     }

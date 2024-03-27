@@ -5,6 +5,9 @@
 #![cfg(target_arch = "wasm32")]
 #![no_std]
 
+/// Veilid WASM Bindings for Flutter/Dart, as well as Native Javascript
+/// The Flutter/Dart bindings are in this lib.rs directly
+/// The Native Javascript bindings are in the other files.
 extern crate alloc;
 use alloc::string::String;
 use alloc::sync::Arc;
@@ -145,6 +148,7 @@ pub struct VeilidWASMConfigLoggingPerformance {
     pub level: veilid_core::VeilidConfigLogLevel,
     pub logs_in_timings: bool,
     pub logs_in_console: bool,
+    pub ignore_log_targets: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -152,6 +156,7 @@ pub struct VeilidWASMConfigLoggingPerformance {
 pub struct VeilidWASMConfigLoggingAPI {
     pub enabled: bool,
     pub level: veilid_core::VeilidConfigLogLevel,
+    pub ignore_log_targets: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -204,8 +209,10 @@ pub fn initialize_veilid_core(platform_config: String) {
 
     // Performance logger
     if platform_config.logging.performance.enabled {
-        let filter =
-            veilid_core::VeilidLayerFilter::new(platform_config.logging.performance.level, None);
+        let filter = veilid_core::VeilidLayerFilter::new(
+            platform_config.logging.performance.level,
+            &platform_config.logging.performance.ignore_log_targets,
+        );
         let layer = WASMLayer::new(
             WASMLayerConfigBuilder::new()
                 .set_report_logs_in_timings(platform_config.logging.performance.logs_in_timings)
@@ -223,7 +230,10 @@ pub fn initialize_veilid_core(platform_config: String) {
 
     // API logger
     if platform_config.logging.api.enabled {
-        let filter = veilid_core::VeilidLayerFilter::new(platform_config.logging.api.level, None);
+        let filter = veilid_core::VeilidLayerFilter::new(
+            platform_config.logging.api.level,
+            &platform_config.logging.api.ignore_log_targets,
+        );
         let layer = veilid_core::ApiTracingLayer::get().with_filter(filter.clone());
         filters.insert("api", filter);
         layers.push(layer.boxed());
@@ -250,6 +260,46 @@ pub fn change_log_level(layer: String, log_level: String) {
         // Change a specific layer
         let f = filters.get(layer.as_str()).unwrap();
         f.set_max_level(log_level);
+    }
+}
+
+fn apply_ignore_change(ignore_list: Vec<String>, target_change: String) -> Vec<String> {
+    let mut ignore_list = ignore_list.clone();
+
+    for change in target_change.split(',').map(|c| c.trim().to_owned()) {
+        if change.is_empty() {
+            continue;
+        }
+        if let Some(target) = change.strip_prefix('-') {
+            ignore_list.retain(|x| x != target);
+        } else if !ignore_list.contains(&change) {
+            ignore_list.push(change.to_string());
+        }
+    }
+
+    ignore_list
+}
+
+#[wasm_bindgen()]
+pub fn change_log_ignore(layer: String, log_ignore: String) {
+    let layer = if layer == "all" { "".to_owned() } else { layer };
+
+    let filters = (*FILTERS).borrow();
+    if layer.is_empty() {
+        // Change all layers
+        for f in filters.values() {
+            f.set_ignore_list(Some(apply_ignore_change(
+                f.ignore_list(),
+                log_ignore.clone(),
+            )));
+        }
+    } else {
+        // Change a specific layer
+        let f = filters.get(layer.as_str()).unwrap();
+        f.set_ignore_list(Some(apply_ignore_change(
+            f.ignore_list(),
+            log_ignore.clone(),
+        )));
     }
 }
 
@@ -391,20 +441,20 @@ pub fn routing_context_with_sequencing(id: u32, sequencing: String) -> u32 {
     add_routing_context(routing_context)
 }
 
+fn get_routing_context(id: u32, func_name: &str) -> APIResult<veilid_core::RoutingContext> {
+    let rc = (*ROUTING_CONTEXTS).borrow();
+    let Some(routing_context) = rc.get(&id) else {
+        return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
+            func_name, "id", id,
+        ));
+    };
+    Ok(routing_context.clone())
+}
+
 #[wasm_bindgen()]
 pub fn routing_context_safety(id: u32) -> Promise {
     wrap_api_future_json(async move {
-        let routing_context = {
-            let rc = (*ROUTING_CONTEXTS).borrow();
-            let Some(routing_context) = rc.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "routing_context_safety",
-                    "id",
-                    id,
-                ));
-            };
-            routing_context.clone()
-        };
+        let routing_context = get_routing_context(id, "routing_context_safety")?;
 
         let safety_selection = routing_context.safety();
         APIResult::Ok(safety_selection)
@@ -417,17 +467,7 @@ pub fn routing_context_app_call(id: u32, target_string: String, request: String)
         .decode(request.as_bytes())
         .unwrap();
     wrap_api_future_plain(async move {
-        let routing_context = {
-            let rc = (*ROUTING_CONTEXTS).borrow();
-            let Some(routing_context) = rc.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "routing_context_app_call",
-                    "id",
-                    id,
-                ));
-            };
-            routing_context.clone()
-        };
+        let routing_context = get_routing_context(id, "routing_context_app_call")?;
 
         let veilid_api = get_veilid_api()?;
         let target = veilid_api.parse_as_target(target_string).await?;
@@ -443,17 +483,7 @@ pub fn routing_context_app_message(id: u32, target_string: String, message: Stri
         .decode(message.as_bytes())
         .unwrap();
     wrap_api_future_void(async move {
-        let routing_context = {
-            let rc = (*ROUTING_CONTEXTS).borrow();
-            let Some(routing_context) = rc.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "routing_context_app_message",
-                    "id",
-                    id,
-                ));
-            };
-            routing_context.clone()
-        };
+        let routing_context = get_routing_context(id, "routing_context_app_message")?;
 
         let veilid_api = get_veilid_api()?;
         let target = veilid_api.parse_as_target(target_string).await?;
@@ -472,17 +502,7 @@ pub fn routing_context_create_dht_record(id: u32, schema: String, kind: u32) -> 
     let schema: veilid_core::DHTSchema = veilid_core::deserialize_json(&schema).unwrap();
 
     wrap_api_future_json(async move {
-        let routing_context = {
-            let rc = (*ROUTING_CONTEXTS).borrow();
-            let Some(routing_context) = rc.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "routing_context_create_dht_record",
-                    "id",
-                    id,
-                ));
-            };
-            routing_context.clone()
-        };
+        let routing_context = get_routing_context(id, "routing_context_create_dht_record")?;
 
         let dht_record_descriptor = routing_context
             .create_dht_record(schema, crypto_kind)
@@ -497,17 +517,8 @@ pub fn routing_context_open_dht_record(id: u32, key: String, writer: Option<Stri
     let writer: Option<veilid_core::KeyPair> =
         writer.map(|s| veilid_core::deserialize_json(&s).unwrap());
     wrap_api_future_json(async move {
-        let routing_context = {
-            let rc = (*ROUTING_CONTEXTS).borrow();
-            let Some(routing_context) = rc.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "routing_context_open_dht_record",
-                    "id",
-                    id,
-                ));
-            };
-            routing_context.clone()
-        };
+        let routing_context = get_routing_context(id, "routing_context_open_dht_record")?;
+
         let dht_record_descriptor = routing_context.open_dht_record(key, writer).await?;
         APIResult::Ok(dht_record_descriptor)
     })
@@ -517,17 +528,8 @@ pub fn routing_context_open_dht_record(id: u32, key: String, writer: Option<Stri
 pub fn routing_context_close_dht_record(id: u32, key: String) -> Promise {
     let key: veilid_core::TypedKey = veilid_core::deserialize_json(&key).unwrap();
     wrap_api_future_void(async move {
-        let routing_context = {
-            let rc = (*ROUTING_CONTEXTS).borrow();
-            let Some(routing_context) = rc.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "routing_context_close_dht_record",
-                    "id",
-                    id,
-                ));
-            };
-            routing_context.clone()
-        };
+        let routing_context = get_routing_context(id, "routing_context_close_dht_record")?;
+
         routing_context.close_dht_record(key).await?;
         APIRESULT_UNDEFINED
     })
@@ -537,17 +539,8 @@ pub fn routing_context_close_dht_record(id: u32, key: String) -> Promise {
 pub fn routing_context_delete_dht_record(id: u32, key: String) -> Promise {
     let key: veilid_core::TypedKey = veilid_core::deserialize_json(&key).unwrap();
     wrap_api_future_void(async move {
-        let routing_context = {
-            let rc = (*ROUTING_CONTEXTS).borrow();
-            let Some(routing_context) = rc.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "routing_context_delete_dht_record",
-                    "id",
-                    id,
-                ));
-            };
-            routing_context.clone()
-        };
+        let routing_context = get_routing_context(id, "routing_context_delete_dht_record")?;
+
         routing_context.delete_dht_record(key).await?;
         APIRESULT_UNDEFINED
     })
@@ -562,17 +555,8 @@ pub fn routing_context_get_dht_value(
 ) -> Promise {
     let key: veilid_core::TypedKey = veilid_core::deserialize_json(&key).unwrap();
     wrap_api_future_json(async move {
-        let routing_context = {
-            let rc = (*ROUTING_CONTEXTS).borrow();
-            let Some(routing_context) = rc.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "routing_context_get_dht_value",
-                    "id",
-                    id,
-                ));
-            };
-            routing_context.clone()
-        };
+        let routing_context = get_routing_context(id, "routing_context_get_dht_value")?;
+
         let res = routing_context
             .get_dht_value(key, subkey, force_refresh)
             .await?;
@@ -581,25 +565,26 @@ pub fn routing_context_get_dht_value(
 }
 
 #[wasm_bindgen()]
-pub fn routing_context_set_dht_value(id: u32, key: String, subkey: u32, data: String) -> Promise {
+pub fn routing_context_set_dht_value(
+    id: u32,
+    key: String,
+    subkey: u32,
+    data: String,
+    writer: Option<String>,
+) -> Promise {
     let key: veilid_core::TypedKey = veilid_core::deserialize_json(&key).unwrap();
     let data: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(data.as_bytes())
         .unwrap();
+    let writer: Option<veilid_core::KeyPair> =
+        writer.map(|s| veilid_core::deserialize_json(&s).unwrap());
 
     wrap_api_future_json(async move {
-        let routing_context = {
-            let rc = (*ROUTING_CONTEXTS).borrow();
-            let Some(routing_context) = rc.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "routing_context_set_dht_value",
-                    "id",
-                    id,
-                ));
-            };
-            routing_context.clone()
-        };
-        let res = routing_context.set_dht_value(key, subkey, data).await?;
+        let routing_context = get_routing_context(id, "routing_context_set_dht_value")?;
+
+        let res = routing_context
+            .set_dht_value(key, subkey, data, writer)
+            .await?;
         APIResult::Ok(res)
     })
 }
@@ -618,17 +603,8 @@ pub fn routing_context_watch_dht_values(
     let expiration = veilid_core::Timestamp::from_str(&expiration).unwrap();
 
     wrap_api_future_plain(async move {
-        let routing_context = {
-            let rc = (*ROUTING_CONTEXTS).borrow();
-            let Some(routing_context) = rc.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "routing_context_watch_dht_values",
-                    "id",
-                    id,
-                ));
-            };
-            routing_context.clone()
-        };
+        let routing_context = get_routing_context(id, "routing_context_watch_dht_values")?;
+
         let res = routing_context
             .watch_dht_values(key, subkeys, expiration, count)
             .await?;
@@ -643,18 +619,32 @@ pub fn routing_context_cancel_dht_watch(id: u32, key: String, subkeys: String) -
         veilid_core::deserialize_json(&subkeys).unwrap();
 
     wrap_api_future_plain(async move {
-        let routing_context = {
-            let rc = (*ROUTING_CONTEXTS).borrow();
-            let Some(routing_context) = rc.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "routing_context_cancel_dht_watch",
-                    "id",
-                    id,
-                ));
-            };
-            routing_context.clone()
-        };
+        let routing_context = get_routing_context(id, "routing_context_cancel_dht_watch")?;
+
         let res = routing_context.cancel_dht_watch(key, subkeys).await?;
+        APIResult::Ok(res)
+    })
+}
+
+#[wasm_bindgen()]
+pub fn routing_context_inspect_dht_record(
+    id: u32,
+    key: String,
+    subkeys: String,
+    scope: String,
+) -> Promise {
+    let key: veilid_core::TypedKey = veilid_core::deserialize_json(&key).unwrap();
+    let subkeys: veilid_core::ValueSubkeyRangeSet =
+        veilid_core::deserialize_json(&subkeys).unwrap();
+    let scope: veilid_core::DHTReportScope = veilid_core::deserialize_json(&scope).unwrap();
+
+    wrap_api_future_json(async move {
+        let routing_context = get_routing_context(id, "routing_context_inspect_dht_record")?;
+
+        let res = routing_context
+            .inspect_dht_record(key, subkeys, scope)
+            .await?;
+
         APIResult::Ok(res)
     })
 }
@@ -706,7 +696,7 @@ pub fn import_remote_private_route(blob: String) -> Promise {
 
 #[wasm_bindgen()]
 pub fn release_private_route(route_id: String) -> Promise {
-    let route_id: veilid_core::RouteId = veilid_core::deserialize_json(&route_id).unwrap();
+    let route_id: veilid_core::RouteId = veilid_core::RouteId::try_decode(&route_id).unwrap();
     wrap_api_future_void(async move {
         let veilid_api = get_veilid_api()?;
         veilid_api.release_private_route(route_id)?;
@@ -792,20 +782,20 @@ pub fn table_db_get_column_count(id: u32) -> u32 {
     cc
 }
 
+fn get_table_db(id: u32, func_name: &str) -> APIResult<veilid_core::TableDB> {
+    let table_dbs = (*TABLE_DBS).borrow();
+    let Some(table_db) = table_dbs.get(&id) else {
+        return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
+            func_name, "id", id,
+        ));
+    };
+    Ok(table_db.clone())
+}
+
 #[wasm_bindgen()]
 pub fn table_db_get_keys(id: u32, col: u32) -> Promise {
     wrap_api_future_json(async move {
-        let table_db = {
-            let table_dbs = (*TABLE_DBS).borrow();
-            let Some(table_db) = table_dbs.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "table_db_store",
-                    "id",
-                    id,
-                ));
-            };
-            table_db.clone()
-        };
+        let table_db = get_table_db(id, "table_db_get_keys")?;
 
         let keys = table_db.clone().get_keys(col).await?;
         let out: Vec<String> = keys
@@ -845,20 +835,23 @@ pub fn release_table_db_transaction(id: u32) -> i32 {
     1
 }
 
+fn get_table_db_transaction(
+    id: u32,
+    func_name: &str,
+) -> APIResult<veilid_core::TableDBTransaction> {
+    let tdbts = (*TABLE_DB_TRANSACTIONS).borrow();
+    let Some(tdbt) = tdbts.get(&id) else {
+        return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
+            func_name, "id", id,
+        ));
+    };
+    Ok(tdbt.clone())
+}
+
 #[wasm_bindgen()]
 pub fn table_db_transaction_commit(id: u32) -> Promise {
     wrap_api_future_void(async move {
-        let tdbt = {
-            let tdbts = (*TABLE_DB_TRANSACTIONS).borrow();
-            let Some(tdbt) = tdbts.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "table_db_transaction_commit",
-                    "id",
-                    id,
-                ));
-            };
-            tdbt.clone()
-        };
+        let tdbt = get_table_db_transaction(id, "table_db_transaction_commit")?;
 
         tdbt.commit().await?;
         APIRESULT_UNDEFINED
@@ -868,17 +861,7 @@ pub fn table_db_transaction_commit(id: u32) -> Promise {
 #[wasm_bindgen()]
 pub fn table_db_transaction_rollback(id: u32) -> Promise {
     wrap_api_future_void(async move {
-        let tdbt = {
-            let tdbts = (*TABLE_DB_TRANSACTIONS).borrow();
-            let Some(tdbt) = tdbts.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "table_db_transaction_rollback",
-                    "id",
-                    id,
-                ));
-            };
-            tdbt.clone()
-        };
+        let tdbt = get_table_db_transaction(id, "table_db_transaction_rollback")?;
 
         tdbt.rollback();
         APIRESULT_UNDEFINED
@@ -894,17 +877,7 @@ pub fn table_db_transaction_store(id: u32, col: u32, key: String, value: String)
         .decode(value.as_bytes())
         .unwrap();
     wrap_api_future_void(async move {
-        let tdbt = {
-            let tdbts = (*TABLE_DB_TRANSACTIONS).borrow();
-            let Some(tdbt) = tdbts.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "table_db_transaction_store",
-                    "id",
-                    id,
-                ));
-            };
-            tdbt.clone()
-        };
+        let tdbt = get_table_db_transaction(id, "table_db_transaction_store")?;
 
         tdbt.store(col, &key, &value)?;
         APIRESULT_UNDEFINED
@@ -917,17 +890,7 @@ pub fn table_db_transaction_delete(id: u32, col: u32, key: String) -> Promise {
         .decode(key.as_bytes())
         .unwrap();
     wrap_api_future_void(async move {
-        let tdbt = {
-            let tdbts = (*TABLE_DB_TRANSACTIONS).borrow();
-            let Some(tdbt) = tdbts.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "table_db_transaction_delete",
-                    "id",
-                    id,
-                ));
-            };
-            tdbt.clone()
-        };
+        let tdbt = get_table_db_transaction(id, "table_db_transaction_delete")?;
 
         tdbt.delete(col, &key)?;
         APIRESULT_UNDEFINED
@@ -943,17 +906,7 @@ pub fn table_db_store(id: u32, col: u32, key: String, value: String) -> Promise 
         .decode(value.as_bytes())
         .unwrap();
     wrap_api_future_void(async move {
-        let table_db = {
-            let table_dbs = (*TABLE_DBS).borrow();
-            let Some(table_db) = table_dbs.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "table_db_store",
-                    "id",
-                    id,
-                ));
-            };
-            table_db.clone()
-        };
+        let table_db = get_table_db(id, "table_db_store")?;
 
         table_db.store(col, &key, &value).await?;
         APIRESULT_UNDEFINED
@@ -966,17 +919,7 @@ pub fn table_db_load(id: u32, col: u32, key: String) -> Promise {
         .decode(key.as_bytes())
         .unwrap();
     wrap_api_future_plain(async move {
-        let table_db = {
-            let table_dbs = (*TABLE_DBS).borrow();
-            let Some(table_db) = table_dbs.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "table_db_load",
-                    "id",
-                    id,
-                ));
-            };
-            table_db.clone()
-        };
+        let table_db = get_table_db(id, "table_db_load")?;
 
         let out = table_db.load(col, &key).await?;
         let out = out.map(|x| data_encoding::BASE64URL_NOPAD.encode(&x));
@@ -990,17 +933,7 @@ pub fn table_db_delete(id: u32, col: u32, key: String) -> Promise {
         .decode(key.as_bytes())
         .unwrap();
     wrap_api_future_plain(async move {
-        let table_db = {
-            let table_dbs = (*TABLE_DBS).borrow();
-            let Some(table_db) = table_dbs.get(&id) else {
-                return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument(
-                    "table_db_delete",
-                    "id",
-                    id,
-                ));
-            };
-            table_db.clone()
-        };
+        let table_db = get_table_db(id, "table_db_delete")?;
 
         let out = table_db.delete(col, &key).await?;
         let out = out.map(|x| data_encoding::BASE64URL_NOPAD.encode(&x));
@@ -1111,6 +1044,36 @@ pub fn crypto_compute_dh(kind: u32, key: String, secret: String) -> Promise {
             )
         })?;
         let out = csv.compute_dh(&key, &secret)?;
+        APIResult::Ok(out)
+    })
+}
+
+#[wasm_bindgen()]
+pub fn crypto_generate_shared_secret(
+    kind: u32,
+    key: String,
+    secret: String,
+    domain: String,
+) -> Promise {
+    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+
+    let key: veilid_core::PublicKey = veilid_core::deserialize_json(&key).unwrap();
+    let secret: veilid_core::SecretKey = veilid_core::deserialize_json(&secret).unwrap();
+    let domain: Vec<u8> = data_encoding::BASE64URL_NOPAD
+        .decode(domain.as_bytes())
+        .unwrap();
+
+    wrap_api_future_json(async move {
+        let veilid_api = get_veilid_api()?;
+        let crypto = veilid_api.crypto()?;
+        let csv = crypto.get(kind).ok_or_else(|| {
+            veilid_core::VeilidAPIError::invalid_argument(
+                "crypto_generate_shared_secret",
+                "kind",
+                kind.to_string(),
+            )
+        })?;
+        let out = csv.generate_shared_secret(&key, &secret, &domain)?;
         APIResult::Ok(out)
     })
 }
@@ -1606,4 +1569,9 @@ pub fn veilid_version() -> JsValue {
         patch,
     };
     <JsValue as JsValueSerdeExt>::from_serde(&vv).unwrap()
+}
+
+#[wasm_bindgen()]
+pub fn default_veilid_config() -> String {
+    veilid_core::default_veilid_config()
 }

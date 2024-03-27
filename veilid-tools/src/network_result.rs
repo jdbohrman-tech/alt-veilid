@@ -330,40 +330,19 @@ macro_rules! network_result_try {
 }
 
 #[macro_export]
-macro_rules! log_network_result {
-    ($text:expr) => {
-        cfg_if::cfg_if! {
-            if #[cfg(feature="network-result-extra")] {
-                info!(target: "network_result", "{}", format!("{}", $text))
-            } else {
-                debug!(target: "network_result", "{}", format!("{}", $text))
-            }
-        }
-    };
-    ($fmt:literal, $($arg:expr),+) => {
-        cfg_if::cfg_if! {
-            if #[cfg(feature="network-result-extra")] {
-                info!(target: "network_result", "{}", format!($fmt, $($arg),+));
-            } else {
-                debug!(target: "network_result", "{}", format!($fmt, $($arg),+));
-            }
-        }
-    };
-}
-
-#[macro_export]
 macro_rules! network_result_value_or_log {
     ($r:expr => $f:expr) => {
         network_result_value_or_log!($r => [ "" ] $f )
     };
     ($r:expr => [ $d:expr ] $f:expr) => { {
-        #[cfg(feature="network-result-extra")]
-        let __extra_message = $d;
-        #[cfg(not(feature="network-result-extra"))]
-        let __extra_message = "";
+        let __extra_message = if debug_target_enabled!("network_result") {
+            $d.to_string()
+        } else {
+            "".to_string()
+        };
         match $r {
             NetworkResult::Timeout => {
-                log_network_result!(
+                log_network_result!(debug
                     "{} at {}@{}:{} in {}{}",
                     "Timeout",
                     file!(),
@@ -375,7 +354,7 @@ macro_rules! network_result_value_or_log {
                 $f
             }
             NetworkResult::ServiceUnavailable(ref s) => {
-                log_network_result!(
+                log_network_result!(debug
                     "{}({}) at {}@{}:{} in {}{}",
                     "ServiceUnavailable",
                     s,
@@ -388,7 +367,7 @@ macro_rules! network_result_value_or_log {
                 $f
             }
             NetworkResult::NoConnection(ref e) => {
-                log_network_result!(
+                log_network_result!(debug
                     "{}({}) at {}@{}:{} in {}{}",
                     "No connection",
                     e.to_string(),
@@ -401,7 +380,7 @@ macro_rules! network_result_value_or_log {
                 $f
             }
             NetworkResult::AlreadyExists(ref e) => {
-                log_network_result!(
+                log_network_result!(debug
                     "{}({}) at {}@{}:{} in {}{}",
                     "Already exists",
                     e.to_string(),
@@ -414,7 +393,7 @@ macro_rules! network_result_value_or_log {
                 $f
             }
             NetworkResult::InvalidMessage(ref s) => {
-                log_network_result!(
+                log_network_result!(debug
                     "{}({}) at {}@{}:{} in {}{}",
                     "Invalid message",
                     s,

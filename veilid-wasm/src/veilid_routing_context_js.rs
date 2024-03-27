@@ -101,6 +101,7 @@ impl VeilidRoutingContext {
     // --------------------------------
     // Instance methods
     // --------------------------------
+
     fn getRoutingContext(&self) -> APIResult<RoutingContext> {
         APIResult::Ok(self.inner_routing_context.clone())
     }
@@ -265,13 +266,13 @@ impl VeilidRoutingContext {
     pub async fn getDhtValue(
         &self,
         key: String,
-        subKey: u32,
+        subkey: u32,
         forceRefresh: bool,
     ) -> APIResult<Option<ValueData>> {
         let key = TypedKey::from_str(&key)?;
         let routing_context = self.getRoutingContext()?;
         let res = routing_context
-            .get_dht_value(key, subKey, forceRefresh)
+            .get_dht_value(key, subkey, forceRefresh)
             .await?;
         APIResult::Ok(res)
     }
@@ -283,55 +284,140 @@ impl VeilidRoutingContext {
     pub async fn setDhtValue(
         &self,
         key: String,
-        subKey: u32,
+        subkey: u32,
         data: Box<[u8]>,
+        writer: Option<String>,
     ) -> APIResult<Option<ValueData>> {
         let key = TypedKey::from_str(&key)?;
         let data = data.into_vec();
+        let writer = writer
+            .map(|writer| KeyPair::from_str(&writer))
+            .map_or(APIResult::Ok(None), |r| r.map(Some))?;
 
         let routing_context = self.getRoutingContext()?;
-        let res = routing_context.set_dht_value(key, subKey, data).await?;
+        let res = routing_context
+            .set_dht_value(key, subkey, data, writer)
+            .await?;
         APIResult::Ok(res)
     }
 
-    // pub async fn watchDhtValues(
-    //     &self,
-    //     key: String,
-    //     subKeys: ValueSubkeyRangeSet,
-    //     expiration: Timestamp,
-    //     count: u32,
-    // ) -> APIResult<String> {
-    //     let key: veilid_core::TypedKey = veilid_core::deserialize_json(&key).unwrap();
-    //     let subkeys: veilid_core::ValueSubkeyRangeSet =
-    //         veilid_core::deserialize_json(&subkeys).unwrap();
-    //     let expiration = veilid_core::Timestamp::from_str(&expiration).unwrap();
+    /// Add or update a watch to a DHT value that informs the user via an VeilidUpdate::ValueChange callback when the record has subkeys change.
+    /// One remote node will be selected to perform the watch and it will offer an expiration time based on a suggestion, and make an attempt to
+    /// continue to report changes via the callback. Nodes that agree to doing watches will be put on our 'ping' list to ensure they are still around
+    /// otherwise the watch will be cancelled and will have to be re-watched.
+    ///
+    /// There is only one watch permitted per record. If a change to a watch is desired, the previous one will be overwritten.
+    /// * `key` is the record key to watch. it must first be opened for reading or writing.
+    /// * `subkeys` is the the range of subkeys to watch. The range must not exceed 512 discrete non-overlapping or adjacent subranges. If no range is specified, this is equivalent to watching the entire range of subkeys.
+    /// * `expiration` is the desired timestamp of when to automatically terminate the watch, in microseconds. If this value is less than `network.rpc.timeout_ms` milliseconds in the future, this function will return an error immediately.
+    /// * `count` is the number of times the watch will be sent, maximum. A zero value here is equivalent to a cancellation.
+    ///
+    /// Returns a timestamp of when the watch will expire. All watches are guaranteed to expire at some point in the future,
+    /// and the returned timestamp will be no later than the requested expiration, but -may- be before the requested expiration.
+    /// If the returned timestamp is zero it indicates that the watch creation or update has failed. In the case of a faild update, the watch is considered cancelled.
+    ///
+    /// DHT watches are accepted with the following conditions:
+    /// * First-come first-served basis for arbitrary unauthenticated readers, up to network.dht.public_watch_limit per record
+    /// * If a member (either the owner or a SMPL schema member) has opened the key for writing (even if no writing is performed) then the watch will be signed and guaranteed network.dht.member_watch_limit per writer
+    ///
+    /// Members can be specified via the SMPL schema and do not need to allocate writable subkeys in order to offer a member watch capability.
+    pub async fn watchDhtValues(
+        &self,
+        key: String,
+        subkeys: Option<ValueSubkeyRangeSet>,
+        expiration: Option<String>,
+        count: Option<u32>,
+    ) -> APIResult<String> {
+        let key = TypedKey::from_str(&key)?;
+        let subkeys = subkeys.unwrap_or_default();
+        let expiration = if let Some(expiration) = expiration {
+            veilid_core::Timestamp::from_str(&expiration).map_err(VeilidAPIError::generic)?
+        } else {
+            veilid_core::Timestamp::default()
+        };
+        let count = count.unwrap_or(u32::MAX);
 
-    //     let routing_context = {
-    //         let rc = (*ROUTING_CONTEXTS).borrow();
-    //         let Some(routing_context) = rc.get(&id) else {
-    //             return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("routing_context_watch_dht_values", "id", self.id));
-    //         };
-    //         routing_context.clone()
-    //     };
-    //     let res = routing_context
-    //         .watch_dht_values(key, subkeys, expiration, count)
-    //         .await?;
-    //     APIResult::Ok(res.to_string())
-    // }
+        let routing_context = self.getRoutingContext()?;
+        let res = routing_context
+            .watch_dht_values(key, subkeys, expiration, count)
+            .await?;
+        APIResult::Ok(res.to_string())
+    }
 
-    // pub async fn cancelDhtWatch(id: u32, key: String, subkeys: String) -> Promise {
-    //     let key: veilid_core::TypedKey = veilid_core::deserialize_json(&key).unwrap();
-    //     let subkeys: veilid_core::ValueSubkeyRangeSet =
-    //         veilid_core::deserialize_json(&subkeys).unwrap();
+    /// Cancels a watch early
+    ///
+    /// This is a convenience function that cancels watching all subkeys in a range. The subkeys specified here
+    /// are subtracted from the watched subkey range. If no range is specified, this is equivalent to cancelling the entire range of subkeys.
+    /// Only the subkey range is changed, the expiration and count remain the same.
+    /// If no subkeys remain, the watch is entirely cancelled and will receive no more updates.
+    /// Returns true if there is any remaining watch for this record
+    /// Returns false if the entire watch has been cancelled
+    pub async fn cancelDhtWatch(
+        &self,
+        key: String,
+        subkeys: Option<ValueSubkeyRangeSet>,
+    ) -> APIResult<bool> {
+        let key = TypedKey::from_str(&key)?;
+        let subkeys = subkeys.unwrap_or_default();
 
-    //     let routing_context = {
-    //         let rc = (*ROUTING_CONTEXTS).borrow();
-    //         let Some(routing_context) = rc.get(&id) else {
-    //                 return APIResult::Err(veilid_core::VeilidAPIError::invalid_argument("routing_context_cancel_dht_watch", "id", self.id));
-    //             };
-    //         routing_context.clone()
-    //     };
-    //     let res = routing_context.cancel_dht_watch(key, subkeys).await?;
-    //     APIResult::Ok(res)
-    // }
+        let routing_context = self.getRoutingContext()?;
+        let res = routing_context.cancel_dht_watch(key, subkeys).await?;
+        APIResult::Ok(res)
+    }
+
+    /// Inspects a DHT record for subkey state.
+    /// This is useful for checking if you should push new subkeys to the network, or retrieve the current state of a record from the network
+    /// to see what needs updating locally.
+    ///
+    /// * `key` is the record key to watch. it must first be opened for reading or writing.
+    /// * `subkeys` is the the range of subkeys to inspect. The range must not exceed 512 discrete non-overlapping or adjacent subranges.
+    ///    If no range is specified, this is equivalent to inspecting the entire range of subkeys. In total, the list of subkeys returned will be truncated at 512 elements.
+    /// * `scope` is what kind of range the inspection has:
+    ///
+    ///   - DHTReportScope::Local
+    ///     Results will be only for a locally stored record.
+    ///     Useful for seeing what subkeys you have locally and which ones have not been retrieved
+    ///
+    ///   - DHTReportScope::SyncGet
+    ///     Return the local sequence numbers and the network sequence numbers with GetValue fanout parameters
+    ///     Provides an independent view of both the local sequence numbers and the network sequence numbers for nodes that
+    ///     would be reached as if the local copy did not exist locally.
+    ///     Useful for determining if the current local copy should be updated from the network.
+    ///
+    ///   - DHTReportScope::SyncSet
+    ///     Return the local sequence numbers and the network sequence numbers with SetValue fanout parameters
+    ///     Provides an independent view of both the local sequence numbers and the network sequence numbers for nodes that
+    ///     would be reached as if the local copy did not exist locally.
+    ///     Useful for determining if the unchanged local copy should be pushed to the network.
+    ///
+    ///   - DHTReportScope::UpdateGet
+    ///     Return the local sequence numbers and the network sequence numbers with GetValue fanout parameters
+    ///     Provides an view of both the local sequence numbers and the network sequence numbers for nodes that
+    ///     would be reached as if a GetValue operation were being performed, including accepting newer values from the network.
+    ///     Useful for determining which subkeys would change with a GetValue operation
+    ///
+    ///   - DHTReportScope::UpdateSet
+    ///     Return the local sequence numbers and the network sequence numbers with SetValue fanout parameters
+    ///     Provides an view of both the local sequence numbers and the network sequence numbers for nodes that
+    ///     would be reached as if a SetValue operation were being performed, including accepting newer values from the network.
+    ///     This simulates a SetValue with the initial sequence number incremented by 1, like a real SetValue would when updating.
+    ///     Useful for determine which subkeys would change with an SetValue operation
+    ///
+    /// Returns a DHTRecordReport with the subkey ranges that were returned that overlapped the schema, and sequence numbers for each of the subkeys in the range.
+    pub async fn inspectDhtRecord(
+        &self,
+        key: String,
+        subkeys: Option<ValueSubkeyRangeSet>,
+        scope: Option<DHTReportScope>,
+    ) -> APIResult<DHTRecordReport> {
+        let key = TypedKey::from_str(&key)?;
+        let subkeys = subkeys.unwrap_or_default();
+        let scope = scope.unwrap_or_default();
+
+        let routing_context = self.getRoutingContext()?;
+        let res = routing_context
+            .inspect_dht_record(key, subkeys, scope)
+            .await?;
+        APIResult::Ok(res)
+    }
 }

@@ -32,6 +32,9 @@ pub(super) struct StorageManagerInner {
     pub tick_future: Option<SendPinBoxFuture<()>>,
     /// Update callback to send ValueChanged notification to
     pub update_callback: Option<UpdateCallback>,
+
+    /// The maximum consensus count
+    set_consensus_count: usize,
 }
 
 fn local_limits_from_config(config: VeilidConfig) -> RecordStoreLimits {
@@ -72,6 +75,7 @@ fn remote_limits_from_config(config: VeilidConfig) -> RecordStoreLimits {
 
 impl StorageManagerInner {
     pub fn new(unlocked_inner: Arc<StorageManagerUnlockedInner>) -> Self {
+        let set_consensus_count = unlocked_inner.config.get().network.dht.set_value_count as usize;
         Self {
             unlocked_inner,
             initialized: false,
@@ -84,6 +88,7 @@ impl StorageManagerInner {
             opt_routing_table: Default::default(),
             tick_future: Default::default(),
             update_callback: None,
+            set_consensus_count,
         }
     }
 
@@ -187,7 +192,7 @@ impl StorageManagerInner {
                 Ok(v) => v.unwrap_or_default(),
                 Err(_) => {
                     if let Err(e) = metadata_db.delete(0, OFFLINE_SUBKEY_WRITES).await {
-                        debug!("offline_subkey_writes format changed, clearing: {}", e);
+                        log_stor!(debug "offline_subkey_writes format changed, clearing: {}", e);
                     }
                     Default::default()
                 }
@@ -212,6 +217,20 @@ impl StorageManagerInner {
             apibail_not_initialized!();
         };
 
+        // Verify the dht schema does not contain the node id
+        {
+            let cfg = self.unlocked_inner.config.get();
+            if let Some(node_id) = cfg.network.routing_table.node_id.get(kind) {
+                if schema.is_member(&node_id.value) {
+                    apibail_invalid_argument!(
+                        "node id can not be schema member",
+                        "schema",
+                        node_id.value
+                    );
+                }
+            }
+        }
+
         // Compile the dht schema
         let schema_data = schema.compile();
 
@@ -228,10 +247,7 @@ impl StorageManagerInner {
 
         // Add new local value record
         let cur_ts = get_aligned_timestamp();
-        let local_record_detail = LocalRecordDetail {
-            safety_selection,
-            value_nodes: vec![],
-        };
+        let local_record_detail = LocalRecordDetail::new(safety_selection);
         let record =
             Record::<LocalRecordDetail>::new(cur_ts, signed_value_descriptor, local_record_detail)?;
 
@@ -270,22 +286,18 @@ impl StorageManagerInner {
         let local_record = Record::new(
             cur_ts,
             remote_record.descriptor().clone(),
-            LocalRecordDetail {
-                safety_selection,
-                value_nodes: vec![],
-            },
+            LocalRecordDetail::new(safety_selection),
         )?;
         local_record_store.new_record(key, local_record).await?;
 
         // Move copy subkey data from remote to local store
         for subkey in remote_record.stored_subkeys().iter() {
-            let Some(subkey_result) = remote_record_store.get_subkey(key, subkey, false).await?
-            else {
+            let Some(get_result) = remote_record_store.get_subkey(key, subkey, false).await? else {
                 // Subkey was missing
                 warn!("Subkey was missing: {} #{}", key, subkey);
                 continue;
             };
-            let Some(subkey_data) = subkey_result.value else {
+            let Some(subkey_data) = get_result.opt_value else {
                 // Subkey was missing
                 warn!("Subkey data was missing: {} #{}", key, subkey);
                 continue;
@@ -294,6 +306,9 @@ impl StorageManagerInner {
                 .set_subkey(key, subkey, subkey_data, WatchUpdateMode::NoUpdate)
                 .await?;
         }
+
+        // Move watches
+        local_record_store.move_watches(key, remote_record_store.move_watches(key, None));
 
         // Delete remote record from store
         remote_record_store.delete_record(key).await?;
@@ -308,11 +323,6 @@ impl StorageManagerInner {
         writer: Option<KeyPair>,
         safety_selection: SafetySelection,
     ) -> VeilidAPIResult<Option<DHTRecordDescriptor>> {
-        // Ensure the record is closed
-        if self.opened_records.contains_key(&key) {
-            apibail_generic!("record is already open and should be closed first");
-        }
-
         // Get local record store
         let Some(local_record_store) = self.local_record_store.as_mut() else {
             apibail_not_initialized!();
@@ -359,7 +369,12 @@ impl StorageManagerInner {
 
         // Write open record
         self.opened_records
-            .insert(key, OpenedRecord::new(writer, safety_selection));
+            .entry(key)
+            .and_modify(|e| {
+                e.set_writer(writer);
+                e.set_safety_selection(safety_selection);
+            })
+            .or_insert_with(|| OpenedRecord::new(writer, safety_selection));
 
         // Make DHT Record Descriptor to return
         let descriptor = DHTRecordDescriptor::new(key, owner, owner_secret, schema);
@@ -371,7 +386,7 @@ impl StorageManagerInner {
         key: TypedKey,
         writer: Option<KeyPair>,
         subkey: ValueSubkey,
-        subkey_result: SubkeyResult,
+        get_result: GetResult,
         safety_selection: SafetySelection,
     ) -> VeilidAPIResult<DHTRecordDescriptor> {
         // Ensure the record is closed
@@ -380,7 +395,7 @@ impl StorageManagerInner {
         }
 
         // Must have descriptor
-        let Some(signed_value_descriptor) = subkey_result.descriptor else {
+        let Some(signed_value_descriptor) = get_result.opt_descriptor else {
             // No descriptor for new record, can't store this
             apibail_generic!("no descriptor");
         };
@@ -409,15 +424,12 @@ impl StorageManagerInner {
         let record = Record::<LocalRecordDetail>::new(
             get_aligned_timestamp(),
             signed_value_descriptor,
-            LocalRecordDetail {
-                safety_selection,
-                value_nodes: vec![],
-            },
+            LocalRecordDetail::new(safety_selection),
         )?;
         local_record_store.new_record(key, record).await?;
 
         // If we got a subkey with the getvalue, it has already been validated against the schema, so store it
-        if let Some(signed_value_data) = subkey_result.value {
+        if let Some(signed_value_data) = get_result.opt_value {
             // Write subkey to local store
             local_record_store
                 .set_subkey(key, subkey, signed_value_data, WatchUpdateMode::NoUpdate)
@@ -446,8 +458,8 @@ impl StorageManagerInner {
 
         let opt_value_nodes = local_record_store.peek_record(key, |r| {
             let d = r.detail();
-            d.value_nodes
-                .iter()
+            d.nodes
+                .keys()
                 .copied()
                 .filter_map(|x| {
                     routing_table
@@ -461,21 +473,46 @@ impl StorageManagerInner {
         Ok(opt_value_nodes)
     }
 
-    pub fn set_value_nodes(
+    pub fn process_fanout_results<'a, I: IntoIterator<Item = (ValueSubkey, &'a FanoutResult)>>(
         &mut self,
         key: TypedKey,
-        value_nodes: Vec<NodeRef>,
+        subkey_results_iter: I,
+        is_set: bool,
     ) -> VeilidAPIResult<()> {
         // Get local record store
         let Some(local_record_store) = self.local_record_store.as_mut() else {
             apibail_not_initialized!();
         };
+        let cur_ts = get_aligned_timestamp();
         local_record_store.with_record_mut(key, |r| {
             let d = r.detail_mut();
-            d.value_nodes = value_nodes
-                .into_iter()
-                .filter_map(|x| x.node_ids().get(key.kind).map(|k| k.value))
-                .collect();
+
+            for (subkey, fanout_result) in subkey_results_iter {
+                for node_id in fanout_result
+                    .value_nodes
+                    .iter()
+                    .filter_map(|x| x.node_ids().get(key.kind).map(|k| k.value))
+                {
+                    let pnd = d.nodes.entry(node_id).or_default();
+                    if is_set || pnd.last_set == Timestamp::default() {
+                        pnd.last_set = cur_ts;
+                    }
+                    pnd.last_seen = cur_ts;
+                    pnd.subkeys.insert(subkey);
+                }
+            }
+
+            // Purge nodes down to the N most recently seen, where N is the consensus count for a set operation
+            let mut nodes_ts = d
+                .nodes
+                .iter()
+                .map(|kv| (*kv.0, kv.1.last_seen))
+                .collect::<Vec<_>>();
+            nodes_ts.sort_by(|a, b| b.1.cmp(&a.1));
+
+            for dead_node_key in nodes_ts.iter().skip(self.set_consensus_count) {
+                d.nodes.remove(&dead_node_key.0);
+            }
         });
         Ok(())
     }
@@ -496,21 +533,21 @@ impl StorageManagerInner {
         key: TypedKey,
         subkey: ValueSubkey,
         want_descriptor: bool,
-    ) -> VeilidAPIResult<SubkeyResult> {
+    ) -> VeilidAPIResult<GetResult> {
         // See if it's in the local record store
         let Some(local_record_store) = self.local_record_store.as_mut() else {
             apibail_not_initialized!();
         };
-        if let Some(subkey_result) = local_record_store
+        if let Some(get_result) = local_record_store
             .get_subkey(key, subkey, want_descriptor)
             .await?
         {
-            return Ok(subkey_result);
+            return Ok(get_result);
         }
 
-        Ok(SubkeyResult {
-            value: None,
-            descriptor: None,
+        Ok(GetResult {
+            opt_value: None,
+            opt_descriptor: None,
         })
     }
 
@@ -534,22 +571,28 @@ impl StorageManagerInner {
         Ok(())
     }
 
-    pub(super) async fn handle_watch_local_value(
+    pub(super) async fn handle_inspect_local_value(
         &mut self,
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
-        expiration: Timestamp,
-        count: u32,
-        target: Target,
-        watcher: CryptoKey,
-    ) -> VeilidAPIResult<Option<Timestamp>> {
+        want_descriptor: bool,
+    ) -> VeilidAPIResult<InspectResult> {
         // See if it's in the local record store
         let Some(local_record_store) = self.local_record_store.as_mut() else {
             apibail_not_initialized!();
         };
-        local_record_store
-            .watch_record(key, subkeys, expiration, count, target, watcher)
-            .await
+        if let Some(inspect_result) = local_record_store
+            .inspect_record(key, subkeys, want_descriptor)
+            .await?
+        {
+            return Ok(inspect_result);
+        }
+
+        Ok(InspectResult {
+            subkeys: ValueSubkeyRangeSet::new(),
+            seqs: vec![],
+            opt_descriptor: None,
+        })
     }
 
     pub(super) async fn handle_get_remote_value(
@@ -557,21 +600,21 @@ impl StorageManagerInner {
         key: TypedKey,
         subkey: ValueSubkey,
         want_descriptor: bool,
-    ) -> VeilidAPIResult<SubkeyResult> {
+    ) -> VeilidAPIResult<GetResult> {
         // See if it's in the remote record store
         let Some(remote_record_store) = self.remote_record_store.as_mut() else {
             apibail_not_initialized!();
         };
-        if let Some(subkey_result) = remote_record_store
+        if let Some(get_result) = remote_record_store
             .get_subkey(key, subkey, want_descriptor)
             .await?
         {
-            return Ok(subkey_result);
+            return Ok(get_result);
         }
 
-        Ok(SubkeyResult {
-            value: None,
-            descriptor: None,
+        Ok(GetResult {
+            opt_value: None,
+            opt_descriptor: None,
         })
     }
 
@@ -609,22 +652,28 @@ impl StorageManagerInner {
         Ok(())
     }
 
-    pub(super) async fn handle_watch_remote_value(
+    pub(super) async fn handle_inspect_remote_value(
         &mut self,
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
-        expiration: Timestamp,
-        count: u32,
-        target: Target,
-        watcher: CryptoKey,
-    ) -> VeilidAPIResult<Option<Timestamp>> {
-        // See if it's in the remote record store
+        want_descriptor: bool,
+    ) -> VeilidAPIResult<InspectResult> {
+        // See if it's in the local record store
         let Some(remote_record_store) = self.remote_record_store.as_mut() else {
             apibail_not_initialized!();
         };
-        remote_record_store
-            .watch_record(key, subkeys, expiration, count, target, watcher)
-            .await
+        if let Some(inspect_result) = remote_record_store
+            .inspect_record(key, subkeys, want_descriptor)
+            .await?
+        {
+            return Ok(inspect_result);
+        }
+
+        Ok(InspectResult {
+            subkeys: ValueSubkeyRangeSet::new(),
+            seqs: vec![],
+            opt_descriptor: None,
+        })
     }
 
     /// # DHT Key = Hash(ownerKeyKind) of: [ ownerKeyValue, schema ]

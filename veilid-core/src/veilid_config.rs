@@ -1,6 +1,20 @@
 use crate::*;
-use directories::ProjectDirs;
-use std::path::PathBuf;
+
+cfg_if::cfg_if! {
+    if #[cfg(not(target_arch = "wasm32"))] {
+        use sysinfo::System;
+        use lazy_static::*;
+        use directories::ProjectDirs;
+
+        lazy_static! {
+            static ref SYSTEM:System = {
+                sysinfo::System::new_with_specifics(
+                    sysinfo::RefreshKind::new().with_memory(sysinfo::MemoryRefreshKind::everything()),
+                )
+            };
+        }
+    }
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 pub type ConfigCallbackReturn = VeilidAPIResult<Box<dyn core::any::Any + Send>>;
@@ -103,8 +117,15 @@ pub struct VeilidConfigUDP {
 
 impl Default for VeilidConfigUDP {
     fn default() -> Self {
+        cfg_if::cfg_if! {
+            if #[cfg(target_arch = "wasm32")] {
+                let enabled = false;
+            } else {
+                let enabled = true;
+            }
+        }
         Self {
-            enabled: true,
+            enabled,
             socket_pool_size: 0,
             listen_address: String::from(""),
             public_address: None,
@@ -135,9 +156,18 @@ pub struct VeilidConfigTCP {
 
 impl Default for VeilidConfigTCP {
     fn default() -> Self {
+        cfg_if::cfg_if! {
+            if #[cfg(target_arch = "wasm32")] {
+                let connect = false;
+                let listen = false;
+            } else {
+                let connect = true;
+                let listen = true;
+            }
+        }
         Self {
-            connect: true,
-            listen: true,
+            connect,
+            listen,
             max_connections: 32,
             listen_address: String::from(""),
             public_address: None,
@@ -151,7 +181,7 @@ impl Default for VeilidConfigTCP {
 /// ws:
 ///     connect: true
 ///     listen: true
-///     max_connections: 16
+///     max_connections: 32
 ///     listen_address: ':5150'
 ///     path: 'ws'
 ///     url: 'ws://localhost:5150/ws'
@@ -171,10 +201,19 @@ pub struct VeilidConfigWS {
 
 impl Default for VeilidConfigWS {
     fn default() -> Self {
+        cfg_if::cfg_if! {
+            if #[cfg(target_arch = "wasm32")] {
+                let connect = true;
+                let listen = false;
+            } else {
+                let connect = true;
+                let listen = true;
+            }
+        }
         Self {
-            connect: true,
-            listen: true,
-            max_connections: 16,
+            connect,
+            listen,
+            max_connections: 32,
             listen_address: String::from(""),
             path: String::from("ws"),
             url: None,
@@ -188,7 +227,7 @@ impl Default for VeilidConfigWS {
 /// wss:
 ///     connect: true
 ///     listen: false
-///     max_connections: 16
+///     max_connections: 32
 ///     listen_address: ':5150'
 ///     path: 'ws'
 ///     url: ''
@@ -211,7 +250,7 @@ impl Default for VeilidConfigWSS {
         Self {
             connect: true,
             listen: false,
-            max_connections: 16,
+            max_connections: 32,
             listen_address: String::from(""),
             path: String::from("ws"),
             url: None,
@@ -254,28 +293,37 @@ pub struct VeilidConfigTLS {
 
 impl Default for VeilidConfigTLS {
     fn default() -> Self {
+        let certificate_path = get_default_ssl_directory("certs/server.crt");
+        let private_key_path = get_default_ssl_directory("keys/server.key");
         Self {
-            certificate_path: get_default_ssl_directory("certs/server.crt"),
-            private_key_path: get_default_ssl_directory("keys/server.key"),
+            certificate_path,
+            private_key_path,
             connection_initial_timeout_ms: 2000,
         }
     }
 }
 
+#[cfg_attr(target_arch = "wasm32", allow(unused_variables))]
 pub fn get_default_ssl_directory(sub_path: &str) -> String {
-    #[cfg(unix)]
-    {
-        let default_path = PathBuf::from("/etc/veilid-server/ssl").join(sub_path);
-        if default_path.exists() {
-            return default_path.to_string_lossy().into();
+    cfg_if::cfg_if! {
+        if #[cfg(target_arch = "wasm32")] {
+            "".to_owned()
+        } else {
+            use std::path::PathBuf;
+            #[cfg(unix)]
+            {
+                let default_path = PathBuf::from("/etc/veilid-server/ssl").join(sub_path);
+                if default_path.exists() {
+                    return default_path.to_string_lossy().into();
+                }
+            }
+            ProjectDirs::from("org", "Veilid", "Veilid")
+                .map(|dirs| dirs.data_local_dir().join("ssl").join(sub_path))
+                .unwrap_or_else(|| PathBuf::from("./ssl").join(sub_path))
+                .to_string_lossy()
+                .into()
         }
     }
-
-    ProjectDirs::from("org", "Veilid", "Veilid")
-        .map(|dirs| dirs.data_local_dir().join("ssl").join(sub_path))
-        .unwrap_or_else(|| PathBuf::from("./ssl").join(sub_path))
-        .to_string_lossy()
-        .into()
 }
 
 /// Configure the Distributed Hash Table (DHT)
@@ -309,8 +357,33 @@ pub struct VeilidConfigDHT {
 
 impl Default for VeilidConfigDHT {
     fn default() -> Self {
+        cfg_if::cfg_if! {
+            if #[cfg(target_arch = "wasm32")] {
+                let local_subkey_cache_size = 128;
+                let local_max_subkey_cache_memory_mb = 256;
+                let remote_subkey_cache_size = 64;
+                let remote_max_records = 64;
+                let remote_max_subkey_cache_memory_mb = 256;
+                let remote_max_storage_space_mb = 128;
+            } else {
+                let local_subkey_cache_size = 1024;
+                let local_max_subkey_cache_memory_mb = if sysinfo::IS_SUPPORTED_SYSTEM {
+                    (SYSTEM.total_memory() / 32u64 / (1024u64 * 1024u64)) as u32
+                } else {
+                    256
+                };
+                let remote_subkey_cache_size = 128;
+                let remote_max_records = 128;
+                let remote_max_subkey_cache_memory_mb = if sysinfo::IS_SUPPORTED_SYSTEM {
+                    (SYSTEM.total_memory() / 32u64 / (1024u64 * 1024u64)) as u32
+                } else {
+                    256
+                };
+                let remote_max_storage_space_mb = 256;
+            }
+        }
+
         Self {
-            // Assuming some reasonable defaults
             max_find_node_count: 20,
             resolve_node_timeout_ms: 10000,
             resolve_node_count: 1,
@@ -324,12 +397,12 @@ impl Default for VeilidConfigDHT {
             min_peer_count: 20,
             min_peer_refresh_time_ms: 60000,
             validate_dial_info_receipt_time_ms: 2000,
-            local_subkey_cache_size: 1024,
-            local_max_subkey_cache_memory_mb: 256,
-            remote_subkey_cache_size: 128,
-            remote_max_records: 128,
-            remote_max_subkey_cache_memory_mb: 256,
-            remote_max_storage_space_mb: 256,
+            local_subkey_cache_size,
+            local_max_subkey_cache_memory_mb,
+            remote_subkey_cache_size,
+            remote_max_records,
+            remote_max_subkey_cache_memory_mb,
+            remote_max_storage_space_mb,
             public_watch_limit: 32,
             member_watch_limit: 8,
             max_watch_expiration_ms: 600000,
@@ -388,10 +461,18 @@ pub struct VeilidConfigRoutingTable {
 
 impl Default for VeilidConfigRoutingTable {
     fn default() -> Self {
+        cfg_if::cfg_if! {
+            if #[cfg(target_arch = "wasm32")] {
+                let bootstrap = vec!["ws://bootstrap.veilid.net:5150/ws".to_string()];
+            } else {
+                let bootstrap = vec!["bootstrap.veilid.net".to_string()];
+            }
+        }
+
         Self {
             node_id: TypedKeyGroup::default(),
             node_id_secret: TypedSecretGroup::default(),
-            bootstrap: vec!["bootstrap.veilid.net".to_string()],
+            bootstrap,
             limit_over_attached: 64,
             limit_fully_attached: 32,
             limit_attached_strong: 16,
@@ -468,21 +549,28 @@ impl Default for VeilidConfigTableStore {
     }
 }
 
+#[cfg_attr(target_arch = "wasm32", allow(unused_variables))]
 fn get_default_store_path(store_type: &str) -> String {
-    #[cfg(unix)]
-    {
-        let globalpath = PathBuf::from(format!("/var/db/veilid-server/{}", store_type));
-        if globalpath.exists() {
-            return globalpath.to_string_lossy().into();
+    cfg_if::cfg_if! {
+        if #[cfg(target_arch = "wasm32")] {
+            "".to_owned()
+        } else {
+            use std::path::PathBuf;
+            #[cfg(unix)]
+            {
+                let globalpath = PathBuf::from(format!("/var/db/veilid-server/{}", store_type));
+                if globalpath.exists() {
+                    return globalpath.to_string_lossy().into();
+                }
+            }
+            ProjectDirs::from("org", "Veilid", "Veilid")
+                .map(|dirs| dirs.data_local_dir().to_path_buf())
+                .unwrap_or_else(|| PathBuf::from("./"))
+                .join(store_type)
+                .to_string_lossy()
+                .into()
         }
     }
-
-    ProjectDirs::from("org", "Veilid", "Veilid")
-        .map(|dirs| dirs.data_local_dir().to_path_buf())
-        .unwrap_or_else(|| PathBuf::from("./"))
-        .join(store_type)
-        .to_string_lossy()
-        .into()
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -520,7 +608,7 @@ impl Default for VeilidConfigProtectedStore {
             always_use_insecure_storage: false,
             directory: get_default_store_path("protected_store"),
             delete: false,
-            device_encryption_key_password: String::from(""),
+            device_encryption_key_password: "".to_owned(),
             new_device_encryption_key_password: None,
         }
     }
@@ -1079,29 +1167,29 @@ impl VeilidConfig {
         let table_key_node_id_secret = format!("node_id_secret_{}", ck);
 
         if node_id.is_none() {
-            debug!("pulling {} from storage", table_key_node_id);
+            log_tstore!(debug "pulling {} from storage", table_key_node_id);
             if let Ok(Some(stored_node_id)) = config_table
                 .load_json::<TypedKey>(0, table_key_node_id.as_bytes())
                 .await
             {
-                debug!("{} found in storage", table_key_node_id);
+                log_tstore!(debug "{} found in storage", table_key_node_id);
                 node_id = Some(stored_node_id);
             } else {
-                debug!("{} not found in storage", table_key_node_id);
+                log_tstore!(debug "{} not found in storage", table_key_node_id);
             }
         }
 
         // See if node id secret was previously stored in the protected store
         if node_id_secret.is_none() {
-            debug!("pulling {} from storage", table_key_node_id_secret);
+            log_tstore!(debug "pulling {} from storage", table_key_node_id_secret);
             if let Ok(Some(stored_node_id_secret)) = config_table
                 .load_json::<TypedSecret>(0, table_key_node_id_secret.as_bytes())
                 .await
             {
-                debug!("{} found in storage", table_key_node_id_secret);
+                log_tstore!(debug "{} found in storage", table_key_node_id_secret);
                 node_id_secret = Some(stored_node_id_secret);
             } else {
-                debug!("{} not found in storage", table_key_node_id_secret);
+                log_tstore!(debug "{} not found in storage", table_key_node_id_secret);
             }
         }
 
@@ -1118,7 +1206,7 @@ impl VeilidConfig {
                 (node_id, node_id_secret)
             } else {
                 // If we still don't have a valid node id, generate one
-                debug!("generating new node_id_{}", ck);
+                log_tstore!(debug "generating new node_id_{}", ck);
                 let kp = vcrypto.generate_keypair();
                 (TypedKey::new(ck, kp.key), TypedSecret::new(ck, kp.secret))
             };
@@ -1170,8 +1258,6 @@ impl VeilidConfig {
             c.network.routing_table.node_id_secret = out_node_id_secret;
             Ok(())
         })?;
-
-        trace!("init_node_ids complete");
 
         Ok(())
     }

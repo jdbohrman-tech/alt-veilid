@@ -74,8 +74,7 @@ impl RPCProcessor {
             vcrypto: vcrypto.clone(),
         });
 
-        #[cfg(feature="debug-dht")]
-        log_rpc!(debug "{}", debug_string);
+        log_dht!(debug "{}", debug_string);
 
         let waitable_reply = network_result_try!(
             self.question(dest.clone(), question, Some(question_context))
@@ -102,8 +101,7 @@ impl RPCProcessor {
         };
 
         let (value, peers, descriptor) = get_value_a.destructure();
-        #[cfg(feature="debug-dht")]
-        {   
+        if debug_target_enabled!("dht") {
             let debug_string_value = value.as_ref().map(|v| {
                 format!(" len={} seq={} writer={}",
                     v.value_data().data().len(),
@@ -126,10 +124,10 @@ impl RPCProcessor {
                 dest
             );
 
-            log_rpc!(debug "{}", debug_string_answer);
+            log_dht!(debug "{}", debug_string_answer);
             
             let peer_ids:Vec<String> = peers.iter().filter_map(|p| p.node_ids().get(key.kind).map(|k| k.to_string())).collect();
-            log_rpc!(debug "Peers: {:#?}", peer_ids);
+            log_dht!(debug "Peers: {:#?}", peer_ids);
         }
 
         // Validate peers returned are, in fact, closer to the key than the node we sent this to
@@ -167,6 +165,8 @@ impl RPCProcessor {
             },
         )))
     }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////
 
     #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]
     pub(crate) async fn process_get_value_q(
@@ -213,8 +213,7 @@ impl RPCProcessor {
         let routing_table = self.routing_table();
         let closer_to_key_peers = network_result_try!(routing_table.find_preferred_peers_closer_to_key(key, vec![CAP_DHT, CAP_DHT_WATCH]));
 
-        #[cfg(feature="debug-dht")]
-        {   
+        if debug_target_enabled!("dht") {
             let debug_string = format!(
                 "IN <=== GetValueQ({} #{}{}) <== {}",
                 key,
@@ -227,7 +226,7 @@ impl RPCProcessor {
                 msg.header.direct_sender_node_id()
             );
 
-            log_rpc!(debug "{}", debug_string);
+            log_dht!(debug "{}", debug_string);
         }
 
         // See if we would have accepted this as a set
@@ -235,7 +234,7 @@ impl RPCProcessor {
             let c = self.config.get();
             c.network.dht.set_value_count as usize
         };
-        let (subkey_result_value, subkey_result_descriptor) = if closer_to_key_peers.len() >= set_value_count {
+        let (get_result_value, get_result_descriptor) = if closer_to_key_peers.len() >= set_value_count {
             // Not close enough
             (None, None)
         } else {
@@ -243,16 +242,15 @@ impl RPCProcessor {
 
             // See if we have this record ourselves
             let storage_manager = self.storage_manager();
-            let subkey_result = network_result_try!(storage_manager
+            let get_result = network_result_try!(storage_manager
                 .inbound_get_value(key, subkey, want_descriptor)
                 .await
                 .map_err(RPCError::internal)?);
-            (subkey_result.value, subkey_result.descriptor)
+            (get_result.opt_value, get_result.opt_descriptor)
         };
 
-        #[cfg(feature="debug-dht")]
-        {
-            let debug_string_value = subkey_result_value.as_ref().map(|v| {
+        if debug_target_enabled!("dht") {
+            let debug_string_value = get_result_value.as_ref().map(|v| {
                 format!(" len={} seq={} writer={}",
                     v.value_data().data().len(),
                     v.value_data().seq(),
@@ -265,7 +263,7 @@ impl RPCProcessor {
                 key,
                 subkey,
                 debug_string_value,
-                if subkey_result_descriptor.is_some() {
+                if get_result_descriptor.is_some() {
                     " +desc"
                 } else {
                     ""
@@ -274,14 +272,14 @@ impl RPCProcessor {
                 msg.header.direct_sender_node_id()
             );
         
-            log_rpc!(debug "{}", debug_string_answer);
+            log_dht!(debug "{}", debug_string_answer);
         }
             
         // Make GetValue answer
         let get_value_a = RPCOperationGetValueA::new(
-            subkey_result_value.map(|x| (*x).clone()),
+            get_result_value.map(|x| (*x).clone()),
             closer_to_key_peers,
-            subkey_result_descriptor.map(|x| (*x).clone()),
+            get_result_descriptor.map(|x| (*x).clone()),
         )?;
 
         // Send GetValue answer

@@ -179,7 +179,14 @@ impl AttachmentManager {
     fn update_attaching_detaching_state(&self, state: AttachmentState) {
         let update_callback = {
             let mut inner = self.inner.lock();
+
+            // Clear routing table health so when we start measuring it we start from scratch
+            inner.last_routing_table_health = None;
+
+            // Set attachment state directly
             inner.last_attachment_state = state;
+
+            // Set timestamps
             if state == AttachmentState::Attaching {
                 inner.attach_ts = Some(get_aligned_timestamp());
             } else if state == AttachmentState::Detached {
@@ -189,9 +196,12 @@ impl AttachmentManager {
             } else {
                 unreachable!("don't use this for attached states, use update_attachment()");
             }
+
+            // Get callback
             inner.update_callback.clone()
         };
 
+        // Send update
         if let Some(update_callback) = update_callback {
             update_callback(VeilidUpdate::Attachment(Box::new(VeilidStateAttachment {
                 state,
@@ -203,7 +213,7 @@ impl AttachmentManager {
 
     #[instrument(level = "debug", skip(self))]
     async fn attachment_maintainer(self) {
-        debug!("attachment starting");
+        log_net!(debug "attachment starting");
         self.update_attaching_detaching_state(AttachmentState::Attaching);
 
         let netman = self.network_manager();
@@ -217,7 +227,7 @@ impl AttachmentManager {
                 break;
             }
 
-            debug!("started maintaining peers");
+            log_net!(debug "started maintaining peers");
             while self.inner.lock().maintain_peers {
                 // tick network manager
                 if let Err(err) = netman.tick().await {
@@ -241,32 +251,31 @@ impl AttachmentManager {
                 // sleep should be at the end in case maintain_peers changes state
                 sleep(1000).await;
             }
-            debug!("stopped maintaining peers");
+            log_net!(debug "stopped maintaining peers");
 
             if !restart {
                 self.update_attaching_detaching_state(AttachmentState::Detaching);
-                debug!("attachment stopping");
+                log_net!(debug "attachment stopping");
             }
 
-            debug!("stopping network");
+            log_net!(debug "stopping network");
             netman.shutdown().await;
 
             if !restart {
                 break;
             }
 
-            debug!("completely restarting attachment");
+            log_net!(debug "completely restarting attachment");
             // chill out for a second first, give network stack time to settle out
             sleep(1000).await;
         }
 
         self.update_attaching_detaching_state(AttachmentState::Detached);
-        debug!("attachment stopped");
+        log_net!(debug "attachment stopped");
     }
 
     #[instrument(level = "debug", skip_all, err)]
     pub async fn init(&self, update_callback: UpdateCallback) -> EyreResult<()> {
-        trace!("init");
         {
             let mut inner = self.inner.lock();
             inner.update_callback = Some(update_callback.clone());

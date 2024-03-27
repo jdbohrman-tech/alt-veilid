@@ -20,7 +20,10 @@ impl SignedValueDescriptor {
 
     pub fn validate(&self, vcrypto: CryptoSystemVersion) -> VeilidAPIResult<()> {
         // validate signature
-        vcrypto.verify(&self.owner, &self.schema_data, &self.signature)
+        vcrypto.verify(&self.owner, &self.schema_data, &self.signature)?;
+        // validate schema
+        DHTSchema::try_from(self.schema_data.as_slice())?;
+        Ok(())
     }
 
     pub fn owner(&self) -> &PublicKey {

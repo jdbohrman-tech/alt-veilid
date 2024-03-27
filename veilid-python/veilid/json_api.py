@@ -23,6 +23,8 @@ from .types import (
     CryptoKeyDistance,
     CryptoKind,
     DHTRecordDescriptor,
+    DHTRecordReport,
+    DHTReportScope,
     DHTSchema,
     HashDigest,
     KeyPair,
@@ -109,8 +111,12 @@ class _JsonVeilidAPI(VeilidAPI):
         try:
             self.reader = None
             assert self.writer is not None
-            self.writer.close()
-            await self.writer.wait_closed()
+            try:
+                self.writer.close()
+                await self.writer.wait_closed()
+            except:
+                # Already closed
+                pass
             self.writer = None
 
             for reqid, reqfuture in self.in_flight_requests.items():
@@ -432,6 +438,9 @@ class _JsonVeilidAPI(VeilidAPI):
         v = await self.send_ndjson_request(Operation.VEILID_VERSION)
         return VeilidVersion(v["major"], v["minor"], v["patch"])
 
+    async def default_veilid_config(self) -> str:
+        return raise_api_result(await self.send_ndjson_request(Operation.DEFAULT_VEILID_CONFIG))
+
 
 ######################################################
 
@@ -572,7 +581,7 @@ class _JsonRoutingContext(RoutingContext):
         )
 
     async def open_dht_record(
-        self, key: TypedKey, writer: Optional[KeyPair]
+        self, key: TypedKey, writer: Optional[KeyPair] = None
     ) -> DHTRecordDescriptor:
         return DHTRecordDescriptor.from_json(
             raise_api_result(
@@ -626,7 +635,7 @@ class _JsonRoutingContext(RoutingContext):
         return None if ret is None else ValueData.from_json(ret)
 
     async def set_dht_value(
-        self, key: TypedKey, subkey: ValueSubkey, data: bytes
+        self, key: TypedKey, subkey: ValueSubkey, data: bytes, writer: Optional[KeyPair] = None
     ) -> Optional[ValueData]:
         ret = raise_api_result(
             await self.api.send_ndjson_request(
@@ -637,6 +646,7 @@ class _JsonRoutingContext(RoutingContext):
                 key=key,
                 subkey=subkey,
                 data=data,
+                writer=writer,
             )
         )
         return None if ret is None else ValueData.from_json(ret)
@@ -657,7 +667,7 @@ class _JsonRoutingContext(RoutingContext):
                     rc_op=RoutingContextOperation.WATCH_DHT_VALUES,
                     key=key,
                     subkeys=subkeys,
-                    expiration=expiration,
+                    expiration=str(expiration),
                     count=count,
                 )
             )
@@ -676,6 +686,28 @@ class _JsonRoutingContext(RoutingContext):
                 subkeys=subkeys,
             )
         )
+
+    async def inspect_dht_record(
+        self,
+        key: TypedKey,
+        subkeys: list[tuple[ValueSubkey, ValueSubkey]],
+        scope: DHTReportScope,
+    ) -> DHTRecordReport:
+        return DHTRecordReport.from_json(            
+            raise_api_result(
+                await self.api.send_ndjson_request(
+                    Operation.ROUTING_CONTEXT,
+                    validate=validate_rc_op,
+                    rc_id=self.rc_id,
+                    rc_op=RoutingContextOperation.INSPECT_DHT_RECORD,
+                    key=key,
+                    subkeys=subkeys,
+                    scope=scope,
+                )
+            )
+        )
+        
+
 
 
 ######################################################
@@ -945,6 +977,21 @@ class _JsonCryptoSystem(CryptoSystem):
                     cs_op=CryptoSystemOperation.COMPUTE_DH,
                     key=key,
                     secret=secret,
+                )
+            )
+        )
+
+    async def generate_shared_secret(self, key: PublicKey, secret: SecretKey, domain: bytes) -> SharedSecret:
+        return SharedSecret(
+            raise_api_result(
+                await self.api.send_ndjson_request(
+                    Operation.CRYPTO_SYSTEM,
+                    validate=validate_cs_op,
+                    cs_id=self.cs_id,
+                    cs_op=CryptoSystemOperation.GENERATE_SHARED_SECRET,
+                    key=key,
+                    secret=secret,
+                    domain=domain,
                 )
             )
         )

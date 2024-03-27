@@ -849,8 +849,7 @@ impl RouteSpecStore {
         // Get all valid routes, allow routes that need testing
         // but definitely prefer routes that have been recently tested
         for (id, rssd) in inner.content.iter_details() {
-            if rssd.get_stability() >= stability
-                && rssd.is_sequencing_match(sequencing)
+            if rssd.is_sequencing_match(sequencing)
                 && rssd.hop_count() >= min_hop_count
                 && rssd.hop_count() <= max_hop_count
                 && rssd.get_directions().is_superset(directions)
@@ -864,6 +863,7 @@ impl RouteSpecStore {
 
         // Sort the routes by preference
         routes.sort_by(|a, b| {
+            // Prefer routes that don't need testing
             let a_needs_testing = a.1.get_stats().needs_testing(cur_ts);
             let b_needs_testing = b.1.get_stats().needs_testing(cur_ts);
             if !a_needs_testing && b_needs_testing {
@@ -872,6 +872,18 @@ impl RouteSpecStore {
             if !b_needs_testing && a_needs_testing {
                 return cmp::Ordering::Greater;
             }
+
+            // Prefer routes that meet the stability selection
+            let a_meets_stability = a.1.get_stability() >= stability;
+            let b_meets_stability = b.1.get_stability() >= stability;
+            if a_meets_stability && !b_meets_stability {
+                return cmp::Ordering::Less;
+            }
+            if b_meets_stability && !a_meets_stability {
+                return cmp::Ordering::Greater;
+            }
+
+            // Prefer faster routes
             let a_latency = a.1.get_stats().latency_stats().average;
             let b_latency = b.1.get_stats().latency_stats().average;
 
@@ -903,10 +915,14 @@ impl RouteSpecStore {
         F: FnMut(&RouteId, &RemotePrivateRouteInfo) -> Option<R>,
     {
         let inner = self.inner.lock();
-        let mut out = Vec::with_capacity(inner.cache.get_remote_private_route_count());
-        for info in inner.cache.iter_remote_private_routes() {
-            if let Some(x) = filter(info.0, info.1) {
-                out.push(x);
+        let cur_ts = get_aligned_timestamp();
+        let remote_route_ids = inner.cache.get_remote_private_route_ids(cur_ts);
+        let mut out = Vec::with_capacity(remote_route_ids.len());
+        for id in remote_route_ids {
+            if let Some(rpri) = inner.cache.peek_remote_private_route(cur_ts, &id) {
+                if let Some(x) = filter(&id, rpri) {
+                    out.push(x);
+                }
             }
         }
         out
@@ -916,7 +932,7 @@ impl RouteSpecStore {
     pub fn debug_route(&self, id: &RouteId) -> Option<String> {
         let inner = &mut *self.inner.lock();
         let cur_ts = get_aligned_timestamp();
-        if let Some(rpri) = inner.cache.peek_remote_private_route_mut(cur_ts, id) {
+        if let Some(rpri) = inner.cache.peek_remote_private_route(cur_ts, id) {
             return Some(format!("{:#?}", rpri));
         }
         if let Some(rssd) = inner.content.get_detail(id) {
@@ -1001,7 +1017,7 @@ impl RouteSpecStore {
                 first_hop.set_sequencing(sequencing);
 
                 // Return the compiled safety route
-                //println!("compile_safety_route profile (stub): {} us", (get_timestamp() - profile_start_ts));
+                //info!("compile_safety_route profile (stub): {} us", (get_timestamp() - profile_start_ts));
                 return Ok(CompiledRoute {
                     safety_route: SafetyRoute::new_stub(
                         routing_table.node_id(crypto_kind),
@@ -1073,7 +1089,7 @@ impl RouteSpecStore {
                     first_hop,
                 };
                 // Return compiled route
-                //println!("compile_safety_route profile (cached): {} us", (get_timestamp() - profile_start_ts));
+                //info!("compile_safety_route profile (cached): {} us", (get_timestamp() - profile_start_ts));
                 return Ok(compiled_route);
             }
         }
@@ -1192,7 +1208,7 @@ impl RouteSpecStore {
         };
 
         // Return compiled route
-        //println!("compile_safety_route profile (uncached): {} us", (get_timestamp() - profile_start_ts));
+        //info!("compile_safety_route profile (uncached): {} us", (get_timestamp() - profile_start_ts));
         Ok(compiled_route)
     }
 
@@ -1575,7 +1591,7 @@ impl RouteSpecStore {
     /// Check to see if this remote (not ours) private route has seen our current node info yet
     /// This happens when you communicate with a private route without a safety route
     pub fn has_remote_private_route_seen_our_node_info(&self, key: &PublicKey) -> bool {
-        let inner = &mut *self.inner.lock();
+        let inner = &*self.inner.lock();
 
         // Check for local route. If this is not a remote private route,
         // we may be running a test and using our own local route as the destination private route.
@@ -1586,7 +1602,7 @@ impl RouteSpecStore {
 
         if let Some(rrid) = inner.cache.get_remote_private_route_id_by_key(key) {
             let cur_ts = get_aligned_timestamp();
-            if let Some(rpri) = inner.cache.peek_remote_private_route_mut(cur_ts, &rrid) {
+            if let Some(rpri) = inner.cache.peek_remote_private_route(cur_ts, &rrid) {
                 let our_node_info_ts = self
                     .unlocked_inner
                     .routing_table
@@ -1634,7 +1650,7 @@ impl RouteSpecStore {
     }
 
     /// Get the route statistics for any route we know about, local or remote
-    pub fn with_route_stats<F, R>(&self, cur_ts: Timestamp, key: &PublicKey, f: F) -> Option<R>
+    pub fn with_route_stats_mut<F, R>(&self, cur_ts: Timestamp, key: &PublicKey, f: F) -> Option<R>
     where
         F: FnOnce(&mut RouteStats) -> R,
     {

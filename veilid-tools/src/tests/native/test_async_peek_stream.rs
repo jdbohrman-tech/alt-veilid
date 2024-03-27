@@ -23,7 +23,7 @@ async fn make_tcp_loopback() -> Result<(TcpStream, TcpStream), io::Error> {
 
     let accept_future = async {
         let (accepted_stream, peer_address) = listener.accept().await?;
-        trace!("connection from {}", peer_address);
+        trace!(target: "net", "connection from {}", peer_address);
         accepted_stream.set_nodelay(true)?;
         Result::<TcpStream, io::Error>::Ok(accepted_stream)
     };

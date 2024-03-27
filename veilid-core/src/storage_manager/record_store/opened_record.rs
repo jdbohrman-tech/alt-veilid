@@ -2,6 +2,8 @@ use super::*;
 
 #[derive(Clone, Debug)]
 pub(in crate::storage_manager) struct ActiveWatch {
+    /// The watch id returned from the watch node
+    pub id: u64,
     /// The expiration of a successful watch
     pub expiration_ts: Timestamp,
     /// Which node accepted the watch
@@ -42,9 +44,15 @@ impl OpenedRecord {
     pub fn writer(&self) -> Option<&KeyPair> {
         self.writer.as_ref()
     }
+    pub fn set_writer(&mut self, writer: Option<KeyPair>) {
+        self.writer = writer;
+    }
 
     pub fn safety_selection(&self) -> SafetySelection {
         self.safety_selection
+    }
+    pub fn set_safety_selection(&mut self, safety_selection: SafetySelection) {
+        self.safety_selection = safety_selection;
     }
 
     pub fn set_active_watch(&mut self, active_watch: ActiveWatch) {

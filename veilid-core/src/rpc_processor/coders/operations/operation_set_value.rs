@@ -109,6 +109,8 @@ impl RPCOperationSetValueQ {
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #[derive(Debug, Clone)]
 pub(in crate::rpc_processor) struct RPCOperationSetValueA {
     set: bool,
@@ -139,13 +141,13 @@ impl RPCOperationSetValueA {
             panic!("Wrong context type for SetValueA");
         };
 
-        if let Some(value) = &self.value {
-            // Ensure the descriptor itself validates
-            set_value_context
-                .descriptor
-                .validate(set_value_context.vcrypto.clone())
-                .map_err(RPCError::protocol)?;
+        // Ensure the descriptor itself validates
+        set_value_context
+            .descriptor
+            .validate(set_value_context.vcrypto.clone())
+            .map_err(RPCError::protocol)?;
 
+        if let Some(value) = &self.value {
             // And the signed value data
             value
                 .validate(

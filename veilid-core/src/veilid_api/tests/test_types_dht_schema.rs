@@ -4,7 +4,7 @@ use crate::*;
 // dlft
 
 pub async fn test_dhtschemadflt() {
-    let orig = DHTSchemaDFLT { o_cnt: 9 };
+    let orig = DHTSchemaDFLT::new(9);
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();
 
     assert_eq!(orig, copy);
@@ -13,19 +13,22 @@ pub async fn test_dhtschemadflt() {
 // mod
 
 pub async fn test_dhtschema() {
-    let orig = DHTSchema::SMPL(DHTSchemaSMPL {
-        o_cnt: 91,
-        members: vec![
-            DHTSchemaSMPLMember {
-                m_key: fix_cryptokey(),
-                m_cnt: 5,
-            },
-            DHTSchemaSMPLMember {
-                m_key: fix_cryptokey(),
-                m_cnt: 6,
-            },
-        ],
-    });
+    let orig = DHTSchema::SMPL(
+        DHTSchemaSMPL::new(
+            91,
+            vec![
+                DHTSchemaSMPLMember {
+                    m_key: fix_cryptokey(),
+                    m_cnt: 5,
+                },
+                DHTSchemaSMPLMember {
+                    m_key: fix_cryptokey(),
+                    m_cnt: 6,
+                },
+            ],
+        )
+        .unwrap(),
+    );
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();
 
     assert_eq!(orig, copy);
@@ -44,9 +47,9 @@ pub async fn test_dhtschemasmplmember() {
 }
 
 pub async fn test_dhtschemasmpl() {
-    let orig = DHTSchemaSMPL {
-        o_cnt: 91,
-        members: vec![
+    let orig = DHTSchemaSMPL::new(
+        91,
+        vec![
             DHTSchemaSMPLMember {
                 m_key: fix_cryptokey(),
                 m_cnt: 8,
@@ -56,7 +59,8 @@ pub async fn test_dhtschemasmpl() {
                 m_cnt: 9,
             },
         ],
-    };
+    )
+    .unwrap();
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();
 
     assert_eq!(orig, copy);

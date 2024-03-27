@@ -80,7 +80,7 @@ impl ClientApiConnection {
     async fn process_veilid_update(&self, update: json::JsonValue) {
         let comproc = self.inner.lock().comproc.clone();
         let Some(kind) = update["kind"].as_str() else {
-            comproc.log_message(Level::Error, format!("missing update kind: {}", update));
+            comproc.log_message(Level::Error, &format!("missing update kind: {}", update));
             return;
         };
         match kind {
@@ -110,7 +110,7 @@ impl ClientApiConnection {
                 comproc.update_value_change(&update);
             }
             _ => {
-                comproc.log_message(Level::Error, format!("unknown update kind: {}", update));
+                comproc.log_message(Level::Error, &format!("unknown update kind: {}", update));
             }
         }
     }
@@ -386,6 +386,27 @@ impl ClientApiConnection {
         req["args"].push("ChangeLogLevel").unwrap();
         req["args"].push(layer).unwrap();
         req["args"].push(log_level).unwrap();
+        let Some(resp) = self.perform_request(req).await else {
+            return Err("Cancelled".to_owned());
+        };
+        if resp.has_key("error") {
+            return Err(resp["error"].to_string());
+        }
+        Ok(())
+    }
+
+    pub async fn server_change_log_ignore(
+        &self,
+        layer: String,
+        log_ignore: String,
+    ) -> Result<(), String> {
+        trace!("ClientApiConnection::change_log_ignore");
+        let mut req = json::JsonValue::new_object();
+        req["op"] = "Control".into();
+        req["args"] = json::JsonValue::new_array();
+        req["args"].push("ChangeLogIgnore").unwrap();
+        req["args"].push(layer).unwrap();
+        req["args"].push(log_ignore).unwrap();
         let Some(resp) = self.perform_request(req).await else {
             return Err("Cancelled".to_owned());
         };

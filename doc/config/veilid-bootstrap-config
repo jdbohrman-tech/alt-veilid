@@ -17,7 +17,7 @@ logging:
     enabled: false
 core:
   capabilities:
-    disable: ['TUNL','SGNL','RLAY','DIAL','DHTV','APPM','ROUT']
+    disable: ['TUNL','SGNL','RLAY','DIAL','DHTV','DHTW','APPM','ROUT']
   network:
     upnp: false
     dht:

@@ -68,28 +68,41 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
   }
 
   @override
-  VeilidRoutingContextJS withDefaultSafety() {
+  VeilidRoutingContextJS withDefaultSafety({bool closeSelf = false}) {
     final id = _ctx.requireId();
     final int newId =
         js_util.callMethod(wasm, 'routing_context_with_default_safety', [id]);
-    return VeilidRoutingContextJS._(_Ctx(newId, _ctx.js));
+    final out = VeilidRoutingContextJS._(_Ctx(newId, _ctx.js));
+    if (closeSelf) {
+      close();
+    }
+    return out;
   }
 
   @override
-  VeilidRoutingContextJS withSafety(SafetySelection safetySelection) {
+  VeilidRoutingContextJS withSafety(SafetySelection safetySelection,
+      {bool closeSelf = false}) {
     final id = _ctx.requireId();
     final newId = js_util.callMethod<int>(
         wasm, 'routing_context_with_safety', [id, jsonEncode(safetySelection)]);
-
-    return VeilidRoutingContextJS._(_Ctx(newId, _ctx.js));
+    final out = VeilidRoutingContextJS._(_Ctx(newId, _ctx.js));
+    if (closeSelf) {
+      close();
+    }
+    return out;
   }
 
   @override
-  VeilidRoutingContextJS withSequencing(Sequencing sequencing) {
+  VeilidRoutingContextJS withSequencing(Sequencing sequencing,
+      {bool closeSelf = false}) {
     final id = _ctx.requireId();
     final newId = js_util.callMethod<int>(
         wasm, 'routing_context_with_sequencing', [id, jsonEncode(sequencing)]);
-    return VeilidRoutingContextJS._(_Ctx(newId, _ctx.js));
+    final out = VeilidRoutingContextJS._(_Ctx(newId, _ctx.js));
+    if (closeSelf) {
+      close();
+    }
+    return out;
   }
 
   @override
@@ -129,8 +142,8 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
   }
 
   @override
-  Future<DHTRecordDescriptor> openDHTRecord(
-      TypedKey key, KeyPair? writer) async {
+  Future<DHTRecordDescriptor> openDHTRecord(TypedKey key,
+      {KeyPair? writer}) async {
     final id = _ctx.requireId();
     return DHTRecordDescriptor.fromJson(jsonDecode(await _wrapApiPromise(js_util
         .callMethod(wasm, 'routing_context_open_dht_record', [
@@ -155,8 +168,8 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
   }
 
   @override
-  Future<ValueData?> getDHTValue(
-      TypedKey key, int subkey, bool forceRefresh) async {
+  Future<ValueData?> getDHTValue(TypedKey key, int subkey,
+      {bool forceRefresh = false}) async {
     final id = _ctx.requireId();
     final opt = await _wrapApiPromise<String?>(js_util.callMethod(
         wasm,
@@ -170,13 +183,17 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
   }
 
   @override
-  Future<ValueData?> setDHTValue(
-      TypedKey key, int subkey, Uint8List data) async {
+  Future<ValueData?> setDHTValue(TypedKey key, int subkey, Uint8List data,
+      {KeyPair? writer}) async {
     final id = _ctx.requireId();
-    final opt = await _wrapApiPromise<String?>(js_util.callMethod(
-        wasm,
-        'routing_context_set_dht_value',
-        [id, jsonEncode(key), subkey, base64UrlNoPadEncode(data)]));
+    final opt = await _wrapApiPromise<String?>(
+        js_util.callMethod(wasm, 'routing_context_set_dht_value', [
+      id,
+      jsonEncode(key),
+      subkey,
+      base64UrlNoPadEncode(data),
+      if (writer != null) jsonEncode(writer) else null
+    ]));
     if (opt == null) {
       return null;
     }
@@ -190,7 +207,7 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
       Timestamp? expiration,
       int? count}) async {
     subkeys ??= [];
-    expiration ??= Timestamp(value: BigInt.zero);
+    expiration ??= Timestamp.zero();
     count ??= 0xFFFFFFFF;
 
     final id = _ctx.requireId();
@@ -214,6 +231,18 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
         wasm,
         'routing_context_cancel_dht_watch',
         [id, jsonEncode(key), jsonEncode(subkeys)]));
+  }
+
+  @override
+  Future<DHTRecordReport> inspectDHTRecord(TypedKey key,
+      {List<ValueSubkeyRange>? subkeys,
+      DHTReportScope scope = DHTReportScope.local}) async {
+    subkeys ??= [];
+
+    final id = _ctx.requireId();
+    return DHTRecordReport.fromJson(jsonDecode(await _wrapApiPromise(js_util
+        .callMethod(wasm, 'routing_context_inspect_dht_record',
+            [id, jsonEncode(key), jsonEncode(subkeys), jsonEncode(scope)]))));
   }
 }
 
@@ -242,6 +271,16 @@ class VeilidCryptoSystemJS extends VeilidCryptoSystem {
           wasm,
           'crypto_compute_dh',
           [_kind, jsonEncode(key), jsonEncode(secret)]))));
+  @override
+  Future<SharedSecret> generateSharedSecret(
+          PublicKey key, SecretKey secret, Uint8List domain) async =>
+      SharedSecret.fromJson(jsonDecode(await _wrapApiPromise(js_util.callMethod(
+          wasm, 'crypto_generate_shared_secret', [
+        _kind,
+        jsonEncode(key),
+        jsonEncode(secret),
+        base64UrlNoPadEncode(domain)
+      ]))));
 
   @override
   Future<Uint8List> randomBytes(int len) async =>
@@ -554,6 +593,13 @@ class VeilidJS extends Veilid {
   }
 
   @override
+  void changeLogIgnore(String layer, List<String> changes) {
+    final changesJsonString = jsonEncode(changes.join(','));
+    js_util.callMethod<void>(
+        wasm, 'change_log_ignore', [layer, changesJsonString]);
+  }
+
+  @override
   Future<Stream<VeilidUpdate>> startupVeilidCore(VeilidConfig config) async {
     final streamController = StreamController<VeilidUpdate>();
     void updateCallback(String update) {
@@ -593,7 +639,7 @@ class VeilidJS extends Veilid {
   List<CryptoKind> validCryptoKinds() {
     final vck = jsonDecode(js_util.callMethod(wasm, 'valid_crypto_kinds', []))
         as List<dynamic>;
-    return vck.map((v) => v as CryptoKind).toList();
+    return vck.cast<CryptoKind>();
   }
 
   @override
@@ -661,8 +707,8 @@ class VeilidJS extends Veilid {
   }
 
   @override
-  Future<void> releasePrivateRoute(String key) =>
-      _wrapApiPromise(js_util.callMethod(wasm, 'release_private_route', [key]));
+  Future<void> releasePrivateRoute(String routeId) => _wrapApiPromise(
+      js_util.callMethod(wasm, 'release_private_route', [routeId]));
 
   @override
   Future<void> appCallReply(String callId, Uint8List message) {
@@ -701,4 +747,8 @@ class VeilidJS extends Veilid {
     return VeilidVersion(jsonVersion['major'] as int,
         jsonVersion['minor'] as int, jsonVersion['patch'] as int);
   }
+
+  @override
+  String defaultVeilidConfig() =>
+      js_util.callMethod(wasm, 'default_veilid_config', []);
 }

@@ -8,6 +8,7 @@ mod rpc_app_message;
 mod rpc_error;
 mod rpc_find_node;
 mod rpc_get_value;
+mod rpc_inspect_value;
 mod rpc_return_receipt;
 mod rpc_route;
 mod rpc_set_value;
@@ -168,14 +169,14 @@ pub(crate) struct RPCMessage {
     opt_sender_nr: Option<NodeRef>,
 }
 
+#[instrument(skip_all, err)]
 pub fn builder_to_vec<'a, T>(builder: capnp::message::Builder<T>) -> Result<Vec<u8>, RPCError>
 where
     T: capnp::message::Allocator + 'a,
 {
     let mut buffer = vec![];
     capnp::serialize_packed::write_message(&mut buffer, &builder)
-        .map_err(RPCError::protocol)
-        .map_err(logthru_rpc!())?;
+        .map_err(RPCError::protocol)?;
     Ok(buffer)
 }
 
@@ -373,7 +374,7 @@ impl RPCProcessor {
 
     #[instrument(level = "debug", skip_all, err)]
     pub async fn startup(&self) -> EyreResult<()> {
-        debug!("startup rpc processor");
+        log_rpc!(debug "startup rpc processor");
         {
             let mut inner = self.inner.lock();
 
@@ -382,7 +383,7 @@ impl RPCProcessor {
             inner.stop_source = Some(StopSource::new());
 
             // spin up N workers
-            trace!(
+            log_rpc!(
                 "Spinning up {} RPC workers",
                 self.unlocked_inner.concurrency
             );
@@ -408,7 +409,7 @@ impl RPCProcessor {
 
     #[instrument(level = "debug", skip_all)]
     pub async fn shutdown(&self) {
-        debug!("starting rpc processor shutdown");
+        log_rpc!(debug "starting rpc processor shutdown");
 
         // Stop storage manager from using us
         self.storage_manager.set_rpc_processor(None).await;
@@ -424,17 +425,17 @@ impl RPCProcessor {
             // drop the stop
             drop(inner.stop_source.take());
         }
-        debug!("stopping {} rpc worker tasks", unord.len());
+        log_rpc!(debug "stopping {} rpc worker tasks", unord.len());
 
         // Wait for them to complete
         while unord.next().await.is_some() {}
 
-        debug!("resetting rpc processor state");
+        log_rpc!(debug "resetting rpc processor state");
 
         // Release the rpc processor
         *self.inner.lock() = Self::new_inner();
 
-        debug!("finished rpc processor shutdown");
+        log_rpc!(debug "finished rpc processor shutdown");
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -469,6 +470,11 @@ impl RPCProcessor {
         safety_selection: SafetySelection,
     ) -> TimeoutOr<Result<Option<NodeRef>, RPCError>> {
         let routing_table = self.routing_table();
+
+        // Ignore own node
+        if routing_table.matches_own_node_id(&[node_id]) {
+            return TimeoutOr::Value(Err(RPCError::network("can't search for own node id")));
+        }
 
         // Routine to call to generate fanout
         let call_routine = |next_node: NodeRef| {
@@ -609,6 +615,20 @@ impl RPCProcessor {
             Ok(TimeoutOr::Value((rpcreader, _))) => {
                 // Reply received
                 let recv_ts = get_aligned_timestamp();
+
+                // Ensure the reply comes over the private route that was requested
+                if let Some(reply_private_route) = waitable_reply.reply_private_route {
+                    match &rpcreader.header.detail {
+                        RPCMessageHeaderDetail::Direct(_) | RPCMessageHeaderDetail::SafetyRouted(_) => {
+                            return Err(RPCError::protocol("should have received reply over private route"));
+                        }
+                        RPCMessageHeaderDetail::PrivateRouted(pr) => {
+                            if pr.private_route != reply_private_route {
+                                return Err(RPCError::protocol("received reply over the wrong private route"));
+                            }
+                        }
+                    };
+                }
 
                 // Record answer received
                 self.record_answer_received(
@@ -918,12 +938,12 @@ impl RPCProcessor {
         // If safety route was in use, record failure to send there
         if let Some(sr_pubkey) = &safety_route {
             let rss = self.routing_table.route_spec_store();
-            rss.with_route_stats(send_ts, sr_pubkey, |s| s.record_send_failed());
+            rss.with_route_stats_mut(send_ts, sr_pubkey, |s| s.record_send_failed());
         } else {
             // If no safety route was in use, then it's the private route's fault if we have one
             if let Some(pr_pubkey) = &remote_private_route {
                 let rss = self.routing_table.route_spec_store();
-                rss.with_route_stats(send_ts, pr_pubkey, |s| s.record_send_failed());
+                rss.with_route_stats_mut(send_ts, pr_pubkey, |s| s.record_send_failed());
             }
         }
     }
@@ -952,19 +972,19 @@ impl RPCProcessor {
         // If safety route was used, record question lost there
         if let Some(sr_pubkey) = &safety_route {
             let rss = self.routing_table.route_spec_store();
-            rss.with_route_stats(send_ts, sr_pubkey, |s| {
+            rss.with_route_stats_mut(send_ts, sr_pubkey, |s| {
                 s.record_question_lost();
             });
         }
         // If remote private route was used, record question lost there
         if let Some(rpr_pubkey) = &remote_private_route {
-            rss.with_route_stats(send_ts, rpr_pubkey, |s| {
+            rss.with_route_stats_mut(send_ts, rpr_pubkey, |s| {
                 s.record_question_lost();
             });
         }
         // If private route was used, record question lost there
         if let Some(pr_pubkey) = &private_route {
-            rss.with_route_stats(send_ts, pr_pubkey, |s| {
+            rss.with_route_stats_mut(send_ts, pr_pubkey, |s| {
                 s.record_question_lost();
             });
         }
@@ -998,7 +1018,7 @@ impl RPCProcessor {
 
         // If safety route was used, record send there
         if let Some(sr_pubkey) = &safety_route {
-            rss.with_route_stats(send_ts, sr_pubkey, |s| {
+            rss.with_route_stats_mut(send_ts, sr_pubkey, |s| {
                 s.record_sent(send_ts, bytes);
             });
         }
@@ -1006,7 +1026,7 @@ impl RPCProcessor {
         // If remote private route was used, record send there
         if let Some(pr_pubkey) = &remote_private_route {
             let rss = self.routing_table.route_spec_store();
-            rss.with_route_stats(send_ts, pr_pubkey, |s| {
+            rss.with_route_stats_mut(send_ts, pr_pubkey, |s| {
                 s.record_sent(send_ts, bytes);
             });
         }
@@ -1039,7 +1059,7 @@ impl RPCProcessor {
 
         // If safety route was used, record route there
         if let Some(sr_pubkey) = &safety_route {
-            rss.with_route_stats(send_ts, sr_pubkey, |s| {
+            rss.with_route_stats_mut(send_ts, sr_pubkey, |s| {
                 // If we received an answer, the safety route we sent over can be considered tested
                 s.record_tested(recv_ts);
 
@@ -1050,7 +1070,7 @@ impl RPCProcessor {
 
         // If local private route was used, record route there
         if let Some(pr_pubkey) = &reply_private_route {
-            rss.with_route_stats(send_ts, pr_pubkey, |s| {
+            rss.with_route_stats_mut(send_ts, pr_pubkey, |s| {
                 // Record received bytes
                 s.record_received(recv_ts, bytes);
 
@@ -1061,7 +1081,7 @@ impl RPCProcessor {
 
         // If remote private route was used, record there
         if let Some(rpr_pubkey) = &remote_private_route {
-            rss.with_route_stats(send_ts, rpr_pubkey, |s| {
+            rss.with_route_stats_mut(send_ts, rpr_pubkey, |s| {
                 // Record received bytes
                 s.record_received(recv_ts, bytes);
 
@@ -1086,12 +1106,12 @@ impl RPCProcessor {
             // then we must have received with a local private route too, per the design rules
             if let Some(sr_pubkey) = &safety_route {
                 let rss = self.routing_table.route_spec_store();
-                rss.with_route_stats(send_ts, sr_pubkey, |s| {
+                rss.with_route_stats_mut(send_ts, sr_pubkey, |s| {
                     s.record_latency(total_latency / 2u64);
                 });
             }
             if let Some(pr_pubkey) = &reply_private_route {
-                rss.with_route_stats(send_ts, pr_pubkey, |s| {
+                rss.with_route_stats_mut(send_ts, pr_pubkey, |s| {
                     s.record_latency(total_latency / 2u64);
                 });
             }
@@ -1117,7 +1137,7 @@ impl RPCProcessor {
 
                 // This may record nothing if the remote safety route is not also
                 // a remote private route that been imported, but that's okay
-                rss.with_route_stats(recv_ts, &d.remote_safety_route, |s| {
+                rss.with_route_stats_mut(recv_ts, &d.remote_safety_route, |s| {
                     s.record_received(recv_ts, bytes);
                 });
             }
@@ -1129,12 +1149,12 @@ impl RPCProcessor {
                 // a remote private route that been imported, but that's okay
                 // it could also be a node id if no remote safety route was used
                 // in which case this also will do nothing
-                rss.with_route_stats(recv_ts, &d.remote_safety_route, |s| {
+                rss.with_route_stats_mut(recv_ts, &d.remote_safety_route, |s| {
                     s.record_received(recv_ts, bytes);
                 });
 
                 // Record for our local private route we received over
-                rss.with_route_stats(recv_ts, &d.private_route, |s| {
+                rss.with_route_stats_mut(recv_ts, &d.private_route, |s| {
                     s.record_received(recv_ts, bytes);
                 });
             }
@@ -1403,6 +1423,7 @@ impl RPCProcessor {
     /// Decoding RPC from the wire
     /// This performs a capnp decode on the data, and if it passes the capnp schema
     /// it performs the cryptographic validation required to pass the operation up for processing
+    #[instrument(skip_all)]
     fn decode_rpc_operation(
         &self,
         encoded_msg: &RPCMessageEncoded,
@@ -1410,8 +1431,7 @@ impl RPCProcessor {
         let reader = encoded_msg.data.get_reader()?;
         let op_reader = reader
             .get_root::<veilid_capnp::operation::Reader>()
-            .map_err(RPCError::protocol)
-            .map_err(logthru_rpc!())?;
+            .map_err(RPCError::protocol)?;
         let mut operation = RPCOperation::decode(&op_reader)?;
 
         // Validate the RPC message
@@ -1420,7 +1440,12 @@ impl RPCProcessor {
         Ok(operation)
     }
 
-    /// Cryptographic RPC validation
+    /// Cryptographic RPC validation and sanitization
+    /// 
+    /// This code may modify the RPC operation to remove elements that are inappropriate for this node
+    /// or reject the RPC operation entirely. For example, PeerInfo in fanout peer lists may be 
+    /// removed if they are deemed inappropriate for this node, without rejecting the entire operation.
+    /// 
     /// We do this as part of the RPC network layer to ensure that any RPC operations that are
     /// processed have already been validated cryptographically and it is not the job of the
     /// caller or receiver. This does not mean the operation is 'semantically correct'. For
@@ -1467,15 +1492,29 @@ impl RPCProcessor {
                 let sender_node_id = detail.envelope.get_sender_typed_id();
 
                 // Decode and validate the RPC operation
-                let operation = match self.decode_rpc_operation(&encoded_msg) {
+                let decode_res = self.decode_rpc_operation(&encoded_msg);
+                let operation = match decode_res {
                     Ok(v) => v,
                     Err(e) => {
-                        // Punish nodes that send direct undecodable crap
-                        if matches!(e, RPCError::Protocol(_) | RPCError::InvalidFormat(_)) {
-                            address_filter.punish_node_id(sender_node_id);
-                        }
+                        match e {
+                            // Invalid messages that should be punished
+                            RPCError::Protocol(_) | RPCError::InvalidFormat(_) => {
+                                log_rpc!(debug "Invalid RPC Operation: {}", e);
+
+                                // Punish nodes that send direct undecodable crap
+                                address_filter.punish_node_id(sender_node_id);
+                            },
+                            // Ignored messages that should be dropped
+                            RPCError::Ignore(_) | RPCError::Network(_) | RPCError::TryAgain(_) => {
+                                log_rpc!(debug "Dropping RPC Operation: {}", e);
+                            },
+                            // Internal errors that deserve louder logging
+                            RPCError::Unimplemented(_) | RPCError::Internal(_) => {
+                                log_rpc!(error "Error decoding RPC operation: {}", e);
+                            }
+                        };
                         return Ok(NetworkResult::invalid_message(e));
-                    }
+                    },
                 };
 
                 // Get the routing domain this message came over
@@ -1547,7 +1586,10 @@ impl RPCProcessor {
                 let operation = match self.decode_rpc_operation(&encoded_msg) {
                     Ok(v) => v,
                     Err(e) => {
-                        // Punish routes that send routed undecodable crap
+                        // Debug on error
+                        log_rpc!(debug "Dropping RPC operation: {}", e);
+
+                        // XXX: Punish routes that send routed undecodable crap
                         // address_filter.punish_route_id(xxx);
                         return Ok(NetworkResult::invalid_message(e));
                     }
@@ -1563,29 +1605,35 @@ impl RPCProcessor {
         };
 
         // Process stats for questions/statements received
-        let kind = match msg.operation.kind() {
+        match msg.operation.kind() {
             RPCOperationKind::Question(_) => {
                 self.record_question_received(&msg);
 
                 if let Some(sender_nr) = msg.opt_sender_nr.clone() {
                     sender_nr.stats_question_rcvd(msg.header.timestamp, msg.header.body_len);
                 }
-                "question"
+                
+                // Log rpc receive
+                #[cfg(feature = "verbose-tracing")]
+                debug!(target: "rpc_message", dir = "recv", kind = "question", op_id = msg.operation.op_id().as_u64(), desc = msg.operation.kind().desc(), header = ?msg.header);        
             }
             RPCOperationKind::Statement(_) => {
                 if let Some(sender_nr) = msg.opt_sender_nr.clone() {
                     sender_nr.stats_question_rcvd(msg.header.timestamp, msg.header.body_len);
                 }
-                "statement"
+                
+                // Log rpc receive
+                #[cfg(feature = "verbose-tracing")]
+                debug!(target: "rpc_message", dir = "recv", kind = "statement", op_id = msg.operation.op_id().as_u64(), desc = msg.operation.kind().desc(), header = ?msg.header);        
             }
             RPCOperationKind::Answer(_) => {
                 // Answer stats are processed in wait_for_reply
-                "answer"
+
+                // Log rpc receive
+                #[cfg(feature = "verbose-tracing")]
+                debug!(target: "rpc_message", dir = "recv", kind = "answer", op_id = msg.operation.op_id().as_u64(), desc = msg.operation.kind().desc(), header = ?msg.header);                        
             }
         };
-
-        // Log rpc receive
-        trace!(target: "rpc_message", dir = "recv", kind, op_id = msg.operation.op_id().as_u64(), desc = msg.operation.kind().desc(), header = ?msg.header);
 
         // Process specific message kind
         match msg.operation.kind() {
@@ -1596,6 +1644,7 @@ impl RPCProcessor {
                 RPCQuestionDetail::GetValueQ(_) => self.process_get_value_q(msg).await,
                 RPCQuestionDetail::SetValueQ(_) => self.process_set_value_q(msg).await,
                 RPCQuestionDetail::WatchValueQ(_) => self.process_watch_value_q(msg).await,
+                RPCQuestionDetail::InspectValueQ(_) => self.process_inspect_value_q(msg).await,
                 #[cfg(feature = "unstable-blockstore")]
                 RPCQuestionDetail::SupplyBlockQ(_) => self.process_supply_block_q(msg).await,
                 #[cfg(feature = "unstable-blockstore")]

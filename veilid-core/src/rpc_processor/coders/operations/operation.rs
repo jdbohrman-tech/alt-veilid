@@ -8,6 +8,7 @@ pub(in crate::rpc_processor) enum RPCOperationKind {
 }
 
 impl RPCOperationKind {
+    #[cfg(feature = "verbose-tracing")]
     pub fn desc(&self) -> &'static str {
         match self {
             RPCOperationKind::Question(q) => q.desc(),
@@ -105,6 +106,7 @@ impl RPCOperation {
                 .validate(validate_context.crypto.clone())
                 .map_err(RPCError::protocol)?;
         }
+
         // Validate operation kind
         self.kind.validate(validate_context)
     }

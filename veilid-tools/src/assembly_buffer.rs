@@ -269,12 +269,12 @@ impl AssemblyBuffer {
         // If we receive a frame smaller than or equal to the length of the header, drop it
         // or if this frame is larger than our max message length, then drop it
         if frame.len() <= HEADER_LEN || frame.len() > MAX_LEN {
-            #[cfg(feature = "network-result-extra")]
-            return NetworkResult::invalid_message(format!(
-                "invalid header length: frame.len={}",
-                frame.len()
-            ));
-            #[cfg(not(feature = "network-result-extra"))]
+            if debug_target_enabled!("network_result") {
+                return NetworkResult::invalid_message(format!(
+                    "invalid header length: frame.len={}",
+                    frame.len()
+                ));
+            }
             return NetworkResult::invalid_message("invalid header length");
         }
 
@@ -282,12 +282,12 @@ impl AssemblyBuffer {
 
         // Drop versions we don't understand
         if frame[0] != VERSION_1 {
-            #[cfg(feature = "network-result-extra")]
-            return NetworkResult::invalid_message(format!(
-                "invalid frame version: frame[0]={}",
-                frame[0]
-            ));
-            #[cfg(not(feature = "network-result-extra"))]
+            if debug_target_enabled!("network_result") {
+                return NetworkResult::invalid_message(format!(
+                    "invalid frame version: frame[0]={}",
+                    frame[0]
+                ));
+            }
             return NetworkResult::invalid_message("invalid frame version");
         }
         // Version 1 header
@@ -303,24 +303,24 @@ impl AssemblyBuffer {
 
         // Drop fragments with offsets greater than or equal to the message length
         if off >= len {
-            #[cfg(feature = "network-result-extra")]
-            return NetworkResult::invalid_message(format!(
-                "offset greater than length: off={} >= len={}",
-                off, len
-            ));
-            #[cfg(not(feature = "network-result-extra"))]
+            if debug_target_enabled!("network_result") {
+                return NetworkResult::invalid_message(format!(
+                    "offset greater than length: off={} >= len={}",
+                    off, len
+                ));
+            }
             return NetworkResult::invalid_message("offset greater than length");
         }
         // Drop fragments where the chunk would be applied beyond the message length
         if off as usize + chunk.len() > len as usize {
-            #[cfg(feature = "network-result-extra")]
-            return NetworkResult::invalid_message(format!(
-                "chunk applied beyond message length: off={} + chunk.len={} > len={}",
-                off,
-                chunk.len(),
-                len
-            ));
-            #[cfg(not(feature = "network-result-extra"))]
+            if debug_target_enabled!("network_result") {
+                return NetworkResult::invalid_message(format!(
+                    "chunk applied beyond message length: off={} + chunk.len={} > len={}",
+                    off,
+                    chunk.len(),
+                    len
+                ));
+            }
             return NetworkResult::invalid_message("chunk applied beyond message length");
         }
 

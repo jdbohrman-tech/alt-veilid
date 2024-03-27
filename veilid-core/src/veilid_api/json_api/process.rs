@@ -323,13 +323,18 @@ impl JsonRequestProcessor {
                         .await,
                 ),
             },
-            RoutingContextRequestOp::SetDhtValue { key, subkey, data } => {
-                RoutingContextResponseOp::SetDhtValue {
-                    result: to_json_api_result(
-                        routing_context.set_dht_value(key, subkey, data).await,
-                    ),
-                }
-            }
+            RoutingContextRequestOp::SetDhtValue {
+                key,
+                subkey,
+                data,
+                writer,
+            } => RoutingContextResponseOp::SetDhtValue {
+                result: to_json_api_result(
+                    routing_context
+                        .set_dht_value(key, subkey, data, writer)
+                        .await,
+                ),
+            },
             RoutingContextRequestOp::WatchDhtValues {
                 key,
                 subkeys,
@@ -349,6 +354,18 @@ impl JsonRequestProcessor {
                     ),
                 }
             }
+            RoutingContextRequestOp::InspectDhtRecord {
+                key,
+                subkeys,
+                scope,
+            } => RoutingContextResponseOp::InspectDhtRecord {
+                result: to_json_api_result(
+                    routing_context
+                        .inspect_dht_record(key, subkeys, scope)
+                        .await
+                        .map(Box::new),
+                ),
+            },
         };
         RoutingContextResponse {
             rc_id: rcr.rc_id,
@@ -451,6 +468,16 @@ impl JsonRequestProcessor {
             CryptoSystemRequestOp::ComputeDh { key, secret } => CryptoSystemResponseOp::ComputeDh {
                 result: to_json_api_result_with_string(csv.compute_dh(&key, &secret)),
             },
+            CryptoSystemRequestOp::GenerateSharedSecret {
+                key,
+                secret,
+                domain,
+            } => CryptoSystemResponseOp::GenerateSharedSecret {
+                result: to_json_api_result_with_string(
+                    csv.generate_shared_secret(&key, &secret, &domain),
+                ),
+            },
+
             CryptoSystemRequestOp::RandomBytes { len } => CryptoSystemResponseOp::RandomBytes {
                 value: csv.random_bytes(len),
             },
@@ -787,6 +814,9 @@ impl JsonRequestProcessor {
                     patch,
                 }
             }
+            RequestOp::DefaultVeilidConfig => ResponseOp::DefaultVeilidConfig {
+                value: default_veilid_config(),
+            },
         };
 
         Response { id, op }

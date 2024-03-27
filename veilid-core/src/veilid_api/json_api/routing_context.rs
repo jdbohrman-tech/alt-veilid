@@ -70,6 +70,8 @@ pub enum RoutingContextRequestOp {
         #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
         data: Vec<u8>,
+        #[schemars(with = "Option<String>")]
+        writer: Option<KeyPair>,
     },
     WatchDhtValues {
         #[schemars(with = "String")]
@@ -83,7 +85,14 @@ pub enum RoutingContextRequestOp {
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
     },
+    InspectDhtRecord {
+        #[schemars(with = "String")]
+        key: TypedKey,
+        subkeys: ValueSubkeyRangeSet,
+        scope: DHTReportScope,
+    },
 }
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "rc_op")]
 pub enum RoutingContextResponseOp {
@@ -143,5 +152,9 @@ pub enum RoutingContextResponseOp {
     CancelDhtWatch {
         #[serde(flatten)]
         result: ApiResult<bool>,
+    },
+    InspectDhtRecord {
+        #[serde(flatten)]
+        result: ApiResult<Box<DHTRecordReport>>,
     },
 }

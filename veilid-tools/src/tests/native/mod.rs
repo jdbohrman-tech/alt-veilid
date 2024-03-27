@@ -53,23 +53,25 @@ cfg_if! {
 
                 cfg_if! {
                     if #[cfg(feature = "tracing")] {
-                        use tracing_subscriber::{filter, fmt, prelude::*};
-                        let mut filters = filter::Targets::new().with_default(filter::LevelFilter::TRACE);
+                        use tracing_subscriber::{EnvFilter, fmt, prelude::*};
+                        let mut env_filter = EnvFilter::builder().from_env_lossy();
                         for ig in DEFAULT_LOG_IGNORE_LIST {
-                            filters = filters.with_target(ig, filter::LevelFilter::OFF);
+                            env_filter = env_filter.add_directive(format!("{}=off", ig).parse().unwrap());
                         }
                         let fmt_layer = fmt::layer();
                         tracing_subscriber::registry()
                             .with(fmt_layer)
-                            .with(filters)
+                            .with(env_filter)
                             .init();
                     } else {
                         use simplelog::*;
-                        let mut cb = ConfigBuilder::new();
-                        for ig in DEFAULT_LOG_IGNORE_LIST {
-                            cb.add_filter_ignore_str(ig);
+                        if let Ok(level_filter) = LevelFilter::from_str(&std::env::var("RUST_LOG").unwrap_or_default()) {
+                            let mut cb = ConfigBuilder::new();
+                            for ig in DEFAULT_LOG_IGNORE_LIST {
+                                cb.add_filter_ignore_str(ig);
+                            }
+                            TestLogger::init(level_filter, cb.build()).unwrap();
                         }
-                        TestLogger::init(LevelFilter::Trace, cb.build()).unwrap();
                     }
                 }
 

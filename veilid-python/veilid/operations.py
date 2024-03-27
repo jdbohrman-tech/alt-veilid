@@ -28,6 +28,7 @@ class Operation(StrEnum):
     DEBUG = "Debug"
     VEILID_VERSION_STRING = "VeilidVersionString"
     VEILID_VERSION = "VeilidVersion"
+    DEFAULT_VEILID_CONFIG = "DefaultVeilidConfig"
 
 
 class RoutingContextOperation(StrEnum):
@@ -47,6 +48,7 @@ class RoutingContextOperation(StrEnum):
     SET_DHT_VALUE = "SetDhtValue"
     WATCH_DHT_VALUES = "WatchDhtValues"
     CANCEL_DHT_WATCH = "CancelDhtWatch"
+    INSPECT_DHT_RECORD = "InspectDhtRecord"
 
 
 class TableDbOperation(StrEnum):
@@ -73,6 +75,7 @@ class CryptoSystemOperation(StrEnum):
     RELEASE = "Release"
     CACHED_DH = "CachedDh"
     COMPUTE_DH = "ComputeDh"
+    GENERATE_SHARED_SECRET = "GenerateSharedSecret"
     RANDOM_BYTES = "RandomBytes"
     DEFAULT_SALT_LENGTH = "DefaultSaltLength"
     HASH_PASSWORD = "HashPassword"

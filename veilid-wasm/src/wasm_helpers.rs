@@ -2,7 +2,6 @@ use super::*;
 
 cfg_if::cfg_if! {
   if #[cfg(target_arch = "wasm32")] {
-      pub use tsify::*;
       pub use wasm_bindgen::prelude::*;
 
       macro_rules! from_impl_to_jsvalue {

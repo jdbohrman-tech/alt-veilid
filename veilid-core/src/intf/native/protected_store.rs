@@ -33,7 +33,7 @@ impl ProtectedStore {
             if let Err(e) = self.remove_user_secret(kpsk).await {
                 error!("failed to delete '{}': {}", kpsk, e);
             } else {
-                debug!("deleted table '{}'", kpsk);
+                log_pstore!(debug "deleted table '{}'", kpsk);
             }
         }
         Ok(())

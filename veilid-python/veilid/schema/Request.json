@@ -451,6 +451,12 @@
               "type": "integer",
               "format": "uint32",
               "minimum": 0.0
+            },
+            "writer": {
+              "type": [
+                "string",
+                "null"
+              ]
             }
           }
         },
@@ -519,6 +525,49 @@
               "enum": [
                 "CancelDhtWatch"
               ]
+            },
+            "subkeys": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": [
+                  {
+                    "type": "integer",
+                    "format": "uint32",
+                    "minimum": 0.0
+                  },
+                  {
+                    "type": "integer",
+                    "format": "uint32",
+                    "minimum": 0.0
+                  }
+                ],
+                "maxItems": 2,
+                "minItems": 2
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "key",
+            "rc_op",
+            "scope",
+            "subkeys"
+          ],
+          "properties": {
+            "key": {
+              "type": "string"
+            },
+            "rc_op": {
+              "type": "string",
+              "enum": [
+                "InspectDhtRecord"
+              ]
+            },
+            "scope": {
+              "$ref": "#/definitions/DHTReportScope"
             },
             "subkeys": {
               "type": "array",
@@ -949,6 +998,32 @@
               "enum": [
                 "ComputeDh"
               ]
+            },
+            "key": {
+              "type": "string"
+            },
+            "secret": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "cs_op",
+            "domain",
+            "key",
+            "secret"
+          ],
+          "properties": {
+            "cs_op": {
+              "type": "string",
+              "enum": [
+                "GenerateSharedSecret"
+              ]
+            },
+            "domain": {
+              "type": "string"
             },
             "key": {
               "type": "string"
@@ -1493,6 +1568,20 @@
           ]
         }
       }
+    },
+    {
+      "type": "object",
+      "required": [
+        "op"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "enum": [
+            "DefaultVeilidConfig"
+          ]
+        }
+      }
     }
   ],
   "properties": {
@@ -1505,6 +1594,46 @@
     }
   },
   "definitions": {
+    "DHTReportScope": {
+      "description": "DHT Record Report Scope",
+      "oneOf": [
+        {
+          "description": "Return only the local copy sequence numbers Useful for seeing what subkeys you have locally and which ones have not been retrieved",
+          "type": "string",
+          "enum": [
+            "Local"
+          ]
+        },
+        {
+          "description": "Return the local sequence numbers and the network sequence numbers with GetValue fanout parameters Provides an independent view of both the local sequence numbers and the network sequence numbers for nodes that would be reached as if the local copy did not exist locally. Useful for determining if the current local copy should be updated from the network.",
+          "type": "string",
+          "enum": [
+            "SyncGet"
+          ]
+        },
+        {
+          "description": "Return the local sequence numbers and the network sequence numbers with SetValue fanout parameters Provides an independent view of both the local sequence numbers and the network sequence numbers for nodes that would be reached as if the local copy did not exist locally. Useful for determining if the unchanged local copy should be pushed to the network.",
+          "type": "string",
+          "enum": [
+            "SyncSet"
+          ]
+        },
+        {
+          "description": "Return the local sequence numbers and the network sequence numbers with GetValue fanout parameters Provides an view of both the local sequence numbers and the network sequence numbers for nodes that would be reached as if a GetValue operation were being performed, including accepting newer values from the network. Useful for determining which subkeys would change with a GetValue operation",
+          "type": "string",
+          "enum": [
+            "UpdateGet"
+          ]
+        },
+        {
+          "description": "Return the local sequence numbers and the network sequence numbers with SetValue fanout parameters Provides an view of both the local sequence numbers and the network sequence numbers for nodes that would be reached as if a SetValue operation were being performed, including accepting newer values from the network. This simulates a SetValue with the initial sequence number incremented by 1, like a real SetValue would when updating. Useful for determine which subkeys would change on an SetValue operation",
+          "type": "string",
+          "enum": [
+            "UpdateSet"
+          ]
+        }
+      ]
+    },
     "DHTSchema": {
       "description": "Enum over all the supported DHT Schemas",
       "oneOf": [

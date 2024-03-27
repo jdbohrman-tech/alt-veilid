@@ -15,6 +15,7 @@ impl RPCStatement {
     pub fn detail(&self) -> &RPCStatementDetail {
         &self.detail
     }
+    #[cfg(feature = "verbose-tracing")]
     pub fn desc(&self) -> &'static str {
         self.detail.desc()
     }
@@ -43,6 +44,7 @@ pub(in crate::rpc_processor) enum RPCStatementDetail {
 }
 
 impl RPCStatementDetail {
+    #[cfg(feature = "verbose-tracing")]
     pub fn desc(&self) -> &'static str {
         match self {
             RPCStatementDetail::ValidateDialInfo(_) => "ValidateDialInfo",

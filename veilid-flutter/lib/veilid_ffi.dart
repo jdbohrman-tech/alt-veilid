@@ -32,6 +32,8 @@ typedef _FreeStringDart = void Function(Pointer<Utf8>);
 typedef _InitializeVeilidCoreDart = void Function(Pointer<Utf8>);
 // fn change_log_level(layer: FfiStr, log_level: FfiStr)
 typedef _ChangeLogLevelDart = void Function(Pointer<Utf8>, Pointer<Utf8>);
+// fn change_log_ignore(layer: FfiStr, log_ignore: FfiStr)
+typedef _ChangeLogIgnoreDart = void Function(Pointer<Utf8>, Pointer<Utf8>);
 // fn startup_veilid_core(port: i64, config: FfiStr)
 typedef _StartupVeilidCoreDart = void Function(int, int, Pointer<Utf8>);
 // fn get_veilid_state(port: i64)
@@ -81,9 +83,9 @@ typedef _RoutingContextDeleteDHTRecordDart = void Function(
 typedef _RoutingContextGetDHTValueDart = void Function(
     int, int, Pointer<Utf8>, int, bool);
 // fn routing_context_set_dht_value(port: i64,
-//    id: u32, key: FfiStr, subkey: u32, data: FfiStr)
+//    id: u32, key: FfiStr, subkey: u32, data: FfiStr, writer: FfiStr)
 typedef _RoutingContextSetDHTValueDart = void Function(
-    int, int, Pointer<Utf8>, int, Pointer<Utf8>);
+    int, int, Pointer<Utf8>, int, Pointer<Utf8>, Pointer<Utf8>);
 // fn routing_context_watch_dht_values(port: i64,
 //     id: u32, key: FfiStr, subkeys: FfiStr, expiration: FfiStr, count: u32)
 typedef _RoutingContextWatchDHTValuesDart = void Function(
@@ -92,6 +94,10 @@ typedef _RoutingContextWatchDHTValuesDart = void Function(
 //     id: u32, key: FfiStr, subkeys: FfiStr)
 typedef _RoutingContextCancelDHTWatchDart = void Function(
     int, int, Pointer<Utf8>, Pointer<Utf8>);
+// fn routing_context_inspect_dht_record(port: i64,
+//     id: u32, key: FfiStr, subkeys: FfiStr, scope: FfiStr)
+typedef _RoutingContextInspectDHTRecordDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
 
 // fn new_private_route(port: i64)
 typedef _NewPrivateRouteDart = void Function(int);
@@ -157,6 +163,10 @@ typedef _CryptoCachedDHDart = void Function(
 // fn crypto_compute_dh(port: i64, kind: u32, key: FfiStr, secret: FfiStr)
 typedef _CryptoComputeDHDart = void Function(
     int, int, Pointer<Utf8>, Pointer<Utf8>);
+// fn crypto_generate_shared_secret(port: i64, kind: u32, key: FfiStr,
+//   secret: FfiStr, domain: FfiStr)
+typedef _CryptoGenerateSharedSecretDart = void Function(
+    int, int, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
 // fn crypto_random_bytes(port: i64, kind: u32, len: u32)
 typedef _CryptoRandomBytesDart = void Function(int, int, int);
 // fn crypto_default_salt_length(port: i64, kind: u32)
@@ -234,6 +244,9 @@ final class VeilidVersionFFI extends Struct {
 }
 
 typedef _VeilidVersionDart = VeilidVersionFFI Function();
+
+// fn default_veilid_config() -> *mut c_char
+typedef _DefaultVeilidConfigDart = Pointer<Utf8> Function();
 
 // Async message types
 const int messageOk = 0;
@@ -476,6 +489,7 @@ Stream<T> processStreamJson<T>(
           }
         case messageStreamClose:
           {
+            port.close();
             break;
           }
         default:
@@ -528,26 +542,40 @@ class VeilidRoutingContextFFI extends VeilidRoutingContext {
   }
 
   @override
-  VeilidRoutingContextFFI withDefaultSafety() {
+  VeilidRoutingContextFFI withDefaultSafety({bool closeSelf = false}) {
     _ctx.ensureValid();
     final newId = _ctx.ffi._routingContextWithDefaultSafety(_ctx.id!);
-    return VeilidRoutingContextFFI._(_Ctx(newId, _ctx.ffi));
+    final out = VeilidRoutingContextFFI._(_Ctx(newId, _ctx.ffi));
+    if (closeSelf) {
+      close();
+    }
+    return out;
   }
 
   @override
-  VeilidRoutingContextFFI withSafety(SafetySelection safetySelection) {
+  VeilidRoutingContextFFI withSafety(SafetySelection safetySelection,
+      {bool closeSelf = false}) {
     _ctx.ensureValid();
     final newId = _ctx.ffi._routingContextWithSafety(
         _ctx.id!, jsonEncode(safetySelection).toNativeUtf8());
-    return VeilidRoutingContextFFI._(_Ctx(newId, _ctx.ffi));
+    final out = VeilidRoutingContextFFI._(_Ctx(newId, _ctx.ffi));
+    if (closeSelf) {
+      close();
+    }
+    return out;
   }
 
   @override
-  VeilidRoutingContextFFI withSequencing(Sequencing sequencing) {
+  VeilidRoutingContextFFI withSequencing(Sequencing sequencing,
+      {bool closeSelf = false}) {
     _ctx.ensureValid();
     final newId = _ctx.ffi._routingContextWithSequencing(
         _ctx.id!, jsonEncode(sequencing).toNativeUtf8());
-    return VeilidRoutingContextFFI._(_Ctx(newId, _ctx.ffi));
+    final out = VeilidRoutingContextFFI._(_Ctx(newId, _ctx.ffi));
+    if (closeSelf) {
+      close();
+    }
+    return out;
   }
 
   @override
@@ -603,8 +631,8 @@ class VeilidRoutingContextFFI extends VeilidRoutingContext {
   }
 
   @override
-  Future<DHTRecordDescriptor> openDHTRecord(
-      TypedKey key, KeyPair? writer) async {
+  Future<DHTRecordDescriptor> openDHTRecord(TypedKey key,
+      {KeyPair? writer}) async {
     _ctx.ensureValid();
     final nativeKey = jsonEncode(key).toNativeUtf8();
     final nativeWriter =
@@ -641,8 +669,8 @@ class VeilidRoutingContextFFI extends VeilidRoutingContext {
   }
 
   @override
-  Future<ValueData?> getDHTValue(
-      TypedKey key, int subkey, bool forceRefresh) async {
+  Future<ValueData?> getDHTValue(TypedKey key, int subkey,
+      {bool forceRefresh = false}) async {
     _ctx.ensureValid();
     final nativeKey = jsonEncode(key).toNativeUtf8();
     final recvPort = ReceivePort('routing_context_get_dht_value');
@@ -655,16 +683,18 @@ class VeilidRoutingContextFFI extends VeilidRoutingContext {
   }
 
   @override
-  Future<ValueData?> setDHTValue(
-      TypedKey key, int subkey, Uint8List data) async {
+  Future<ValueData?> setDHTValue(TypedKey key, int subkey, Uint8List data,
+      {KeyPair? writer}) async {
     _ctx.ensureValid();
     final nativeKey = jsonEncode(key).toNativeUtf8();
     final nativeData = base64UrlNoPadEncode(data).toNativeUtf8();
+    final nativeWriter =
+        writer != null ? jsonEncode(writer).toNativeUtf8() : nullptr;
 
     final recvPort = ReceivePort('routing_context_set_dht_value');
     final sendPort = recvPort.sendPort;
-    _ctx.ffi._routingContextSetDHTValue(
-        sendPort.nativePort, _ctx.id!, nativeKey, subkey, nativeData);
+    _ctx.ffi._routingContextSetDHTValue(sendPort.nativePort, _ctx.id!,
+        nativeKey, subkey, nativeData, nativeWriter);
     final valueData =
         await processFutureOptJson(ValueData.fromJson, recvPort.first);
     return valueData;
@@ -676,7 +706,7 @@ class VeilidRoutingContextFFI extends VeilidRoutingContext {
       Timestamp? expiration,
       int? count}) async {
     subkeys ??= [];
-    expiration ??= Timestamp(value: BigInt.zero);
+    expiration ??= Timestamp.zero();
     count ??= 0xFFFFFFFF;
 
     _ctx.ensureValid();
@@ -708,6 +738,26 @@ class VeilidRoutingContextFFI extends VeilidRoutingContext {
         sendPort.nativePort, _ctx.id!, nativeKey, nativeSubkeys);
     final cancelled = await processFuturePlain<bool>(recvPort.first);
     return cancelled;
+  }
+
+  @override
+  Future<DHTRecordReport> inspectDHTRecord(TypedKey key,
+      {List<ValueSubkeyRange>? subkeys,
+      DHTReportScope scope = DHTReportScope.local}) async {
+    subkeys ??= [];
+
+    _ctx.ensureValid();
+    final nativeKey = jsonEncode(key).toNativeUtf8();
+    final nativeSubkeys = jsonEncode(subkeys).toNativeUtf8();
+    final nativeScope = jsonEncode(scope).toNativeUtf8();
+
+    final recvPort = ReceivePort('routing_context_inspect_dht_record');
+    final sendPort = recvPort.sendPort;
+    _ctx.ffi._routingContextInspectDHTRecord(
+        sendPort.nativePort, _ctx.id!, nativeKey, nativeSubkeys, nativeScope);
+    final report =
+        await processFutureJson(DHTRecordReport.fromJson, recvPort.first);
+    return report;
   }
 }
 
@@ -953,6 +1003,20 @@ class VeilidCryptoSystemFFI extends VeilidCryptoSystem {
   }
 
   @override
+  Future<SharedSecret> generateSharedSecret(
+      PublicKey key, SecretKey secret, Uint8List domain) async {
+    final nativeKey = jsonEncode(key).toNativeUtf8();
+    final nativeSecret = jsonEncode(secret).toNativeUtf8();
+    final nativeDomain = base64UrlNoPadEncode(domain).toNativeUtf8();
+
+    final recvPort = ReceivePort('crypto_generate_shared_secret');
+    final sendPort = recvPort.sendPort;
+    _ffi._cryptoGenerateSharedSecret(
+        sendPort.nativePort, _kind, nativeKey, nativeSecret, nativeDomain);
+    return processFutureJson(SharedSecret.fromJson, recvPort.first);
+  }
+
+  @override
   Future<Uint8List> randomBytes(int len) async {
     final recvPort = ReceivePort('crypto_random_bytes');
     final sendPort = recvPort.sendPort;
@@ -1179,6 +1243,9 @@ class VeilidFFI extends Veilid {
         _changeLogLevel = dylib.lookupFunction<
             Void Function(Pointer<Utf8>, Pointer<Utf8>),
             _ChangeLogLevelDart>('change_log_level'),
+        _changeLogIgnore = dylib.lookupFunction<
+            Void Function(Pointer<Utf8>, Pointer<Utf8>),
+            _ChangeLogIgnoreDart>('change_log_ignore'),
         _startupVeilidCore = dylib.lookupFunction<
             Void Function(Int64, Int64, Pointer<Utf8>),
             _StartupVeilidCoreDart>('startup_veilid_core'),
@@ -1236,7 +1303,8 @@ class VeilidFFI extends Veilid {
             Void Function(Int64, Uint32, Pointer<Utf8>, Uint32, Bool),
             _RoutingContextGetDHTValueDart>('routing_context_get_dht_value'),
         _routingContextSetDHTValue = dylib.lookupFunction<
-            Void Function(Int64, Uint32, Pointer<Utf8>, Uint32, Pointer<Utf8>),
+            Void Function(Int64, Uint32, Pointer<Utf8>, Uint32, Pointer<Utf8>,
+                Pointer<Utf8>),
             _RoutingContextSetDHTValueDart>('routing_context_set_dht_value'),
         _routingContextWatchDHTValues = dylib.lookupFunction<
                 Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>,
@@ -1247,6 +1315,11 @@ class VeilidFFI extends Veilid {
                 Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>),
                 _RoutingContextCancelDHTWatchDart>(
             'routing_context_cancel_dht_watch'),
+        _routingContextInspectDHTRecord = dylib.lookupFunction<
+                Void Function(
+                    Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>),
+                _RoutingContextInspectDHTRecordDart>(
+            'routing_context_inspect_dht_record'),
         _newPrivateRoute =
             dylib.lookupFunction<Void Function(Int64), _NewPrivateRouteDart>(
                 'new_private_route'),
@@ -1322,6 +1395,10 @@ class VeilidFFI extends Veilid {
         _cryptoComputeDH = dylib.lookupFunction<
             Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>),
             _CryptoComputeDHDart>('crypto_compute_dh'),
+        _cryptoGenerateSharedSecret = dylib.lookupFunction<
+            Void Function(
+                Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>),
+            _CryptoGenerateSharedSecretDart>('crypto_generate_shared_secret'),
         _cryptoRandomBytes = dylib.lookupFunction<
             Void Function(Int64, Uint32, Uint32),
             _CryptoRandomBytesDart>('crypto_random_bytes'),
@@ -1385,12 +1462,19 @@ class VeilidFFI extends Veilid {
         _veilidVersionString = dylib.lookupFunction<Pointer<Utf8> Function(),
             _VeilidVersionStringDart>('veilid_version_string'),
         _veilidVersion = dylib.lookupFunction<VeilidVersionFFI Function(),
-            _VeilidVersionDart>('veilid_version') {
+            _VeilidVersionDart>('veilid_version'),
+        _defaultVeilidConfig = dylib.lookupFunction<Pointer<Utf8> Function(),
+            _DefaultVeilidConfigDart>('default_veilid_config') {
     // Get veilid_flutter initializer
     final initializeVeilidFlutter = _dylib.lookupFunction<
-        Void Function(Pointer<_DartPostCObject>),
-        void Function(Pointer<_DartPostCObject>)>('initialize_veilid_flutter');
-    initializeVeilidFlutter(NativeApi.postCObject);
+        Void Function(Pointer<_DartPostCObject>, Pointer<Utf8>),
+        void Function(Pointer<_DartPostCObject>,
+            Pointer<Utf8>)>('initialize_veilid_flutter');
+    initializeVeilidFlutter(
+      NativeApi.postCObject,
+      // ignore: avoid_redundant_argument_values, do_not_use_environment
+      const String.fromEnvironment('VEILID_CRASH_PATH').toNativeUtf8(),
+    );
   }
   // veilid_core shared library
   final DynamicLibrary _dylib;
@@ -1399,6 +1483,7 @@ class VeilidFFI extends Veilid {
   final _FreeStringDart _freeString;
   final _InitializeVeilidCoreDart _initializeVeilidCore;
   final _ChangeLogLevelDart _changeLogLevel;
+  final _ChangeLogIgnoreDart _changeLogIgnore;
   final _StartupVeilidCoreDart _startupVeilidCore;
   final _GetVeilidStateDart _getVeilidState;
   final _AttachDart _attach;
@@ -1421,6 +1506,7 @@ class VeilidFFI extends Veilid {
   final _RoutingContextSetDHTValueDart _routingContextSetDHTValue;
   final _RoutingContextWatchDHTValuesDart _routingContextWatchDHTValues;
   final _RoutingContextCancelDHTWatchDart _routingContextCancelDHTWatch;
+  final _RoutingContextInspectDHTRecordDart _routingContextInspectDHTRecord;
 
   final _NewPrivateRouteDart _newPrivateRoute;
   final _NewCustomPrivateRouteDart _newCustomPrivateRoute;
@@ -1452,6 +1538,7 @@ class VeilidFFI extends Veilid {
 
   final _CryptoCachedDHDart _cryptoCachedDH;
   final _CryptoComputeDHDart _cryptoComputeDH;
+  final _CryptoGenerateSharedSecretDart _cryptoGenerateSharedSecret;
 
   final _CryptoRandomBytesDart _cryptoRandomBytes;
   final _CryptoDefaultSaltLengthDart _cryptoDefaultSaltLength;
@@ -1478,6 +1565,7 @@ class VeilidFFI extends Veilid {
   final _DebugDart _debug;
   final _VeilidVersionStringDart _veilidVersionString;
   final _VeilidVersionDart _veilidVersion;
+  final _DefaultVeilidConfigDart _defaultVeilidConfig;
 
   @override
   void initializeVeilidCore(Map<String, dynamic> platformConfigJson) {
@@ -1496,6 +1584,16 @@ class VeilidFFI extends Veilid {
     malloc
       ..free(nativeLayer)
       ..free(nativeLogLevel);
+  }
+
+  @override
+  void changeLogIgnore(String layer, List<String> changes) {
+    final nativeChanges = jsonEncode(changes.join(',')).toNativeUtf8();
+    final nativeLayer = layer.toNativeUtf8();
+    _changeLogIgnore(nativeLayer, nativeChanges);
+    malloc
+      ..free(nativeLayer)
+      ..free(nativeChanges);
   }
 
   @override
@@ -1542,6 +1640,7 @@ class VeilidFFI extends Veilid {
     final recvPort = ReceivePort('shutdown_veilid_core');
     final sendPort = recvPort.sendPort;
     _shutdownVeilidCore(sendPort.nativePort);
+
     return processFutureVoid(recvPort.first);
   }
 
@@ -1586,12 +1685,12 @@ class VeilidFFI extends Veilid {
   }
 
   @override
-  Future<void> releasePrivateRoute(String key) async {
-    final nativeEncodedKey = key.toNativeUtf8();
+  Future<void> releasePrivateRoute(String routeId) async {
+    final nativeEncodedRouteId = routeId.toNativeUtf8();
 
     final recvPort = ReceivePort('release_private_route');
     final sendPort = recvPort.sendPort;
-    _releasePrivateRoute(sendPort.nativePort, nativeEncodedKey);
+    _releasePrivateRoute(sendPort.nativePort, nativeEncodedRouteId);
     return processFutureVoid(recvPort.first);
   }
 
@@ -1627,7 +1726,7 @@ class VeilidFFI extends Veilid {
     final vckString = _validCryptoKinds();
     final vck = jsonDecode(vckString.toDartString()) as List<dynamic>;
     _freeString(vckString);
-    return vck.map((v) => v as CryptoKind).toList();
+    return vck.cast<CryptoKind>();
   }
 
   @override
@@ -1710,5 +1809,13 @@ class VeilidFFI extends Veilid {
       version.minor,
       version.patch,
     );
+  }
+
+  @override
+  String defaultVeilidConfig() {
+    final defaultVeilidConfig = _defaultVeilidConfig();
+    final ret = defaultVeilidConfig.toDartString();
+    _freeString(defaultVeilidConfig);
+    return ret;
   }
 }

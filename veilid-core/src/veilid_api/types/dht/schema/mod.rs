@@ -16,11 +16,19 @@ pub enum DHTSchema {
 }
 
 impl DHTSchema {
-    pub fn dflt(o_cnt: u16) -> DHTSchema {
-        DHTSchema::DFLT(DHTSchemaDFLT { o_cnt })
+    pub fn dflt(o_cnt: u16) -> VeilidAPIResult<DHTSchema> {
+        Ok(DHTSchema::DFLT(DHTSchemaDFLT::new(o_cnt)?))
     }
-    pub fn smpl(o_cnt: u16, members: Vec<DHTSchemaSMPLMember>) -> DHTSchema {
-        DHTSchema::SMPL(DHTSchemaSMPL { o_cnt, members })
+    pub fn smpl(o_cnt: u16, members: Vec<DHTSchemaSMPLMember>) -> VeilidAPIResult<DHTSchema> {
+        Ok(DHTSchema::SMPL(DHTSchemaSMPL::new(o_cnt, members)?))
+    }
+
+    /// Validate the data representation
+    pub fn validate(&self) -> VeilidAPIResult<()> {
+        match self {
+            DHTSchema::DFLT(d) => d.validate(),
+            DHTSchema::SMPL(s) => s.validate(),
+        }
     }
 
     /// Build the data representation of the schema
@@ -31,11 +39,11 @@ impl DHTSchema {
         }
     }
 
-    /// Get the number of subkeys this schema allocates
-    pub fn subkey_count(&self) -> usize {
+    /// Get maximum subkey number for this schema
+    pub fn max_subkey(&self) -> ValueSubkey {
         match self {
-            DHTSchema::DFLT(d) => d.subkey_count(),
-            DHTSchema::SMPL(s) => s.subkey_count(),
+            DHTSchema::DFLT(d) => d.max_subkey(),
+            DHTSchema::SMPL(s) => s.max_subkey(),
         }
     }
 
@@ -67,11 +75,37 @@ impl DHTSchema {
             DHTSchema::SMPL(s) => s.is_member(key),
         }
     }
+
+    /// Truncate a subkey range set to the schema
+    /// Optionally also trim to maximum number of subkeys in the range
+    pub fn truncate_subkeys(
+        &self,
+        subkeys: &ValueSubkeyRangeSet,
+        opt_max_subkey_len: Option<usize>,
+    ) -> ValueSubkeyRangeSet {
+        // Get number of subkeys from schema and trim to the bounds of the schema
+        let in_schema_subkeys =
+            subkeys.intersect(&ValueSubkeyRangeSet::single_range(0, self.max_subkey()));
+
+        // Cap the number of total subkeys being inspected to the amount we can send across the wire
+        if let Some(max_subkey_len) = opt_max_subkey_len {
+            if let Some(nth_subkey) = in_schema_subkeys.nth_subkey(max_subkey_len) {
+                in_schema_subkeys.difference(&ValueSubkeyRangeSet::single_range(
+                    nth_subkey,
+                    ValueSubkey::MAX,
+                ))
+            } else {
+                in_schema_subkeys
+            }
+        } else {
+            in_schema_subkeys
+        }
+    }
 }
 
 impl Default for DHTSchema {
     fn default() -> Self {
-        Self::dflt(1)
+        Self::dflt(1).unwrap()
     }
 }
 

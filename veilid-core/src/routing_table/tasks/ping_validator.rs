@@ -105,9 +105,6 @@ impl RoutingTable {
         for relay_nr_filtered in relay_noderefs {
             let rpc = rpc.clone();
 
-            #[cfg(feature = "network-result-extra")]
-            log_rtab!(debug "--> Keepalive ping to {:?}", relay_nr_filtered);
-            #[cfg(not(feature = "network-result-extra"))]
             log_rtab!("--> Keepalive ping to {:?}", relay_nr_filtered);
 
             futurequeue.push_back(

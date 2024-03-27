@@ -42,6 +42,8 @@ impl RPCOperationSupplyBlockQ {
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #[derive(Debug, Clone)]
 pub(in crate::rpc_processor) struct RPCOperationSupplyBlockA {
     expiration: u64,

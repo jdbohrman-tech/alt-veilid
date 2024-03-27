@@ -4,7 +4,7 @@ use std::io;
 
 cfg_if! {
     if #[cfg(feature="rt-async-std")] {
-        pub use async_std::net::{TcpStream, TcpListener, Shutdown, UdpSocket};
+        pub use async_std::net::{TcpStream, TcpListener, UdpSocket};
     } else if #[cfg(feature="rt-tokio")] {
         pub use tokio::net::{TcpStream, TcpListener, UdpSocket};
         pub use tokio_util::compat::*;
@@ -81,14 +81,21 @@ pub fn new_bound_first_udp_socket(local_address: SocketAddr) -> io::Result<Socke
         }
     }
 
+    // Bind the socket -first- without turning on SO_REUSEPORT this way it will
+    // fail if the port is already taken
+    cfg_if! {
+        if #[cfg(unix)] {
+            socket
+                .set_reuse_address(true)?;
+        }
+    }
+
     socket.bind(&socket2_addr)?;
 
     // Set 'reuse address' so future binds to this port will succeed
     // This does not work on Windows, where reuse options can not be set after the bind
     cfg_if! {
         if #[cfg(unix)] {
-            socket
-                .set_reuse_address(true)?;
             socket.set_reuse_port(true)?;
         }
     }
@@ -165,18 +172,24 @@ pub fn new_bound_first_tcp_socket(local_address: SocketAddr) -> io::Result<Socke
         }
     }
 
-    // Bind the socket -first- before turning on 'reuse address' this way it will
+    // Bind the socket -first- without turning on SO_REUSEPORT this way it will
     // fail if the port is already taken
     let socket2_addr = SockAddr::from(local_address);
+
+    cfg_if! {
+        if #[cfg(unix)] {
+            socket
+                .set_reuse_address(true)?;
+        }
+    }
+
     socket.bind(&socket2_addr)?;
 
     // Set 'reuse address' so future binds to this port will succeed
     // This does not work on Windows, where reuse options can not be set after the bind
     cfg_if! {
         if #[cfg(unix)] {
-        socket
-            .set_reuse_address(true)?;
-        socket.set_reuse_port(true)?;
+            socket.set_reuse_port(true)?;
         }
     }
     log_net!("created bound first tcp socket on {:?}", &local_address);

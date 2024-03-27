@@ -8,6 +8,49 @@ where
     result: Option<Result<R, RPCError>>,
 }
 
+#[derive(Debug, Copy, Clone)]
+pub(crate) enum FanoutResultKind {
+    Timeout,
+    Finished,
+    Exhausted,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct FanoutResult {
+    pub kind: FanoutResultKind,
+    pub value_nodes: Vec<NodeRef>,
+}
+
+pub(crate) fn debug_fanout_result(result: &FanoutResult) -> String {
+    let kc = match result.kind {
+        FanoutResultKind::Timeout => "T",
+        FanoutResultKind::Finished => "F",
+        FanoutResultKind::Exhausted => "E",
+    };
+    format!("{}:{}", kc, result.value_nodes.len())
+}
+
+pub(crate) fn debug_fanout_results(results: &[FanoutResult]) -> String {
+    let mut col = 0;
+    let mut out = String::new();
+    let mut left = results.len();
+    for r in results {
+        if col == 0 {
+            out += "    ";
+        }
+        let sr = debug_fanout_result(r);
+        out += &sr;
+        out += ",";
+        col += 1;
+        left -= 1;
+        if col == 32 && left != 0 {
+            col = 0;
+            out += "\n"
+        }
+    }
+    out
+}
+
 pub(crate) type FanoutCallReturnType = RPCNetworkResult<Vec<PeerInfo>>;
 pub(crate) type FanoutNodeInfoFilter = Arc<dyn Fn(&[TypedKey], &NodeInfo) -> bool + Send + Sync>;
 
@@ -158,8 +201,7 @@ where
                 #[allow(unused_variables)]
                 Ok(x) => {
                     // Call failed, node will not be considered again
-                    #[cfg(feature = "network-result-extra")]
-                    log_rpc!(debug "Fanout result {}: {:?}", &next_node, x);
+                    log_network_result!(debug "Fanout result {}: {:?}", &next_node, x);
                 }
                 Err(e) => {
                     // Error happened, abort everything and return the error

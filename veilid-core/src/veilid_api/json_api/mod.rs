@@ -120,6 +120,7 @@ pub enum RequestOp {
     },
     VeilidVersionString,
     VeilidVersion,
+    DefaultVeilidConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -229,6 +230,9 @@ pub enum ResponseOp {
         major: u32,
         minor: u32,
         patch: u32,
+    },
+    DefaultVeilidConfig {
+        value: String,
     },
 }
 

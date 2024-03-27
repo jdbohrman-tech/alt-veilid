@@ -38,7 +38,7 @@ cursive = { git = "https://gitlab.com/veilid/cursive.git", default-features = fa
 cursive_buffered_backend = { git = "https://gitlab.com/veilid/cursive-buffered-backend.git" }
 # cursive-multiplex = "0.6.0"
 # cursive_tree_view = "0.6.0"
-cursive_table_view = "0.14.0"
+cursive_table_view = { git = "https://gitlab.com/veilid/cursive-table-view.git" }
 arboard = "3.3.0"
 # cursive-tabs = "0.5.0"
 clap = { version = "4", features = ["derive"] }
@@ -50,12 +50,12 @@ serde_derive = "^1"
 parking_lot = "^0"
 cfg-if = "^1"
 config = { version = "^0", features = ["yaml"] }
-bugsalot = { package = "veilid-bugsalot", version = "0.1.0" }
+bugsalot = { package = "veilid-bugsalot", version = "0.2.0" }
 flexi_logger = { version = "^0", features = ["use_chrono_for_offset"] }
 thiserror = "^1"
 crossbeam-channel = "^0"
 hex = "^0"
-veilid-tools = { version = "0.2.5", path = "../veilid-tools", default-features = false}
+veilid-tools = { version = "0.2.5", path = "../veilid-tools", default-features = false }
 
 json = "^0"
 stop-token = { version = "^0", default-features = false }
@@ -67,6 +67,8 @@ chrono = "0.4.31"
 owning_ref = "0.4.1"
 unicode-width = "0.1.11"
 lru = "0.10.1"
+rustyline-async = "0.4.2"
+console = "0.15.8"
 
 [dev-dependencies]
 serial_test = "^2"

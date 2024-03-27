@@ -7,10 +7,29 @@ use std::ffi::OsStr;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use sysinfo::{DiskExt, SystemExt};
 use url::Url;
 use veilid_core::tools::*;
 use veilid_core::*;
+
+use lazy_static::*;
+
+lazy_static! {
+    static ref SYSTEM: sysinfo::System = {
+        sysinfo::System::new_with_specifics(
+            sysinfo::RefreshKind::new().with_memory(sysinfo::MemoryRefreshKind::everything()),
+        )
+    };
+    static ref DISKS: sysinfo::Disks = {
+        let mut disks = sysinfo::Disks::new_with_refreshed_list();
+        disks.sort_by(|a, b| {
+            b.mount_point()
+                .to_string_lossy()
+                .len()
+                .cmp(&a.mount_point().to_string_lossy().len())
+        });
+        disks
+    };
+}
 
 pub fn load_default_config() -> EyreResult<config::Config> {
     let mut default_config = String::from(
@@ -27,21 +46,26 @@ logging:
     system:
         enabled: false
         level: 'info'
+        ignore_log_targets: []
     terminal:
         enabled: true
         level: 'info'
+        ignore_log_targets: []
     file: 
         enabled: false
         path: ''
         append: true
         level: 'info'
+        ignore_log_targets: []
     api:
         enabled: true
         level: 'info'
+        ignore_log_targets: []
     otlp:
         enabled: false
         level: 'trace'
         grpc_endpoint: 'localhost:4317'
+        ignore_log_targets: []
     console:
         enabled: false
 testing:
@@ -415,6 +439,7 @@ impl NamedSocketAddrs {
 pub struct Terminal {
     pub enabled: bool,
     pub level: LogLevel,
+    pub ignore_log_targets: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -428,18 +453,21 @@ pub struct File {
     pub path: String,
     pub append: bool,
     pub level: LogLevel,
+    pub ignore_log_targets: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct System {
     pub enabled: bool,
     pub level: LogLevel,
+    pub ignore_log_targets: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Api {
     pub enabled: bool,
     pub level: LogLevel,
+    pub ignore_log_targets: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -447,6 +475,7 @@ pub struct Otlp {
     pub enabled: bool,
     pub level: LogLevel,
     pub grpc_endpoint: NamedSocketAddrs,
+    pub ignore_log_targets: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -855,31 +884,31 @@ impl Settings {
     }
 
     pub fn get_default_remote_max_subkey_cache_memory_mb() -> u32 {
-        let sys = sysinfo::System::new_with_specifics(sysinfo::RefreshKind::new().with_memory());
-        ((sys.free_memory() / (1024u64 * 1024u64)) / 16) as u32
+        if sysinfo::IS_SUPPORTED_SYSTEM {
+            ((SYSTEM.free_memory() / (1024u64 * 1024u64)) / 16) as u32
+        } else {
+            256
+        }
     }
 
     pub fn get_default_remote_max_storage_space_mb(inner: &SettingsInner) -> u32 {
-        let mut sys = sysinfo::System::new_with_specifics(sysinfo::RefreshKind::new().with_disks());
         let dht_storage_path = inner.core.table_store.directory.clone();
         // Sort longer mount point paths first since we want the mount point closest to our table store directory
-        sys.sort_disks_by(|a, b| {
-            b.mount_point()
-                .to_string_lossy()
-                .len()
-                .cmp(&a.mount_point().to_string_lossy().len())
-        });
-        for disk in sys.disks() {
-            if dht_storage_path.starts_with(&*disk.mount_point().to_string_lossy()) {
-                let available_mb = disk.available_space() / 1_000_000u64;
-                if available_mb > 40_000 {
-                    // Default to 10GB if more than 40GB is available
-                    return 10_000;
+
+        if sysinfo::IS_SUPPORTED_SYSTEM {
+            for disk in DISKS.list() {
+                if dht_storage_path.starts_with(&*disk.mount_point().to_string_lossy()) {
+                    let available_mb = disk.available_space() / 1_000_000u64;
+                    if available_mb > 40_000 {
+                        // Default to 10GB if more than 40GB is available
+                        return 10_000;
+                    }
+                    // Default to 1/4 of the available space, if less than 40GB is available
+                    return available_mb as u32;
                 }
-                // Default to 1/4 of the available space, if less than 40GB is available
-                return available_mb as u32;
             }
         }
+
         // If we can't figure out our storage path go with 1GB of space and pray
         1_000
     }
@@ -917,17 +946,22 @@ impl Settings {
         set_config_value!(inner.auto_attach, value);
         set_config_value!(inner.logging.system.enabled, value);
         set_config_value!(inner.logging.system.level, value);
+        set_config_value!(inner.logging.system.ignore_log_targets, value);
         set_config_value!(inner.logging.terminal.enabled, value);
         set_config_value!(inner.logging.terminal.level, value);
+        set_config_value!(inner.logging.terminal.ignore_log_targets, value);
         set_config_value!(inner.logging.file.enabled, value);
         set_config_value!(inner.logging.file.path, value);
         set_config_value!(inner.logging.file.append, value);
         set_config_value!(inner.logging.file.level, value);
+        set_config_value!(inner.logging.file.ignore_log_targets, value);
         set_config_value!(inner.logging.api.enabled, value);
         set_config_value!(inner.logging.api.level, value);
+        set_config_value!(inner.logging.api.ignore_log_targets, value);
         set_config_value!(inner.logging.otlp.enabled, value);
         set_config_value!(inner.logging.otlp.level, value);
         set_config_value!(inner.logging.otlp.grpc_endpoint, value);
+        set_config_value!(inner.logging.otlp.ignore_log_targets, value);
         set_config_value!(inner.logging.console.enabled, value);
         set_config_value!(inner.testing.subnode_index, value);
         set_config_value!(inner.core.capabilities.disable, value);

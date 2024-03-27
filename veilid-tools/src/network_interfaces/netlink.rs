@@ -26,7 +26,7 @@ cfg_if! {
 use std::convert::TryInto;
 use std::ffi::CStr;
 use std::io;
-use std::os::raw::{c_int, c_char};
+use std::os::raw::{c_char, c_int};
 use tools::*;
 
 fn get_interface_name(index: u32) -> io::Result<String> {
@@ -91,7 +91,7 @@ impl PlatformSupportNetlink {
             .execute();
         while let Some(routev4) = routesv4.try_next().await.unwrap_or_default() {
             if let Some(index) = routev4.output_interface() {
-                //println!("*** ipv4 route: {:#?}", routev4);
+                //info!("*** ipv4 route: {:#?}", routev4);
                 if routev4.header.destination_prefix_length == 0 {
                     self.default_route_interfaces.insert(index);
                 }
@@ -106,7 +106,7 @@ impl PlatformSupportNetlink {
             .execute();
         while let Some(routev6) = routesv6.try_next().await.unwrap_or_default() {
             if let Some(index) = routev6.output_interface() {
-                //println!("*** ipv6 route: {:#?}", routev6);
+                //info!("*** ipv6 route: {:#?}", routev6);
                 if routev6.header.destination_prefix_length == 0 {
                     self.default_route_interfaces.insert(index);
                 }
@@ -187,9 +187,9 @@ impl PlatformSupportNetlink {
         Some(InterfaceAddress::new(
             IfAddr::V4(Ifv4Addr {
                 ip,
-                /// The netmask of the interface.
+                // The netmask of the interface.
                 netmask,
-                /// The broadcast address of the interface.
+                // The broadcast address of the interface.
                 broadcast,
             }),
             flags_to_address_flags(flags),
@@ -234,9 +234,9 @@ impl PlatformSupportNetlink {
         Some(InterfaceAddress::new(
             IfAddr::V6(Ifv6Addr {
                 ip,
-                /// The netmask of the interface.
+                // The netmask of the interface.
                 netmask,
-                /// The broadcast address of the interface.
+                // The broadcast address of the interface.
                 broadcast: None,
             }),
             flags_to_address_flags(flags),
@@ -262,7 +262,7 @@ impl PlatformSupportNetlink {
                     let ifname = match get_interface_name(msg.header.index) {
                         Ok(v) => v,
                         Err(e) => {
-                            log_net!(warn
+                            warn!(target: "net",
                                 "couldn't get interface name for index {}: {}",
                                 msg.header.index,
                                 e

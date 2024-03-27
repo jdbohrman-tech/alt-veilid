@@ -17,7 +17,15 @@ impl TableStoreDriver {
         let tablestoredir = c.table_store.directory.clone();
         std::fs::create_dir_all(&tablestoredir).map_err(VeilidAPIError::from)?;
 
-        let dbpath: PathBuf = [tablestoredir, String::from(table)].iter().collect();
+        let c = self.config.get();
+        let namespace = c.namespace.clone();
+        let dbpath: PathBuf = if namespace.is_empty() {
+            [tablestoredir, String::from(table)].iter().collect()
+        } else {
+            [tablestoredir, format!("{}_{}", namespace, table)]
+                .iter()
+                .collect()
+        };
         Ok(dbpath)
     }
 
@@ -33,7 +41,7 @@ impl TableStoreDriver {
         // Ensure permissions are correct
         ensure_file_private_owner(&dbpath).map_err(VeilidAPIError::internal)?;
 
-        trace!(
+        log_tstore!(
             "opened table store '{}' at path '{:?}' with {} columns",
             table_name,
             dbpath,

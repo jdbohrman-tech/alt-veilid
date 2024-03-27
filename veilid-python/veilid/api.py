@@ -55,7 +55,7 @@ class RoutingContext(ABC):
 
     @abstractmethod
     async def open_dht_record(
-        self, key: types.TypedKey, writer: Optional[types.KeyPair]
+        self, key: types.TypedKey, writer: Optional[types.KeyPair] = None
     ) -> types.DHTRecordDescriptor:
         pass
 
@@ -75,7 +75,7 @@ class RoutingContext(ABC):
 
     @abstractmethod
     async def set_dht_value(
-        self, key: types.TypedKey, subkey: types.ValueSubkey, data: bytes
+        self, key: types.TypedKey, subkey: types.ValueSubkey, data: bytes, writer: Optional[types.KeyPair] = None
     ) -> Optional[types.ValueData]:
         pass
 
@@ -96,6 +96,16 @@ class RoutingContext(ABC):
         subkeys: list[tuple[types.ValueSubkey, types.ValueSubkey]],
     ) -> bool:
         pass
+
+    @abstractmethod
+    async def inspect_dht_record(
+        self,
+        key: types.TypedKey,
+        subkeys: list[tuple[types.ValueSubkey, types.ValueSubkey]],
+        scope: types.DHTReportScope,
+    ) -> types.DHTRecordReport:
+        pass
+
 
 
 class TableDbTransaction(ABC):
@@ -191,6 +201,12 @@ class CryptoSystem(ABC):
     @abstractmethod
     async def compute_dh(
         self, key: types.PublicKey, secret: types.SecretKey
+    ) -> types.SharedSecret:
+        pass
+
+    @abstractmethod
+    async def generate_shared_secret(
+        self, key: types.PublicKey, secret: types.SecretKey, domain: bytes
     ) -> types.SharedSecret:
         pass
 
@@ -395,4 +411,8 @@ class VeilidAPI(ABC):
 
     @abstractmethod
     async def veilid_version(self) -> types.VeilidVersion:
+        pass
+
+    @abstractmethod
+    async def default_veilid_config(self) -> str:
         pass

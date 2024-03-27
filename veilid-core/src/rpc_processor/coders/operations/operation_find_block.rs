@@ -44,6 +44,8 @@ impl RPCOperationFindBlockQ {
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #[derive(Debug, Clone)]
 pub(in crate::rpc_processor) struct RPCOperationFindBlockA {
     data: Vec<u8>,

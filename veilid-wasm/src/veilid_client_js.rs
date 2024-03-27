@@ -42,8 +42,10 @@ impl VeilidClient {
 
         // Performance logger
         if platformConfig.logging.performance.enabled {
-            let filter =
-                veilid_core::VeilidLayerFilter::new(platformConfig.logging.performance.level, None);
+            let filter = veilid_core::VeilidLayerFilter::new(
+                platformConfig.logging.performance.level,
+                &platformConfig.logging.performance.ignore_log_targets,
+            );
             let layer = WASMLayer::new(
                 WASMLayerConfigBuilder::new()
                     .set_report_logs_in_timings(platformConfig.logging.performance.logs_in_timings)
@@ -61,8 +63,10 @@ impl VeilidClient {
 
         // API logger
         if platformConfig.logging.api.enabled {
-            let filter =
-                veilid_core::VeilidLayerFilter::new(platformConfig.logging.api.level, None);
+            let filter = veilid_core::VeilidLayerFilter::new(
+                platformConfig.logging.api.level,
+                &platformConfig.logging.api.ignore_log_targets,
+            );
             let layer = veilid_core::ApiTracingLayer::get().with_filter(filter.clone());
             filters.insert("api", filter);
             layers.push(layer.boxed());
@@ -125,6 +129,44 @@ impl VeilidClient {
         }
     }
 
+    fn apply_ignore_change(ignore_list: Vec<String>, changes: Vec<String>) -> Vec<String> {
+        let mut ignore_list = ignore_list.clone();
+
+        for change in changes.iter().map(|c| c.trim().to_owned()) {
+            if change.is_empty() {
+                continue;
+            }
+            if let Some(target) = change.strip_prefix('-') {
+                ignore_list.retain(|x| x != target);
+            } else if !ignore_list.contains(&change) {
+                ignore_list.push(change.to_string());
+            }
+        }
+
+        ignore_list
+    }
+
+    // TODO: can we refine the TS type of `layer`?
+    pub fn changeLogIgnore(layer: String, changes: Vec<String>) {
+        let layer = if layer == "all" { "".to_owned() } else { layer };
+        let filters = (*FILTERS).borrow();
+        if layer.is_empty() {
+            // Change all layers
+            for f in filters.values() {
+                f.set_ignore_list(Some(Self::apply_ignore_change(
+                    f.ignore_list(),
+                    changes.clone(),
+                )));
+            }
+        } else {
+            // Change a specific layer
+            let f = filters.get(layer.as_str()).unwrap();
+            f.set_ignore_list(Some(Self::apply_ignore_change(
+                f.ignore_list(),
+                changes.clone(),
+            )));
+        }
+    }
     /// Shut down Veilid and terminate the API.
     pub async fn shutdownCore() -> APIResult<()> {
         let veilid_api = take_veilid_api()?;
@@ -153,6 +195,11 @@ impl VeilidClient {
         APIRESULT_UNDEFINED
     }
 
+    /// Get the current timestamp, in string format
+    pub fn now() -> String {
+        veilid_core::get_aligned_timestamp().as_u64().to_string()
+    }
+
     /// Execute an 'internal debug command'.
     pub async fn debug(command: String) -> APIResult<String> {
         let veilid_api = get_veilid_api()?;
@@ -173,5 +220,10 @@ impl VeilidClient {
     /// Return the cargo package version of veilid-core, in string format.
     pub fn versionString() -> String {
         veilid_core::veilid_version_string()
+    }
+
+    /// Return the default veilid configuration, in string format
+    pub fn defaultConfig() -> String {
+        veilid_core::default_veilid_config()
     }
 }

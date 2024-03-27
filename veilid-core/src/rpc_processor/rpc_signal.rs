@@ -32,6 +32,8 @@ impl RPCProcessor {
         self.statement(dest, statement).await
     }
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+
     #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]
     pub(crate) async fn process_signal(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
         // Ignore if disabled

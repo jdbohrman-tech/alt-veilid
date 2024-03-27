@@ -37,7 +37,6 @@ pub mod interval;
 pub mod ip_addr_port;
 pub mod ip_extra;
 pub mod ipc;
-pub mod log_thru;
 pub mod must_join_handle;
 pub mod must_join_single_future;
 pub mod mutable_future;
@@ -179,8 +178,6 @@ pub use ip_extra::*;
 #[doc(inline)]
 pub use ipc::*;
 #[doc(inline)]
-pub use log_thru::*;
-#[doc(inline)]
 pub use must_join_handle::*;
 #[doc(inline)]
 pub use must_join_single_future::*;
@@ -221,8 +218,16 @@ pub mod tests;
 cfg_if! {
     if #[cfg(feature = "tracing")] {
         use tracing::*;
+        #[macro_export]
+        macro_rules! debug_target_enabled {
+            ($target:expr) => { enabled!(target: $target, Level::DEBUG) }
+        }
     } else {
         use log::*;
+        #[macro_export]
+        macro_rules! debug_target_enabled {
+            ($target:expr) => { log_enabled!(target: $target, Level::Debug) }
+        }
     }
 }
 use cfg_if::*;

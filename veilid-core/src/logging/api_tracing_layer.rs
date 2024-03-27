@@ -47,6 +47,19 @@ impl ApiTracingLayer {
     }
 }
 
+fn simplify_file(file: &str) -> String {
+    let path = std::path::Path::new(file);
+    let path_component_count = path.iter().count();
+    if path.ends_with("mod.rs") && path_component_count >= 2 {
+        let outpath: std::path::PathBuf = path.iter().skip(path_component_count - 2).collect();
+        outpath.to_string_lossy().to_string()
+    } else if let Some(filename) = path.file_name() {
+        filename.to_string_lossy().to_string()
+    } else {
+        file.to_string()
+    }
+}
+
 impl<S: Subscriber + for<'a> registry::LookupSpan<'a>> Layer<S> for ApiTracingLayer {
     fn on_new_span(
         &self,
@@ -86,15 +99,39 @@ impl<S: Subscriber + for<'a> registry::LookupSpan<'a>> Layer<S> for ApiTracingLa
             let mut recorder = StringRecorder::new();
             event.record(&mut recorder);
             let meta = event.metadata();
-            let level = meta.level();
-            let log_level = VeilidLogLevel::from_tracing_level(*level);
+            let level = *meta.level();
+            let target = meta.target();
+            let log_level = VeilidLogLevel::from_tracing_level(level);
 
-            let origin = meta
-                .file()
-                .and_then(|file| meta.line().map(|ln| format!("{}:{}", file, ln)))
-                .unwrap_or_default();
+            let origin = match level {
+                Level::ERROR | Level::WARN => meta
+                    .file()
+                    .and_then(|file| {
+                        meta.line()
+                            .map(|ln| format!("{}:{}", simplify_file(file), ln))
+                    })
+                    .unwrap_or_default(),
+                Level::INFO => "".to_owned(),
+                Level::DEBUG | Level::TRACE => meta
+                    .file()
+                    .and_then(|file| {
+                        meta.line().map(|ln| {
+                            format!(
+                                "{}{}:{}",
+                                if target.is_empty() {
+                                    "".to_owned()
+                                } else {
+                                    format!("[{}]", target)
+                                },
+                                simplify_file(file),
+                                ln
+                            )
+                        })
+                    })
+                    .unwrap_or_default(),
+            };
 
-            let message = format!("{} {}", origin, recorder);
+            let message = format!("{}{}", origin, recorder).trim().to_owned();
 
             let backtrace = if log_level <= VeilidLogLevel::Error {
                 let bt = backtrace::Backtrace::new();

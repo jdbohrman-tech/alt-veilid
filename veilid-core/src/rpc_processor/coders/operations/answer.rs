@@ -12,6 +12,7 @@ impl RPCAnswer {
     pub fn validate(&mut self, validate_context: &RPCValidateContext) -> Result<(), RPCError> {
         self.detail.validate(validate_context)
     }
+    #[cfg(feature = "verbose-tracing")]
     pub fn desc(&self) -> &'static str {
         self.detail.desc()
     }
@@ -37,6 +38,7 @@ pub(in crate::rpc_processor) enum RPCAnswerDetail {
     GetValueA(Box<RPCOperationGetValueA>),
     SetValueA(Box<RPCOperationSetValueA>),
     WatchValueA(Box<RPCOperationWatchValueA>),
+    InspectValueA(Box<RPCOperationInspectValueA>),
     #[cfg(feature = "unstable-blockstore")]
     SupplyBlockA(Box<RPCOperationSupplyBlockA>),
     #[cfg(feature = "unstable-blockstore")]
@@ -50,6 +52,7 @@ pub(in crate::rpc_processor) enum RPCAnswerDetail {
 }
 
 impl RPCAnswerDetail {
+    #[cfg(feature = "verbose-tracing")]
     pub fn desc(&self) -> &'static str {
         match self {
             RPCAnswerDetail::StatusA(_) => "StatusA",
@@ -58,6 +61,7 @@ impl RPCAnswerDetail {
             RPCAnswerDetail::GetValueA(_) => "GetValueA",
             RPCAnswerDetail::SetValueA(_) => "SetValueA",
             RPCAnswerDetail::WatchValueA(_) => "WatchValueA",
+            RPCAnswerDetail::InspectValueA(_) => "InspectValueA",
             #[cfg(feature = "unstable-blockstore")]
             RPCAnswerDetail::SupplyBlockA(_) => "SupplyBlockA",
             #[cfg(feature = "unstable-blockstore")]
@@ -78,6 +82,7 @@ impl RPCAnswerDetail {
             RPCAnswerDetail::GetValueA(r) => r.validate(validate_context),
             RPCAnswerDetail::SetValueA(r) => r.validate(validate_context),
             RPCAnswerDetail::WatchValueA(r) => r.validate(validate_context),
+            RPCAnswerDetail::InspectValueA(r) => r.validate(validate_context),
             #[cfg(feature = "unstable-blockstore")]
             RPCAnswerDetail::SupplyBlockA(r) => r.validate(validate_context),
             #[cfg(feature = "unstable-blockstore")]
@@ -125,6 +130,11 @@ impl RPCAnswerDetail {
                 let out = RPCOperationWatchValueA::decode(&op_reader)?;
                 RPCAnswerDetail::WatchValueA(Box::new(out))
             }
+            veilid_capnp::answer::detail::InspectValueA(r) => {
+                let op_reader = r.map_err(RPCError::protocol)?;
+                let out = RPCOperationInspectValueA::decode(&op_reader)?;
+                RPCAnswerDetail::InspectValueA(Box::new(out))
+            }
             #[cfg(feature = "unstable-blockstore")]
             veilid_capnp::answer::detail::SupplyBlockA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
@@ -170,6 +180,9 @@ impl RPCAnswerDetail {
             RPCAnswerDetail::SetValueA(d) => d.encode(&mut builder.reborrow().init_set_value_a()),
             RPCAnswerDetail::WatchValueA(d) => {
                 d.encode(&mut builder.reborrow().init_watch_value_a())
+            }
+            RPCAnswerDetail::InspectValueA(d) => {
+                d.encode(&mut builder.reborrow().init_inspect_value_a())
             }
             #[cfg(feature = "unstable-blockstore")]
             RPCAnswerDetail::SupplyBlockA(d) => {

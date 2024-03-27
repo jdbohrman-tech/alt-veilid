@@ -56,6 +56,8 @@ impl RPCProcessor {
         }
     }
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+
     #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]
     pub(crate) async fn process_validate_dial_info(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
         let routing_table = self.routing_table();

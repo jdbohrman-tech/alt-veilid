@@ -14,10 +14,10 @@ struct OutboundSetValueContext {
 
 /// The result of the outbound_set_value operation
 pub(super) struct OutboundSetValueResult {
+    /// Fanout result
+    pub fanout_result: FanoutResult,
     /// The value that was set
     pub signed_value_data: Arc<SignedValueData>,
-    /// And where it was set to
-    pub value_nodes: Vec<NodeRef>,
 }
 
 impl StorageManager {
@@ -88,7 +88,7 @@ impl StorageManager {
 
                     // Keep the value if we got one and it is newer and it passes schema validation
                     if let Some(value) = sva.answer.value {
-                        log_stor!(debug "Got value back: len={} seq={}", value.value_data().data().len(), value.value_data().seq());
+                        log_dht!(debug "Got value back: len={} seq={}", value.value_data().data().len(), value.value_data().seq());
 
                         // Validate with schema
                         if !ctx.schema.check_subkey_value_data(
@@ -127,8 +127,7 @@ impl StorageManager {
                 }
 
                 // Return peers if we have some
-                #[cfg(feature = "network-result-extra")]
-                log_stor!(debug "SetValue fanout call returned peers {}", sva.answer.peers.len());
+                log_network_result!(debug "SetValue fanout call returned peers {}", sva.answer.peers.len());
 
                 Ok(NetworkResult::value(sva.answer.peers))
             }
@@ -165,57 +164,31 @@ impl StorageManager {
             check_done,
         );
 
-        match fanout_call.run(vec![]).await {
+        let kind = match fanout_call.run(vec![]).await {
             // If we don't finish in the timeout (too much time passed checking for consensus)
-            TimeoutOr::Timeout => {
-                // Return the best answer we've got
-                let ctx = context.lock();
-                if ctx.value_nodes.len() >= consensus_count {
-                    log_stor!(debug "SetValue Fanout Timeout Consensus");
-                } else {
-                    log_stor!(debug "SetValue Fanout Timeout Non-Consensus: {}", ctx.value_nodes.len());
-                }
-
-                Ok(OutboundSetValueResult {
-                    signed_value_data: ctx.value.clone(),
-                    value_nodes: ctx.value_nodes.clone(),
-                })
-            }
+            TimeoutOr::Timeout => FanoutResultKind::Timeout,
             // If we finished with or without consensus (enough nodes returning the same value)
-            TimeoutOr::Value(Ok(Some(()))) => {
-                // Return the best answer we've got
-                let ctx = context.lock();
-                if ctx.value_nodes.len() >= consensus_count {
-                    log_stor!(debug "SetValue Fanout Consensus");
-                } else {
-                    log_stor!(debug "SetValue Fanout Non-Consensus: {}", ctx.value_nodes.len());
-                }
-                Ok(OutboundSetValueResult {
-                    signed_value_data: ctx.value.clone(),
-                    value_nodes: ctx.value_nodes.clone(),
-                })
-            }
+            TimeoutOr::Value(Ok(Some(()))) => FanoutResultKind::Finished,
             // If we ran out of nodes before getting consensus)
-            TimeoutOr::Value(Ok(None)) => {
-                // Return the best answer we've got
-                let ctx = context.lock();
-                if ctx.value_nodes.len() >= consensus_count {
-                    log_stor!(debug "SetValue Fanout Exhausted Consensus");
-                } else {
-                    log_stor!(debug "SetValue Fanout Exhausted Non-Consensus: {}", ctx.value_nodes.len());
-                }
-                Ok(OutboundSetValueResult {
-                    signed_value_data: ctx.value.clone(),
-                    value_nodes: ctx.value_nodes.clone(),
-                })
-            }
+            TimeoutOr::Value(Ok(None)) => FanoutResultKind::Exhausted,
             // Failed
             TimeoutOr::Value(Err(e)) => {
                 // If we finished with an error, return that
-                log_stor!(debug "SetValue Fanout Error: {}", e);
-                Err(e.into())
+                log_dht!(debug "SetValue Fanout Error: {}", e);
+                return Err(e.into());
             }
-        }
+        };
+        let ctx = context.lock();
+        let fanout_result = FanoutResult {
+            kind,
+            value_nodes: ctx.value_nodes.clone(),
+        };
+        log_network_result!(debug "SetValue Fanout: {:?}", fanout_result);
+
+        Ok(OutboundSetValueResult {
+            fanout_result,
+            signed_value_data: ctx.value.clone(),
+        })
     }
 
     /// Handle a received 'Set Value' query
@@ -232,21 +205,21 @@ impl StorageManager {
         let mut inner = self.lock().await?;
 
         // See if this is a remote or local value
-        let (is_local, last_subkey_result) = {
+        let (is_local, last_get_result) = {
             // See if the subkey we are modifying has a last known local value
-            let last_subkey_result = inner.handle_get_local_value(key, subkey, true).await?;
+            let last_get_result = inner.handle_get_local_value(key, subkey, true).await?;
             // If this is local, it must have a descriptor already
-            if last_subkey_result.descriptor.is_some() {
-                (true, last_subkey_result)
+            if last_get_result.opt_descriptor.is_some() {
+                (true, last_get_result)
             } else {
                 // See if the subkey we are modifying has a last known remote value
-                let last_subkey_result = inner.handle_get_remote_value(key, subkey, true).await?;
-                (false, last_subkey_result)
+                let last_get_result = inner.handle_get_remote_value(key, subkey, true).await?;
+                (false, last_get_result)
             }
         };
 
         // Make sure this value would actually be newer
-        if let Some(last_value) = &last_subkey_result.value {
+        if let Some(last_value) = &last_get_result.opt_value {
             if value.value_data().seq() <= last_value.value_data().seq() {
                 // inbound value is older or equal sequence number than the one we have, just return the one we have
                 return Ok(NetworkResult::value(Some(last_value.clone())));
@@ -254,7 +227,7 @@ impl StorageManager {
         }
 
         // Get the descriptor and schema for the key
-        let actual_descriptor = match last_subkey_result.descriptor {
+        let actual_descriptor = match last_get_result.opt_descriptor {
             Some(last_descriptor) => {
                 if let Some(descriptor) = descriptor {
                     // Descriptor must match last one if it is provided

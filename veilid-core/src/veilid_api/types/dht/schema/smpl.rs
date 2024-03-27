@@ -16,14 +16,47 @@ pub struct DHTSchemaSMPLMember {
 #[cfg_attr(target_arch = "wasm32", derive(Tsify), tsify(from_wasm_abi))]
 pub struct DHTSchemaSMPL {
     /// Owner subkey count
-    pub o_cnt: u16,
+    o_cnt: u16,
     /// Members
-    pub members: Vec<DHTSchemaSMPLMember>,
+    members: Vec<DHTSchemaSMPLMember>,
 }
 
 impl DHTSchemaSMPL {
     pub const FCC: [u8; 4] = *b"SMPL";
     pub const FIXED_SIZE: usize = 6;
+
+    /// Make a schema
+    pub fn new(o_cnt: u16, members: Vec<DHTSchemaSMPLMember>) -> VeilidAPIResult<Self> {
+        let out = Self { o_cnt, members };
+        out.validate()?;
+        Ok(out)
+    }
+
+    /// Validate the data representation
+    pub fn validate(&self) -> VeilidAPIResult<()> {
+        let keycount = self
+            .members
+            .iter()
+            .fold(self.o_cnt as usize, |acc, x| acc + (x.m_cnt as usize));
+
+        if keycount == 0 {
+            apibail_invalid_argument!("must have at least one subkey", "keycount", keycount);
+        }
+        if keycount > 65535 {
+            apibail_invalid_argument!("too many subkeys", "keycount", keycount);
+        }
+        Ok(())
+    }
+
+    /// Get the owner subkey count
+    pub fn o_cnt(&self) -> u16 {
+        self.o_cnt
+    }
+
+    /// Get the members of the schema
+    pub fn members(&self) -> &[DHTSchemaSMPLMember] {
+        &self.members
+    }
 
     /// Build the data representation of the schema
     pub fn compile(&self) -> Vec<u8> {
@@ -44,11 +77,13 @@ impl DHTSchemaSMPL {
         out
     }
 
-    /// Get the number of subkeys this schema allocates
-    pub fn subkey_count(&self) -> usize {
-        self.members
+    /// Get the maximum subkey this schema allocates
+    pub fn max_subkey(&self) -> ValueSubkey {
+        let subkey_count = self
+            .members
             .iter()
-            .fold(self.o_cnt as usize, |acc, x| acc + (x.m_cnt as usize))
+            .fold(self.o_cnt as usize, |acc, x| acc + (x.m_cnt as usize));
+        (subkey_count - 1) as ValueSubkey
     }
 
     /// Get the data size of this schema beyond the size of the structure itself
@@ -134,6 +169,6 @@ impl TryFrom<&[u8]> for DHTSchemaSMPL {
             members.push(DHTSchemaSMPLMember { m_key, m_cnt });
         }
 
-        Ok(Self { o_cnt, members })
+        Self::new(o_cnt, members)
     }
 }

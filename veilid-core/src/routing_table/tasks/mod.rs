@@ -194,31 +194,31 @@ impl RoutingTable {
 
     pub(crate) async fn cancel_tasks(&self) {
         // Cancel all tasks being ticked
-        debug!("stopping rolling transfers task");
+        log_rtab!(debug "stopping rolling transfers task");
         if let Err(e) = self.unlocked_inner.rolling_transfers_task.stop().await {
             error!("rolling_transfers_task not stopped: {}", e);
         }
-        debug!("stopping kick buckets task");
+        log_rtab!(debug "stopping kick buckets task");
         if let Err(e) = self.unlocked_inner.kick_buckets_task.stop().await {
             error!("kick_buckets_task not stopped: {}", e);
         }
-        debug!("stopping bootstrap task");
+        log_rtab!(debug "stopping bootstrap task");
         if let Err(e) = self.unlocked_inner.bootstrap_task.stop().await {
             error!("bootstrap_task not stopped: {}", e);
         }
-        debug!("stopping peer minimum refresh task");
+        log_rtab!(debug "stopping peer minimum refresh task");
         if let Err(e) = self.unlocked_inner.peer_minimum_refresh_task.stop().await {
             error!("peer_minimum_refresh_task not stopped: {}", e);
         }
-        debug!("stopping ping_validator task");
+        log_rtab!(debug "stopping ping_validator task");
         if let Err(e) = self.unlocked_inner.ping_validator_task.stop().await {
             error!("ping_validator_task not stopped: {}", e);
         }
-        debug!("stopping relay management task");
+        log_rtab!(debug "stopping relay management task");
         if let Err(e) = self.unlocked_inner.relay_management_task.stop().await {
             warn!("relay_management_task not stopped: {}", e);
         }
-        debug!("stopping private route management task");
+        log_rtab!(debug "stopping private route management task");
         if let Err(e) = self
             .unlocked_inner
             .private_route_management_task

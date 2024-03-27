@@ -75,6 +75,8 @@ impl RPCOperationGetValueQ {
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #[derive(Debug, Clone)]
 pub(in crate::rpc_processor) struct RPCOperationGetValueA {
     value: Option<SignedValueData>,
@@ -109,29 +111,35 @@ impl RPCOperationGetValueA {
             panic!("Wrong context type for GetValueA");
         };
 
-        if let Some(value) = &self.value {
-            // Get descriptor to validate with
-            let descriptor = if let Some(descriptor) = &self.descriptor {
-                if let Some(last_descriptor) = &get_value_context.last_descriptor {
-                    if descriptor.cmp_no_sig(last_descriptor) != cmp::Ordering::Equal {
-                        return Err(RPCError::protocol(
-                            "getvalue descriptor does not match last descriptor",
-                        ));
-                    }
-                }
-                descriptor
-            } else {
-                let Some(descriptor) = &get_value_context.last_descriptor else {
-                    return Err(RPCError::protocol(
-                        "no last descriptor, requires a descriptor",
-                    ));
-                };
-                descriptor
-            };
+        // Validate descriptor
+        if let Some(descriptor) = &self.descriptor {
             // Ensure the descriptor itself validates
             descriptor
                 .validate(get_value_context.vcrypto.clone())
                 .map_err(RPCError::protocol)?;
+
+            // Ensure descriptor matches last one
+            if let Some(last_descriptor) = &get_value_context.last_descriptor {
+                if descriptor.cmp_no_sig(last_descriptor) != cmp::Ordering::Equal {
+                    return Err(RPCError::protocol(
+                        "GetValue descriptor does not match last descriptor",
+                    ));
+                }
+            }
+        }
+
+        // Ensure the value validates
+        if let Some(value) = &self.value {
+            // Get descriptor to validate with
+            let Some(descriptor) = self
+                .descriptor
+                .as_ref()
+                .or(get_value_context.last_descriptor.as_ref())
+            else {
+                return Err(RPCError::protocol(
+                    "no last descriptor, requires a descriptor",
+                ));
+            };
 
             // And the signed value data
             value

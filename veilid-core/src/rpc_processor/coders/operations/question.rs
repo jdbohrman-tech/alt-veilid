@@ -20,6 +20,7 @@ impl RPCQuestion {
     pub fn detail(&self) -> &RPCQuestionDetail {
         &self.detail
     }
+    #[cfg(feature = "verbose-tracing")]
     pub fn desc(&self) -> &'static str {
         self.detail.desc()
     }
@@ -49,6 +50,7 @@ pub(in crate::rpc_processor) enum RPCQuestionDetail {
     GetValueQ(Box<RPCOperationGetValueQ>),
     SetValueQ(Box<RPCOperationSetValueQ>),
     WatchValueQ(Box<RPCOperationWatchValueQ>),
+    InspectValueQ(Box<RPCOperationInspectValueQ>),
     #[cfg(feature = "unstable-blockstore")]
     SupplyBlockQ(Box<RPCOperationSupplyBlockQ>),
     #[cfg(feature = "unstable-blockstore")]
@@ -62,6 +64,7 @@ pub(in crate::rpc_processor) enum RPCQuestionDetail {
 }
 
 impl RPCQuestionDetail {
+    #[cfg(feature = "verbose-tracing")]
     pub fn desc(&self) -> &'static str {
         match self {
             RPCQuestionDetail::StatusQ(_) => "StatusQ",
@@ -70,6 +73,7 @@ impl RPCQuestionDetail {
             RPCQuestionDetail::GetValueQ(_) => "GetValueQ",
             RPCQuestionDetail::SetValueQ(_) => "SetValueQ",
             RPCQuestionDetail::WatchValueQ(_) => "WatchValueQ",
+            RPCQuestionDetail::InspectValueQ(_) => "InspectValueQ",
             #[cfg(feature = "unstable-blockstore")]
             RPCQuestionDetail::SupplyBlockQ(_) => "SupplyBlockQ",
             #[cfg(feature = "unstable-blockstore")]
@@ -90,6 +94,7 @@ impl RPCQuestionDetail {
             RPCQuestionDetail::GetValueQ(r) => r.validate(validate_context),
             RPCQuestionDetail::SetValueQ(r) => r.validate(validate_context),
             RPCQuestionDetail::WatchValueQ(r) => r.validate(validate_context),
+            RPCQuestionDetail::InspectValueQ(r) => r.validate(validate_context),
             #[cfg(feature = "unstable-blockstore")]
             RPCQuestionDetail::SupplyBlockQ(r) => r.validate(validate_context),
             #[cfg(feature = "unstable-blockstore")]
@@ -138,6 +143,11 @@ impl RPCQuestionDetail {
                 let out = RPCOperationWatchValueQ::decode(&op_reader)?;
                 RPCQuestionDetail::WatchValueQ(Box::new(out))
             }
+            veilid_capnp::question::detail::InspectValueQ(r) => {
+                let op_reader = r.map_err(RPCError::protocol)?;
+                let out = RPCOperationInspectValueQ::decode(&op_reader)?;
+                RPCQuestionDetail::InspectValueQ(Box::new(out))
+            }
             #[cfg(feature = "unstable-blockstore")]
             veilid_capnp::question::detail::SupplyBlockQ(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
@@ -183,6 +193,9 @@ impl RPCQuestionDetail {
             RPCQuestionDetail::SetValueQ(d) => d.encode(&mut builder.reborrow().init_set_value_q()),
             RPCQuestionDetail::WatchValueQ(d) => {
                 d.encode(&mut builder.reborrow().init_watch_value_q())
+            }
+            RPCQuestionDetail::InspectValueQ(d) => {
+                d.encode(&mut builder.reborrow().init_inspect_value_q())
             }
             #[cfg(feature = "unstable-blockstore")]
             RPCQuestionDetail::SupplyBlockQ(d) => {
