@@ -217,7 +217,7 @@ impl VeilidAPI {
     /// `XmnGyJrjMJBRC5ayJZRPXWTBspdX36-pbLb98H3UMeE` will be parsed with the 'best' cryptosystem
     /// available (at the time of this writing this is `VLD0`)
     #[instrument(target = "veilid_api", level = "debug", skip(self), fields(s=s.to_string()), ret, err)]
-    pub async fn parse_as_target<S: ToString>(&self, s: S) -> VeilidAPIResult<Target> {
+    pub fn parse_as_target<S: ToString>(&self, s: S) -> VeilidAPIResult<Target> {
         let s = s.to_string();
 
         event!(target: "veilid_api", Level::DEBUG, 
