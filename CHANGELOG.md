@@ -1,3 +1,25 @@
+**Changed in Veilid 0.3.0**
+- API BREAKING CHANGES: 
+  - WatchValue RPC support
+  - InspectRecord RPC support
+  - RoutingContext now defaults to Reliable and EnsureOrdered modes
+  - generate_shared_secret added that abstracts DH and ensures domain separation
+- Closed #357 - AppCall and AppMessage now have private route information
+- Logging: Log facilities now can be enabled and disabled at runtime
+- Logging: Log facility added for DHT, network results, and API calls
+- CLI: Closed #358 - veilid-cli now has 'interactive' (-i), 'log viewer' (-l) and 'execute command' (-e) command line options
+- Testing: veilid-flutter now has integration tests of its own that work like the veilid-python unit tests
+- Network: Failures to hole-punch UDP or reverse-connect TCP or UDP now falls back to inbound relaying
+- Bugfix: Signal handling for unix-like platforms was not handling SIGTERM correctly
+- Bugfix: Restarting veilid-server quickly might result in failures to bind()
+- Bugfix: Closed #359 - Block node identity from DHT record schema owner/writer
+- Bugfix: Closed #355 - Fixed memory error reading macos/ios interfaces list
+- _Community Contributions_
+  - Made private route allocation bidirectional by default @kyanha
+  - Use $CI_REGISTRY_IMAGE for the registry path @SalvatoreT
+  - Add VeilidConfigInner-based VeilidAPI startup @SalvatoreT
+  - rebrand trust-dns-resolver to hickory-resolver @kyanha
+
 **Changed in Veilid 0.2.5**
 - API BREAKING CHANGES: 
   - on `RoutingContext`: `with_privacy()` renamed to `with_default_safety()`
