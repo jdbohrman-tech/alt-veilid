@@ -568,7 +568,7 @@ pub extern "C" fn routing_context_app_call(port: i64, id: u32, target: FfiStr, r
         let routing_context = get_routing_context(id, "routing_context_app_call")?;
 
         let veilid_api = get_veilid_api().await?;
-        let target = veilid_api.parse_as_target(target_string).await?;
+        let target = veilid_api.parse_as_target(target_string)?;
         let answer = routing_context.app_call(target, request).await?;
         let answer = data_encoding::BASE64URL_NOPAD.encode(&answer);
         APIResult::Ok(answer)
@@ -585,7 +585,7 @@ pub extern "C" fn routing_context_app_message(port: i64, id: u32, target: FfiStr
         let routing_context = get_routing_context(id, "routing_context_app_message")?;
 
         let veilid_api = get_veilid_api().await?;
-        let target = veilid_api.parse_as_target(target_string).await?;
+        let target = veilid_api.parse_as_target(target_string)?;
         routing_context.app_message(target, message).await?;
         APIRESULT_VOID
     });

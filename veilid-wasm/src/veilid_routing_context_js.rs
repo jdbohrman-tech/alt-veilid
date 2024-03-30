@@ -161,7 +161,7 @@ impl VeilidRoutingContext {
         let routing_context = self.getRoutingContext()?;
         let message = message.into_vec();
         let veilid_api = get_veilid_api()?;
-        let target = veilid_api.parse_as_target(target_string).await?;
+        let target = veilid_api.parse_as_target(target_string)?;
         routing_context.app_message(target, message).await?;
         APIRESULT_UNDEFINED
     }
@@ -183,7 +183,7 @@ impl VeilidRoutingContext {
         let routing_context = self.getRoutingContext()?;
 
         let veilid_api = get_veilid_api()?;
-        let target = veilid_api.parse_as_target(target_string).await?;
+        let target = veilid_api.parse_as_target(target_string)?;
         let answer = routing_context.app_call(target, request).await?;
         let answer = Uint8Array::from(answer.as_slice());
         APIResult::Ok(answer)
