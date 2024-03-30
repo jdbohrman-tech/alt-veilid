@@ -239,10 +239,7 @@ fn get_destination(
 
                 let private_route = if let Some(prid) = get_route_id(rss.clone(), false, true)(text)
                 {
-                    let Some(private_route) = rss.best_remote_private_route(&prid) else {
-                        return None;
-                    };
-                    private_route
+                    rss.best_remote_private_route(&prid)?
                 } else {
                     let mut dc = DEBUG_CACHE.lock();
                     let n = get_number(text)?;

@@ -166,13 +166,9 @@ impl ConnectionManager {
         let netman = self.network_manager();
         let routing_table = netman.routing_table();
         let remote_address = conn.flow().remote_address().address();
-        let Some(routing_domain) = routing_table.routing_domain_for_address(remote_address) else {
-            return None;
-        };
-        let Some(rn) = routing_table.relay_node(routing_domain) else {
-            return None;
-        };
-        let relay_nr = rn.filtered_clone(
+        let routing_domain = routing_table.routing_domain_for_address(remote_address)?;
+        let relay_node = routing_table.relay_node(routing_domain)?;
+        let relay_nr = relay_node.filtered_clone(
             NodeRefFilter::new()
                 .with_routing_domain(routing_domain)
                 .with_address_type(conn.flow().address_type())

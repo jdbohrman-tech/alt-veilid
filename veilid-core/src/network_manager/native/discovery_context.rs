@@ -340,17 +340,14 @@ impl DiscoveryContext {
             tries += 1;
 
             // Attempt a port mapping. If this doesn't succeed, it's not going to
-            let Some(mapped_external_address) = igd_manager
+            let mapped_external_address = igd_manager
                 .map_any_port(
                     low_level_protocol_type,
                     address_type,
                     local_port,
                     Some(external_1.address.ip_addr()),
                 )
-                .await
-            else {
-                return None;
-            };
+                .await?;
 
             // Make dial info from the port mapping
             let external_mapped_dial_info = self.unlocked_inner.net.make_dial_info(
