@@ -59,7 +59,7 @@ impl StorageManager {
                             key: *k,
                             subkeys: ValueSubkeyRangeSet::new(),
                             count: 0,
-                            value: ValueData::default(),
+                            value: None,
                         })));
                     }
                 }

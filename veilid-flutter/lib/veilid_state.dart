@@ -174,7 +174,7 @@ sealed class VeilidUpdate with _$VeilidUpdate {
     required TypedKey key,
     required List<ValueSubkeyRange> subkeys,
     required int count,
-    required ValueData value,
+    required ValueData? value,
   }) = VeilidUpdateValueChange;
 
   factory VeilidUpdate.fromJson(dynamic json) =>

@@ -221,7 +221,7 @@ impl StorageManager {
         // Make sure this value would actually be newer
         if let Some(last_value) = &last_get_result.opt_value {
             if value.value_data().seq() <= last_value.value_data().seq() {
-                // inbound value is older or equal sequence number than the one we have, just return the one we have
+                // inbound value is older than or equal to the sequence number that we have, just return the one we have
                 return Ok(NetworkResult::value(Some(last_value.clone())));
             }
         }

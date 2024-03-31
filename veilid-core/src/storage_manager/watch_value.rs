@@ -232,7 +232,7 @@ impl StorageManager {
         watch_id: u64,
     ) -> VeilidAPIResult<()> {
         // Update local record store with new value
-        let (res, opt_update_callback) = {
+        let (is_value_seq_newer, opt_update_callback) = {
             let mut inner = self.lock().await?;
 
             // Don't process update if the record is closed
@@ -281,32 +281,56 @@ impl StorageManager {
             }
 
             // Set the local value
-            let res = if let Some(first_subkey) = subkeys.first() {
-                inner
-                    .handle_set_local_value(
-                        key,
-                        first_subkey,
-                        value.clone(),
-                        WatchUpdateMode::NoUpdate,
-                    )
-                    .await
-            } else {
-                VeilidAPIResult::Ok(())
-            };
+            let mut is_value_seq_newer = false;
+            if let Some(first_subkey) = subkeys.first() {
+                let last_get_result = inner
+                    .handle_get_local_value(key, first_subkey, false)
+                    .await?;
 
-            (res, inner.update_callback.clone())
+                // Make sure this value would actually be newer
+                is_value_seq_newer = true;
+                if let Some(last_value) = &last_get_result.opt_value {
+                    if value.value_data().seq() <= last_value.value_data().seq() {
+                        // inbound value is older than or equal to the sequence number that we have, just return the one we have
+                        is_value_seq_newer = false;
+                    }
+                }
+                if is_value_seq_newer {
+                    inner
+                        .handle_set_local_value(
+                            key,
+                            first_subkey,
+                            value.clone(),
+                            WatchUpdateMode::NoUpdate,
+                        )
+                        .await?;
+                }
+            }
+
+            (is_value_seq_newer, inner.update_callback.clone())
         };
 
         // Announce ValueChanged VeilidUpdate
-        if let Some(update_callback) = opt_update_callback {
-            update_callback(VeilidUpdate::ValueChange(Box::new(VeilidValueChange {
-                key,
-                subkeys,
-                count,
-                value: value.value_data().clone(),
-            })));
+        // * if the value in the update had a newer sequence number
+        // * if more than a single subkeys has changed
+        // * if the count was zero meaning cancelled
+
+        let do_update = is_value_seq_newer || subkeys.len() > 1 || count == 0;
+        if do_update {
+            if let Some(update_callback) = opt_update_callback {
+                update_callback(VeilidUpdate::ValueChange(Box::new(VeilidValueChange {
+                    key,
+                    subkeys,
+                    count,
+                    value: if is_value_seq_newer {
+                        Some(value.value_data().clone())
+                    } else {
+                        None
+                    },
+                })));
+            }
         }
 
-        res
+        Ok(())
     }
 }

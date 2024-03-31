@@ -2673,8 +2673,7 @@
             "count",
             "key",
             "kind",
-            "subkeys",
-            "value"
+            "subkeys"
           ],
           "properties": {
             "count": {
@@ -2712,7 +2711,14 @@
               }
             },
             "value": {
-              "$ref": "#/definitions/ValueData"
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/ValueData"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           }
         },

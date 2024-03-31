@@ -210,6 +210,6 @@ pub fn fix_veilidvaluechange() -> VeilidValueChange {
         key: fix_typedkey(),
         subkeys: ValueSubkeyRangeSet::new(),
         count: 5,
-        value: ValueData::new_with_seq(23, b"ValueData".to_vec(), fix_cryptokey()).unwrap(),
+        value: Some(ValueData::new_with_seq(23, b"ValueData".to_vec(), fix_cryptokey()).unwrap()),
     }
 }
