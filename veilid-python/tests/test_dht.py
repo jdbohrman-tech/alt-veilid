@@ -247,17 +247,27 @@ async def test_watch_dht_values():
         # Now set the subkey and trigger an update
         vd = await rcSet.set_dht_value(rec.key, 3, b"BLAH")
         assert vd == None
+        
+        # Now we should NOT get an update because the update is the same as our local copy
+        update = None
+        try:
+            update = await asyncio.wait_for(value_change_queue.get(), timeout=5)
+        except asyncio.TimeoutError:
+            pass
+        assert update == None
+
+        # Now set multiple subkeys and trigger an update
+        vd = await asyncio.gather(*[rcSet.set_dht_value(rec.key, 3, b"BLAH BLAH"), rcSet.set_dht_value(rec.key, 4, b"BZORT")])
+        assert vd == [None, None]
 
         # Wait for the update
         upd = await asyncio.wait_for(value_change_queue.get(), timeout=5)
 
-        # Verify the update
+        # Verify the update came back but we don't get a new value because the sequence number is the same
         assert upd.detail.key == rec.key
-        assert upd.detail.count == 0xFFFFFFFE
-        assert upd.detail.subkeys == [(3,3)]
-        assert upd.detail.value.seq == 1
-        assert upd.detail.value.data == b"BLAH"
-        assert upd.detail.value.writer == rec.owner
+        assert upd.detail.count == 0xFFFFFFFD
+        assert upd.detail.subkeys == [(3, 4)]
+        assert upd.detail.value == None
 
         # Reopen without closing to change routing context and not lose watch
         rec = await rcWatch.open_dht_record(rec.key, rec.owner_key_pair())
@@ -269,20 +279,18 @@ async def test_watch_dht_values():
         # Reopen without closing to change routing context and not lose watch
         rec = await rcSet.open_dht_record(rec.key, rec.owner_key_pair())
 
-        # Change our subkey
-        vd = await rcSet.set_dht_value(rec.key, 3, b"BLAH BLAH BLAH")
-        assert vd == None
+        # Now set multiple subkeys and trigger an update
+        vd = await asyncio.gather(*[rcSet.set_dht_value(rec.key, 3, b"BLAH BLAH BLAH"), rcSet.set_dht_value(rec.key, 5, b"BZORT BZORT")])
+        assert vd == [None, None]
 
         # Wait for the update
         upd = await asyncio.wait_for(value_change_queue.get(), timeout=5)
 
-        # Verify the update
+        # Verify the update came back but we don't get a new value because the sequence number is the same
         assert upd.detail.key == rec.key
-        assert upd.detail.count == 0xFFFFFFFD
-        assert upd.detail.subkeys == [(3,3)]
-        assert upd.detail.value.seq == 2
-        assert upd.detail.value.data == b"BLAH BLAH BLAH"
-        assert upd.detail.value.writer == rec.owner
+        assert upd.detail.count == 0xFFFFFFFC
+        assert upd.detail.subkeys == [(3, 3), (5, 5)]
+        assert upd.detail.value == None
 
         # Reopen without closing to change routing context and not lose watch
         rec = await rcWatch.open_dht_record(rec.key, rec.owner_key_pair())
@@ -294,9 +302,9 @@ async def test_watch_dht_values():
         # Reopen without closing to change routing context and not lose watch
         rec = await rcSet.open_dht_record(rec.key, rec.owner_key_pair())
 
-        # Set the value without a watch
-        vd = await rcSet.set_dht_value(rec.key, 3, b"BLAH")
-        assert vd == None
+        # Now set multiple subkeys
+        vd = await asyncio.gather(*[rcSet.set_dht_value(rec.key, 3, b"BLAH BLAH BLAH BLAH"), rcSet.set_dht_value(rec.key, 5, b"BZORT BZORT BZORT")])
+        assert vd == [None, None]
         
         # Now we should NOT get an update
         update = None

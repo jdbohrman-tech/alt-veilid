@@ -41,7 +41,7 @@ struct ValueChangedInfo {
     subkeys: ValueSubkeyRangeSet,
     count: u32,
     watch_id: u64,
-    value: Arc<SignedValueData>,
+    value: Option<Arc<SignedValueData>>,
 }
 
 struct StorageManagerUnlockedInner {
@@ -890,7 +890,7 @@ impl StorageManager {
             .map_err(VeilidAPIError::from)?;
 
         network_result_value_or_log!(rpc_processor
-            .rpc_call_value_changed(dest, vc.key, vc.subkeys.clone(), vc.count, vc.watch_id, (*vc.value).clone() )
+            .rpc_call_value_changed(dest, vc.key, vc.subkeys.clone(), vc.count, vc.watch_id, vc.value.map(|v| (*v).clone()) )
             .await
             .map_err(VeilidAPIError::from)? => [format!(": dest={:?} vc={:?}", dest, vc)] {});
 

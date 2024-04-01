@@ -385,7 +385,7 @@ struct OperationValueChanged @0xd1c59ebdd8cc1bf6 {
     subkeys                 @1  :List(SubkeyRange);     # subkey range that changed (up to 512 ranges at a time, if empty this is a watch expiration notice)
     count                   @2  :UInt32;                # remaining changes left (0 means watch has expired)
     watchId                 @3  :UInt64;                # watch id this value change came from
-    value                   @4  :SignedValueData;       # first value that changed (the rest can be gotten with getvalue)
+    value                   @4  :SignedValueData;       # Optional: first value that changed (the rest can be gotten with getvalue)
 }
 
 struct OperationSupplyBlockQ @0xadbf4c542d749971 {

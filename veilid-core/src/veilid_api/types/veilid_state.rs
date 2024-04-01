@@ -101,7 +101,7 @@ pub struct VeilidValueChange {
     pub key: TypedKey,
     pub subkeys: ValueSubkeyRangeSet,
     pub count: u32,
-    pub value: ValueData,
+    pub value: Option<ValueData>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

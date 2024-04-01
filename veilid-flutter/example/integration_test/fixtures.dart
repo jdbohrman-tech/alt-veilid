@@ -19,37 +19,50 @@ class DefaultFixture {
 
     assert(_veilidUpdateStream == null, 'should not set up fixture twice');
 
+    final ignoreLogTargetsStr =
+        // ignore: do_not_use_environment
+        const String.fromEnvironment('IGNORE_LOG_TARGETS').trim();
+    final ignoreLogTargets = ignoreLogTargetsStr.isEmpty
+        ? <String>[]
+        : ignoreLogTargetsStr.split(',').map((e) => e.trim()).toList();
+
     final Map<String, dynamic> platformConfigJson;
     if (kIsWeb) {
-      const platformConfig = VeilidWASMConfig(
+      final platformConfig = VeilidWASMConfig(
           logging: VeilidWASMConfigLogging(
               performance: VeilidWASMConfigLoggingPerformance(
                 enabled: true,
                 level: VeilidConfigLogLevel.debug,
                 logsInTimings: true,
                 logsInConsole: false,
+                ignoreLogTargets: ignoreLogTargets,
               ),
               api: VeilidWASMConfigLoggingApi(
                 enabled: true,
                 level: VeilidConfigLogLevel.info,
+                ignoreLogTargets: ignoreLogTargets,
               )));
       platformConfigJson = platformConfig.toJson();
     } else {
-      const platformConfig = VeilidFFIConfig(
+      final platformConfig = VeilidFFIConfig(
           logging: VeilidFFIConfigLogging(
               terminal: VeilidFFIConfigLoggingTerminal(
                 enabled: false,
                 level: VeilidConfigLogLevel.debug,
+                ignoreLogTargets: ignoreLogTargets,
               ),
               otlp: VeilidFFIConfigLoggingOtlp(
                 enabled: false,
                 level: VeilidConfigLogLevel.trace,
                 grpcEndpoint: 'localhost:4317',
                 serviceName: 'Veilid Tests',
+                ignoreLogTargets: ignoreLogTargets,
               ),
               api: VeilidFFIConfigLoggingApi(
                 enabled: true,
+                // level: VeilidConfigLogLevel.debug,
                 level: VeilidConfigLogLevel.info,
+                ignoreLogTargets: ignoreLogTargets,
               )));
       platformConfigJson = platformConfig.toJson();
     }

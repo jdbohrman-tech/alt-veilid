@@ -358,9 +358,9 @@ class VeilidValueChange:
     key: TypedKey
     subkeys: list[tuple[ValueSubkey, ValueSubkey]]
     count: int
-    value: ValueData
+    value: Optional[ValueData]
 
-    def __init__(self, key: TypedKey, subkeys: list[tuple[ValueSubkey, ValueSubkey]], count: int, value: ValueData):
+    def __init__(self, key: TypedKey, subkeys: list[tuple[ValueSubkey, ValueSubkey]], count: int, value: Optional[ValueData]):
         self.key = key
         self.subkeys = subkeys
         self.count = count
@@ -373,7 +373,7 @@ class VeilidValueChange:
             TypedKey(j["key"]),
             [(p[0], p[1]) for p in j["subkeys"]],
             j["count"],
-            ValueData.from_json(j["value"]),
+            None if j["value"] is None else ValueData.from_json(j["value"]),
         )
 
 

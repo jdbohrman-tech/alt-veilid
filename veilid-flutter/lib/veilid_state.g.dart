@@ -255,7 +255,7 @@ _$VeilidUpdateValueChangeImpl _$$VeilidUpdateValueChangeImplFromJson(
           .map(ValueSubkeyRange.fromJson)
           .toList(),
       count: json['count'] as int,
-      value: ValueData.fromJson(json['value']),
+      value: json['value'] == null ? null : ValueData.fromJson(json['value']),
       $type: json['kind'] as String?,
     );
 
@@ -265,7 +265,7 @@ Map<String, dynamic> _$$VeilidUpdateValueChangeImplToJson(
       'key': instance.key.toJson(),
       'subkeys': instance.subkeys.map((e) => e.toJson()).toList(),
       'count': instance.count,
-      'value': instance.value.toJson(),
+      'value': instance.value?.toJson(),
       'kind': instance.$type,
     };
 

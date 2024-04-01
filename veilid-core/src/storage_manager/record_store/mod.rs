@@ -1211,7 +1211,7 @@ where
                 subkeys: evci.subkeys,
                 count: evci.count,
                 watch_id: evci.watch_id,
-                value,
+                value: Some(value),
             });
         }
     }

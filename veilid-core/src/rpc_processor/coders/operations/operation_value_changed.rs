@@ -9,7 +9,7 @@ pub(in crate::rpc_processor) struct RPCOperationValueChanged {
     subkeys: ValueSubkeyRangeSet,
     count: u32,
     watch_id: u64,
-    value: SignedValueData,
+    value: Option<SignedValueData>,
 }
 
 impl RPCOperationValueChanged {
@@ -19,7 +19,7 @@ impl RPCOperationValueChanged {
         subkeys: ValueSubkeyRangeSet,
         count: u32,
         watch_id: u64,
-        value: SignedValueData,
+        value: Option<SignedValueData>,
     ) -> Result<Self, RPCError> {
         if subkeys.ranges_len() > MAX_VALUE_CHANGED_SUBKEY_RANGES_LEN {
             return Err(RPCError::protocol(
@@ -29,6 +29,11 @@ impl RPCOperationValueChanged {
 
         if watch_id == 0 {
             return Err(RPCError::protocol("ValueChanged needs a nonzero watch id"));
+        }
+        if subkeys.is_empty() && value.is_some() {
+            return Err(RPCError::protocol(
+                "ValueChanged with a value must have subkeys",
+            ));
         }
 
         Ok(Self {
@@ -43,6 +48,11 @@ impl RPCOperationValueChanged {
     pub fn validate(&mut self, _validate_context: &RPCValidateContext) -> Result<(), RPCError> {
         if self.watch_id == 0 {
             return Err(RPCError::protocol("ValueChanged does not have a valid id"));
+        }
+        if self.subkeys.is_empty() && self.value.is_some() {
+            return Err(RPCError::protocol(
+                "ValueChanged with a value must have subkeys",
+            ));
         }
         // further validation must be done by storage manager as this is more complicated
         Ok(())
@@ -69,12 +79,20 @@ impl RPCOperationValueChanged {
     }
 
     #[allow(dead_code)]
-    pub fn value(&self) -> &SignedValueData {
-        &self.value
+    pub fn value(&self) -> Option<&SignedValueData> {
+        self.value.as_ref()
     }
 
     #[allow(dead_code)]
-    pub fn destructure(self) -> (TypedKey, ValueSubkeyRangeSet, u32, u64, SignedValueData) {
+    pub fn destructure(
+        self,
+    ) -> (
+        TypedKey,
+        ValueSubkeyRangeSet,
+        u32,
+        u64,
+        Option<SignedValueData>,
+    ) {
         (
             self.key,
             self.subkeys,
@@ -113,9 +131,13 @@ impl RPCOperationValueChanged {
             subkeys.ranges_insert(vskr.0..=vskr.1);
         }
         let count = reader.get_count();
-        let v_reader = reader.get_value().map_err(RPCError::protocol)?;
         let watch_id = reader.get_watch_id();
-        let value = decode_signed_value_data(&v_reader)?;
+        let value = if reader.has_value() {
+            let v_reader = reader.get_value().map_err(RPCError::protocol)?;
+            Some(decode_signed_value_data(&v_reader)?)
+        } else {
+            None
+        };
 
         Ok(Self {
             key,
@@ -147,8 +169,10 @@ impl RPCOperationValueChanged {
         builder.set_count(self.count);
         builder.set_watch_id(self.watch_id);
 
-        let mut v_builder = builder.reborrow().init_value();
-        encode_signed_value_data(&self.value, &mut v_builder)?;
+        if let Some(value) = &self.value {
+            let mut v_builder = builder.reborrow().init_value();
+            encode_signed_value_data(value, &mut v_builder)?;
+        }
         Ok(())
     }
 }

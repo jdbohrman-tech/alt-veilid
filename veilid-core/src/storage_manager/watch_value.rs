@@ -227,27 +227,27 @@ impl StorageManager {
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
         mut count: u32,
-        value: Arc<SignedValueData>,
+        value: Option<Arc<SignedValueData>>,
         inbound_node_id: TypedKey,
         watch_id: u64,
-    ) -> VeilidAPIResult<()> {
+    ) -> VeilidAPIResult<NetworkResult<()>> {
         // Update local record store with new value
-        let (res, opt_update_callback) = {
+        let (is_value_seq_newer, opt_update_callback, value) = {
             let mut inner = self.lock().await?;
 
             // Don't process update if the record is closed
             let Some(opened_record) = inner.opened_records.get_mut(&key) else {
-                return Ok(());
+                return Ok(NetworkResult::value(()));
             };
 
             // No active watch means no callback
             let Some(mut active_watch) = opened_record.active_watch() else {
-                return Ok(());
+                return Ok(NetworkResult::value(()));
             };
 
             // If the watch id doesn't match, then don't process this
             if active_watch.id != watch_id {
-                return Ok(());
+                return Ok(NetworkResult::value(()));
             }
 
             // If the reporting node is not the same as our watch, don't process the value change
@@ -256,7 +256,7 @@ impl StorageManager {
                 .node_ids()
                 .contains(&inbound_node_id)
             {
-                return Ok(());
+                return Ok(NetworkResult::value(()));
             }
 
             if count > active_watch.count {
@@ -280,33 +280,81 @@ impl StorageManager {
                 opened_record.set_active_watch(active_watch);
             }
 
-            // Set the local value
-            let res = if let Some(first_subkey) = subkeys.first() {
-                inner
-                    .handle_set_local_value(
-                        key,
-                        first_subkey,
-                        value.clone(),
-                        WatchUpdateMode::NoUpdate,
-                    )
-                    .await
-            } else {
-                VeilidAPIResult::Ok(())
-            };
+            // Null out default value
+            let value = value.filter(|value| *value.value_data() != ValueData::default());
 
-            (res, inner.update_callback.clone())
+            // Set the local value
+            let mut is_value_seq_newer = false;
+            if let Some(value) = &value {
+                let Some(first_subkey) = subkeys.first() else {
+                    apibail_internal!("should not have value without first subkey");
+                };
+
+                let last_get_result = inner
+                    .handle_get_local_value(key, first_subkey, true)
+                    .await?;
+
+                let descriptor = last_get_result.opt_descriptor.unwrap();
+                let schema = descriptor.schema()?;
+
+                // Validate with schema
+                if !schema.check_subkey_value_data(
+                    descriptor.owner(),
+                    first_subkey,
+                    value.value_data(),
+                ) {
+                    // Validation failed, ignore this value
+                    // Move to the next node
+                    return Ok(NetworkResult::invalid_message(format!(
+                        "Schema validation failed on subkey {}",
+                        first_subkey
+                    )));
+                }
+
+                // Make sure this value would actually be newer
+                is_value_seq_newer = true;
+                if let Some(last_value) = &last_get_result.opt_value {
+                    if value.value_data().seq() <= last_value.value_data().seq() {
+                        // inbound value is older than or equal to the sequence number that we have, just return the one we have
+                        is_value_seq_newer = false;
+                    }
+                }
+                if is_value_seq_newer {
+                    inner
+                        .handle_set_local_value(
+                            key,
+                            first_subkey,
+                            value.clone(),
+                            WatchUpdateMode::NoUpdate,
+                        )
+                        .await?;
+                }
+            }
+
+            (is_value_seq_newer, inner.update_callback.clone(), value)
         };
 
         // Announce ValueChanged VeilidUpdate
-        if let Some(update_callback) = opt_update_callback {
-            update_callback(VeilidUpdate::ValueChange(Box::new(VeilidValueChange {
-                key,
-                subkeys,
-                count,
-                value: value.value_data().clone(),
-            })));
+        // * if the value in the update had a newer sequence number
+        // * if more than a single subkeys has changed
+        // * if the count was zero meaning cancelled
+
+        let do_update = is_value_seq_newer || subkeys.len() > 1 || count == 0;
+        if do_update {
+            if let Some(update_callback) = opt_update_callback {
+                update_callback(VeilidUpdate::ValueChange(Box::new(VeilidValueChange {
+                    key,
+                    subkeys,
+                    count,
+                    value: if is_value_seq_newer {
+                        Some(value.unwrap().value_data().clone())
+                    } else {
+                        None
+                    },
+                })));
+            }
         }
 
-        res
+        Ok(NetworkResult::value(()))
     }
 }
