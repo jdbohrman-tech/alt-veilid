@@ -227,27 +227,27 @@ impl StorageManager {
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
         mut count: u32,
-        value: Arc<SignedValueData>,
+        value: Option<Arc<SignedValueData>>,
         inbound_node_id: TypedKey,
         watch_id: u64,
-    ) -> VeilidAPIResult<()> {
+    ) -> VeilidAPIResult<NetworkResult<()>> {
         // Update local record store with new value
-        let (is_value_seq_newer, opt_update_callback) = {
+        let (is_value_seq_newer, opt_update_callback, value) = {
             let mut inner = self.lock().await?;
 
             // Don't process update if the record is closed
             let Some(opened_record) = inner.opened_records.get_mut(&key) else {
-                return Ok(());
+                return Ok(NetworkResult::value(()));
             };
 
             // No active watch means no callback
             let Some(mut active_watch) = opened_record.active_watch() else {
-                return Ok(());
+                return Ok(NetworkResult::value(()));
             };
 
             // If the watch id doesn't match, then don't process this
             if active_watch.id != watch_id {
-                return Ok(());
+                return Ok(NetworkResult::value(()));
             }
 
             // If the reporting node is not the same as our watch, don't process the value change
@@ -256,7 +256,7 @@ impl StorageManager {
                 .node_ids()
                 .contains(&inbound_node_id)
             {
-                return Ok(());
+                return Ok(NetworkResult::value(()));
             }
 
             if count > active_watch.count {
@@ -280,12 +280,36 @@ impl StorageManager {
                 opened_record.set_active_watch(active_watch);
             }
 
+            // Null out default value
+            let value = value.filter(|value| *value.value_data() != ValueData::default());
+
             // Set the local value
             let mut is_value_seq_newer = false;
-            if let Some(first_subkey) = subkeys.first() {
+            if let Some(value) = &value {
+                let Some(first_subkey) = subkeys.first() else {
+                    apibail_internal!("should not have value without first subkey");
+                };
+
                 let last_get_result = inner
-                    .handle_get_local_value(key, first_subkey, false)
+                    .handle_get_local_value(key, first_subkey, true)
                     .await?;
+
+                let descriptor = last_get_result.opt_descriptor.unwrap();
+                let schema = descriptor.schema()?;
+
+                // Validate with schema
+                if !schema.check_subkey_value_data(
+                    descriptor.owner(),
+                    first_subkey,
+                    value.value_data(),
+                ) {
+                    // Validation failed, ignore this value
+                    // Move to the next node
+                    return Ok(NetworkResult::invalid_message(format!(
+                        "Schema validation failed on subkey {}",
+                        first_subkey
+                    )));
+                }
 
                 // Make sure this value would actually be newer
                 is_value_seq_newer = true;
@@ -307,7 +331,7 @@ impl StorageManager {
                 }
             }
 
-            (is_value_seq_newer, inner.update_callback.clone())
+            (is_value_seq_newer, inner.update_callback.clone(), value)
         };
 
         // Announce ValueChanged VeilidUpdate
@@ -323,7 +347,7 @@ impl StorageManager {
                     subkeys,
                     count,
                     value: if is_value_seq_newer {
-                        Some(value.value_data().clone())
+                        Some(value.unwrap().value_data().clone())
                     } else {
                         None
                     },
@@ -331,6 +355,6 @@ impl StorageManager {
             }
         }
 
-        Ok(())
+        Ok(NetworkResult::value(()))
     }
 }

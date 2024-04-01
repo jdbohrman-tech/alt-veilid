@@ -15,7 +15,7 @@ impl RPCProcessor {
         subkeys: ValueSubkeyRangeSet,
         count: u32,
         watch_id: u64,
-        value: SignedValueData,
+        value: Option<SignedValueData>,
     ) -> RPCNetworkResult<()> {
         // Ensure destination is never using a safety route
         if matches!(dest.get_safety_selection(), SafetySelection::Safe(_)) {
@@ -63,12 +63,16 @@ impl RPCProcessor {
         };
 
         if debug_target_enabled!("dht") {
-            let debug_string_value = format!(
-                " len={} seq={} writer={}",
-                value.value_data().data().len(),
-                value.value_data().seq(),
-                value.value_data().writer(),
-            );
+            let debug_string_value = if let Some(value) = &value {
+                format!(
+                    " len={} seq={} writer={}",
+                    value.value_data().data().len(),
+                    value.value_data().seq(),
+                    value.value_data().writer(),
+                )
+            } else {
+                "(no value)".to_owned()
+            };
 
             let debug_string_stmt = format!(
                 "IN <== ValueChanged(id={} {} #{:?}+{}{}) from {} <= {}",
@@ -91,13 +95,11 @@ impl RPCProcessor {
                 key,
                 subkeys,
                 count,
-                Arc::new(value),
+                value.map(Arc::new),
                 inbound_node_id,
                 watch_id,
             )
             .await
-            .map_err(RPCError::internal)?;
-
-        Ok(NetworkResult::value(()))
+            .map_err(RPCError::internal)
     }
 }
