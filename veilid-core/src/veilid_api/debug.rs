@@ -676,17 +676,24 @@ impl VeilidAPI {
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
 
         let mut min_state = BucketEntryState::Unreliable;
+        let mut capabilities = vec![];
         for arg in args {
             if let Some(ms) = get_bucket_entry_state(&arg) {
                 min_state = ms;
             } else {
-                apibail_invalid_argument!("debug_entries", "unknown", arg);
+                for cap in arg.split(',') {
+                    if let Ok(capfcc) = FourCC::from_str(cap) {
+                        capabilities.push(capfcc);
+                    } else {
+                        apibail_invalid_argument!("debug_entries", "unknown", arg);
+                    }
+                }
             }
         }
 
         // Dump routing table entries
         let routing_table = self.network_manager()?.routing_table();
-        Ok(routing_table.debug_info_entries(min_state))
+        Ok(routing_table.debug_info_entries(min_state, capabilities))
     }
 
     async fn debug_entry(&self, args: String) -> VeilidAPIResult<String> {
@@ -1917,7 +1924,7 @@ impl VeilidAPI {
         Ok(r#"buckets [dead|reliable]
 dialinfo
 peerinfo [routingdomain]
-entries [dead|reliable]
+entries [dead|reliable] [<capabilities>]
 entry <node>
 nodeinfo
 config [insecure] [configkey [new value]]
@@ -1959,6 +1966,7 @@ record list <local|remote>
 --------------------------------------------------------------------
 <key> is: VLD0:GsgXCRPrzSK6oBNgxhNpm-rTYFd02R0ySx6j9vbQBG4
     * also <node>, <relay>, <target>, <route>
+<capabilities> is: a list of FourCC codes: ROUT,SGNL,RLAY,DIAL,DHTV,DHTW,APPM etc.
 <configkey> is: dot path like network.protocol.udp.enabled
 <destination> is:
     * direct:  <node>[+<safety>][<modifiers>]

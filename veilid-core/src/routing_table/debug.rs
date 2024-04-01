@@ -104,7 +104,11 @@ impl RoutingTable {
         out
     }
 
-    pub(crate) fn debug_info_entries(&self, min_state: BucketEntryState) -> String {
+    pub(crate) fn debug_info_entries(
+        &self,
+        min_state: BucketEntryState,
+        capabilities: Vec<FourCC>,
+    ) -> String {
         let inner = self.inner.read();
         let inner = &*inner;
         let cur_ts = get_aligned_timestamp();
@@ -117,25 +121,30 @@ impl RoutingTable {
             let routing_domain = ec.0 .0;
             let crypto_kind = ec.0 .1;
             let count = ec.1;
-            out += &format!("  {:?}:{}: {}\n", routing_domain, crypto_kind, count);
+            out += &format!("{:?}: {}: {}\n", routing_domain, crypto_kind, count);
         }
         for ck in &VALID_CRYPTO_KINDS {
+            let mut filtered_total = 0;
             let mut b = 0;
             let blen = inner.buckets[ck].len();
             while b < blen {
                 let filtered_entries: Vec<(&PublicKey, &Arc<BucketEntry>)> = inner.buckets[ck][b]
                     .entries()
                     .filter(|e| {
+                        let cap_match = e.1.with(inner, |_rti, e| {
+                            e.has_capabilities(RoutingDomain::PublicInternet, &capabilities)
+                        });
                         let state = e.1.with(inner, |_rti, e| e.state(cur_ts));
-                        state >= min_state
+                        state >= min_state && cap_match
                     })
                     .collect();
+                filtered_total += filtered_entries.len();
                 if !filtered_entries.is_empty() {
                     out += &format!("{} Bucket #{}:\n", ck, b);
                     for e in filtered_entries {
                         let state = e.1.with(inner, |_rti, e| e.state(cur_ts));
                         out += &format!(
-                            "    {} [{}] {}\n",
+                            "    {} [{}] {} [{}]\n",
                             e.0.encode(),
                             match state {
                                 BucketEntryState::Reliable => "R",
@@ -153,12 +162,24 @@ impl RoutingTable {
                                         )
                                     })
                                     .unwrap_or_else(|| "???.??ms".to_string())
+                            }),
+                            e.1.with(inner, |_rti, e| {
+                                if let Some(ni) = e.node_info(RoutingDomain::PublicInternet) {
+                                    ni.capabilities()
+                                        .iter()
+                                        .map(|x| x.to_string())
+                                        .collect::<Vec<String>>()
+                                        .join(",")
+                                } else {
+                                    "???".to_owned()
+                                }
                             })
                         );
                     }
                 }
                 b += 1;
             }
+            out += &format!("{} Filtered Total: {}\n", ck, filtered_total);
         }
 
         out
