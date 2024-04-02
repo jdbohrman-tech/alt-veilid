@@ -145,6 +145,15 @@ where
     }
 
     fn add_to_fanout_queue(self: Arc<Self>, new_nodes: &[NodeRef]) {
+        info!(
+            "FanoutCall::add_to_fanout_queue:\n  new_nodes={{\n{}}}\n",
+            new_nodes
+                .iter()
+                .map(|x| format!("  {}", x))
+                .collect::<Vec<String>>()
+                .join(",\n"),
+        );
+
         let ctx = &mut *self.context.lock();
         let this = self.clone();
         ctx.fanout_queue.add(new_nodes, |current_nodes| {

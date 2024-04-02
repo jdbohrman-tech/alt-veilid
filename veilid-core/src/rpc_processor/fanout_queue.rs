@@ -1,5 +1,6 @@
 use super::*;
 
+#[derive(Debug)]
 pub(in crate::rpc_processor) struct FanoutQueue {
     crypto_kind: CryptoKind,
     current_nodes: VecDeque<NodeRef>,
@@ -53,6 +54,20 @@ impl FanoutQueue {
         // Sort and trim the candidate set
         self.current_nodes =
             VecDeque::from_iter(cleanup(self.current_nodes.as_slices().0).iter().cloned());
+
+        info!(
+            "FanoutQueue::add:\n  current_nodes={{\n{}}}\n  returned_nodes={{\n{}}}\n",
+            self.current_nodes
+                .iter()
+                .map(|x| format!("  {}", x))
+                .collect::<Vec<String>>()
+                .join(",\n"),
+            self.returned_nodes
+                .iter()
+                .map(|x| format!("  {}", x))
+                .collect::<Vec<String>>()
+                .join(",\n")
+        );
     }
 
     // Return next fanout candidate
@@ -63,6 +78,9 @@ impl FanoutQueue {
 
         // Ensure we don't return this node again
         self.returned_nodes.insert(key);
+
+        info!("FanoutQueue::next: => {}", cn);
+
         Some(cn)
     }
 

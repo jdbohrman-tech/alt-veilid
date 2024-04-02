@@ -50,7 +50,16 @@ impl StorageManager {
             vec![watch_node]
         } else {
             let inner = self.inner.lock().await;
-            inner.get_value_nodes(key)?.unwrap_or_default()
+            inner
+                .get_value_nodes(key)?
+                .unwrap_or_default()
+                .into_iter()
+                .filter(|x| {
+                    x.node_info(RoutingDomain::PublicInternet)
+                        .map(|ni| ni.has_capability(CAP_DHT_WATCH))
+                        .unwrap_or_default()
+                })
+                .collect()
         };
 
         // Get the appropriate watcher key, if anonymous use a static anonymous watch key

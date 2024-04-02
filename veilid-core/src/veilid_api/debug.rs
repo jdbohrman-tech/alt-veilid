@@ -1602,7 +1602,7 @@ impl VeilidAPI {
             "subkey",
             get_number::<u32>,
         )?;
-        let force_refresh = if args.len() >= 4 {
+        let force_refresh = if args.len() >= 3 + opt_arg_add {
             Some(get_debug_argument_at(
                 &args,
                 2 + opt_arg_add,
@@ -1735,7 +1735,7 @@ impl VeilidAPI {
             })
         };
         let count = if rest_defaults {
-            Default::default()
+            u32::MAX
         } else {
             get_debug_argument_at(
                 &args,
