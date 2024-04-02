@@ -431,8 +431,8 @@ impl Default for VeilidConfigRPC {
         Self {
             concurrency: 0,
             queue_size: 1024,
-            max_timestamp_behind_ms: None,
-            max_timestamp_ahead_ms: None,
+            max_timestamp_behind_ms: Some(10000),
+            max_timestamp_ahead_ms: Some(10000),
             timeout_ms: 5000,
             max_route_hop_count: 4,
             default_route_hop_count: 1,
