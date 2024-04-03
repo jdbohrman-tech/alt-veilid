@@ -300,7 +300,7 @@ pub async fn test_open_writer_dht_value(api: VeilidAPI) {
     let set_dht_test_value_0_result = rc
         .set_dht_value(key, 0, test_value_1.clone(), Some(keypair))
         .await;
-    assert_err!(set_dht_test_value_0_result);
+    assert!(set_dht_test_value_0_result.is_ok());
 
     rc.close_dht_record(key).await.unwrap();
     rc.delete_dht_record(key).await.unwrap();
