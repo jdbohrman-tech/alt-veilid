@@ -116,19 +116,36 @@ package_amd64_rpm:
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
 
+publish_crates:
+  stage: distribute
+  tags:
+    - build-amd64-deb
+  script:
+    - vlt login
+    - vlt run --command="cargo publish -p veilid-tools --dry-run"
+    - vlt run --command="cargo publish -p veilid-tools"
+    - vlt run --command="cargo publish -p veilid-core --dry-run"
+    - vlt run --command="cargo publish -p veilid-core"
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /v\d.+/'
+
+publish_python:
+  stage: distribute
+  tags:
+    - build-amd64-deb
+  script:
+    - vlt login
+    - cd veilid-python && /home/gitlab-runner/.local/bin/poetry build
+    - vlt run --command="/home/gitlab-runner/.local/bin/poetry publish"
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /v\d.+/'
+
 build_repositories:
   stage: distribute
   tags:
     - build-orchestration
   script:
     - /home/gitlab-runner/distribute-packages.sh
-    - vlt login
-    - vlt run --command="cargo publish -p veilid-tools --dry-run"
-    - vlt run --command="cargo publish -p veilid-tools"
-    - vlt run --command="cargo publish -p veilid-core --dry-run"
-    - vlt run --command="cargo publish -p veilid-core"
-    - cd veilid-python && /home/gitlab-runner/.local/bin/poetry build
-    - vlt run --command="/home/gitlab-runner/.local/bin/poetry publish"
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
 
