@@ -55,7 +55,7 @@ impl FanoutQueue {
         self.current_nodes =
             VecDeque::from_iter(cleanup(self.current_nodes.as_slices().0).iter().cloned());
 
-        info!(
+        event!(target: "fanout", Level::DEBUG,
             "FanoutQueue::add:\n  current_nodes={{\n{}}}\n  returned_nodes={{\n{}}}\n",
             self.current_nodes
                 .iter()
@@ -79,7 +79,8 @@ impl FanoutQueue {
         // Ensure we don't return this node again
         self.returned_nodes.insert(key);
 
-        info!("FanoutQueue::next: => {}", cn);
+        event!(target: "fanout", Level::DEBUG,
+            "FanoutQueue::next: => {}", cn);
 
         Some(cn)
     }

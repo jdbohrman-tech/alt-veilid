@@ -263,23 +263,6 @@ pub fn change_log_level(layer: String, log_level: String) {
     }
 }
 
-fn apply_ignore_change(ignore_list: Vec<String>, target_change: String) -> Vec<String> {
-    let mut ignore_list = ignore_list.clone();
-
-    for change in target_change.split(',').map(|c| c.trim().to_owned()) {
-        if change.is_empty() {
-            continue;
-        }
-        if let Some(target) = change.strip_prefix('-') {
-            ignore_list.retain(|x| x != target);
-        } else if !ignore_list.contains(&change) {
-            ignore_list.push(change.to_string());
-        }
-    }
-
-    ignore_list
-}
-
 #[wasm_bindgen()]
 pub fn change_log_ignore(layer: String, log_ignore: String) {
     let layer = if layer == "all" { "".to_owned() } else { layer };
@@ -288,7 +271,7 @@ pub fn change_log_ignore(layer: String, log_ignore: String) {
     if layer.is_empty() {
         // Change all layers
         for f in filters.values() {
-            f.set_ignore_list(Some(apply_ignore_change(
+            f.set_ignore_list(Some(VeilidLayerFilter::apply_ignore_change(
                 f.ignore_list(),
                 log_ignore.clone(),
             )));
@@ -296,7 +279,7 @@ pub fn change_log_ignore(layer: String, log_ignore: String) {
     } else {
         // Change a specific layer
         let f = filters.get(layer.as_str()).unwrap();
-        f.set_ignore_list(Some(apply_ignore_change(
+        f.set_ignore_list(Some(VeilidLayerFilter::apply_ignore_change(
             f.ignore_list(),
             log_ignore.clone(),
         )));

@@ -1262,3 +1262,8 @@ impl VeilidConfig {
         Ok(())
     }
 }
+
+/// Return the default veilid config as a json object
+pub fn default_veilid_config() -> String {
+    serialize_json(VeilidConfigInner::default())
+}

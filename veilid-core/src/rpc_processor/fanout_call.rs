@@ -145,7 +145,7 @@ where
     }
 
     fn add_to_fanout_queue(self: Arc<Self>, new_nodes: &[NodeRef]) {
-        info!(
+        event!(target: "fanout", Level::DEBUG,
             "FanoutCall::add_to_fanout_queue:\n  new_nodes={{\n{}}}\n",
             new_nodes
                 .iter()
@@ -210,7 +210,8 @@ where
                 #[allow(unused_variables)]
                 Ok(x) => {
                     // Call failed, node will not be considered again
-                    log_network_result!(debug "Fanout result {}: {:?}", &next_node, x);
+                    event!(target: "fanout", Level::DEBUG, 
+                        "Fanout result {}: {:?}", &next_node, x);
                 }
                 Err(e) => {
                     // Error happened, abort everything and return the error

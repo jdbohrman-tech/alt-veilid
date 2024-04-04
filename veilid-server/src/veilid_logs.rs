@@ -230,23 +230,6 @@ impl VeilidLogs {
         Ok(())
     }
 
-    fn apply_ignore_change(ignore_list: Vec<String>, target_change: String) -> Vec<String> {
-        let mut ignore_list = ignore_list.clone();
-
-        for change in target_change.split(',').map(|c| c.trim().to_owned()) {
-            if change.is_empty() {
-                continue;
-            }
-            if let Some(target) = change.strip_prefix('-') {
-                ignore_list.retain(|x| x != target);
-            } else if !ignore_list.contains(&change) {
-                ignore_list.push(change.to_string());
-            }
-        }
-
-        ignore_list
-    }
-
     pub fn change_log_ignore(
         &self,
         layer: String,
@@ -260,8 +243,8 @@ impl VeilidLogs {
         if layer.is_empty() {
             // Change all layers
             for f in inner.filters.values() {
-                f.set_ignore_list(Some(Self::apply_ignore_change(
-                    f.ignore_list(),
+                f.set_ignore_list(Some(veilid_core::VeilidLayerFilter::apply_ignore_change(
+                    &f.ignore_list(),
                     log_ignore.clone(),
                 )));
             }
@@ -277,8 +260,8 @@ impl VeilidLogs {
                     });
                 }
             };
-            f.set_ignore_list(Some(Self::apply_ignore_change(
-                f.ignore_list(),
+            f.set_ignore_list(Some(veilid_core::VeilidLayerFilter::apply_ignore_change(
+                &f.ignore_list(),
                 log_ignore.clone(),
             )));
         }

@@ -98,7 +98,7 @@ cfg_if! {
             SETUP_ONCE.call_once(|| {
                 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
                 let mut env_filter = EnvFilter::builder().from_env_lossy();
-                for ig in DEFAULT_LOG_IGNORE_LIST {
+                for ig in DEFAULT_LOG_FACILITIES_IGNORE_LIST {
                     env_filter = env_filter.add_directive(format!("{}=off", ig).parse().unwrap());
                 }
                 let fmt_layer = fmt::layer();

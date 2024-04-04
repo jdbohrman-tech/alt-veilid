@@ -19,7 +19,7 @@ static DEBUG_CACHE: Mutex<DebugCache> = Mutex::new(DebugCache {
     opened_record_contexts: Lazy::new(LinkedHashMap::new),
 });
 
-fn format_opt_ts(ts: Option<TimestampDuration>) -> String {
+pub fn format_opt_ts(ts: Option<TimestampDuration>) -> String {
     let Some(ts) = ts else {
         return "---".to_owned();
     };
@@ -32,7 +32,7 @@ fn format_opt_ts(ts: Option<TimestampDuration>) -> String {
     }
 }
 
-fn format_opt_bps(bps: Option<ByteCount>) -> String {
+pub fn format_opt_bps(bps: Option<ByteCount>) -> String {
     let Some(bps) = bps else {
         return "---".to_owned();
     };

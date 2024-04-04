@@ -18,19 +18,10 @@ impl VeilidLayerFilter {
         max_level: VeilidConfigLogLevel,
         ignore_log_targets: &[String],
     ) -> VeilidLayerFilter {
-        let mut ignore_list = DEFAULT_LOG_IGNORE_LIST.map(|x| x.to_owned()).to_vec();
-        for igedit in ignore_log_targets {
-            if let Some(rest) = igedit.strip_prefix('-') {
-                for i in 0..ignore_list.len() {
-                    if ignore_list[i] == rest {
-                        ignore_list.remove(i);
-                        break;
-                    }
-                }
-            } else {
-                ignore_list.push(igedit.clone());
-            }
-        }
+        let mut ignore_list = DEFAULT_LOG_FACILITIES_IGNORE_LIST
+            .map(|x| x.to_owned())
+            .to_vec();
+        Self::apply_ignore_change_list(&mut ignore_list, ignore_log_targets);
         Self {
             inner: Arc::new(RwLock::new(VeilidLayerFilterInner {
                 max_level: max_level.to_tracing_level_filter(),
@@ -60,8 +51,11 @@ impl VeilidLayerFilter {
     pub fn set_ignore_list(&self, ignore_list: Option<Vec<String>>) {
         {
             let mut inner = self.inner.write();
-            inner.ignore_list = ignore_list
-                .unwrap_or_else(|| DEFAULT_LOG_IGNORE_LIST.map(|x| x.to_owned()).to_vec());
+            inner.ignore_list = ignore_list.unwrap_or_else(|| {
+                DEFAULT_LOG_FACILITIES_IGNORE_LIST
+                    .map(|x| x.to_owned())
+                    .to_vec()
+            });
         }
         callsite::rebuild_interest_cache();
     }
@@ -81,6 +75,46 @@ impl VeilidLayerFilter {
         }
 
         true
+    }
+
+    pub fn apply_ignore_change(ignore_list: &[String], target_change: String) -> Vec<String> {
+        let mut ignore_list = ignore_list.to_vec();
+        let target_change = target_change
+            .split(',')
+            .map(|c| c.trim().to_owned())
+            .collect::<Vec<String>>();
+        Self::apply_ignore_change_list(&mut ignore_list, &target_change);
+        ignore_list
+    }
+
+    pub fn apply_ignore_change_list(ignore_list: &mut Vec<String>, target_change: &[String]) {
+        for change in target_change {
+            if change.is_empty() {
+                continue;
+            }
+            if change == "all" {
+                *ignore_list = [
+                    DEFAULT_LOG_FACILITIES_ENABLED_LIST.to_vec(),
+                    DEFAULT_LOG_FACILITIES_IGNORE_LIST.to_vec(),
+                ]
+                .concat()
+                .into_iter()
+                .map(|x| x.to_owned())
+                .collect();
+                continue;
+            } else if change == "default" {
+                *ignore_list = [DEFAULT_LOG_FACILITIES_IGNORE_LIST.to_vec()]
+                    .concat()
+                    .into_iter()
+                    .map(|x| x.to_owned())
+                    .collect();
+                continue;
+            } else if let Some(target) = change.strip_prefix('-') {
+                ignore_list.retain(|x| x != target);
+            } else if !ignore_list.contains(change) {
+                ignore_list.push(change.to_string());
+            }
+        }
     }
 }
 
