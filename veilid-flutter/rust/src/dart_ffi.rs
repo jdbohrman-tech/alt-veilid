@@ -341,23 +341,6 @@ pub extern "C" fn change_log_level(layer: FfiStr, log_level: FfiStr) {
     }
 }
 
-fn apply_ignore_change(ignore_list: Vec<String>, target_change: String) -> Vec<String> {
-    let mut ignore_list = ignore_list.clone();
-
-    for change in target_change.split(',').map(|c| c.trim().to_owned()) {
-        if change.is_empty() {
-            continue;
-        }
-        if let Some(target) = change.strip_prefix('-') {
-            ignore_list.retain(|x| x != target);
-        } else if !ignore_list.contains(&change) {
-            ignore_list.push(change.to_string());
-        }
-    }
-
-    ignore_list
-}
-
 #[no_mangle]
 pub extern "C" fn change_log_ignore(layer: FfiStr, log_ignore: FfiStr) {
     // get layer to change level on
@@ -372,16 +355,16 @@ pub extern "C" fn change_log_ignore(layer: FfiStr, log_ignore: FfiStr) {
     if layer.is_empty() {
         // Change all layers
         for f in filters.values() {
-            f.set_ignore_list(Some(apply_ignore_change(
-                f.ignore_list(),
+            f.set_ignore_list(Some(veilid_core::VeilidLayerFilter::apply_ignore_change(
+                &f.ignore_list(),
                 log_ignore.clone(),
             )));
         }
     } else {
         // Change a specific layer
         let f = filters.get(layer.as_str()).unwrap();
-        f.set_ignore_list(Some(apply_ignore_change(
-            f.ignore_list(),
+        f.set_ignore_list(Some(veilid_core::VeilidLayerFilter::apply_ignore_change(
+            &f.ignore_list(),
             log_ignore.clone(),
         )));
     }

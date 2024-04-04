@@ -19,7 +19,7 @@ static DEBUG_CACHE: Mutex<DebugCache> = Mutex::new(DebugCache {
     opened_record_contexts: Lazy::new(LinkedHashMap::new),
 });
 
-fn format_opt_ts(ts: Option<TimestampDuration>) -> String {
+pub fn format_opt_ts(ts: Option<TimestampDuration>) -> String {
     let Some(ts) = ts else {
         return "---".to_owned();
     };
@@ -32,7 +32,7 @@ fn format_opt_ts(ts: Option<TimestampDuration>) -> String {
     }
 }
 
-fn format_opt_bps(bps: Option<ByteCount>) -> String {
+pub fn format_opt_bps(bps: Option<ByteCount>) -> String {
     let Some(bps) = bps else {
         return "---".to_owned();
     };
@@ -1602,7 +1602,7 @@ impl VeilidAPI {
             "subkey",
             get_number::<u32>,
         )?;
-        let force_refresh = if args.len() >= 4 {
+        let force_refresh = if args.len() >= 3 + opt_arg_add {
             Some(get_debug_argument_at(
                 &args,
                 2 + opt_arg_add,
@@ -1735,7 +1735,7 @@ impl VeilidAPI {
             })
         };
         let count = if rest_defaults {
-            Default::default()
+            u32::MAX
         } else {
             get_debug_argument_at(
                 &args,

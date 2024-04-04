@@ -59,7 +59,10 @@ mod veilid_config;
 mod wasm_helpers;
 
 pub use self::core_context::{api_startup, api_startup_config, api_startup_json, UpdateCallback};
-pub use self::logging::{ApiTracingLayer, VeilidLayerFilter};
+pub use self::logging::{
+    ApiTracingLayer, VeilidLayerFilter, DEFAULT_LOG_FACILITIES_ENABLED_LIST,
+    DEFAULT_LOG_FACILITIES_IGNORE_LIST, DURATION_LOG_FACILITIES,
+};
 pub use self::veilid_api::*;
 pub use self::veilid_config::*;
 pub use veilid_tools as tools;
@@ -86,42 +89,8 @@ pub fn veilid_version() -> (u32, u32, u32) {
     )
 }
 
-/// Return the default veilid config as a json object
-pub fn default_veilid_config() -> String {
-    serialize_json(VeilidConfigInner::default())
-}
-
 #[cfg(target_os = "android")]
 pub use intf::android::veilid_core_setup_android;
-
-pub static DEFAULT_LOG_IGNORE_LIST: [&str; 26] = [
-    "mio",
-    "h2",
-    "hyper",
-    "tower",
-    "tonic",
-    "tokio",
-    "runtime",
-    "tokio_util",
-    "want",
-    "serial_test",
-    "async_std",
-    "async_io",
-    "polling",
-    "rustls",
-    "async_tungstenite",
-    "tungstenite",
-    "netlink_proto",
-    "netlink_sys",
-    "hickory_resolver",
-    "hickory_proto",
-    "attohttpc",
-    "ws_stream_wasm",
-    "keyvaluedb_web",
-    "veilid_api",
-    "network_result",
-    "dht",
-];
 
 use cfg_if::*;
 use enumset::*;

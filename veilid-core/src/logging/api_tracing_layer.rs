@@ -5,20 +5,20 @@ use core::fmt::Write;
 use once_cell::sync::OnceCell;
 use tracing_subscriber::*;
 
-struct ApiLoggerInner {
+struct ApiTracingLayerInner {
     update_callback: UpdateCallback,
 }
 
 #[derive(Clone)]
 pub struct ApiTracingLayer {
-    inner: Arc<Mutex<Option<ApiLoggerInner>>>,
+    inner: Arc<Mutex<Option<ApiTracingLayerInner>>>,
 }
 
 static API_LOGGER: OnceCell<ApiTracingLayer> = OnceCell::new();
 
 impl ApiTracingLayer {
-    fn new_inner(update_callback: UpdateCallback) -> ApiLoggerInner {
-        ApiLoggerInner { update_callback }
+    fn new_inner(update_callback: UpdateCallback) -> ApiTracingLayerInner {
+        ApiTracingLayerInner { update_callback }
     }
 
     #[instrument(level = "debug", skip(update_callback))]
@@ -45,6 +45,60 @@ impl ApiTracingLayer {
             })
             .clone()
     }
+
+    fn emit_log(&self, inner: &mut ApiTracingLayerInner, meta: &Metadata<'_>, message: String) {
+        let level = *meta.level();
+        let target = meta.target();
+        let log_level = VeilidLogLevel::from_tracing_level(level);
+
+        let origin = match level {
+            Level::ERROR | Level::WARN => meta
+                .file()
+                .and_then(|file| {
+                    meta.line()
+                        .map(|ln| format!("{}:{}", simplify_file(file), ln))
+                })
+                .unwrap_or_default(),
+            Level::INFO => "".to_owned(),
+            Level::DEBUG | Level::TRACE => meta
+                .file()
+                .and_then(|file| {
+                    meta.line().map(|ln| {
+                        format!(
+                            "{}{}:{}",
+                            if target.is_empty() {
+                                "".to_owned()
+                            } else {
+                                format!("[{}]", target)
+                            },
+                            simplify_file(file),
+                            ln
+                        )
+                    })
+                })
+                .unwrap_or_default(),
+        };
+
+        let message = format!("{}{}", origin, message).trim().to_owned();
+
+        let backtrace = if log_level <= VeilidLogLevel::Error {
+            let bt = backtrace::Backtrace::new();
+            Some(format!("{:?}", bt))
+        } else {
+            None
+        };
+
+        (inner.update_callback)(VeilidUpdate::Log(Box::new(VeilidLog {
+            log_level,
+            message,
+            backtrace,
+        })))
+    }
+}
+
+pub struct SpanDuration {
+    start: Timestamp,
+    end: Timestamp,
 }
 
 fn simplify_file(file: &str) -> String {
@@ -75,6 +129,39 @@ impl<S: Subscriber + for<'a> registry::LookupSpan<'a>> Layer<S> for ApiTracingLa
                 span_ref
                     .extensions_mut()
                     .insert::<StringRecorder>(new_debug_record);
+                if crate::DURATION_LOG_FACILITIES.contains(&attrs.metadata().target()) {
+                    span_ref
+                        .extensions_mut()
+                        .insert::<SpanDuration>(SpanDuration {
+                            start: get_aligned_timestamp(),
+                            end: Timestamp::default(),
+                        });
+                }
+            }
+        }
+    }
+
+    fn on_close(&self, id: span::Id, ctx: layer::Context<'_, S>) {
+        if let Some(inner) = &mut *self.inner.lock() {
+            if let Some(span_ref) = ctx.span(&id) {
+                if let Some(span_duration) = span_ref.extensions_mut().get_mut::<SpanDuration>() {
+                    span_duration.end = get_aligned_timestamp();
+                    let duration = span_duration.end.saturating_sub(span_duration.start);
+                    let meta = span_ref.metadata();
+                    self.emit_log(
+                        inner,
+                        meta,
+                        format!(
+                            " {}{}: duration={}",
+                            span_ref
+                                .parent()
+                                .map(|p| format!("{}::", p.name()))
+                                .unwrap_or_default(),
+                            span_ref.name(),
+                            format_opt_ts(Some(duration))
+                        ),
+                    );
+                }
             }
         }
     }
@@ -99,52 +186,7 @@ impl<S: Subscriber + for<'a> registry::LookupSpan<'a>> Layer<S> for ApiTracingLa
             let mut recorder = StringRecorder::new();
             event.record(&mut recorder);
             let meta = event.metadata();
-            let level = *meta.level();
-            let target = meta.target();
-            let log_level = VeilidLogLevel::from_tracing_level(level);
-
-            let origin = match level {
-                Level::ERROR | Level::WARN => meta
-                    .file()
-                    .and_then(|file| {
-                        meta.line()
-                            .map(|ln| format!("{}:{}", simplify_file(file), ln))
-                    })
-                    .unwrap_or_default(),
-                Level::INFO => "".to_owned(),
-                Level::DEBUG | Level::TRACE => meta
-                    .file()
-                    .and_then(|file| {
-                        meta.line().map(|ln| {
-                            format!(
-                                "{}{}:{}",
-                                if target.is_empty() {
-                                    "".to_owned()
-                                } else {
-                                    format!("[{}]", target)
-                                },
-                                simplify_file(file),
-                                ln
-                            )
-                        })
-                    })
-                    .unwrap_or_default(),
-            };
-
-            let message = format!("{}{}", origin, recorder).trim().to_owned();
-
-            let backtrace = if log_level <= VeilidLogLevel::Error {
-                let bt = backtrace::Backtrace::new();
-                Some(format!("{:?}", bt))
-            } else {
-                None
-            };
-
-            (inner.update_callback)(VeilidUpdate::Log(Box::new(VeilidLog {
-                log_level,
-                message,
-                backtrace,
-            })))
+            self.emit_log(inner, meta, recorder.to_string());
         }
     }
 }
@@ -171,14 +213,7 @@ impl tracing::field::Visit for StringRecorder {
                 self.display = format!("{:?}", value)
             }
         } else {
-            //if self.is_following_args {
-            // following args
-            //    writeln!(self.display).unwrap();
-            //} else {
-            // first arg
             write!(self.display, " ").unwrap();
-            //self.is_following_args = true;
-            //}
             write!(self.display, "{} = {:?};", field.name(), value).unwrap();
         }
     }
