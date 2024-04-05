@@ -131,6 +131,8 @@ publish_crates:
 
 publish_python:
   stage: distribute
+  needs:
+    - publish_crates
   tags:
     - build-amd64-deb
   script:
@@ -142,6 +144,8 @@ publish_python:
 
 build_repositories:
   stage: distribute
+  needs:
+    - publish_python
   tags:
     - build-orchestration
   script:
