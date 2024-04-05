@@ -117,7 +117,7 @@ package_amd64_rpm:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
 
 publish_crates:
-  stage: distribute
+  stage: build_packages
   tags:
     - build-amd64-deb
   script:
@@ -130,9 +130,7 @@ publish_crates:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
 
 publish_python:
-  stage: distribute
-  needs:
-    - publish_crates
+  stage: build_packages
   tags:
     - build-amd64-deb
   script:
