@@ -1,3 +1,16 @@
+**Changed in Veilid 0.3.1**
+- DHT cleanup
+  - Proper application of DHT capabilities
+  - Fanout debugging log target
+  - Performance measurement / timing of veilid_api log target
+- ValueChanged Optional
+  - Allow value changed data to be optional in rpc schema
+  - Make valuechanged update no longer happen when value hasn't changed or is older
+- Clippy fixes and cleanup
+- _Community Contributions_
+  - Changed VeilidAPI::parse_as_target to a sync function -- @sashanoraa
+  - fix dht rust integration test -- @ssurovsev
+
 **Changed in Veilid 0.3.0**
 - API BREAKING CHANGES: 
   - WatchValue RPC support
