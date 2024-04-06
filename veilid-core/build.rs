@@ -132,7 +132,9 @@ fn fix_android_emulator() {
     let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap();
     if target_arch == "x86_64" && target_os == "android" {
         let missing_library = "clang_rt.builtins-x86_64-android";
-        let android_home = env::var("ANDROID_HOME").expect("ANDROID_HOME not set");
+        let android_home = env::var("ANDROID_HOME")
+            .or(env::var("ANDROID_SDK_ROOT"))
+            .expect("ANDROID_HOME or ANDROID_SDK_ROOT not set");
         let lib_path = glob(&format!(
             "{android_home}/ndk/25.1.8937393/**/lib{missing_library}.a"
         ))
