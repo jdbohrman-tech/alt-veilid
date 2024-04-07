@@ -272,7 +272,7 @@ pub fn change_log_ignore(layer: String, log_ignore: String) {
         // Change all layers
         for f in filters.values() {
             f.set_ignore_list(Some(VeilidLayerFilter::apply_ignore_change(
-                f.ignore_list(),
+                &f.ignore_list(),
                 log_ignore.clone(),
             )));
         }
@@ -280,7 +280,7 @@ pub fn change_log_ignore(layer: String, log_ignore: String) {
         // Change a specific layer
         let f = filters.get(layer.as_str()).unwrap();
         f.set_ignore_list(Some(VeilidLayerFilter::apply_ignore_change(
-            f.ignore_list(),
+            &f.ignore_list(),
             log_ignore.clone(),
         )));
     }

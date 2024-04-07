@@ -136,18 +136,16 @@ impl VeilidClient {
         if layer.is_empty() {
             // Change all layers
             for f in filters.values() {
-                f.set_ignore_list(Some(VeilidLayerFilter::apply_ignore_change(
-                    f.ignore_list(),
-                    changes.clone(),
-                )));
+                let mut ignore_list = f.ignore_list();
+                VeilidLayerFilter::apply_ignore_change_list(&mut ignore_list, &changes);
+                f.set_ignore_list(Some(ignore_list));
             }
         } else {
             // Change a specific layer
             let f = filters.get(layer.as_str()).unwrap();
-            f.set_ignore_list(Some(VeilidLayerFilter::apply_ignore_change(
-                f.ignore_list(),
-                changes.clone(),
-            )));
+            let mut ignore_list = f.ignore_list();
+            VeilidLayerFilter::apply_ignore_change_list(&mut ignore_list, &changes);
+            f.set_ignore_list(Some(ignore_list));
         }
     }
     /// Shut down Veilid and terminate the API.
