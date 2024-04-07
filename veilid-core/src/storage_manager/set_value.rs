@@ -100,11 +100,17 @@ impl StorageManager {
                             return Ok(NetworkResult::invalid_message("Schema validation failed"));
                         }
 
+                        // If we got a value back it should be different than the one we are setting
+                        if ctx.value.value_data() == value.value_data() {
+                            // Move to the next node
+                            return Ok(NetworkResult::invalid_message("same value returned"));
+                        }
+
                         // We have a prior value, ensure this is a newer sequence number
                         let prior_seq = ctx.value.value_data().seq();
                         let new_seq = value.value_data().seq();
-                        if new_seq > prior_seq {
-                            // If the sequence number is greater, keep it
+                        if new_seq >= prior_seq {
+                            // If the sequence number is greater or equal, keep it
                             ctx.value = Arc::new(value);
                             // One node has shown us this value so far
                             ctx.value_nodes = vec![next_node];
