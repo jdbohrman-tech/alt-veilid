@@ -1037,7 +1037,7 @@ where
         let Some(member_check) = self.with_record(key, |record| {
             let schema = record.schema();
             let owner = *record.owner();
-            Box::new(move |watcher| owner == params.watcher || schema.is_member(&watcher))
+            Box::new(move |watcher| owner == watcher || schema.is_member(&watcher))
         }) else {
             // Record not found
             return Ok(WatchResult::Rejected);
