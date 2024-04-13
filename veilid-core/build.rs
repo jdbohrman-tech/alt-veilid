@@ -1,10 +1,9 @@
-use glob::glob;
 use sha2::{Digest, Sha256};
 use std::fs::OpenOptions;
 use std::io::BufRead;
 use std::io::Write;
 use std::{
-    env, io,
+    io,
     path::Path,
     process::{Command, Stdio},
 };
@@ -126,28 +125,6 @@ fn do_capnp_build() {
     append_hash("proto/veilid.capnp", "proto/veilid_capnp.rs");
 }
 
-// Fix for missing __extenddftf2 on Android x86_64 Emulator
-fn fix_android_emulator() {
-    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
-    let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap();
-    if target_arch == "x86_64" && target_os == "android" {
-        let missing_library = "clang_rt.builtins-x86_64-android";
-        let android_home = env::var("ANDROID_HOME")
-            .or(env::var("ANDROID_SDK_ROOT"))
-            .expect("ANDROID_HOME or ANDROID_SDK_ROOT not set");
-        let lib_path = glob(&format!(
-            "{android_home}/ndk/25.1.8937393/**/lib{missing_library}.a"
-        ))
-        .expect("failed to glob")
-        .next()
-        .expect("Need libclang_rt.builtins-x86_64-android.a")
-        .unwrap();
-        let lib_dir = lib_path.parent().unwrap();
-        println!("cargo:rustc-link-search={}", lib_dir.display());
-        println!("cargo:rustc-link-lib=static={missing_library}");
-    }
-}
-
 fn main() {
     if std::env::var("DOCS_RS").is_ok()
         || std::env::var("CARGO_CFG_DOC").is_ok()
@@ -160,6 +137,4 @@ fn main() {
         println!("cargo:warning=rebuilding proto/veilid_capnp.rs because it has changed from the last generation of proto/veilid.capnp");
         do_capnp_build();
     }
-
-    fix_android_emulator();
 }
