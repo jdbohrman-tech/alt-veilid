@@ -116,6 +116,9 @@ _$DHTRecordReportImpl _$$DHTRecordReportImplFromJson(
       subkeys: (json['subkeys'] as List<dynamic>)
           .map(ValueSubkeyRange.fromJson)
           .toList(),
+      offlineSubkeys: (json['offline_subkeys'] as List<dynamic>)
+          .map(ValueSubkeyRange.fromJson)
+          .toList(),
       localSeqs:
           (json['local_seqs'] as List<dynamic>).map((e) => e as int).toList(),
       networkSeqs:
@@ -126,6 +129,8 @@ Map<String, dynamic> _$$DHTRecordReportImplToJson(
         _$DHTRecordReportImpl instance) =>
     <String, dynamic>{
       'subkeys': instance.subkeys.map((e) => e.toJson()).toList(),
+      'offline_subkeys':
+          instance.offlineSubkeys.map((e) => e.toJson()).toList(),
       'local_seqs': instance.localSeqs,
       'network_seqs': instance.networkSeqs,
     };

@@ -246,6 +246,7 @@ class RouteBlob with _$RouteBlob {
 class DHTRecordReport with _$DHTRecordReport {
   const factory DHTRecordReport({
     required List<ValueSubkeyRange> subkeys,
+    required List<ValueSubkeyRange> offlineSubkeys,
     required List<int> localSeqs,
     required List<int> networkSeqs,
   }) = _DHTRecordReport;

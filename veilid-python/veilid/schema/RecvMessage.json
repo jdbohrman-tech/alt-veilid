@@ -2805,6 +2805,7 @@
       "required": [
         "local_seqs",
         "network_seqs",
+        "offline_subkeys",
         "subkeys"
       ],
       "properties": {
@@ -2824,6 +2825,27 @@
             "type": "integer",
             "format": "uint32",
             "minimum": 0.0
+          }
+        },
+        "offline_subkeys": {
+          "description": "The subkeys that have been writen offline that still need to be flushed",
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": [
+              {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            ],
+            "maxItems": 2,
+            "minItems": 2
           }
         },
         "subkeys": {
