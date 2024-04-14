@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    compileSdkVersion 33
-    buildToolsVersion "33.0.1"
+    compileSdkVersion 34
+    buildToolsVersion "34.0.0"
 
     defaultConfig {
         applicationId "com.veilid.veilid_core_android_tests"
         minSdkVersion 24
-        targetSdkVersion 33
+        targetSdkVersion 34
         versionCode 1
         versionName "1.0"
 
@@ -38,7 +38,7 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
-    ndkVersion '25.1.8937393'
+    ndkVersion '26.3.11579264'
 
     // Required to copy libc++_shared.so
     externalNativeBuild {
@@ -83,4 +83,3 @@ afterEvaluate {
         tasks["generate${productFlavor}${buildType}Assets"].dependsOn(tasks["cargoBuild"])
     }
 }
-
