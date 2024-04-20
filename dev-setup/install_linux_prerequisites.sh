@@ -1,7 +1,7 @@
 #!/bin/bash
 set -eo pipefail
 
-if [ $(id -u) -eq 0 ]; then 
+if [ $(id -u) -eq 0 ]; then
     echo "Don't run this as root"
     exit
 fi
@@ -27,40 +27,45 @@ elif [ ! -z "$(command -v dnf)" ]; then
     sudo dnf groupinstall -y 'Development Tools'
 fi
 
-
 # Install Rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y -c clippy --profile default
 source "$HOME/.cargo/env"
 
 #ask if they want to install optional android sdk (and install if yes)
 while true; do
-read -p "Do you want to install Android SDK (optional) Y/N) " response
+    read -p "Do you want to install Android SDK (optional) Y/N) " response
 
-case $response in
-[yY] ) echo Installing Android SDK...;
-# Install Android SDK
-mkdir $HOME/Android; mkdir $HOME/Android/Sdk
-curl -o $HOME/Android/cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-9123335_latest.zip
-cd $HOME/Android; unzip $HOME/Android/cmdline-tools.zip
-$HOME/Android/cmdline-tools/bin/sdkmanager --sdk_root=$HOME/Android/Sdk build-tools\;33.0.1 ndk\;25.1.8937393 cmake\;3.22.1 platform-tools platforms\;android-33 cmdline-tools\;latest emulator
-cd $HOME
-rm -rf $HOME/Android/cmdline-tools $HOME/Android/cmdline-tools.zip
+    case $response in
+    [yY])
+        echo Installing Android SDK...
+        # Install Android SDK
+        mkdir $HOME/Android
+        mkdir $HOME/Android/Sdk
+        curl -o $HOME/Android/cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-9123335_latest.zip
+        cd $HOME/Android
+        unzip $HOME/Android/cmdline-tools.zip
+        $HOME/Android/cmdline-tools/bin/sdkmanager --sdk_root=$HOME/Android/Sdk build-tools\;34.0.0 ndk\;26.3.11579264 cmake\;3.22.1 platform-tools platforms\;android-34 cmdline-tools\;latest emulator
+        cd $HOME
+        rm -rf $HOME/Android/cmdline-tools $HOME/Android/cmdline-tools.zip
 
-# Add environment variables
-cat >> $HOME/.profile <<END
+        # Add environment variables
+        cat >>$HOME/.profile <<END
 source "\$HOME/.cargo/env"
-export PATH=\$PATH:\$HOME/Android/Sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin:\$HOME/Android/Sdk/platform-tools:\$HOME/Android/Sdk/cmdline-tools/latest/bin
+export PATH=\$PATH:\$HOME/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin:\$HOME/Android/Sdk/platform-tools:\$HOME/Android/Sdk/cmdline-tools/latest/bin
 export ANDROID_HOME=\$HOME/Android/Sdk
 END
-break ;;
-[nN] ) echo Skipping Android SDK;
-cat >> $HOME/.profile <<END
+        break
+        ;;
+    [nN])
+        echo Skipping Android SDK
+        cat >>$HOME/.profile <<END
 source "\$HOME/.cargo/env"
 END
-break;;
+        break
+        ;;
 
-* ) echo invalid response;;
-esac
+    *) echo invalid response ;;
+    esac
 done
 
 echo Complete! Exit and reopen the shell and continue with ./setup_linux.sh

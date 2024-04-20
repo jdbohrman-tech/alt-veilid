@@ -22,11 +22,11 @@ welcome!
 
 Running the setup script requires:
 
-* Rust
+- Rust
 
 #### Optionally, to build for Android:
 
-* Android SDK and NDK
+- Android SDK and NDK
 
 You may decide to use Android Studio [here](https://developer.android.com/studio)
 to maintain your Android dependencies. If so, use the dependency manager
@@ -35,11 +35,11 @@ method is highly recommended as you may run into path problems with the 'flutter
 command line without it. If you do so, you may skip to
 [Run Veilid setup script](#Run Veilid setup script).
 
-* build-tools;33.0.1
-* ndk;25.1.8937393
-* cmake;3.22.1
-* platform-tools
-* platforms;android-33
+- build-tools;34.0.0
+- ndk;26.3.11579264
+- cmake;3.22.1
+- platform-tools
+- platforms;android-34
 
 #### Setup Dependencies using the CLI
 
@@ -56,9 +56,9 @@ the command line to install the requisite package versions:
 
 ```shell
 sdkmanager --install "platform-tools"
-sdkmanager --install "platforms;android-33"
-sdkmanager --install "build-tools;33.0.1"
-sdkmanager --install "ndk;25.1.8937393"
+sdkmanager --install "platforms;android-34"
+sdkmanager --install "build-tools;34.0.0"
+sdkmanager --install "ndk;26.3.11579264"
 sdkmanager --install "cmake;3.22.1"
 ```
 
@@ -66,7 +66,7 @@ Export environment variables and add the Android SDK platform-tools directory to
 your path. See [instructions here](https://developer.android.com/tools/variables).
 
 ```shell
-cat << EOF >> ~/.profile 
+cat << EOF >> ~/.profile
 export ANDROID_HOME=<path to sdk>
 export PATH=$PATH:$ANDROID_HOME/tools:$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools
 EOF
@@ -97,23 +97,23 @@ Development of Veilid on MacOS is possible on both Intel and ARM hardware.
 
 Development requires:
 
-* Xcode, preferably latest version
-* Homebrew [here](https://brew.sh)
-* Rust
+- Xcode, preferably latest version
+- Homebrew [here](https://brew.sh)
+- Rust
 
 #### Optionally, to build for Android:
 
-* Android Studio
-* Android SDK and NDK
+- Android Studio
+- Android SDK and NDK
 
 You will need to use Android Studio [here](https://developer.android.com/studio)
 to maintain your Android dependencies. Use the SDK Manager in the IDE to install the following packages (use package details view to select version):
 
-* Android SDK Build Tools (33.0.1)
-* NDK (Side-by-side) (25.1.8937393)
-* Cmake (3.22.1)
-* Android SDK 33
-* Android SDK Command Line Tools (latest) (7.0/latest)
+- Android SDK Build Tools (34.0.0)
+- NDK (Side-by-side) (26.3.11579264)
+- Cmake (3.22.1)
+- Android SDK 34
+- Android SDK Command Line Tools (latest) (7.0/latest)
 
 #### Setup command line environment
 
