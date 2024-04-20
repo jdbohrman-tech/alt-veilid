@@ -55,7 +55,7 @@ class HistoryWrapper {
           }
         });
       },
-      focusNode: FocusNode(onKey: (FocusNode node, RawKeyEvent event) {
+      focusNode: FocusNode(onKeyEvent: (FocusNode node, KeyEvent event) {
         if (event.logicalKey == LogicalKeyboardKey.arrowDown ||
             event.logicalKey == LogicalKeyboardKey.arrowUp) {
           return KeyEventResult.handled;

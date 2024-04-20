@@ -382,26 +382,30 @@ class DHTRecordDescriptor:
 
 class DHTRecordReport:
     subkeys: list[tuple[ValueSubkey, ValueSubkey]]
+    offline_subkeys: list[tuple[ValueSubkey, ValueSubkey]]
     local_seqs: list[ValueSeqNum]
     network_seqs: list[ValueSeqNum]
 
     def __init__(
         self,
         subkeys: list[tuple[ValueSubkey, ValueSubkey]],
+        offline_subkeys: list[tuple[ValueSubkey, ValueSubkey]],
         local_seqs: list[ValueSeqNum],
         network_seqs: list[ValueSeqNum],
     ):
         self.subkeys = subkeys
+        self.offline_subkey = offline_subkeys
         self.local_seqs = local_seqs
         self.network_seqs = network_seqs
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__}(subkeys={self.subkeys!r}, local_seqs={self.local_seqs!r}, network_seqs={self.network_seqs!r})>"
+        return f"<{self.__class__.__name__}(subkeys={self.subkeys!r}, offline_subkeys={self.offline_subkeys!r}, local_seqs={self.local_seqs!r}, network_seqs={self.network_seqs!r})>"
 
     @classmethod
     def from_json(cls, j: dict) -> Self:
         return cls(
             [[p[0], p[1]] for p in j["subkeys"]],
+            [[p[0], p[1]] for p in j["offline_subkeys"]],
             [ValueSeqNum(s) for s in j["local_seqs"]],
             [ValueSeqNum(s) for s in j["network_seqs"]],
         )

@@ -12,6 +12,8 @@ pub struct DHTRecordReport {
     /// This may be a subset of the requested range if it exceeds the schema limits
     /// or has more than 512 subkeys
     subkeys: ValueSubkeyRangeSet,
+    /// The subkeys that have been writen offline that still need to be flushed
+    offline_subkeys: ValueSubkeyRangeSet,
     /// The sequence numbers of each subkey requested from a locally stored DHT Record
     local_seqs: Vec<ValueSeqNum>,
     /// The sequence numbers of each subkey requested from the DHT over the network
@@ -22,11 +24,13 @@ from_impl_to_jsvalue!(DHTRecordReport);
 impl DHTRecordReport {
     pub fn new(
         subkeys: ValueSubkeyRangeSet,
+        offline_subkeys: ValueSubkeyRangeSet,
         local_seqs: Vec<ValueSeqNum>,
         network_seqs: Vec<ValueSeqNum>,
     ) -> Self {
         Self {
             subkeys,
+            offline_subkeys,
             local_seqs,
             network_seqs,
         }
@@ -34,6 +38,9 @@ impl DHTRecordReport {
 
     pub fn subkeys(&self) -> &ValueSubkeyRangeSet {
         &self.subkeys
+    }
+    pub fn offline_subkeys(&self) -> &ValueSubkeyRangeSet {
+        &self.offline_subkeys
     }
     pub fn local_seqs(&self) -> &[ValueSeqNum] {
         &self.local_seqs
@@ -47,8 +54,9 @@ impl fmt::Debug for DHTRecordReport {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "DHTRecordReport {{\n  subkeys: {:?}\n  local_seqs:\n{}\n  remote_seqs:\n{}\n}}\n",
+            "DHTRecordReport {{\n  subkeys: {:?}\n  offline_subkeys: {:?}\n  local_seqs:\n{}\n  remote_seqs:\n{}\n}}\n",
             &self.subkeys,
+            &self.offline_subkeys,
             &debug_seqs(&self.local_seqs),
             &debug_seqs(&self.network_seqs)
         )

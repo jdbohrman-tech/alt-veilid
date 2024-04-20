@@ -43,6 +43,12 @@ impl StorageManager {
             )
         };
 
+        // Get the nodes we know are caching this value to seed the fanout
+        let init_fanout_queue = {
+            let inner = self.inner.lock().await;
+            inner.get_value_nodes(key)?.unwrap_or_default()
+        };
+
         // Make do-get-value answer context
         let schema = if let Some(d) = &last_get_result.opt_descriptor {
             Some(d.schema()?)
@@ -179,7 +185,7 @@ impl StorageManager {
             check_done,
         );
 
-        let kind = match fanout_call.run(vec![]).await {
+        let kind = match fanout_call.run(init_fanout_queue).await {
             // If we don't finish in the timeout (too much time passed checking for consensus)
             TimeoutOr::Timeout => FanoutResultKind::Timeout,
             // If we finished with or without consensus (enough nodes returning the same value)
