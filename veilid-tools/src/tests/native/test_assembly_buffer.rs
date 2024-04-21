@@ -86,17 +86,23 @@ pub async fn test_one_frag_out_in() {
     // Sending
     info!("sending");
     for _ in 0..10000 {
-        let random_len = (get_random_u32() % 1000) as usize + FRAGMENT_LEN;
-        let mut message = vec![1u8; random_len];
-        random_bytes(&mut message);
-        let remote_addr = random_sockaddr();
+        let to_send = loop {
+            let random_len = (get_random_u32() % 1000) as usize + FRAGMENT_LEN;
+            let mut message = vec![1u8; random_len];
+            random_bytes(&mut message);
+            let remote_addr = random_sockaddr();
+
+            let to_send = (message, remote_addr);
+
+            if !all_sent.contains(&to_send) {
+                break to_send;
+            }
+        };
 
         // Send single message above fragmentation limit
-        all_sent.insert((message.clone(), remote_addr));
+        all_sent.insert(to_send.clone());
         assert!(matches!(
-            assbuf_out
-                .split_message(message.clone(), remote_addr, sender)
-                .await,
+            assbuf_out.split_message(to_send.0, to_send.1, sender).await,
             Ok(NetworkResult::Value(()))
         ));
     }
@@ -150,18 +156,24 @@ pub async fn test_many_frags_out_in() {
     let mut total_sent_size = 0usize;
     info!("sending");
     for _ in 0..1000 {
-        let random_len = (get_random_u32() % 65536) as usize;
-        total_sent_size += random_len;
-        let mut message = vec![1u8; random_len];
-        random_bytes(&mut message);
-        let remote_addr = random_sockaddr();
+        let to_send = loop {
+            let random_len = (get_random_u32() % 65536) as usize;
+            let mut message = vec![1u8; random_len];
+            random_bytes(&mut message);
+            let remote_addr = random_sockaddr();
+            let to_send = (message, remote_addr);
+
+            if !all_sent.contains(&to_send) {
+                break to_send;
+            }
+        };
 
         // Send single message
-        all_sent.insert((message.clone(), remote_addr));
+        all_sent.insert(to_send.clone());
+        total_sent_size += to_send.0.len();
+
         assert!(matches!(
-            assbuf_out
-                .split_message(message.clone(), remote_addr, sender)
-                .await,
+            assbuf_out.split_message(to_send.0, to_send.1, sender).await,
             Ok(NetworkResult::Value(()))
         ));
     }
@@ -215,18 +227,24 @@ pub async fn test_many_frags_out_in_single_host() {
     let mut total_sent_size = 0usize;
     info!("sending");
     for _ in 0..1000 {
-        let random_len = (get_random_u32() % 65536) as usize;
-        total_sent_size += random_len;
-        let mut message = vec![1u8; random_len];
-        random_bytes(&mut message);
-        let remote_addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(1, 2, 3, 4), 5678));
+        let to_send = loop {
+            let remote_addr = random_sockaddr();
+            let random_len = (get_random_u32() % 65536) as usize;
+            let mut message = vec![1u8; random_len];
+            random_bytes(&mut message);
+
+            let to_send = (message.clone(), remote_addr);
+
+            if !all_sent.contains(&to_send) {
+                break to_send;
+            }
+        };
 
         // Send single message
-        all_sent.insert((message.clone(), remote_addr));
+        all_sent.insert(to_send.clone());
+        total_sent_size += to_send.0.len();
         assert!(matches!(
-            assbuf_out
-                .split_message(message.clone(), remote_addr, sender)
-                .await,
+            assbuf_out.split_message(to_send.0, to_send.1, sender).await,
             Ok(NetworkResult::Value(()))
         ));
     }
@@ -288,21 +306,28 @@ pub async fn test_many_frags_with_drops() {
     let mut total_fragged = 0usize;
     info!("sending");
     for _ in 0..1000 {
-        let random_len = (get_random_u32() % 65536) as usize;
-        if random_len > FRAGMENT_LEN {
-            total_fragged += 1;
-        }
-        total_sent_size += random_len;
-        let mut message = vec![1u8; random_len];
-        random_bytes(&mut message);
-        let remote_addr = random_sockaddr();
+        let to_send = loop {
+            let remote_addr = random_sockaddr();
+            let random_len = (get_random_u32() % 65536) as usize;
+            if random_len > FRAGMENT_LEN {
+                total_fragged += 1;
+            }
+            let mut message = vec![1u8; random_len];
+            random_bytes(&mut message);
+
+            let to_send = (message.clone(), remote_addr);
+
+            if !all_sent.contains(&to_send) {
+                break to_send;
+            }
+        };
 
         // Send single message
-        all_sent.insert((message.clone(), remote_addr));
+        all_sent.insert(to_send.clone());
+        total_sent_size += to_send.0.len();
+
         assert!(matches!(
-            assbuf_out
-                .split_message(message.clone(), remote_addr, sender)
-                .await,
+            assbuf_out.split_message(to_send.0, to_send.1, sender).await,
             Ok(NetworkResult::Value(()))
         ));
 
@@ -358,18 +383,24 @@ pub async fn test_many_frags_reordered() {
     let mut rng = rand::thread_rng();
     info!("sending");
     for _ in 0..1000 {
-        let random_len = (get_random_u32() % 65536) as usize;
-        total_sent_size += random_len;
-        let mut message = vec![1u8; random_len];
-        random_bytes(&mut message);
-        let remote_addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(1, 2, 3, 4), 5678));
+        let to_send = loop {
+            let random_len = (get_random_u32() % 65536) as usize;
+            let mut message = vec![1u8; random_len];
+            random_bytes(&mut message);
+            let remote_addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(1, 2, 3, 4), 5678));
+
+            let to_send = (message.clone(), remote_addr);
+
+            if !all_sent.contains(&to_send) {
+                break to_send;
+            }
+        };
 
         // Send single message
-        all_sent.insert((message.clone(), remote_addr));
+        all_sent.insert(to_send.clone());
+        total_sent_size += to_send.0.len();
         assert!(matches!(
-            assbuf_out
-                .split_message(message.clone(), remote_addr, sender)
-                .await,
+            assbuf_out.split_message(to_send.0, to_send.1, sender).await,
             Ok(NetworkResult::Value(()))
         ));
 

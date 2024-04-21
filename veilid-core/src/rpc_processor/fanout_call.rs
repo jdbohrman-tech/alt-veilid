@@ -284,13 +284,12 @@ where
         };
 
         // Initialize closest nodes list
-        if init_fanout_queue.is_empty() {
-            if let Err(e) = self.clone().init_closest_nodes() {
-                return TimeoutOr::value(Err(e));
-            }
-        } else {
-            self.clone().add_to_fanout_queue(&init_fanout_queue);
+        if let Err(e) = self.clone().init_closest_nodes() {
+            return TimeoutOr::value(Err(e));
         }
+
+        // Ensure we include the most recent nodes
+        self.clone().add_to_fanout_queue(&init_fanout_queue);
 
         // Do a quick check to see if we're already done
         {

@@ -1363,6 +1363,8 @@ DHTRecordReport _$DHTRecordReportFromJson(Map<String, dynamic> json) {
 /// @nodoc
 mixin _$DHTRecordReport {
   List<ValueSubkeyRange> get subkeys => throw _privateConstructorUsedError;
+  List<ValueSubkeyRange> get offlineSubkeys =>
+      throw _privateConstructorUsedError;
   List<int> get localSeqs => throw _privateConstructorUsedError;
   List<int> get networkSeqs => throw _privateConstructorUsedError;
 
@@ -1380,6 +1382,7 @@ abstract class $DHTRecordReportCopyWith<$Res> {
   @useResult
   $Res call(
       {List<ValueSubkeyRange> subkeys,
+      List<ValueSubkeyRange> offlineSubkeys,
       List<int> localSeqs,
       List<int> networkSeqs});
 }
@@ -1398,6 +1401,7 @@ class _$DHTRecordReportCopyWithImpl<$Res, $Val extends DHTRecordReport>
   @override
   $Res call({
     Object? subkeys = null,
+    Object? offlineSubkeys = null,
     Object? localSeqs = null,
     Object? networkSeqs = null,
   }) {
@@ -1405,6 +1409,10 @@ class _$DHTRecordReportCopyWithImpl<$Res, $Val extends DHTRecordReport>
       subkeys: null == subkeys
           ? _value.subkeys
           : subkeys // ignore: cast_nullable_to_non_nullable
+              as List<ValueSubkeyRange>,
+      offlineSubkeys: null == offlineSubkeys
+          ? _value.offlineSubkeys
+          : offlineSubkeys // ignore: cast_nullable_to_non_nullable
               as List<ValueSubkeyRange>,
       localSeqs: null == localSeqs
           ? _value.localSeqs
@@ -1428,6 +1436,7 @@ abstract class _$$DHTRecordReportImplCopyWith<$Res>
   @useResult
   $Res call(
       {List<ValueSubkeyRange> subkeys,
+      List<ValueSubkeyRange> offlineSubkeys,
       List<int> localSeqs,
       List<int> networkSeqs});
 }
@@ -1444,6 +1453,7 @@ class __$$DHTRecordReportImplCopyWithImpl<$Res>
   @override
   $Res call({
     Object? subkeys = null,
+    Object? offlineSubkeys = null,
     Object? localSeqs = null,
     Object? networkSeqs = null,
   }) {
@@ -1451,6 +1461,10 @@ class __$$DHTRecordReportImplCopyWithImpl<$Res>
       subkeys: null == subkeys
           ? _value._subkeys
           : subkeys // ignore: cast_nullable_to_non_nullable
+              as List<ValueSubkeyRange>,
+      offlineSubkeys: null == offlineSubkeys
+          ? _value._offlineSubkeys
+          : offlineSubkeys // ignore: cast_nullable_to_non_nullable
               as List<ValueSubkeyRange>,
       localSeqs: null == localSeqs
           ? _value._localSeqs
@@ -1469,9 +1483,11 @@ class __$$DHTRecordReportImplCopyWithImpl<$Res>
 class _$DHTRecordReportImpl implements _DHTRecordReport {
   const _$DHTRecordReportImpl(
       {required final List<ValueSubkeyRange> subkeys,
+      required final List<ValueSubkeyRange> offlineSubkeys,
       required final List<int> localSeqs,
       required final List<int> networkSeqs})
       : _subkeys = subkeys,
+        _offlineSubkeys = offlineSubkeys,
         _localSeqs = localSeqs,
         _networkSeqs = networkSeqs;
 
@@ -1484,6 +1500,14 @@ class _$DHTRecordReportImpl implements _DHTRecordReport {
     if (_subkeys is EqualUnmodifiableListView) return _subkeys;
     // ignore: implicit_dynamic_type
     return EqualUnmodifiableListView(_subkeys);
+  }
+
+  final List<ValueSubkeyRange> _offlineSubkeys;
+  @override
+  List<ValueSubkeyRange> get offlineSubkeys {
+    if (_offlineSubkeys is EqualUnmodifiableListView) return _offlineSubkeys;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_offlineSubkeys);
   }
 
   final List<int> _localSeqs;
@@ -1504,7 +1528,7 @@ class _$DHTRecordReportImpl implements _DHTRecordReport {
 
   @override
   String toString() {
-    return 'DHTRecordReport(subkeys: $subkeys, localSeqs: $localSeqs, networkSeqs: $networkSeqs)';
+    return 'DHTRecordReport(subkeys: $subkeys, offlineSubkeys: $offlineSubkeys, localSeqs: $localSeqs, networkSeqs: $networkSeqs)';
   }
 
   @override
@@ -1513,6 +1537,8 @@ class _$DHTRecordReportImpl implements _DHTRecordReport {
         (other.runtimeType == runtimeType &&
             other is _$DHTRecordReportImpl &&
             const DeepCollectionEquality().equals(other._subkeys, _subkeys) &&
+            const DeepCollectionEquality()
+                .equals(other._offlineSubkeys, _offlineSubkeys) &&
             const DeepCollectionEquality()
                 .equals(other._localSeqs, _localSeqs) &&
             const DeepCollectionEquality()
@@ -1524,6 +1550,7 @@ class _$DHTRecordReportImpl implements _DHTRecordReport {
   int get hashCode => Object.hash(
       runtimeType,
       const DeepCollectionEquality().hash(_subkeys),
+      const DeepCollectionEquality().hash(_offlineSubkeys),
       const DeepCollectionEquality().hash(_localSeqs),
       const DeepCollectionEquality().hash(_networkSeqs));
 
@@ -1545,6 +1572,7 @@ class _$DHTRecordReportImpl implements _DHTRecordReport {
 abstract class _DHTRecordReport implements DHTRecordReport {
   const factory _DHTRecordReport(
       {required final List<ValueSubkeyRange> subkeys,
+      required final List<ValueSubkeyRange> offlineSubkeys,
       required final List<int> localSeqs,
       required final List<int> networkSeqs}) = _$DHTRecordReportImpl;
 
@@ -1553,6 +1581,8 @@ abstract class _DHTRecordReport implements DHTRecordReport {
 
   @override
   List<ValueSubkeyRange> get subkeys;
+  @override
+  List<ValueSubkeyRange> get offlineSubkeys;
   @override
   List<int> get localSeqs;
   @override

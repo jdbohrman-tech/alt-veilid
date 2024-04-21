@@ -795,10 +795,19 @@ impl StorageManager {
             "more subkeys returned locally than requested"
         );
 
+        // Get the offline subkeys for this record still only returning the ones we're inspecting
+        let offline_subkey_writes = inner
+            .offline_subkey_writes
+            .get(&key)
+            .map(|o| o.subkeys.clone())
+            .unwrap_or_default()
+            .intersect(&subkeys);
+
         // If this is the maximum scope we're interested in, return the report
         if matches!(scope, DHTReportScope::Local) {
             return Ok(DHTRecordReport::new(
                 local_inspect_result.subkeys,
+                offline_subkey_writes,
                 local_inspect_result.seqs,
                 vec![],
             ));
@@ -864,6 +873,7 @@ impl StorageManager {
 
         Ok(DHTRecordReport::new(
             result.inspect_result.subkeys,
+            offline_subkey_writes,
             local_inspect_result.seqs,
             result.inspect_result.seqs,
         ))

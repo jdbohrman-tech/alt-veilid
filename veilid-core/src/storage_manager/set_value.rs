@@ -44,6 +44,12 @@ impl StorageManager {
             )
         };
 
+        // Get the nodes we know are caching this value to seed the fanout
+        let init_fanout_queue = {
+            let inner = self.inner.lock().await;
+            inner.get_value_nodes(key)?.unwrap_or_default()
+        };
+
         // Make do-set-value answer context
         let schema = descriptor.schema()?;
         let context = Arc::new(Mutex::new(OutboundSetValueContext {
@@ -100,11 +106,17 @@ impl StorageManager {
                             return Ok(NetworkResult::invalid_message("Schema validation failed"));
                         }
 
+                        // If we got a value back it should be different than the one we are setting
+                        if ctx.value.value_data() == value.value_data() {
+                            // Move to the next node
+                            return Ok(NetworkResult::invalid_message("same value returned"));
+                        }
+
                         // We have a prior value, ensure this is a newer sequence number
                         let prior_seq = ctx.value.value_data().seq();
                         let new_seq = value.value_data().seq();
-                        if new_seq > prior_seq {
-                            // If the sequence number is greater, keep it
+                        if new_seq >= prior_seq {
+                            // If the sequence number is greater or equal, keep it
                             ctx.value = Arc::new(value);
                             // One node has shown us this value so far
                             ctx.value_nodes = vec![next_node];
@@ -164,7 +176,7 @@ impl StorageManager {
             check_done,
         );
 
-        let kind = match fanout_call.run(vec![]).await {
+        let kind = match fanout_call.run(init_fanout_queue).await {
             // If we don't finish in the timeout (too much time passed checking for consensus)
             TimeoutOr::Timeout => FanoutResultKind::Timeout,
             // If we finished with or without consensus (enough nodes returning the same value)

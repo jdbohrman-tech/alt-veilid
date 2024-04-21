@@ -20,13 +20,13 @@ Releases happen via a CI/CD pipeline. The release process flows as follows:
 
     2.1 Update your local copy of `main` to mirror the newly merged upstream `main`
 
-    2.2 Ensure the [CHANGELOG](./CHANGELOG.md) is updated
+    2.2 Ensure the [CHANGELOG](./CHANGELOG.md) is updated. Include `[ci skip]` in the commit message so that the testing pipeline is skipped.
 
     2.3 Activate your bumpversion Python venv (see bumpversion setup section for details)
 
     2.4 Execute version_bump.sh with the appropriate parameter (patch, minor, or major). This results in all version entries being updated and a matching git tag created locally.
 
-    2.5 Add all changes `git add *`
+    2.5 Add all changes `git add .`
 
     2.6 Git commit the changes with the following message: `Version update: v{current_version} → v{new_version}`
 
