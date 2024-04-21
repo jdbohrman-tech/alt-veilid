@@ -304,16 +304,14 @@ impl StorageManager {
                     // Use the safety selection we opened the record with
                     // Use the writer we opened with as the 'watcher' as well
                     let opt_owvresult = self
-                        .outbound_watch_value(
+                        .outbound_watch_value_cancel(
                             rpc_processor,
                             key,
                             ValueSubkeyRangeSet::full(),
-                            Timestamp::new(0),
-                            0,
                             opened_record.safety_selection(),
                             opened_record.writer().cloned(),
-                            Some(active_watch.id),
-                            Some(active_watch.watch_node),
+                            active_watch.id,
+                            active_watch.watch_node,
                         )
                         .await?;
                     if let Some(owvresult) = opt_owvresult {
