@@ -71,9 +71,9 @@ create_build_machines:
   tags:
     - build-orchestration
   script:
-    - /home/gitlab-runner/build-machine-ctl.sh create amd64-deb
-    - /home/gitlab-runner/build-machine-ctl.sh create arm64-deb
-    - /home/gitlab-runner/build-machine-ctl.sh create amd64-rpm
+    - scripts/cicd/build-orchestration/build-machine-ctl.sh create amd64-deb
+    - scripts/cicd/build-orchestration/build-machine-ctl.sh create arm64-deb
+    - scripts/cicd/build-orchestration/build-machine-ctl.sh create amd64-rpm
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
   
@@ -86,7 +86,7 @@ package_amd64_deb:
   script:
     - earthly bootstrap
     - earthly +package-linux-amd64-deb
-    - /home/gitlab-runner/scp-to-orchestrator.sh
+    - scripts/cicd/build-machine/scp-to-orchestrator.sh
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
 
@@ -99,7 +99,7 @@ package_arm64_deb:
   script:
     - earthly bootstrap
     - earthly +package-linux-arm64-deb
-    - /home/gitlab-runner/scp-to-orchestrator.sh
+    - scripts/cicd/build-machine/scp-to-orchestrator.sh
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
 
@@ -112,7 +112,7 @@ package_amd64_rpm:
   script:
     - earthly bootstrap
     - earthly +package-linux-amd64-rpm
-    - /home/gitlab-runner/scp-to-orchestrator.sh
+    - - scripts/cicd/build-machine/scp-to-orchestrator.sh
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
 
@@ -146,8 +146,11 @@ build_repositories:
     - publish_python
   tags:
     - build-orchestration
+  variables:
+    SECURE_FILES_DOWNLOAD_PATH: './'
   script:
-    - /home/gitlab-runner/distribute-packages.sh
+    - cp scripts/cicd/build-orchestration/generate-release.sh ~
+    - scripts/cicd/build-orchestration/distribute-packages.sh
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
 
@@ -158,7 +161,7 @@ deploy_repos:
   tags: 
     - repo-server
   script: 
-    - /home/gitlab-runner/deploy-repo.sh
+    - scripts/cicd/repo-server/deploy-repo.sh
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
 
@@ -169,8 +172,8 @@ delete_build_machines:
   tags:
     - build-orchestration
   script:
-    - /home/gitlab-runner/build-machine-ctl.sh delete amd64-deb
-    - /home/gitlab-runner/build-machine-ctl.sh delete arm64-deb
-    - /home/gitlab-runner/build-machine-ctl.sh delete amd64-rpm
+    - scripts/cicd/build-orchestration/build-machine-ctl.sh delete amd64-deb
+    - scripts/cicd/build-orchestration/build-machine-ctl.sh delete arm64-deb
+    - scripts/cicd/build-orchestration/build-machine-ctl.sh delete amd64-rpm
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
