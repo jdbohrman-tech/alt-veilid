@@ -201,6 +201,16 @@ impl StorageManager {
         Ok(!inner.offline_subkey_writes.is_empty())
     }
 
+    /// Get the set of nodes in our active watches
+    pub async fn get_active_watch_nodes(&self) -> Vec<NodeRef> {
+        let inner = self.inner.lock().await;
+        inner
+            .opened_records
+            .values()
+            .filter_map(|v| v.active_watch().map(|aw| aw.watch_node))
+            .collect()
+    }
+
     /// Create a local record from scratch with a new owner key, open it, and return the opened descriptor
     pub async fn create_record(
         &self,

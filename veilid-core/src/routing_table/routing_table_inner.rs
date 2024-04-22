@@ -33,6 +33,8 @@ pub(crate) struct RoutingTableInner {
     /// Async tagged critical sections table
     /// Tag: "tick" -> in ticker
     pub(super) critical_sections: AsyncTagLockTable<&'static str>,
+    /// Last time we pinged checked the active watches
+    pub(super) opt_active_watch_keepalive_ts: Option<Timestamp>,
 }
 
 impl RoutingTableInner {
@@ -50,6 +52,7 @@ impl RoutingTableInner {
             recent_peers: LruCache::new(RECENT_PEERS_TABLE_SIZE),
             route_spec_store: None,
             critical_sections: AsyncTagLockTable::new(),
+            opt_active_watch_keepalive_ts: None,
         }
     }
 
