@@ -39,8 +39,7 @@ while true; do
     [yY])
         echo Installing Android SDK...
         # Install Android SDK
-        mkdir $HOME/Android
-        mkdir $HOME/Android/Sdk
+        mkdir -p $HOME/Android/Sdk
         curl -o $HOME/Android/cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-9123335_latest.zip
         cd $HOME/Android
         unzip $HOME/Android/cmdline-tools.zip

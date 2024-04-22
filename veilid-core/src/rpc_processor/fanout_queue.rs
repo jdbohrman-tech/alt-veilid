@@ -72,7 +72,7 @@ impl FanoutQueue {
 
     // Return next fanout candidate
     pub fn next(&mut self) -> Option<NodeRef> {
-        let cn = self.current_nodes.pop_front()?;
+        let cn = self.current_nodes.pop_back()?;
         self.current_nodes.make_contiguous();
         let key = cn.node_ids().get(self.crypto_kind).unwrap();
 
