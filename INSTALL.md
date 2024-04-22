@@ -109,3 +109,7 @@ To start your headless Veilid node without systemd, run:
 ```shell
 sudo -u veilid veilid-server
 ```
+
+## Post Install
+
+To let veilid access other nodes, you'll need to open up access to port 5150 for both tcp and udp. You can additionally open port 5151 as well, though if 5150 is open, that should be enough.
