@@ -33,6 +33,14 @@ impl StorageManager {
         }
         format!("{}]\n", out)
     }
+    pub(crate) async fn debug_offline_records(&self) -> String {
+        let inner = self.inner.lock().await;
+        let mut out = "[\n".to_owned();
+        for (k, v) in &inner.offline_subkey_writes {
+            out += &format!("  {}:{:?}\n", k, v);
+        }
+        format!("{}]\n", out)
+    }
 
     pub(crate) async fn purge_local_records(&self, reclaim: Option<usize>) -> String {
         let mut inner = self.inner.lock().await;

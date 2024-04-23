@@ -62,28 +62,24 @@ impl StorageManager {
                     )
                     .await;
                 match osvres {
-                    Ok(osv) => {
-                        match osv.fanout_result.kind {
-                            FanoutResultKind::Timeout => {
-                                log_stor!(debug "timed out writing offline subkey: {}:{}", key, subkey);
+                    Ok(result) => {
+                        let was_offline =
+                            self.check_fanout_set_offline(*key, subkey, &result.fanout_result);
+                        if !was_offline {
+                            if let Some(update_callback) = opt_update_callback.clone() {
+                                // Send valuechange with dead count and no subkeys
+                                update_callback(VeilidUpdate::ValueChange(Box::new(
+                                    VeilidValueChange {
+                                        key: *key,
+                                        subkeys: ValueSubkeyRangeSet::single(subkey),
+                                        count: u32::MAX,
+                                        value: Some(result.signed_value_data.value_data().clone()),
+                                    },
+                                )));
                             }
-                            FanoutResultKind::Finished | FanoutResultKind::Exhausted => {
-                                if let Some(update_callback) = opt_update_callback.clone() {
-                                    // Send valuechange with dead count and no subkeys
-                                    update_callback(VeilidUpdate::ValueChange(Box::new(
-                                        VeilidValueChange {
-                                            key: *key,
-                                            subkeys: ValueSubkeyRangeSet::single(subkey),
-                                            count: u32::MAX,
-                                            value: Some(osv.signed_value_data.value_data().clone()),
-                                        },
-                                    )));
-                                }
-                                written_subkeys.insert(subkey);
-                            }
+                            written_subkeys.insert(subkey);
                         };
-
-                        fanout_results.push((subkey, osv.fanout_result));
+                        fanout_results.push((subkey, result.fanout_result));
                     }
                     Err(e) => {
                         log_stor!(debug "failed to write offline subkey: {}:{} {}", key, subkey, e);

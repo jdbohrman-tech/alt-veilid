@@ -557,8 +557,17 @@ impl StorageManager {
             }
         };
 
-        // Keep the list of nodes that returned a value for later reference
+        // Regain the lock after network access
         let mut inner = self.lock().await?;
+
+        // Report on fanout result offline
+        let was_offline = self.check_fanout_set_offline(key, subkey, &result.fanout_result);
+        if was_offline {
+            // Failed to write, try again later
+            inner.add_offline_subkey_write(key, subkey, safety_selection);
+        }
+
+        // Keep the list of nodes that returned a value for later reference
         inner.process_fanout_results(key, core::iter::once((subkey, &result.fanout_result)), true);
 
         // Return the new value if it differs from what was asked to set
@@ -909,5 +918,33 @@ impl StorageManager {
             .map_err(VeilidAPIError::from)? => [format!(": dest={:?} vc={:?}", dest, vc)] {});
 
         Ok(())
+    }
+
+    fn check_fanout_set_offline(
+        &self,
+        key: TypedKey,
+        subkey: ValueSubkey,
+        fanout_result: &FanoutResult,
+    ) -> bool {
+        match fanout_result.kind {
+            FanoutResultKind::Timeout => {
+                log_stor!(debug "timeout in set_value, adding offline subkey: {}:{}", key, subkey);
+                true
+            }
+            FanoutResultKind::Exhausted => {
+                let get_consensus =
+                    self.unlocked_inner.config.get().network.dht.get_value_count as usize;
+                let value_node_count = fanout_result.value_nodes.len();
+                if value_node_count < get_consensus {
+                    log_stor!(debug "exhausted with insufficient consensus ({}<{}), adding offline subkey: {}:{}", 
+                        value_node_count, get_consensus,
+                        key, subkey);
+                    true
+                } else {
+                    false
+                }
+            }
+            FanoutResultKind::Finished => false,
+        }
     }
 }

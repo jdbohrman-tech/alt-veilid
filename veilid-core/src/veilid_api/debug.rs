@@ -1414,6 +1414,11 @@ impl VeilidAPI {
                 out += &storage_manager.debug_opened_records().await;
                 out
             }
+            "offline" => {
+                let mut out = "Offline Records:\n".to_string();
+                out += &storage_manager.debug_offline_records().await;
+                out
+            }
             _ => "Invalid scope\n".to_owned(),
         };
         Ok(out)
@@ -1951,7 +1956,7 @@ route allocate [ord|*ord] [rel] [<count>] [in|out]
       list
       import <blob>
       test <route>
-record list <local|remote|opened>
+record list <local|remote|opened|offline>
        purge <local|remote> [bytes]
        create <dhtschema> [<cryptokind> [<safety>]]
        open <key>[+<safety>] [<writer>]
