@@ -20,6 +20,8 @@ impl StorageManager {
             out
         };
 
+        let mut fanout_results = vec![];
+
         for (key, osw) in offline_subkey_writes.iter_mut() {
             if poll!(stop_token.clone()).is_ready() {
                 log_stor!(debug "Offline subkey writes cancelled.");
@@ -61,26 +63,45 @@ impl StorageManager {
                     .await;
                 match osvres {
                     Ok(osv) => {
-                        if let Some(update_callback) = opt_update_callback.clone() {
-                            // Send valuechange with dead count and no subkeys
-                            update_callback(VeilidUpdate::ValueChange(Box::new(
-                                VeilidValueChange {
-                                    key: *key,
-                                    subkeys: ValueSubkeyRangeSet::single(subkey),
-                                    count: u32::MAX,
-                                    value: Some(osv.signed_value_data.value_data().clone()),
-                                },
-                            )));
-                        }
-                        written_subkeys.insert(subkey);
+                        match osv.fanout_result.kind {
+                            FanoutResultKind::Timeout => {
+                                log_stor!(debug "timed out writing offline subkey: {}:{}", key, subkey);
+                            }
+                            FanoutResultKind::Finished | FanoutResultKind::Exhausted => {
+                                if let Some(update_callback) = opt_update_callback.clone() {
+                                    // Send valuechange with dead count and no subkeys
+                                    update_callback(VeilidUpdate::ValueChange(Box::new(
+                                        VeilidValueChange {
+                                            key: *key,
+                                            subkeys: ValueSubkeyRangeSet::single(subkey),
+                                            count: u32::MAX,
+                                            value: Some(osv.signed_value_data.value_data().clone()),
+                                        },
+                                    )));
+                                }
+                                written_subkeys.insert(subkey);
+                            }
+                        };
+
+                        fanout_results.push((subkey, osv.fanout_result));
                     }
                     Err(e) => {
-                        log_stor!(debug "failed to write offline subkey: {}", e);
+                        log_stor!(debug "failed to write offline subkey: {}:{} {}", key, subkey, e);
                     }
                 }
             }
 
             osw.subkeys = osw.subkeys.difference(&written_subkeys);
+
+            // Keep the list of nodes that returned a value for later reference
+            {
+                let mut inner = self.lock().await?;
+                inner.process_fanout_results(
+                    *key,
+                    fanout_results.iter().map(|x| (x.0, &x.1)),
+                    true,
+                );
+            }
         }
 
         // Add any subkeys back in that were not successfully written

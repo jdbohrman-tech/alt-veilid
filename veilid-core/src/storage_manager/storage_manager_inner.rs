@@ -473,16 +473,18 @@ impl StorageManagerInner {
         Ok(opt_value_nodes)
     }
 
-    pub fn process_fanout_results<'a, I: IntoIterator<Item = (ValueSubkey, &'a FanoutResult)>>(
+    pub(super) fn process_fanout_results<
+        'a,
+        I: IntoIterator<Item = (ValueSubkey, &'a FanoutResult)>,
+    >(
         &mut self,
         key: TypedKey,
         subkey_results_iter: I,
         is_set: bool,
-    ) -> VeilidAPIResult<()> {
+    ) {
         // Get local record store
-        let Some(local_record_store) = self.local_record_store.as_mut() else {
-            apibail_not_initialized!();
-        };
+        let local_record_store = self.local_record_store.as_mut().unwrap();
+
         let cur_ts = get_aligned_timestamp();
         local_record_store.with_record_mut(key, |r| {
             let d = r.detail_mut();
@@ -514,7 +516,6 @@ impl StorageManagerInner {
                 d.nodes.remove(&dead_node_key.0);
             }
         });
-        Ok(())
     }
 
     pub fn close_record(&mut self, key: TypedKey) -> VeilidAPIResult<Option<OpenedRecord>> {
@@ -689,5 +690,22 @@ impl StorageManagerInner {
         hash_data.extend_from_slice(compiled);
         let hash = vcrypto.generate_hash(&hash_data);
         TypedKey::new(vcrypto.kind(), hash)
+    }
+
+    pub(super) fn add_offline_subkey_write(
+        &mut self,
+        key: TypedKey,
+        subkey: ValueSubkey,
+        safety_selection: SafetySelection,
+    ) {
+        self.offline_subkey_writes
+            .entry(key)
+            .and_modify(|x| {
+                x.subkeys.insert(subkey);
+            })
+            .or_insert(OfflineSubkeyWrite {
+                safety_selection,
+                subkeys: ValueSubkeyRangeSet::single(subkey),
+            });
     }
 }

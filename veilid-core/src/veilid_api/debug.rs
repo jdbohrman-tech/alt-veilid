@@ -1951,7 +1951,7 @@ route allocate [ord|*ord] [rel] [<count>] [in|out]
       list
       import <blob>
       test <route>
-record list <local|remote>
+record list <local|remote|opened>
        purge <local|remote> [bytes]
        create <dhtschema> [<cryptokind> [<safety>]]
        open <key>[+<safety>] [<writer>]

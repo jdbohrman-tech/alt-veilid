@@ -25,7 +25,7 @@ const MAX_RECORD_DATA_SIZE: usize = 1_048_576;
 /// Frequency to flush record stores to disk
 const FLUSH_RECORD_STORES_INTERVAL_SECS: u32 = 1;
 /// Frequency to check for offline subkeys writes to send to the network
-const OFFLINE_SUBKEY_WRITES_INTERVAL_SECS: u32 = 1;
+const OFFLINE_SUBKEY_WRITES_INTERVAL_SECS: u32 = 5;
 /// Frequency to send ValueChanged notifications to the network
 const SEND_VALUE_CHANGES_INTERVAL_SECS: u32 = 1;
 /// Frequency to check for dead nodes and routes for client-side active watches
@@ -424,7 +424,7 @@ impl StorageManager {
             key,
             core::iter::once((subkey, &result.fanout_result)),
             false,
-        )?;
+        );
 
         // If we got a new value back then write it to the opened record
         if Some(get_result_value.value_data().seq()) != opt_last_seq {
@@ -527,16 +527,7 @@ impl StorageManager {
         let Some(rpc_processor) = Self::online_ready_inner(&inner) else {
             log_stor!(debug "Writing subkey offline: {}:{} len={}", key, subkey, signed_value_data.value_data().data().len() );
             // Add to offline writes to flush
-            inner
-                .offline_subkey_writes
-                .entry(key)
-                .and_modify(|x| {
-                    x.subkeys.insert(subkey);
-                })
-                .or_insert(OfflineSubkeyWrite {
-                    safety_selection,
-                    subkeys: ValueSubkeyRangeSet::single(subkey),
-                });
+            inner.add_offline_subkey_write(key, subkey, safety_selection);
             return Ok(None);
         };
 
@@ -546,7 +537,7 @@ impl StorageManager {
         log_stor!(debug "Writing subkey to the network: {}:{} len={}", key, subkey, signed_value_data.value_data().data().len() );
 
         // Use the safety selection we opened the record with
-        let result = self
+        let result = match self
             .outbound_set_value(
                 rpc_processor,
                 key,
@@ -555,15 +546,20 @@ impl StorageManager {
                 signed_value_data.clone(),
                 descriptor,
             )
-            .await?;
+            .await
+        {
+            Ok(v) => v,
+            Err(e) => {
+                // Failed to write, try again later
+                let mut inner = self.lock().await?;
+                inner.add_offline_subkey_write(key, subkey, safety_selection);
+                return Err(e);
+            }
+        };
 
         // Keep the list of nodes that returned a value for later reference
         let mut inner = self.lock().await?;
-        inner.process_fanout_results(
-            key,
-            core::iter::once((subkey, &result.fanout_result)),
-            true,
-        )?;
+        inner.process_fanout_results(key, core::iter::once((subkey, &result.fanout_result)), true);
 
         // Return the new value if it differs from what was asked to set
         if result.signed_value_data.value_data() != signed_value_data.value_data() {
@@ -877,7 +873,7 @@ impl StorageManager {
             .iter()
             .zip(result.fanout_results.iter());
 
-        inner.process_fanout_results(key, results_iter, false)?;
+        inner.process_fanout_results(key, results_iter, false);
 
         Ok(DHTRecordReport::new(
             result.inspect_result.subkeys,

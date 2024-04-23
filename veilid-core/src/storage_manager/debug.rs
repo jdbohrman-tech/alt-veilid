@@ -24,7 +24,12 @@ impl StorageManager {
             } else {
                 "".to_owned()
             };
-            out += &format!("  {} {},\n", k, writer);
+            let watch = if let Some(w) = v.active_watch() {
+                format!("  watch: {:?}\n", w)
+            } else {
+                "".to_owned()
+            };
+            out += &format!("  {} {}{}\n", k, writer, watch);
         }
         format!("{}]\n", out)
     }
