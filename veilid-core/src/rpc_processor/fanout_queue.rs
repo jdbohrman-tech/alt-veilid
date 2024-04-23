@@ -1,3 +1,7 @@
+/// Fanout Queue
+/// Keep a deque of unique nodes
+/// Internally the 'front' of the list is the next out, and new nodes are added to the 'back' of the list
+/// When passing in a 'cleanup' function, if it sorts the queue, the 'first' items in the queue are the 'next' out.
 use super::*;
 
 #[derive(Debug)]
@@ -44,7 +48,7 @@ impl FanoutQueue {
             }
             if !dup {
                 // Add the new node
-                self.current_nodes.push_front(nn.clone());
+                self.current_nodes.push_back(nn.clone());
             }
         }
 
@@ -72,7 +76,7 @@ impl FanoutQueue {
 
     // Return next fanout candidate
     pub fn next(&mut self) -> Option<NodeRef> {
-        let cn = self.current_nodes.pop_back()?;
+        let cn = self.current_nodes.pop_front()?;
         self.current_nodes.make_contiguous();
         let key = cn.node_ids().get(self.crypto_kind).unwrap();
 
