@@ -110,7 +110,8 @@ impl Network {
             // Allow network to be cleared if external addresses change
             inner.network_already_cleared = false;
 
-            let mut inbound_protocol_map = HashMap::<(AddressType, u16), Vec<ProtocolType>>::new();
+            let mut inbound_protocol_map =
+                HashMap::<(AddressType, LowLevelProtocolType, u16), Vec<ProtocolType>>::new();
             for at in protocol_config.family_global {
                 for pt in protocol_config.inbound {
                     let key = (pt, at);
@@ -122,7 +123,8 @@ impl Network {
                     }
 
                     if let Some(pla) = inner.preferred_local_addresses.get(&key) {
-                        let itmkey = (at, pla.port());
+                        let llpt = pt.low_level_protocol_type();
+                        let itmkey = (at, llpt, pla.port());
                         inbound_protocol_map
                             .entry(itmkey)
                             .and_modify(|x| x.push(pt))
@@ -181,7 +183,7 @@ impl Network {
         // Process all protocol and address combinations
         let mut unord = FuturesUnordered::new();
 
-        for ((at, port), protocols) in &inbound_protocol_map {
+        for ((at, _llpt, port), protocols) in &inbound_protocol_map {
             let first_pt = protocols.first().unwrap();
 
             let discovery_context = DiscoveryContext::new(
@@ -208,7 +210,11 @@ impl Network {
 
                     // Add additional dialinfo for protocols on the same port
                     if let DetectedDialInfo::Detected(did) = &dr.ddi {
-                        let ipmkey = (did.dial_info.address_type(), dr.local_port);
+                        let ipmkey = (
+                            did.dial_info.address_type(),
+                            did.dial_info.protocol_type().low_level_protocol_type(),
+                            dr.local_port,
+                        );
                         for additional_pt in
                             inbound_protocol_map.get(&ipmkey).unwrap().iter().skip(1)
                         {
