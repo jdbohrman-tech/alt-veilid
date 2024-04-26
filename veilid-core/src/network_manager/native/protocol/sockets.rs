@@ -15,25 +15,25 @@ cfg_if! {
 
 use socket2::{Domain, Protocol, SockAddr, Socket, Type};
 
-cfg_if! {
-    if #[cfg(windows)] {
-        use winapi::shared::ws2def::{ SOL_SOCKET, SO_EXCLUSIVEADDRUSE};
-        use winapi::um::winsock2::{SOCKET_ERROR, setsockopt};
-        use winapi::ctypes::c_int;
-        use std::os::windows::io::AsRawSocket;
+// cfg_if! {
+//     if #[cfg(windows)] {
+//         use winapi::shared::ws2def::{ SOL_SOCKET, SO_EXCLUSIVEADDRUSE};
+//         use winapi::um::winsock2::{SOCKET_ERROR, setsockopt};
+//         use winapi::ctypes::c_int;
+//         use std::os::windows::io::AsRawSocket;
 
-        fn set_exclusiveaddruse(socket: &Socket) -> io::Result<()> {
-            unsafe {
-                let optval:c_int = 1;
-                if setsockopt(socket.as_raw_socket().try_into().unwrap(), SOL_SOCKET, SO_EXCLUSIVEADDRUSE, (&optval as *const c_int).cast(),
-                    std::mem::size_of::<c_int>() as c_int) == SOCKET_ERROR {
-                    return Err(io::Error::last_os_error());
-                }
-                Ok(())
-            }
-        }
-    }
-}
+//         fn set_exclusiveaddruse(socket: &Socket) -> io::Result<()> {
+//             unsafe {
+//                 let optval:c_int = 1;
+//                 if setsockopt(socket.as_raw_socket().try_into().unwrap(), SOL_SOCKET, SO_EXCLUSIVEADDRUSE, (&optval as *const c_int).cast(),
+//                     std::mem::size_of::<c_int>() as c_int) == SOCKET_ERROR {
+//                     return Err(io::Error::last_os_error());
+//                 }
+//                 Ok(())
+//             }
+//         }
+//     }
+// }
 
 #[instrument(level = "trace", ret)]
 pub fn new_shared_udp_socket(domain: Domain) -> io::Result<Socket> {
