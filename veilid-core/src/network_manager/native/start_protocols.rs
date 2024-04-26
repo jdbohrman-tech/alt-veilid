@@ -1,4 +1,3 @@
-use super::sockets::*;
 use super::*;
 use lazy_static::*;
 
@@ -74,152 +73,29 @@ lazy_static! {
     ]);
 }
 
+pub(super) struct NetworkBindSet {
+    pub port: u16,
+    pub addrs: Vec<IpAddr>,
+    pub search: bool,
+}
+
 impl Network {
     /////////////////////////////////////////////////////
-    // Support for binding first on ports to ensure nobody binds ahead of us
-    // or two copies of the app don't accidentally collide. This is tricky
-    // because we use 'reuseaddr/port' and we can accidentally bind in front of ourselves :P
 
-    fn bind_first_udp_port(&self, udp_port: u16) -> bool {
-        let mut inner = self.inner.lock();
-        if inner.bound_first_udp.contains_key(&udp_port) {
-            return true;
-        }
-
-        // Check for ipv6
-        let has_v6 = is_ipv6_supported();
-
-        // If the address is specified, only use the specified port and fail otherwise
-        let mut bound_first_socket_v4 = None;
-        let mut bound_first_socket_v6 = None;
-        if let Ok(bfs4) =
-            new_bound_first_udp_socket(SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), udp_port))
-        {
-            if has_v6 {
-                if let Ok(bfs6) = new_bound_first_udp_socket(SocketAddr::new(
-                    IpAddr::V6(Ipv6Addr::UNSPECIFIED),
-                    udp_port,
-                )) {
-                    bound_first_socket_v4 = Some(bfs4);
-                    bound_first_socket_v6 = Some(bfs6);
-                }
-            } else {
-                bound_first_socket_v4 = Some(bfs4);
-            }
-        }
-
-        if bound_first_socket_v4.is_none() && (has_v6 && bound_first_socket_v6.is_none()) {
-            return false;
-        }
-
-        cfg_if! {
-            if #[cfg(windows)] {
-                // On windows, drop the socket. This is a race condition, but there's
-                // no way around it. This isn't for security anyway, it's to prevent multiple copies of the
-                // app from binding on the same port.
-                inner.bound_first_udp.insert(udp_port, (None, None));
-            } else {
-                inner.bound_first_udp.insert(udp_port, (bound_first_socket_v4, bound_first_socket_v6));
-            }
-        }
-        true
-    }
-
-    fn bind_first_tcp_port(&self, tcp_port: u16) -> bool {
-        let mut inner = self.inner.lock();
-        if inner.bound_first_tcp.contains_key(&tcp_port) {
-            return true;
-        }
-
-        // Check for ipv6
-        let has_v6 = is_ipv6_supported();
-
-        // If the address is specified, only use the specified port and fail otherwise
-        let mut bound_first_socket_v4 = None;
-        let mut bound_first_socket_v6 = None;
-        if let Ok(bfs4) =
-            new_bound_first_tcp_socket(SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), tcp_port))
-        {
-            if has_v6 {
-                if let Ok(bfs6) = new_bound_first_tcp_socket(SocketAddr::new(
-                    IpAddr::V6(Ipv6Addr::UNSPECIFIED),
-                    tcp_port,
-                )) {
-                    bound_first_socket_v4 = Some(bfs4);
-                    bound_first_socket_v6 = Some(bfs6);
-                }
-            } else {
-                bound_first_socket_v4 = Some(bfs4);
-            }
-        }
-
-        if bound_first_socket_v4.is_none() && (has_v6 && bound_first_socket_v6.is_none()) {
-            return false;
-        }
-
-        cfg_if! {
-            if #[cfg(windows)] {
-                // On windows, drop the socket. This is a race condition, but there's
-                // no way around it. This isn't for security anyway, it's to prevent multiple copies of the
-                // app from binding on the same port.
-                inner.bound_first_tcp.insert(tcp_port, (None, None));
-            } else {
-                inner.bound_first_tcp.insert(tcp_port, (bound_first_socket_v4, bound_first_socket_v6));
-            }
-        }
-        true
-    }
-
-    pub(super) fn free_bound_first_ports(&self) {
-        let mut inner = self.inner.lock();
-        inner.bound_first_udp.clear();
-        inner.bound_first_tcp.clear();
-    }
-
-    /////////////////////////////////////////////////////
-
-    fn find_available_udp_port(&self, start_port: u16) -> EyreResult<u16> {
-        // If the address is empty, iterate ports until we find one we can use.
-        let mut udp_port = start_port;
-        loop {
-            if BAD_PORTS.contains(&udp_port) {
-                continue;
-            }
-            if self.bind_first_udp_port(udp_port) {
-                break;
-            }
-            if udp_port == 65535 {
-                bail!("Could not find free udp port to listen on");
-            }
-            udp_port += 1;
-        }
-        Ok(udp_port)
-    }
-
-    fn find_available_tcp_port(&self, start_port: u16) -> EyreResult<u16> {
-        // If the address is empty, iterate ports until we find one we can use.
-        let mut tcp_port = start_port;
-        loop {
-            if BAD_PORTS.contains(&tcp_port) {
-                continue;
-            }
-            if self.bind_first_tcp_port(tcp_port) {
-                break;
-            }
-            if tcp_port == 65535 {
-                bail!("Could not find free tcp port to listen on");
-            }
-            tcp_port += 1;
-        }
-        Ok(tcp_port)
-    }
-
-    async fn allocate_udp_port(&self, listen_address: String) -> EyreResult<(u16, Vec<IpAddr>)> {
+    // Returns a port, a set of ip addresses to bind to, and a
+    // bool specifying if multiple ports should be tried
+    async fn convert_listen_address_to_bind_set(
+        &self,
+        listen_address: String,
+    ) -> EyreResult<NetworkBindSet> {
         if listen_address.is_empty() {
-            // If listen address is empty, find us a port iteratively
-            let port = self.find_available_udp_port(5150)?;
+            // If listen address is empty, start with port 5150 and iterate
             let ip_addrs = available_unspecified_addresses();
-            Ok((port, ip_addrs))
+            Ok(NetworkBindSet {
+                port: 5150,
+                addrs: ip_addrs,
+                search: true,
+            })
         } else {
             // If no address is specified, but the port is, use ipv4 and ipv6 unspecified
             // If the address is specified, only use the specified port and fail otherwise
@@ -229,58 +105,30 @@ impl Network {
                 bail!("No valid listen address: {}", listen_address);
             }
             let port = sockaddrs[0].port();
-
-            Ok((port, sockaddrs.iter().map(|s| s.ip()).collect()))
-        }
-    }
-
-    async fn allocate_tcp_port(&self, listen_address: String) -> EyreResult<(u16, Vec<IpAddr>)> {
-        if listen_address.is_empty() {
-            // If listen address is empty, find us a port iteratively
-            let port = self.find_available_tcp_port(5150)?;
-            let ip_addrs = available_unspecified_addresses();
-            Ok((port, ip_addrs))
-        } else {
-            // If no address is specified, but the port is, use ipv4 and ipv6 unspecified
-            // If the address is specified, only use the specified port and fail otherwise
-            let sockaddrs =
-                listen_address_to_socket_addrs(&listen_address).map_err(|e| eyre!("{}", e))?;
-            if sockaddrs.is_empty() {
-                bail!("No valid listen address: {}", listen_address);
+            if port == 0 {
+                Ok(NetworkBindSet {
+                    port: 5150,
+                    addrs: sockaddrs.iter().map(|s| s.ip()).collect(),
+                    search: true,
+                })
+            } else {
+                Ok(NetworkBindSet {
+                    port,
+                    addrs: sockaddrs.iter().map(|s| s.ip()).collect(),
+                    search: false,
+                })
             }
-            let port = sockaddrs[0].port();
-
-            let mut attempts = 10;
-            let mut success = false;
-            while attempts >= 0 {
-                if self.bind_first_tcp_port(port) {
-                    success = true;
-                    break;
-                }
-                attempts -= 1;
-
-                // Wait 5 seconds before trying again
-                log_net!(debug
-                    "Binding TCP port at {} failed, waiting. Attempts remaining = {}",
-                    port, attempts
-                );
-                sleep(5000).await
-            }
-            if !success {
-                bail!("Could not find free tcp port to listen on");
-            }
-            Ok((port, sockaddrs.iter().map(|s| s.ip()).collect()))
         }
     }
 
     /////////////////////////////////////////////////////
 
-    pub(super) async fn start_udp_listeners(
+    pub(super) async fn bind_udp_protocol_handlers(
         &self,
         editor_public_internet: &mut RoutingDomainEditor,
         editor_local_network: &mut RoutingDomainEditor,
     ) -> EyreResult<()> {
-        log_net!("starting udp listeners");
+        log_net!("UDP: binding protocol handlers");
         let routing_table = self.routing_table();
         let (listen_address, public_address, detect_address_changes) = {
             let c = self.config.get();
@@ -291,28 +139,30 @@ impl Network {
             )
         };
 
-        // Pick out UDP port we're going to use everywhere
-        // Keep sockets around until the end of this function
-        // to keep anyone else from binding in front of us
-        let (udp_port, ip_addrs) = self.allocate_udp_port(listen_address.clone()).await?;
-
-        // Save the bound udp port for use later on
-        self.inner.lock().udp_port = udp_port;
-
-        // First, create outbound sockets
-        // (unlike tcp where we create sockets for every connection)
-        // and we'll add protocol handlers for them too
-        self.create_udp_outbound_sockets().await?;
+        // Get the binding parameters from the user-specified listen address
+        let bind_set = self
+            .convert_listen_address_to_bind_set(listen_address.clone())
+            .await?;
 
         // Now create udp inbound sockets for whatever interfaces we're listening on
-        info!(
-            "UDP: starting listeners on port {} at {:?}",
-            udp_port, ip_addrs
-        );
-        let local_dial_info_list = self.create_udp_inbound_sockets(ip_addrs, udp_port).await?;
+        if bind_set.search {
+            info!(
+                "UDP: searching for free port starting with {} on {:?}",
+                bind_set.port, bind_set.addrs
+            );
+        } else {
+            info!(
+                "UDP: binding protocol handlers at port {} on {:?}",
+                bind_set.port, bind_set.addrs
+            );
+        }
+        let local_dial_info_list = self.create_udp_protocol_handlers(bind_set).await?;
         let mut static_public = false;
 
-        log_net!("UDP: listener started on {:#?}", local_dial_info_list);
+        log_net!(
+            "UDP: protocol handlers bound to {:#?}",
+            local_dial_info_list
+        );
 
         // Register local dial info
         for di in &local_dial_info_list {
@@ -374,6 +224,8 @@ impl Network {
                 .insert(ProtocolType::UDP);
         }
 
+        // xxx compile all dialinfo from editor into map of protocoltype+addresstype -> port for 'best port selection' code
+
         // Now create tasks for udp listeners
         self.create_udp_listener_tasks().await
     }
@@ -383,7 +235,7 @@ impl Network {
         editor_public_internet: &mut RoutingDomainEditor,
         editor_local_network: &mut RoutingDomainEditor,
     ) -> EyreResult<()> {
-        log_net!("starting ws listeners");
+        log_net!("WS: binding protocol handlers");
         let routing_table = self.routing_table();
         let (listen_address, url, path, detect_address_changes) = {
             let c = self.config.get();
@@ -395,27 +247,30 @@ impl Network {
             )
         };
 
-        // Pick out TCP port we're going to use everywhere
-        // Keep sockets around until the end of this function
-        // to keep anyone else from binding in front of us
-        let (ws_port, ip_addrs) = self.allocate_tcp_port(listen_address.clone()).await?;
+        // Get the binding parameters from the user-specified listen address
+        let bind_set = self
+            .convert_listen_address_to_bind_set(listen_address.clone())
+            .await?;
 
-        // Save the bound ws port for use later on
-        self.inner.lock().ws_port = ws_port;
-
-        info!(
-            "WS: starting listener on port {} at {:?}",
-            ws_port, ip_addrs
-        );
+        if bind_set.search {
+            info!(
+                "WS: searching for free port starting with {} on {:?}",
+                bind_set.port, bind_set.addrs
+            );
+        } else {
+            info!(
+                "WS: binding protocol handlers at port {} on {:?}",
+                bind_set.port, bind_set.addrs
+            );
+        }
         let socket_addresses = self
             .start_tcp_listener(
-                ip_addrs,
-                ws_port,
+                bind_set,
                 false,
                 Box::new(|c, t| Box::new(WebsocketProtocolHandler::new(c, t))),
             )
             .await?;
-        log_net!("WS: listener started on {:#?}", socket_addresses);
+        log_net!("WS: protocol handlers started on {:#?}", socket_addresses);
 
         let mut static_public = false;
         let mut registered_addresses: HashSet<IpAddr> = HashSet::new();
@@ -493,7 +348,7 @@ impl Network {
         editor_public_internet: &mut RoutingDomainEditor,
         editor_local_network: &mut RoutingDomainEditor,
     ) -> EyreResult<()> {
-        log_net!("starting wss listeners");
+        log_net!("WSS: binding protocol handlers");
 
         let (listen_address, url, detect_address_changes) = {
             let c = self.config.get();
@@ -504,27 +359,31 @@ impl Network {
             )
         };
 
-        // Pick out TCP port we're going to use everywhere
-        // Keep sockets around until the end of this function
-        // to keep anyone else from binding in front of us
-        let (wss_port, ip_addrs) = self.allocate_tcp_port(listen_address.clone()).await?;
+        // Get the binding parameters from the user-specified listen address
+        let bind_set = self
+            .convert_listen_address_to_bind_set(listen_address.clone())
+            .await?;
 
-        // Save the bound wss port for use later on
-        self.inner.lock().wss_port = wss_port;
+        if bind_set.search {
+            info!(
+                "WSS: searching for free port starting with {} on {:?}",
+                bind_set.port, bind_set.addrs
+            );
+        } else {
+            info!(
+                "WSS: binding protocol handlers at port {} on {:?}",
+                bind_set.port, bind_set.addrs
+            );
+        }
 
-        info!(
-            "WSS: starting listener on port {} at {:?}",
-            wss_port, ip_addrs
-        );
         let socket_addresses = self
             .start_tcp_listener(
-                ip_addrs,
-                wss_port,
+                bind_set,
                 true,
                 Box::new(|c, t| Box::new(WebsocketProtocolHandler::new(c, t))),
             )
             .await?;
-        log_net!("WSS: listener started on {:#?}", socket_addresses);
+        log_net!("WSS: protocol handlers started on {:#?}", socket_addresses);
 
         // NOTE: No interface dial info for WSS, as there is no way to connect to a local dialinfo via TLS
         // If the hostname is specified, it is the public dialinfo via the URL. If no hostname
@@ -586,7 +445,7 @@ impl Network {
         editor_public_internet: &mut RoutingDomainEditor,
         editor_local_network: &mut RoutingDomainEditor,
     ) -> EyreResult<()> {
-        log_net!("starting tcp listeners");
+        log_net!("TCP: binding protocol handlers");
 
         let routing_table = self.routing_table();
         let (listen_address, public_address, detect_address_changes) = {
@@ -598,27 +457,30 @@ impl Network {
             )
         };
 
-        // Pick out TCP port we're going to use everywhere
-        // Keep sockets around until the end of this function
-        // to keep anyone else from binding in front of us
-        let (tcp_port, ip_addrs) = self.allocate_tcp_port(listen_address.clone()).await?;
+        // Get the binding parameters from the user-specified listen address
+        let bind_set = self
+            .convert_listen_address_to_bind_set(listen_address.clone())
+            .await?;
 
-        // Save the bound tcp port for use later on
-        self.inner.lock().tcp_port = tcp_port;
-
-        info!(
-            "TCP: starting listener on port {} at {:?}",
-            tcp_port, ip_addrs
-        );
+        if bind_set.search {
+            info!(
+                "TCP: searching for free port starting with {} on {:?}",
+                bind_set.port, bind_set.addrs
+            );
+        } else {
+            info!(
+                "TCP: binding protocol handlers at port {} on {:?}",
+                bind_set.port, bind_set.addrs
+            );
+        }
         let socket_addresses = self
             .start_tcp_listener(
-                ip_addrs,
-                tcp_port,
+                bind_set,
                 false,
                 Box::new(|c, _| Box::new(RawTcpProtocolHandler::new(c))),
             )
             .await?;
-        log_net!("TCP: listener started on {:#?}", socket_addresses);
+        log_net!("TCP: protocol handlers started on {:#?}", socket_addresses);
 
         let mut static_public = false;
         let mut registered_addresses: HashSet<IpAddr> = HashSet::new();

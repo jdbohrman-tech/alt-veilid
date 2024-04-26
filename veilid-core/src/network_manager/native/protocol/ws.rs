@@ -319,7 +319,9 @@ impl WebsocketProtocolHandler {
 
         // Make a shared socket
         let socket = match local_address {
-            Some(a) => new_bound_shared_tcp_socket(a)?,
+            Some(a) => {
+                new_bound_shared_tcp_socket(a)?.ok_or(io::Error::from(io::ErrorKind::AddrInUse))?
+            }
             None => new_unbound_tcp_socket(socket2::Domain::for_address(remote_socket_addr))?,
         };
 

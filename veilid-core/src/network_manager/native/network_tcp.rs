@@ -237,7 +237,7 @@ impl Network {
         }
     }
 
-    async fn spawn_socket_listener(&self, addr: SocketAddr) -> EyreResult<()> {
+    async fn spawn_socket_listener(&self, addr: SocketAddr) -> EyreResult<bool> {
         // Get config
         let (connection_initial_timeout_ms, tls_connection_initial_timeout_ms) = {
             let c = self.config.get();
@@ -248,12 +248,15 @@ impl Network {
         };
 
         // Create a reusable socket with no linger time, and no delay
-        let socket = new_bound_shared_tcp_socket(addr)
-            .wrap_err("failed to create bound shared tcp socket")?;
+        let Some(socket) = new_bound_shared_tcp_socket(addr)
+            .wrap_err("failed to create bound shared tcp socket")?
+        else {
+            return Ok(false);
+        };
         // Listen on the socket
-        socket
-            .listen(128)
-            .wrap_err("Couldn't listen on TCP socket")?;
+        if socket.listen(128).is_err() {
+            return Ok(false);
+        }
 
         // Make an async tcplistener from the socket2 socket
         let std_listener: std::net::TcpListener = socket.into();
@@ -324,7 +327,7 @@ impl Network {
         // Add to join handles
         self.add_to_join_handles(jh);
 
-        Ok(())
+        Ok(true)
     }
 
     /////////////////////////////////////////////////////////////////
@@ -332,51 +335,76 @@ impl Network {
     // TCP listener that multiplexes ports so multiple protocols can exist on a single port
     pub(super) async fn start_tcp_listener(
         &self,
-        ip_addrs: Vec<IpAddr>,
-        port: u16,
+        bind_set: NetworkBindSet,
         is_tls: bool,
         new_protocol_accept_handler: Box<NewProtocolAcceptHandler>,
     ) -> EyreResult<Vec<SocketAddress>> {
         let mut out = Vec::<SocketAddress>::new();
 
-        for ip_addr in ip_addrs {
-            let addr = SocketAddr::new(ip_addr, port);
-            let idi_addrs = self.translate_unspecified_address(&addr);
+        for ip_addr in bind_set.addrs {
+            let mut port = bind_set.port;
+            loop {
+                let addr = SocketAddr::new(ip_addr, port);
 
-            // see if we've already bound to this already
-            // if not, spawn a listener
-            if !self.inner.lock().listener_states.contains_key(&addr) {
-                self.clone().spawn_socket_listener(addr).await?;
-            }
-
-            let ls = if let Some(ls) = self.inner.lock().listener_states.get_mut(&addr) {
-                ls.clone()
-            } else {
-                panic!("this shouldn't happen");
-            };
-
-            if is_tls {
-                if ls.read().tls_acceptor.is_none() {
-                    ls.write().tls_acceptor = Some(self.clone().get_or_create_tls_acceptor()?);
+                // see if we've already bound to this already
+                // if not, spawn a listener
+                let mut got_listener = false;
+                if !self.inner.lock().listener_states.contains_key(&addr) {
+                    if self.clone().spawn_socket_listener(addr).await? {
+                        got_listener = true;
+                    }
+                } else {
+                    got_listener = true;
                 }
-                ls.write()
-                    .tls_protocol_handlers
-                    .push(new_protocol_accept_handler(
-                        self.network_manager().config(),
-                        true,
-                    ));
-            } else {
-                ls.write()
-                    .protocol_accept_handlers
-                    .push(new_protocol_accept_handler(
-                        self.network_manager().config(),
-                        false,
-                    ));
-            }
 
-            // Return interface dial infos we listen on
-            for idi_addr in idi_addrs {
-                out.push(SocketAddress::from_socket_addr(idi_addr));
+                if got_listener {
+                    let ls = if let Some(ls) = self.inner.lock().listener_states.get_mut(&addr) {
+                        ls.clone()
+                    } else {
+                        panic!("this shouldn't happen");
+                    };
+
+                    if is_tls {
+                        if ls.read().tls_acceptor.is_none() {
+                            ls.write().tls_acceptor =
+                                Some(self.clone().get_or_create_tls_acceptor()?);
+                        }
+                        ls.write()
+                            .tls_protocol_handlers
+                            .push(new_protocol_accept_handler(
+                                self.network_manager().config(),
+                                true,
+                            ));
+                    } else {
+                        ls.write()
+                            .protocol_accept_handlers
+                            .push(new_protocol_accept_handler(
+                                self.network_manager().config(),
+                                false,
+                            ));
+                    }
+
+                    // Return interface dial infos we listen on
+                    let idi_addrs = self.translate_unspecified_address(&addr);
+                    for idi_addr in idi_addrs {
+                        out.push(SocketAddress::from_socket_addr(idi_addr));
+                    }
+                    break;
+                }
+
+                if !bind_set.search {
+                    bail!("unable to bind to tcp {}", addr);
+                }
+
+                if port == 65535u16 {
+                    port = 1024;
+                } else {
+                    port += 1;
+                }
+
+                if port == bind_set.port {
+                    bail!("unable to find a free port for tcp {}", ip_addr);
+                }
             }
         }
 

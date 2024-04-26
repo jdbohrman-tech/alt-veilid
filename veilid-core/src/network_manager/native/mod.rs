@@ -15,6 +15,7 @@ use protocol::tcp::RawTcpProtocolHandler;
 use protocol::udp::RawUdpProtocolHandler;
 use protocol::ws::WebsocketProtocolHandler;
 pub(in crate::network_manager) use protocol::*;
+use start_protocols::*;
 
 use async_tls::TlsAcceptor;
 use futures_util::StreamExt;
@@ -104,18 +105,12 @@ struct NetworkInner {
     network_already_cleared: bool,
     /// the punishment closure to enax
     public_dial_info_check_punishment: Option<Box<dyn FnOnce() + Send + 'static>>,
-    /// udp socket record for bound-first sockets, which are used to guarantee a port is available before
-    /// creating a 'reuseport' socket there. we don't want to pick ports that other programs are using
-    bound_first_udp: BTreeMap<u16, (Option<socket2::Socket>, Option<socket2::Socket>)>,
     /// mapping of protocol handlers to accept messages from a set of bound socket addresses
-    inbound_udp_protocol_handlers: BTreeMap<SocketAddr, RawUdpProtocolHandler>,
+    udp_protocol_handlers: BTreeMap<SocketAddr, RawUdpProtocolHandler>,
     /// outbound udp protocol handler for udpv4
-    outbound_udpv4_protocol_handler: Option<RawUdpProtocolHandler>,
+    default_udpv4_protocol_handler: Option<RawUdpProtocolHandler>,
     /// outbound udp protocol handler for udpv6
-    outbound_udpv6_protocol_handler: Option<RawUdpProtocolHandler>,
-    /// tcp socket record for bound-first sockets, which are used to guarantee a port is available before
-    /// creating a 'reuseport' socket there. we don't want to pick ports that other programs are using
-    bound_first_tcp: BTreeMap<u16, (Option<socket2::Socket>, Option<socket2::Socket>)>,
+    default_udpv6_protocol_handler: Option<RawUdpProtocolHandler>,
     /// TLS handling socket controller
     tls_acceptor: Option<TlsAcceptor>,
     /// Multiplexer record for protocols on low level TCP sockets
@@ -164,11 +159,9 @@ impl Network {
             enable_ipv4: false,
             enable_ipv6_global: false,
             enable_ipv6_local: false,
-            bound_first_udp: BTreeMap::new(),
-            inbound_udp_protocol_handlers: BTreeMap::new(),
-            outbound_udpv4_protocol_handler: None,
-            outbound_udpv6_protocol_handler: None,
-            bound_first_tcp: BTreeMap::new(),
+            udp_protocol_handlers: BTreeMap::new(),
+            default_udpv4_protocol_handler: None,
+            default_udpv6_protocol_handler: None,
             tls_acceptor: None,
             listener_states: BTreeMap::new(),
         }
@@ -330,17 +323,6 @@ impl Network {
                 })
                 .collect()
         }
-    }
-
-    pub fn get_local_port(&self, protocol_type: ProtocolType) -> Option<u16> {
-        let inner = self.inner.lock();
-        let local_port = match protocol_type {
-            ProtocolType::UDP => inner.udp_port,
-            ProtocolType::TCP => inner.tcp_port,
-            ProtocolType::WS => inner.ws_port,
-            ProtocolType::WSS => inner.wss_port,
-        };
-        Some(local_port)
     }
 
     pub fn get_preferred_local_address(&self, dial_info: &DialInfo) -> Option<SocketAddr> {
@@ -846,7 +828,7 @@ impl Network {
 
         // start listeners
         if protocol_config.inbound.contains(ProtocolType::UDP) {
-            self.start_udp_listeners(&mut editor_public_internet, &mut editor_local_network)
+            self.bind_udp_protocol_handlers(&mut editor_public_internet, &mut editor_local_network)
                 .await?;
         }
         if protocol_config.inbound.contains(ProtocolType::WS) {
@@ -861,11 +843,6 @@ impl Network {
             self.start_tcp_listeners(&mut editor_public_internet, &mut editor_local_network)
                 .await?;
         }
-
-        // release caches of available listener ports
-        // this releases the 'first bound' ports we use to guarantee
-        // that we have ports available to us
-        self.free_bound_first_ports();
 
         editor_public_internet.setup_network(
             protocol_config.outbound,
