@@ -103,21 +103,35 @@ impl Network {
         _t: u64,
     ) -> EyreResult<()> {
         // Figure out if we can optimize TCP/WS checking since they are often on the same port
-        let (protocol_config, tcp_same_port) = {
+        let (protocol_config, inbound_protocol_map) = {
             let mut inner = self.inner.lock();
             let protocol_config = inner.protocol_config.clone();
-            let tcp_same_port = if protocol_config.inbound.contains(ProtocolType::TCP)
-                && protocol_config.inbound.contains(ProtocolType::WS)
-            {
-                inner.tcp_port == inner.ws_port
-            } else {
-                false
-            };
+
             // Allow network to be cleared if external addresses change
             inner.network_already_cleared = false;
 
-            //
-            (protocol_config, tcp_same_port)
+            let mut inbound_protocol_map = HashMap::<(AddressType, u16), Vec<ProtocolType>>::new();
+            for at in protocol_config.family_global {
+                for pt in protocol_config.inbound {
+                    let key = (pt, at);
+
+                    // Skip things with static public dialinfo
+                    // as they don't need to participate in discovery
+                    if inner.static_public_dialinfo.contains(pt) {
+                        continue;
+                    }
+
+                    if let Some(pla) = inner.preferred_local_addresses.get(&key) {
+                        let itmkey = (at, pla.port());
+                        inbound_protocol_map
+                            .entry(itmkey)
+                            .and_modify(|x| x.push(pt))
+                            .or_insert_with(|| vec![pt]);
+                    }
+                }
+            }
+
+            (protocol_config, inbound_protocol_map)
         };
 
         // Save off existing public dial info for change detection later
@@ -166,100 +180,19 @@ impl Network {
 
         // Process all protocol and address combinations
         let mut unord = FuturesUnordered::new();
-        // Do UDPv4+v6 at the same time as everything else
-        if protocol_config.inbound.contains(ProtocolType::UDP) {
-            // UDPv4
-            if protocol_config.family_global.contains(AddressType::IPV4) {
-                let udpv4_context = DiscoveryContext::new(
-                    self.routing_table(),
-                    self.clone(),
-                    ProtocolType::UDP,
-                    AddressType::IPV4,
-                    clear_network_callback.clone(),
-                );
-                udpv4_context
-                    .discover(&mut unord)
-                    .instrument(trace_span!("udpv4_context.discover"))
-                    .await;
-            }
 
-            // UDPv6
-            if protocol_config.family_global.contains(AddressType::IPV6) {
-                let udpv6_context = DiscoveryContext::new(
-                    self.routing_table(),
-                    self.clone(),
-                    ProtocolType::UDP,
-                    AddressType::IPV6,
-                    clear_network_callback.clone(),
-                );
-                udpv6_context
-                    .discover(&mut unord)
-                    .instrument(trace_span!("udpv6_context.discover"))
-                    .await;
-            }
-        }
+        for ((at, port), protocols) in &inbound_protocol_map {
+            let first_pt = protocols.first().unwrap();
 
-        // Do TCPv4. Possibly do WSv4 if it is on a different port
-        if protocol_config.family_global.contains(AddressType::IPV4) {
-            if protocol_config.inbound.contains(ProtocolType::TCP) {
-                let tcpv4_context = DiscoveryContext::new(
-                    self.routing_table(),
-                    self.clone(),
-                    ProtocolType::TCP,
-                    AddressType::IPV4,
-                    clear_network_callback.clone(),
-                );
-                tcpv4_context
-                    .discover(&mut unord)
-                    .instrument(trace_span!("tcpv4_context.discover"))
-                    .await;
-            }
-
-            if protocol_config.inbound.contains(ProtocolType::WS) && !tcp_same_port {
-                let wsv4_context = DiscoveryContext::new(
-                    self.routing_table(),
-                    self.clone(),
-                    ProtocolType::WS,
-                    AddressType::IPV4,
-                    clear_network_callback.clone(),
-                );
-                wsv4_context
-                    .discover(&mut unord)
-                    .instrument(trace_span!("wsv4_context.discover"))
-                    .await;
-            }
-        }
-
-        // Do TCPv6. Possibly do WSv6 if it is on a different port
-        if protocol_config.family_global.contains(AddressType::IPV6) {
-            if protocol_config.inbound.contains(ProtocolType::TCP) {
-                let tcpv6_context = DiscoveryContext::new(
-                    self.routing_table(),
-                    self.clone(),
-                    ProtocolType::TCP,
-                    AddressType::IPV6,
-                    clear_network_callback.clone(),
-                );
-                tcpv6_context
-                    .discover(&mut unord)
-                    .instrument(trace_span!("tcpv6_context.discover"))
-                    .await;
-            }
-
-            // WSv6
-            if protocol_config.inbound.contains(ProtocolType::WS) && !tcp_same_port {
-                let wsv6_context = DiscoveryContext::new(
-                    self.routing_table(),
-                    self.clone(),
-                    ProtocolType::WS,
-                    AddressType::IPV6,
-                    clear_network_callback.clone(),
-                );
-                wsv6_context
-                    .discover(&mut unord)
-                    .instrument(trace_span!("wsv6_context.discover"))
-                    .await;
-            }
+            let discovery_context = DiscoveryContext::new(
+                self.routing_table(),
+                self.clone(),
+                *first_pt,
+                *at,
+                *port,
+                clear_network_callback.clone(),
+            );
+            discovery_context.discover(&mut unord).await;
         }
 
         // Wait for all discovery futures to complete and apply discoverycontexts
@@ -273,19 +206,20 @@ impl Network {
                     // Add the external address kinds to the set we've seen
                     all_address_types |= dr.external_address_types;
 
-                    // Add WS dialinfo as well if it is on the same port as TCP
+                    // Add additional dialinfo for protocols on the same port
                     if let DetectedDialInfo::Detected(did) = &dr.ddi {
-                        if did.dial_info.protocol_type() == ProtocolType::TCP && tcp_same_port {
-                            // Make WS dialinfo as well with same socket address as TCP
-                            let ws_ddi = DetectedDialInfo::Detected(DialInfoDetail {
-                                dial_info: self.make_dial_info(
-                                    did.dial_info.socket_address(),
-                                    ProtocolType::WS,
-                                ),
+                        let ipmkey = (did.dial_info.address_type(), dr.local_port);
+                        for additional_pt in
+                            inbound_protocol_map.get(&ipmkey).unwrap().iter().skip(1)
+                        {
+                            // Make dialinfo for additional protocol type
+                            let additional_ddi = DetectedDialInfo::Detected(DialInfoDetail {
+                                dial_info: self
+                                    .make_dial_info(did.dial_info.socket_address(), *additional_pt),
                                 class: did.class,
                             });
-                            // Add additional WS dialinfo
-                            self.update_with_detected_dial_info(ws_ddi).await?;
+                            // Add additional dialinfo
+                            self.update_with_detected_dial_info(additional_ddi).await?;
                         }
                     }
                 }
@@ -368,7 +302,14 @@ impl Network {
                 )
                 .unwrap()
             }
-            ProtocolType::WSS => panic!("none of the discovery functions are used for wss"),
+            ProtocolType::WSS => {
+                let c = self.config.get();
+                DialInfo::try_wss(
+                    addr,
+                    format!("wss://{}/{}", addr, c.network.protocol.wss.path),
+                )
+                .unwrap()
+            }
         }
     }
 }

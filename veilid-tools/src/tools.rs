@@ -274,12 +274,17 @@ pub fn listen_address_to_socket_addrs(listen_address: &str) -> Result<Vec<Socket
     } else if let Ok(port) = listen_address.parse::<u16>() {
         ip_addrs.iter().map(|a| SocketAddr::new(*a, port)).collect()
     } else {
+        let listen_address_with_port = if listen_address.contains(':') {
+            listen_address.to_string()
+        } else {
+            format!("{}:0", listen_address)
+        };
         cfg_if! {
             if #[cfg(target_arch = "wasm32")] {
                 use core::str::FromStr;
-                vec![SocketAddr::from_str(listen_address).map_err(|e| format!("Unable to parse address: {}",e))?]
+                vec![SocketAddr::from_str(listen_address_with_port).map_err(|e| format!("Unable to parse address: {}",e))?]
             } else {
-                listen_address
+                listen_address_with_port
                     .to_socket_addrs()
                     .map_err(|e| format!("Unable to resolve address: {}", e))?
                     .collect()

@@ -15,28 +15,28 @@ cfg_if! {
 
 use socket2::{Domain, Protocol, SockAddr, Socket, Type};
 
-cfg_if! {
-    if #[cfg(windows)] {
-        use winapi::shared::ws2def::{ SOL_SOCKET, SO_EXCLUSIVEADDRUSE};
-        use winapi::um::winsock2::{SOCKET_ERROR, setsockopt};
-        use winapi::ctypes::c_int;
-        use std::os::windows::io::AsRawSocket;
+// cfg_if! {
+//     if #[cfg(windows)] {
+//         use winapi::shared::ws2def::{ SOL_SOCKET, SO_EXCLUSIVEADDRUSE};
+//         use winapi::um::winsock2::{SOCKET_ERROR, setsockopt};
+//         use winapi::ctypes::c_int;
+//         use std::os::windows::io::AsRawSocket;
 
-        fn set_exclusiveaddruse(socket: &Socket) -> io::Result<()> {
-            unsafe {
-                let optval:c_int = 1;
-                if setsockopt(socket.as_raw_socket().try_into().unwrap(), SOL_SOCKET, SO_EXCLUSIVEADDRUSE, (&optval as *const c_int).cast(),
-                    std::mem::size_of::<c_int>() as c_int) == SOCKET_ERROR {
-                    return Err(io::Error::last_os_error());
-                }
-                Ok(())
-            }
-        }
-    }
-}
+//         fn set_exclusiveaddruse(socket: &Socket) -> io::Result<()> {
+//             unsafe {
+//                 let optval:c_int = 1;
+//                 if setsockopt(socket.as_raw_socket().try_into().unwrap(), SOL_SOCKET, SO_EXCLUSIVEADDRUSE, (&optval as *const c_int).cast(),
+//                     std::mem::size_of::<c_int>() as c_int) == SOCKET_ERROR {
+//                     return Err(io::Error::last_os_error());
+//                 }
+//                 Ok(())
+//             }
+//         }
+//     }
+// }
 
 #[instrument(level = "trace", ret)]
-pub fn new_unbound_shared_udp_socket(domain: Domain) -> io::Result<Socket> {
+pub fn new_shared_udp_socket(domain: Domain) -> io::Result<Socket> {
     let socket = Socket::new(domain, Type::DGRAM, Some(Protocol::UDP))?;
     if domain == Domain::IPV6 {
         socket.set_only_v6(true)?;
@@ -52,60 +52,32 @@ pub fn new_unbound_shared_udp_socket(domain: Domain) -> io::Result<Socket> {
 }
 
 #[instrument(level = "trace", ret)]
-pub fn new_bound_shared_udp_socket(local_address: SocketAddr) -> io::Result<Socket> {
-    let domain = Domain::for_address(local_address);
-    let socket = new_unbound_shared_udp_socket(domain)?;
-    let socket2_addr = SockAddr::from(local_address);
-    socket.bind(&socket2_addr)?;
-
-    log_net!("created bound shared udp socket on {:?}", &local_address);
-
-    Ok(socket)
-}
-
-#[instrument(level = "trace", ret)]
-pub fn new_bound_first_udp_socket(local_address: SocketAddr) -> io::Result<Socket> {
-    let domain = Domain::for_address(local_address);
+pub fn new_default_udp_socket(domain: Domain) -> io::Result<Socket> {
     let socket = Socket::new(domain, Type::DGRAM, Some(Protocol::UDP))?;
     if domain == Domain::IPV6 {
         socket.set_only_v6(true)?;
     }
-    // Bind the socket -first- before turning on 'reuse address' this way it will
-    // fail if the port is already taken
-    let socket2_addr = SockAddr::from(local_address);
-
-    // On windows, do SO_EXCLUSIVEADDRUSE before the bind to ensure the port is fully available
-    cfg_if! {
-        if #[cfg(windows)] {
-            set_exclusiveaddruse(&socket)?;
-        }
-    }
-
-    // Bind the socket -first- without turning on SO_REUSEPORT this way it will
-    // fail if the port is already taken
-    cfg_if! {
-        if #[cfg(unix)] {
-            socket
-                .set_reuse_address(true)?;
-        }
-    }
-
-    socket.bind(&socket2_addr)?;
-
-    // Set 'reuse address' so future binds to this port will succeed
-    // This does not work on Windows, where reuse options can not be set after the bind
-    cfg_if! {
-        if #[cfg(unix)] {
-            socket.set_reuse_port(true)?;
-        }
-    }
-    log_net!("created bound first udp socket on {:?}", &local_address);
 
     Ok(socket)
 }
 
 #[instrument(level = "trace", ret)]
-pub fn new_unbound_tcp_socket(domain: Domain) -> io::Result<Socket> {
+pub fn new_bound_default_udp_socket(local_address: SocketAddr) -> io::Result<Option<Socket>> {
+    let domain = Domain::for_address(local_address);
+    let socket = new_default_udp_socket(domain)?;
+    let socket2_addr = SockAddr::from(local_address);
+
+    if socket.bind(&socket2_addr).is_err() {
+        return Ok(None);
+    }
+
+    log_net!("created bound default udp socket on {:?}", &local_address);
+
+    Ok(Some(socket))
+}
+
+#[instrument(level = "trace", ret)]
+pub fn new_default_tcp_socket(domain: Domain) -> io::Result<Socket> {
     let socket = Socket::new(domain, Type::STREAM, Some(Protocol::TCP))?;
     if let Err(e) = socket.set_nodelay(true) {
         log_net!(error "Couldn't set TCP nodelay: {}", e);
@@ -117,7 +89,7 @@ pub fn new_unbound_tcp_socket(domain: Domain) -> io::Result<Socket> {
 }
 
 #[instrument(level = "trace", ret)]
-pub fn new_unbound_shared_tcp_socket(domain: Domain) -> io::Result<Socket> {
+pub fn new_shared_tcp_socket(domain: Domain) -> io::Result<Socket> {
     let socket = Socket::new(domain, Type::STREAM, Some(Protocol::TCP))?;
     // if let Err(e) = socket.set_linger(Some(core::time::Duration::from_secs(0))) {
     //     log_net!(error "Couldn't set TCP linger: {}", e);
@@ -137,64 +109,32 @@ pub fn new_unbound_shared_tcp_socket(domain: Domain) -> io::Result<Socket> {
 
     Ok(socket)
 }
+#[instrument(level = "trace", ret)]
+pub fn new_bound_default_tcp_socket(local_address: SocketAddr) -> io::Result<Option<Socket>> {
+    let domain = Domain::for_address(local_address);
+    let socket = new_default_tcp_socket(domain)?;
+    let socket2_addr = SockAddr::from(local_address);
+    if socket.bind(&socket2_addr).is_err() {
+        return Ok(None);
+    }
+
+    log_net!("created bound default tcp socket on {:?}", &local_address);
+
+    Ok(Some(socket))
+}
 
 #[instrument(level = "trace", ret)]
-pub fn new_bound_shared_tcp_socket(local_address: SocketAddr) -> io::Result<Socket> {
+pub fn new_bound_shared_tcp_socket(local_address: SocketAddr) -> io::Result<Option<Socket>> {
     let domain = Domain::for_address(local_address);
-    let socket = new_unbound_shared_tcp_socket(domain)?;
+    let socket = new_shared_tcp_socket(domain)?;
     let socket2_addr = SockAddr::from(local_address);
-    socket.bind(&socket2_addr)?;
+    if socket.bind(&socket2_addr).is_err() {
+        return Ok(None);
+    }
 
     log_net!("created bound shared tcp socket on {:?}", &local_address);
 
-    Ok(socket)
-}
-
-#[instrument(level = "trace", ret)]
-pub fn new_bound_first_tcp_socket(local_address: SocketAddr) -> io::Result<Socket> {
-    let domain = Domain::for_address(local_address);
-
-    let socket = Socket::new(domain, Type::STREAM, Some(Protocol::TCP))?;
-    // if let Err(e) = socket.set_linger(Some(core::time::Duration::from_secs(0))) {
-    //     log_net!(error "Couldn't set TCP linger: {}", e);
-    // }
-    if let Err(e) = socket.set_nodelay(true) {
-        log_net!(error "Couldn't set TCP nodelay: {}", e);
-    }
-    if domain == Domain::IPV6 {
-        socket.set_only_v6(true)?;
-    }
-
-    // On windows, do SO_EXCLUSIVEADDRUSE before the bind to ensure the port is fully available
-    cfg_if! {
-        if #[cfg(windows)] {
-            set_exclusiveaddruse(&socket)?;
-        }
-    }
-
-    // Bind the socket -first- without turning on SO_REUSEPORT this way it will
-    // fail if the port is already taken
-    let socket2_addr = SockAddr::from(local_address);
-
-    cfg_if! {
-        if #[cfg(unix)] {
-            socket
-                .set_reuse_address(true)?;
-        }
-    }
-
-    socket.bind(&socket2_addr)?;
-
-    // Set 'reuse address' so future binds to this port will succeed
-    // This does not work on Windows, where reuse options can not be set after the bind
-    cfg_if! {
-        if #[cfg(unix)] {
-            socket.set_reuse_port(true)?;
-        }
-    }
-    log_net!("created bound first tcp socket on {:?}", &local_address);
-
-    Ok(socket)
+    Ok(Some(socket))
 }
 
 // Non-blocking connect is tricky when you want to start with a prepared socket
