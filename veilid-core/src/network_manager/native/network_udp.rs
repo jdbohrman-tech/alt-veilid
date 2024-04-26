@@ -208,7 +208,6 @@ impl Network {
         }
 
         // otherwise find the first outbound udp protocol handler that matches the ip protocol version of the peer addr
-        let inner = self.inner.lock();
         match peer_socket_addr {
             SocketAddr::V4(_) => inner.udp_protocol_handlers.iter().find_map(|x| {
                 if x.0.is_ipv4() {

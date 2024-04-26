@@ -54,6 +54,21 @@ impl NetworkManager {
             return;
         }
 
+        // Ignore flows that do not start from our listening port (unbound connections etc),
+        // because a router is going to map these differently
+        let Some(pla) =
+            net.get_preferred_local_address_by_key(flow.protocol_type(), flow.address_type())
+        else {
+            return;
+        };
+        let Some(local) = flow.local() else {
+            return;
+        };
+        if local.port() != pla.port() {
+            log_network_result!(debug "ignoring public internet address report because local port did not match listener: {} != {}", local.port(), pla.port());
+            return;
+        }
+
         // If we are a webapp we should skip this completely
         // because we will never get inbound dialinfo directly on our public ip address
         // If we have an invalid network class, this is not necessary yet

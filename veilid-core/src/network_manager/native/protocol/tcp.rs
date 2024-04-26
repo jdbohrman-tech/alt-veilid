@@ -172,7 +172,7 @@ impl RawTcpProtocolHandler {
             Some(a) => {
                 new_bound_shared_tcp_socket(a)?.ok_or(io::Error::from(io::ErrorKind::AddrInUse))?
             }
-            None => new_unbound_tcp_socket(socket2::Domain::for_address(socket_addr))?,
+            None => new_default_tcp_socket(socket2::Domain::for_address(socket_addr))?,
         };
 
         // Non-blocking connect to remote address
@@ -187,16 +187,16 @@ impl RawTcpProtocolHandler {
         let ps = AsyncPeekStream::new(ts);
 
         // Wrap the stream in a network connection and return it
-        let conn = ProtocolNetworkConnection::RawTcp(RawTcpNetworkConnection::new(
-            Flow::new(
-                PeerAddress::new(
-                    SocketAddress::from_socket_addr(socket_addr),
-                    ProtocolType::TCP,
-                ),
-                SocketAddress::from_socket_addr(actual_local_address),
+        let flow = Flow::new(
+            PeerAddress::new(
+                SocketAddress::from_socket_addr(socket_addr),
+                ProtocolType::TCP,
             ),
-            ps,
-        ));
+            SocketAddress::from_socket_addr(actual_local_address),
+        );
+        log_net!("rawtcp::connect: {:?}", flow);
+
+        let conn = ProtocolNetworkConnection::RawTcp(RawTcpNetworkConnection::new(flow, ps));
 
         Ok(NetworkResult::Value(conn))
     }

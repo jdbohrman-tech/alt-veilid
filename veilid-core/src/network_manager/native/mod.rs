@@ -85,14 +85,6 @@ struct NetworkInner {
     join_handles: Vec<MustJoinHandle<()>>,
     /// stop source for shutting down the low level network background tasks
     stop_source: Option<StopSource>,
-    /// port we are binding raw udp listen to
-    udp_port: u16,
-    /// port we are binding raw tcp listen to
-    tcp_port: u16,
-    /// port we are binding websocket listen to
-    ws_port: u16,
-    /// port we are binding secure websocket listen to
-    wss_port: u16,
     /// does our network have ipv4 on any network?
     enable_ipv4: bool,
     /// does our network have ipv6 on the global internet?
@@ -115,6 +107,8 @@ struct NetworkInner {
     tls_acceptor: Option<TlsAcceptor>,
     /// Multiplexer record for protocols on low level TCP sockets
     listener_states: BTreeMap<SocketAddr, Arc<RwLock<ListenerState>>>,
+    /// Preferred local addresses for protocols/address combinations for outgoing connections
+    preferred_local_addresses: BTreeMap<(ProtocolType, AddressType), SocketAddr>,
 }
 
 struct NetworkUnlockedInner {
@@ -152,10 +146,6 @@ impl Network {
             static_public_dialinfo: ProtocolTypeSet::empty(),
             join_handles: Vec::new(),
             stop_source: None,
-            udp_port: 0u16,
-            tcp_port: 0u16,
-            ws_port: 0u16,
-            wss_port: 0u16,
             enable_ipv4: false,
             enable_ipv6_global: false,
             enable_ipv6_local: false,
@@ -164,6 +154,7 @@ impl Network {
             default_udpv6_protocol_handler: None,
             tls_acceptor: None,
             listener_states: BTreeMap::new(),
+            preferred_local_addresses: BTreeMap::new(),
         }
     }
 
@@ -327,18 +318,18 @@ impl Network {
 
     pub fn get_preferred_local_address(&self, dial_info: &DialInfo) -> Option<SocketAddr> {
         let inner = self.inner.lock();
+        let key = (dial_info.protocol_type(), dial_info.address_type());
+        inner.preferred_local_addresses.get(&key).copied()
+    }
 
-        let local_port = match dial_info.protocol_type() {
-            ProtocolType::UDP => inner.udp_port,
-            ProtocolType::TCP => inner.tcp_port,
-            ProtocolType::WS => inner.ws_port,
-            ProtocolType::WSS => inner.wss_port,
-        };
-
-        Some(match dial_info.address_type() {
-            AddressType::IPV4 => SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), local_port),
-            AddressType::IPV6 => SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), local_port),
-        })
+    pub fn get_preferred_local_address_by_key(
+        &self,
+        pt: ProtocolType,
+        at: AddressType,
+    ) -> Option<SocketAddr> {
+        let inner = self.inner.lock();
+        let key = (pt, at);
+        inner.preferred_local_addresses.get(&key).copied()
     }
 
     pub fn is_stable_interface_address(&self, addr: IpAddr) -> bool {

@@ -128,7 +128,7 @@ impl RawUdpProtocolHandler {
             SocketAddress::from_socket_addr(local_socket_addr),
         );
 
-        eprintln!("udp::send_message: {:?}", flow);
+        log_net!("udp::send_message: {:?}", flow);
 
         #[cfg(feature = "verbose-tracing")]
         tracing::Span::current().record("ret.flow", format!("{:?}", flow).as_str());

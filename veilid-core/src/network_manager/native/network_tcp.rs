@@ -247,12 +247,23 @@ impl Network {
             )
         };
 
-        // Create a reusable socket with no linger time, and no delay
-        let Some(socket) = new_bound_shared_tcp_socket(addr)
-            .wrap_err("failed to create bound shared tcp socket")?
+        // Create a socket and bind it
+        let Some(socket) = new_bound_default_tcp_socket(addr)
+            .wrap_err("failed to create default socket listener")?
         else {
             return Ok(false);
         };
+
+        // Drop the socket
+        drop(socket);
+
+        // Create a shared socket and bind it once we have determined the port is free
+        let Some(socket) = new_bound_shared_tcp_socket(addr)
+            .wrap_err("failed to create shared socket listener")?
+        else {
+            return Ok(false);
+        };
+
         // Listen on the socket
         if socket.listen(128).is_err() {
             return Ok(false);

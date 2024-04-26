@@ -19,6 +19,7 @@ pub enum DetectedDialInfo {
 pub struct DetectionResult {
     pub ddi: DetectedDialInfo,
     pub external_address_types: AddressTypeSet,
+    pub local_port: u16,
 }
 
 // Result of checking external address
@@ -46,6 +47,7 @@ struct DiscoveryContextUnlockedInner {
     existing_external_address: Option<SocketAddress>,
     protocol_type: ProtocolType,
     address_type: AddressType,
+    port: u16,
 }
 
 #[derive(Clone)]
@@ -62,6 +64,7 @@ impl DiscoveryContext {
         net: Network,
         protocol_type: ProtocolType,
         address_type: AddressType,
+        port: u16,
         clear_network_callback: ClearNetworkCallback,
     ) -> Self {
         let intf_addrs =
@@ -95,6 +98,7 @@ impl DiscoveryContext {
                 existing_external_address,
                 protocol_type,
                 address_type,
+                port,
             }),
             inner: Arc::new(Mutex::new(DiscoveryContextInner {
                 external_1: None,
@@ -327,11 +331,7 @@ impl DiscoveryContext {
         let protocol_type = self.unlocked_inner.protocol_type;
         let low_level_protocol_type = protocol_type.low_level_protocol_type();
         let address_type = self.unlocked_inner.address_type;
-        let local_port = self
-            .unlocked_inner
-            .net
-            .get_local_port(protocol_type)
-            .unwrap();
+        let local_port = self.unlocked_inner.port;
         let external_1 = self.inner.lock().external_1.as_ref().unwrap().clone();
 
         let igd_manager = self.unlocked_inner.net.unlocked_inner.igd_manager.clone();
@@ -372,7 +372,7 @@ impl DiscoveryContext {
                     return Some(external_mapped_dial_info);
                 }
 
-                if validate_tries == PORT_MAP_VALIDATE_TRY_COUNT {
+                if validate_tries != PORT_MAP_VALIDATE_TRY_COUNT {
                     log_net!(debug "UPNP port mapping succeeded but port {}/{} is still unreachable.\nretrying\n",
                     local_port, match low_level_protocol_type {
                         LowLevelProtocolType::UDP => "udp",
@@ -431,6 +431,7 @@ impl DiscoveryContext {
                         class: DialInfoClass::Direct,
                     }),
                     external_address_types: AddressTypeSet::only(external_1.address.address_type()),
+                    local_port: this.unlocked_inner.port,
                 })
             } else {
                 // Add public dial info with Blocked dialinfo class
@@ -440,6 +441,7 @@ impl DiscoveryContext {
                         class: DialInfoClass::Blocked,
                     }),
                     external_address_types: AddressTypeSet::only(external_1.address.address_type()),
+                    local_port: this.unlocked_inner.port,
                 })
             }
         });
@@ -463,6 +465,7 @@ impl DiscoveryContext {
 
         // If we have two different external addresses, then this is a symmetric NAT
         if external_2.address.address() != external_1.address.address() {
+            let this = self.clone();
             let do_symmetric_nat_fut: SendPinBoxFuture<Option<DetectionResult>> =
                 Box::pin(async move {
                     Some(DetectionResult {
@@ -472,6 +475,7 @@ impl DiscoveryContext {
                         ) | AddressTypeSet::only(
                             external_2.address.address_type(),
                         ),
+                        local_port: this.unlocked_inner.port,
                     })
                 });
             unord.push(do_symmetric_nat_fut);
@@ -481,45 +485,41 @@ impl DiscoveryContext {
         // Manual Mapping Detection
         ///////////
         let this = self.clone();
-        if let Some(local_port) = self
-            .unlocked_inner
-            .net
-            .get_local_port(self.unlocked_inner.protocol_type)
-        {
-            if external_1.dial_info.port() != local_port {
-                let c_external_1 = external_1.clone();
-                let do_manual_map_fut: SendPinBoxFuture<Option<DetectionResult>> =
-                    Box::pin(async move {
-                        // Do a validate_dial_info on the external address, but with the same port as the local port of local interface, from a redirected node
-                        // This test is to see if a node had manual port forwarding done with the same port number as the local listener
-                        let mut external_1_dial_info_with_local_port =
-                            c_external_1.dial_info.clone();
-                        external_1_dial_info_with_local_port.set_port(local_port);
+        let local_port = self.unlocked_inner.port;
+        if external_1.dial_info.port() != local_port {
+            let c_external_1 = external_1.clone();
+            let c_this = this.clone();
+            let do_manual_map_fut: SendPinBoxFuture<Option<DetectionResult>> =
+                Box::pin(async move {
+                    // Do a validate_dial_info on the external address, but with the same port as the local port of local interface, from a redirected node
+                    // This test is to see if a node had manual port forwarding done with the same port number as the local listener
+                    let mut external_1_dial_info_with_local_port = c_external_1.dial_info.clone();
+                    external_1_dial_info_with_local_port.set_port(local_port);
 
-                        if this
-                            .validate_dial_info(
-                                c_external_1.node.clone(),
-                                external_1_dial_info_with_local_port.clone(),
-                                true,
-                            )
-                            .await
-                        {
-                            // Add public dial info with Direct dialinfo class
-                            return Some(DetectionResult {
-                                ddi: DetectedDialInfo::Detected(DialInfoDetail {
-                                    dial_info: external_1_dial_info_with_local_port,
-                                    class: DialInfoClass::Direct,
-                                }),
-                                external_address_types: AddressTypeSet::only(
-                                    c_external_1.address.address_type(),
-                                ),
-                            });
-                        }
+                    if this
+                        .validate_dial_info(
+                            c_external_1.node.clone(),
+                            external_1_dial_info_with_local_port.clone(),
+                            true,
+                        )
+                        .await
+                    {
+                        // Add public dial info with Direct dialinfo class
+                        return Some(DetectionResult {
+                            ddi: DetectedDialInfo::Detected(DialInfoDetail {
+                                dial_info: external_1_dial_info_with_local_port,
+                                class: DialInfoClass::Direct,
+                            }),
+                            external_address_types: AddressTypeSet::only(
+                                c_external_1.address.address_type(),
+                            ),
+                            local_port: c_this.unlocked_inner.port,
+                        });
+                    }
 
-                        None
-                    });
-                unord.push(do_manual_map_fut);
-            }
+                    None
+                });
+            unord.push(do_manual_map_fut);
         }
 
         // NAT Detection
@@ -563,6 +563,7 @@ impl DiscoveryContext {
                                 external_address_types: AddressTypeSet::only(
                                     c_external_1.address.address_type(),
                                 ),
+                                local_port: c_this.unlocked_inner.port,
                             });
                         }
                         None
@@ -597,6 +598,7 @@ impl DiscoveryContext {
                                 external_address_types: AddressTypeSet::only(
                                     c_external_1.address.address_type(),
                                 ),
+                                local_port: c_this.unlocked_inner.port,
                             });
                         }
                         // Didn't get a reply from a non-default port, which means we are also port restricted
@@ -608,6 +610,7 @@ impl DiscoveryContext {
                             external_address_types: AddressTypeSet::only(
                                 c_external_1.address.address_type(),
                             ),
+                            local_port: c_this.unlocked_inner.port,
                         })
                     });
                 ord.push_back(do_restricted_cone_fut);
@@ -699,6 +702,7 @@ impl DiscoveryContext {
                         external_address_types: AddressTypeSet::only(
                             external_mapped_dial_info.address_type(),
                         ),
+                        local_port: this.unlocked_inner.port,
                     });
                 }
                 None

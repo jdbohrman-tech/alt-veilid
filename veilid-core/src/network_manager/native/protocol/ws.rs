@@ -322,7 +322,7 @@ impl WebsocketProtocolHandler {
             Some(a) => {
                 new_bound_shared_tcp_socket(a)?.ok_or(io::Error::from(io::ErrorKind::AddrInUse))?
             }
-            None => new_unbound_tcp_socket(socket2::Domain::for_address(remote_socket_addr))?,
+            None => new_default_tcp_socket(socket2::Domain::for_address(remote_socket_addr))?,
         };
 
         // Non-blocking connect to remote address
@@ -342,6 +342,7 @@ impl WebsocketProtocolHandler {
             dial_info.peer_address(),
             SocketAddress::from_socket_addr(actual_local_addr),
         );
+        log_net!("{}::connect: {:?}", scheme, flow);
 
         // Negotiate TLS if this is WSS
         if tls {

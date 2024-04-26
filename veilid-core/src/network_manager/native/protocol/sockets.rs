@@ -77,7 +77,7 @@ pub fn new_bound_default_udp_socket(local_address: SocketAddr) -> io::Result<Opt
 }
 
 #[instrument(level = "trace", ret)]
-pub fn new_unbound_tcp_socket(domain: Domain) -> io::Result<Socket> {
+pub fn new_default_tcp_socket(domain: Domain) -> io::Result<Socket> {
     let socket = Socket::new(domain, Type::STREAM, Some(Protocol::TCP))?;
     if let Err(e) = socket.set_nodelay(true) {
         log_net!(error "Couldn't set TCP nodelay: {}", e);
@@ -89,7 +89,7 @@ pub fn new_unbound_tcp_socket(domain: Domain) -> io::Result<Socket> {
 }
 
 #[instrument(level = "trace", ret)]
-pub fn new_unbound_shared_tcp_socket(domain: Domain) -> io::Result<Socket> {
+pub fn new_shared_tcp_socket(domain: Domain) -> io::Result<Socket> {
     let socket = Socket::new(domain, Type::STREAM, Some(Protocol::TCP))?;
     // if let Err(e) = socket.set_linger(Some(core::time::Duration::from_secs(0))) {
     //     log_net!(error "Couldn't set TCP linger: {}", e);
@@ -109,11 +109,24 @@ pub fn new_unbound_shared_tcp_socket(domain: Domain) -> io::Result<Socket> {
 
     Ok(socket)
 }
+#[instrument(level = "trace", ret)]
+pub fn new_bound_default_tcp_socket(local_address: SocketAddr) -> io::Result<Option<Socket>> {
+    let domain = Domain::for_address(local_address);
+    let socket = new_default_tcp_socket(domain)?;
+    let socket2_addr = SockAddr::from(local_address);
+    if socket.bind(&socket2_addr).is_err() {
+        return Ok(None);
+    }
+
+    log_net!("created bound default tcp socket on {:?}", &local_address);
+
+    Ok(Some(socket))
+}
 
 #[instrument(level = "trace", ret)]
 pub fn new_bound_shared_tcp_socket(local_address: SocketAddr) -> io::Result<Option<Socket>> {
     let domain = Domain::for_address(local_address);
-    let socket = new_unbound_shared_tcp_socket(domain)?;
+    let socket = new_shared_tcp_socket(domain)?;
     let socket2_addr = SockAddr::from(local_address);
     if socket.bind(&socket2_addr).is_err() {
         return Ok(None);
