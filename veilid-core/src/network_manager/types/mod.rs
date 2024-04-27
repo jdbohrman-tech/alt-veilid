@@ -8,6 +8,7 @@ mod low_level_protocol_type;
 mod network_class;
 mod peer_address;
 mod protocol_type;
+mod relay_kind;
 mod signal_info;
 mod socket_address;
 
@@ -23,5 +24,6 @@ pub use low_level_protocol_type::*;
 pub use network_class::*;
 pub use peer_address::*;
 pub use protocol_type::*;
+pub use relay_kind::*;
 pub use signal_info::*;
 pub use socket_address::*;
