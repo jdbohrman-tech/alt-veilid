@@ -319,16 +319,26 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
     }
     fn get_contact_method(
         &self,
-        _rti: &RoutingTableInner,
+        rti: &RoutingTableInner,
         peer_a: &PeerInfo,
         peer_b: &PeerInfo,
         dial_info_filter: DialInfoFilter,
         sequencing: Sequencing,
         dif_sort: Option<Arc<DialInfoDetailSort>>,
     ) -> ContactMethod {
+        let ip6_prefix_size = rti
+            .unlocked_inner
+            .config
+            .get()
+            .network
+            .max_connections_per_ip6_prefix_size as usize;
+
         // Get the nodeinfos for convenience
         let node_a = peer_a.signed_node_info().node_info();
         let node_b = peer_b.signed_node_info().node_info();
+
+        // Check to see if these nodes are on the same network
+        let same_ipblock = node_a.node_is_on_same_ipblock(node_b, ip6_prefix_size);
 
         // Get the node ids that would be used between these peers
         let cck = common_crypto_kinds(&peer_a.node_ids().kinds(), &peer_b.node_ids().kinds());
@@ -341,13 +351,20 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
         let node_b_id = peer_b.node_ids().get(best_ck).unwrap();
 
         // Get the best match dial info for node B if we have it
-        if let Some(target_did) = first_filtered_dial_info_detail_between_nodes(
-            node_a,
-            node_b,
-            &dial_info_filter,
-            sequencing,
-            dif_sort.clone(),
-        ) {
+        // Don't try direct inbound at all if the two nodes are on the same ipblock to avoid hairpin NAT issues
+        // as well avoiding direct traffic between same-network nodes. This would be done in the LocalNetwork RoutingDomain.
+        if let Some(target_did) = (!same_ipblock)
+            .then(|| {
+                first_filtered_dial_info_detail_between_nodes(
+                    node_a,
+                    node_b,
+                    &dial_info_filter,
+                    sequencing,
+                    dif_sort.clone(),
+                )
+            })
+            .flatten()
+        {
             // Do we need to signal before going inbound?
             if !target_did.class.requires_signal() {
                 // Go direct without signaling
@@ -449,7 +466,7 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                 }
             }
         }
-        // If the node B has no direct dial info, it needs to have an inbound relay
+        // If the node B has no direct dial info or is on the same ipblock, it needs to have an inbound relay
         else if let Some(node_b_relay) = peer_b.signed_node_info().relay_info() {
             // Note that relay_peer_info could be node_a, in which case a connection already exists
             // and we only get here if the connection had dropped, in which case node_b is unreachable until
@@ -481,13 +498,19 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                 ///////// Reverse connection
 
                 // Get the best match dial info for an reverse inbound connection from node B to node A
-                if let Some(reverse_did) = first_filtered_dial_info_detail_between_nodes(
-                    node_b,
-                    node_a,
-                    &dial_info_filter,
-                    sequencing,
-                    dif_sort.clone(),
-                ) {
+                // unless both nodes are on the same ipblock
+                if let Some(reverse_did) = (!same_ipblock)
+                    .then(|| {
+                        first_filtered_dial_info_detail_between_nodes(
+                            node_b,
+                            node_a,
+                            &dial_info_filter,
+                            sequencing,
+                            dif_sort.clone(),
+                        )
+                    })
+                    .flatten()
+                {
                     // Can we receive a direct reverse connection?
                     if !reverse_did.class.requires_signal() {
                         return ContactMethod::SignalReverse(node_b_relay_id, node_b_id);

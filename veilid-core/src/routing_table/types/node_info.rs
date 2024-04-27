@@ -175,4 +175,21 @@ impl NodeInfo {
         }
         true
     }
+
+    /// Does this appear on the same network within the routing domain
+    pub fn node_is_on_same_ipblock(&self, node_b: &NodeInfo, ip6_prefix_size: usize) -> bool {
+        let our_ip_blocks = self
+            .dial_info_detail_list()
+            .iter()
+            .map(|did| ip_to_ipblock(ip6_prefix_size, did.dial_info.to_socket_addr().ip()))
+            .collect::<HashSet<_>>();
+
+        for did in node_b.dial_info_detail_list() {
+            let ipblock = ip_to_ipblock(ip6_prefix_size, did.dial_info.to_socket_addr().ip());
+            if our_ip_blocks.contains(&ipblock) {
+                return true;
+            }
+        }
+        false
+    }
 }

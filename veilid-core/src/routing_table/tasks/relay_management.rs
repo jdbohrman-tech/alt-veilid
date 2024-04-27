@@ -146,22 +146,17 @@ impl RoutingTable {
         // Get all our outbound protocol/address types
         let outbound_dif = self.get_outbound_dial_info_filter(RoutingDomain::PublicInternet);
         let mapped_port_info = self.get_low_level_port_info();
-
+        let own_node_info = self
+            .get_own_peer_info(RoutingDomain::PublicInternet)
+            .signed_node_info()
+            .node_info()
+            .clone();
         let ip6_prefix_size = self
             .unlocked_inner
             .config
             .get()
             .network
             .max_connections_per_ip6_prefix_size as usize;
-
-        let our_ip_blocks = self
-            .get_own_peer_info(RoutingDomain::PublicInternet)
-            .signed_node_info()
-            .node_info()
-            .dial_info_detail_list()
-            .iter()
-            .map(|did| ip_to_ipblock(ip6_prefix_size, did.dial_info.to_socket_addr().ip()))
-            .collect::<HashSet<_>>();
 
         move |e: &BucketEntryInner| {
             // Ensure this node is not on the local network and is on the public internet
@@ -215,11 +210,8 @@ impl RoutingTable {
             }
 
             // Exclude any nodes that have our same network block
-            for did in dids {
-                let ipblock = ip_to_ipblock(ip6_prefix_size, did.dial_info.to_socket_addr().ip());
-                if our_ip_blocks.contains(&ipblock) {
-                    return false;
-                }
+            if own_node_info.node_is_on_same_ipblock(node_info, ip6_prefix_size) {
+                return false;
             }
 
             true
