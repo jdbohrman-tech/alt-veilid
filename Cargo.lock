@@ -5785,7 +5785,7 @@ dependencies = [
 
 [[package]]
 name = "veilid-cli"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "arboard",
  "async-std",
@@ -5826,7 +5826,7 @@ dependencies = [
 
 [[package]]
 name = "veilid-core"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "argon2",
  "async-io 1.13.0",
@@ -5929,7 +5929,7 @@ dependencies = [
 
 [[package]]
 name = "veilid-flutter"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "allo-isolate",
  "android_log-sys 0.3.1",
@@ -5986,7 +5986,7 @@ dependencies = [
 
 [[package]]
 name = "veilid-server"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "ansi_term",
  "async-std",
@@ -6036,7 +6036,7 @@ dependencies = [
 
 [[package]]
 name = "veilid-tools"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "android_logger 0.13.3",
  "async-lock 2.8.0",
@@ -6094,7 +6094,7 @@ dependencies = [
 
 [[package]]
 name = "veilid-wasm"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "cfg-if 1.0.0",
  "console_error_panic_hook",
