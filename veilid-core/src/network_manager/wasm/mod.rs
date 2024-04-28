@@ -438,6 +438,14 @@ impl Network {
         None
     }
 
+    pub fn get_preferred_local_address_by_key(
+        &self,
+        _pt: ProtocolType,
+        _at: AddressType,
+    ) -> Option<SocketAddr> {
+        None
+    }
+
     //////////////////////////////////////////
 
     pub fn set_needs_public_dial_info_check(

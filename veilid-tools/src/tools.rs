@@ -282,7 +282,7 @@ pub fn listen_address_to_socket_addrs(listen_address: &str) -> Result<Vec<Socket
         cfg_if! {
             if #[cfg(target_arch = "wasm32")] {
                 use core::str::FromStr;
-                vec![SocketAddr::from_str(listen_address_with_port).map_err(|e| format!("Unable to parse address: {}",e))?]
+                vec![SocketAddr::from_str(&listen_address_with_port).map_err(|e| format!("Unable to parse address: {}",e))?]
             } else {
                 listen_address_with_port
                     .to_socket_addrs()

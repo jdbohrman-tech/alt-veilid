@@ -14,11 +14,15 @@ VERSION 0.7
 # Start with older Ubuntu to ensure GLIBC symbol versioning support for older linux
 # Ensure we are using an amd64 platform because some of these targets use cross-platform tooling
 FROM ubuntu:18.04
-ENV ZIG_VERSION=0.11.0-dev.3978+711b4e93e
+
+ENV ZIG_VERSION=0.13.0-dev.46+3648d7df1
 ENV RUSTUP_HOME=/usr/local/rustup
+ENV RUSTUP_DIST_SERVER=https://static.rust-lang.org
 ENV CARGO_HOME=/usr/local/cargo
 ENV PATH=$PATH:/usr/local/cargo/bin:/usr/local/zig
 ENV LD_LIBRARY_PATH=/usr/local/lib
+ENV RUST_BACKTRACE=1
+
 WORKDIR /veilid
 
 # Install build prerequisites & setup required directories
@@ -44,12 +48,13 @@ deps-rust:
     RUN rustup target add x86_64-linux-android
     # WASM
     RUN rustup target add wasm32-unknown-unknown
+    RUN cargo install wasm-pack wasm-bindgen-cli
     # Caching tool
     RUN cargo install cargo-chef
     # Install Linux cross-platform tooling
-    RUN curl -O https://ziglang.org/builds/zig-linux-x86_64-$ZIG_VERSION.tar.xz
-    RUN tar -C /usr/local -xJf zig-linux-x86_64-$ZIG_VERSION.tar.xz
-    RUN mv /usr/local/zig-linux-x86_64-$ZIG_VERSION /usr/local/zig
+    RUN curl -O https://ziglang.org/builds/zig-linux-$(arch)-$ZIG_VERSION.tar.xz
+    RUN tar -C /usr/local -xJf zig-linux-$(arch)-$ZIG_VERSION.tar.xz
+    RUN mv /usr/local/zig-linux-$(arch)-$ZIG_VERSION /usr/local/zig
     RUN cargo install cargo-zigbuild
     SAVE ARTIFACT $RUSTUP_HOME rustup
     SAVE ARTIFACT $CARGO_HOME cargo
@@ -112,7 +117,7 @@ code-linux:
         FROM $CI_REGISTRY_IMAGE/build-cache:latest
         # FROM registry.gitlab.com/veilid/build-cache:latest
     END
-    COPY --dir .cargo files scripts veilid-cli veilid-core veilid-server veilid-tools veilid-flutter veilid-wasm Cargo.lock Cargo.toml /veilid
+    COPY --dir .cargo build_docs.sh files scripts veilid-cli veilid-core veilid-server veilid-tools veilid-flutter veilid-wasm Cargo.lock Cargo.toml /veilid
 
 # Code + Linux + Android deps
 code-android:
@@ -167,22 +172,37 @@ build-android:
     SAVE ARTIFACT ./target/x86_64-linux-android AS LOCAL ./target/artifacts/x86_64-linux-android
 
 # Unit tests
-unit-tests-linux:
+unit-tests-clippy-linux:
     FROM +code-linux
-    ENV RUST_BACKTRACE=1
     RUN cargo clippy
+
+unit-tests-docs-linux:
+    FROM +code-linux
+    RUN ./build_docs.sh
+        
+unit-tests-native-linux:
+    FROM +code-linux
     RUN cargo test -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
 
-# TODO: Change t0 cross so that they work on any platform
-unit-tests-linux-amd64:
+unit-tests-wasm-linux:
     FROM +code-linux
-    ENV RUST_BACKTRACE=1
-    RUN cargo test --target x86_64-unknown-linux-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
+    # Just run build now because actual unit tests require network access
+    # which should be moved to a separate integration test
+    RUN veilid-wasm/wasm_build.sh
 
-unit-tests-linux-arm64:
-    FROM +code-linux
-    ENV RUST_BACKTRACE=1
-    RUN cargo test --target aarch64-unknown-linux-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
+unit-tests-linux:
+    WAIT
+        BUILD +unit-tests-clippy-linux
+    END
+    WAIT
+        BUILD +unit-tests-docs-linux
+    END
+    WAIT
+        BUILD +unit-tests-native-linux
+    END
+    WAIT
+        BUILD +unit-tests-wasm-linux
+    END
 
 # Package 
 package-linux-amd64-deb:

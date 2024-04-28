@@ -18,13 +18,13 @@ else
     # some systems may have the major LLVM version suffixed on the LLVM binaries - and we need `true` at the end because the whole script will fail with a nonzero return if something goes wrong here
     DWARFDUMP=`which llvm-dwarfdump || find ${PATH//:/\/ } -name 'llvm-dwarfdump*' 2>/dev/null | head -n1 || true`
     if [[ "${DWARFDUMP}" == "" ]]; then
-        echo "llvm-dwarfdump not found"
+        echo "llvm-dwarfdump not found"        
     fi
 fi
 
 if [[ "$1" == "release" ]]; then  
-    OUTPUTDIR=../target/wasm32-unknown-unknown/release/pkg
-    INPUTDIR=../target/wasm32-unknown-unknown/release
+    OUTPUTDIR=$SCRIPTDIR/../target/wasm32-unknown-unknown/release/pkg
+    INPUTDIR=$SCRIPTDIR/../target/wasm32-unknown-unknown/release
 
     # Path to, but not including, the cargo workspace ("veilid")
     WORKSPACE_PARENT=$(dirname $(dirname $(cargo locate-project --workspace --message-format=plain)))
@@ -40,13 +40,17 @@ if [[ "$1" == "release" ]]; then
     wasm-bindgen --out-dir $OUTPUTDIR --target web --weak-refs $INPUTDIR/veilid_wasm.wasm
     wasm-strip $OUTPUTDIR/veilid_wasm_bg.wasm
 else
-    OUTPUTDIR=../target/wasm32-unknown-unknown/debug/pkg
-    INPUTDIR=../target/wasm32-unknown-unknown/debug
+    OUTPUTDIR=$SCRIPTDIR/../target/wasm32-unknown-unknown/debug/pkg
+    INPUTDIR=$SCRIPTDIR/../target/wasm32-unknown-unknown/debug
 
     RUSTFLAGS="-O -g $RUSTFLAGS" cargo build --target wasm32-unknown-unknown
     mkdir -p $OUTPUTDIR
     wasm-bindgen --out-dir $OUTPUTDIR --target web --weak-refs --keep-debug --debug $INPUTDIR/veilid_wasm.wasm
-    ./wasm-sourcemap.py $OUTPUTDIR/veilid_wasm_bg.wasm -o $OUTPUTDIR/veilid_wasm_bg.wasm.map --dwarfdump $DWARFDUMP
+    if  [[ -f "$DWARFDUMP" ]]; then
+        ./wasm-sourcemap.py $OUTPUTDIR/veilid_wasm_bg.wasm -o $OUTPUTDIR/veilid_wasm_bg.wasm.map --dwarfdump $DWARFDUMP
+    else
+        echo "not generating sourcemaps because llvm-dwarfdump was not found"
+    fi
     # wasm-strip $OUTPUTDIR/veilid_wasm_bg.wasm
 fi
 
