@@ -22,9 +22,7 @@ impl RPCProcessor {
     #[cfg_attr(
         feature = "verbose-tracing",        
         instrument(level = "trace", skip(self, last_descriptor), 
-            fields(ret.value.data.len, 
-                ret.seqs, 
-                ret.peers.len,
+            fields(ret.peers.len,
                 ret.latency
             ),err)
     )]
@@ -64,7 +62,8 @@ impl RPCProcessor {
         );
 
         // Send the inspectvalue question
-        let inspect_value_q = RPCOperationInspectValueQ::new(key, subkeys.clone(), last_descriptor.is_none())?;
+        let inspect_value_q =
+            RPCOperationInspectValueQ::new(key, subkeys.clone(), last_descriptor.is_none())?;
         let question = RPCQuestion::new(
             network_result_try!(self.get_destination_respond_to(&dest)?),
             RPCQuestionDetail::InspectValueQ(Box::new(inspect_value_q)),
@@ -107,19 +106,18 @@ impl RPCProcessor {
             let debug_string_answer = format!(
                 "OUT <== InspectValueA({} {} peers={}) <= {} seqs:\n{}",
                 key,
-                if descriptor.is_some() {
-                    " +desc"
-                } else {
-                    ""
-                },
+                if descriptor.is_some() { " +desc" } else { "" },
                 peers.len(),
                 dest,
                 debug_seqs(&seqs)
             );
 
             log_dht!(debug "{}", debug_string_answer);
-            
-            let peer_ids:Vec<String> = peers.iter().filter_map(|p| p.node_ids().get(key.kind).map(|k| k.to_string())).collect();
+
+            let peer_ids: Vec<String> = peers
+                .iter()
+                .filter_map(|p| p.node_ids().get(key.kind).map(|k| k.to_string()))
+                .collect();
             log_dht!(debug "Peers: {:#?}", peer_ids);
         }
 
@@ -140,8 +138,6 @@ impl RPCProcessor {
         #[cfg(feature = "verbose-tracing")]
         tracing::Span::current().record("ret.latency", latency.as_u64());
         #[cfg(feature = "verbose-tracing")]
-        tracing::Span::current().record("ret.seqs", seqs);
-        #[cfg(feature = "verbose-tracing")]
         tracing::Span::current().record("ret.peers.len", peers.len());
 
         Ok(NetworkResult::value(Answer::new(
@@ -158,11 +154,7 @@ impl RPCProcessor {
     ////////////////////////////////////////////////////////////////////////////////////////////////
 
     #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]
-    pub(crate) async fn process_inspect_value_q(
-        &self,
-        msg: RPCMessage,
-    ) -> RPCNetworkResult<()> {
-
+    pub(crate) async fn process_inspect_value_q(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
         // Ensure this never came over a private route, safety route is okay though
         match &msg.header.detail {
             RPCMessageHeaderDetail::Direct(_) | RPCMessageHeaderDetail::SafetyRouted(_) => {}
@@ -175,14 +167,8 @@ impl RPCProcessor {
         // Ignore if disabled
         let routing_table = self.routing_table();
         let opi = routing_table.get_own_peer_info(msg.header.routing_domain());
-        if !opi
-            .signed_node_info()
-            .node_info()
-            .has_capability(CAP_DHT)
-        {
-            return Ok(NetworkResult::service_unavailable(
-                "dht is not available",
-            ));
+        if !opi.signed_node_info().node_info().has_capability(CAP_DHT) {
+            return Ok(NetworkResult::service_unavailable("dht is not available"));
         }
 
         // Get the question
@@ -200,18 +186,16 @@ impl RPCProcessor {
 
         // Get the nodes that we know about that are closer to the the key than our own node
         let routing_table = self.routing_table();
-        let closer_to_key_peers = network_result_try!(routing_table.find_preferred_peers_closer_to_key(key, vec![CAP_DHT]));
+        let closer_to_key_peers = network_result_try!(
+            routing_table.find_preferred_peers_closer_to_key(key, vec![CAP_DHT])
+        );
 
         if debug_target_enabled!("dht") {
             let debug_string = format!(
                 "IN <=== InspectValueQ({} {}{}) <== {}",
                 key,
                 subkeys,
-                if want_descriptor {
-                    " +wantdesc"
-                } else {
-                    ""
-                },
+                if want_descriptor { " +wantdesc" } else { "" },
                 msg.header.direct_sender_node_id()
             );
 
@@ -223,20 +207,21 @@ impl RPCProcessor {
             let c = self.config.get();
             c.network.dht.set_value_count as usize
         };
-        let (inspect_result_seqs, inspect_result_descriptor) = if closer_to_key_peers.len() >= set_value_count {
-            // Not close enough
-            (Vec::new(), None)
-        } else {
-            // Close enough, lets get it
+        let (inspect_result_seqs, inspect_result_descriptor) =
+            if closer_to_key_peers.len() >= set_value_count {
+                // Not close enough
+                (Vec::new(), None)
+            } else {
+                // Close enough, lets get it
 
-            // See if we have this record ourselves
-            let storage_manager = self.storage_manager();
-            let inspect_result = network_result_try!(storage_manager
-                .inbound_inspect_value(key, subkeys, want_descriptor)
-                .await
-                .map_err(RPCError::internal)?);
-            (inspect_result.seqs, inspect_result.opt_descriptor)
-        };
+                // See if we have this record ourselves
+                let storage_manager = self.storage_manager();
+                let inspect_result = network_result_try!(storage_manager
+                    .inbound_inspect_value(key, subkeys, want_descriptor)
+                    .await
+                    .map_err(RPCError::internal)?);
+                (inspect_result.seqs, inspect_result.opt_descriptor)
+            };
 
         if debug_target_enabled!("dht") {
             let debug_string_answer = format!(
@@ -251,10 +236,10 @@ impl RPCProcessor {
                 closer_to_key_peers.len(),
                 msg.header.direct_sender_node_id()
             );
-        
+
             log_dht!(debug "{}", debug_string_answer);
         }
-            
+
         // Make InspectValue answer
         let inspect_value_a = RPCOperationInspectValueA::new(
             inspect_result_seqs,
@@ -263,7 +248,10 @@ impl RPCProcessor {
         )?;
 
         // Send InspectValue answer
-        self.answer(msg, RPCAnswer::new(RPCAnswerDetail::InspectValueA(Box::new(inspect_value_a))))
-            .await
+        self.answer(
+            msg,
+            RPCAnswer::new(RPCAnswerDetail::InspectValueA(Box::new(inspect_value_a))),
+        )
+        .await
     }
 }

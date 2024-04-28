@@ -129,24 +129,24 @@ impl NodeInfo {
     }
 
     /// Is some relay required either for signal or inbound relay or outbound relay?
-    pub fn requires_relay(&self) -> bool {
+    pub fn requires_relay(&self) -> Option<RelayKind> {
         match self.network_class {
             NetworkClass::InboundCapable => {
                 for did in &self.dial_info_detail_list {
                     if did.class.requires_relay() {
-                        return true;
+                        return Some(RelayKind::Inbound);
                     }
                 }
             }
             NetworkClass::OutboundOnly => {
-                return true;
+                return Some(RelayKind::Inbound);
             }
             NetworkClass::WebApp => {
-                return true;
+                return Some(RelayKind::Outbound);
             }
             NetworkClass::Invalid => {}
         }
-        false
+        None
     }
 
     pub fn has_capability(&self, cap: Capability) -> bool {
@@ -174,5 +174,22 @@ impl NodeInfo {
             }
         }
         true
+    }
+
+    /// Does this appear on the same network within the routing domain
+    pub fn node_is_on_same_ipblock(&self, node_b: &NodeInfo, ip6_prefix_size: usize) -> bool {
+        let our_ip_blocks = self
+            .dial_info_detail_list()
+            .iter()
+            .map(|did| ip_to_ipblock(ip6_prefix_size, did.dial_info.to_socket_addr().ip()))
+            .collect::<HashSet<_>>();
+
+        for did in node_b.dial_info_detail_list() {
+            let ipblock = ip_to_ipblock(ip6_prefix_size, did.dial_info.to_socket_addr().ip());
+            if our_ip_blocks.contains(&ipblock) {
+                return true;
+            }
+        }
+        false
     }
 }

@@ -103,7 +103,11 @@ impl RoutingDomainDetailCommon {
     pub fn dial_info_details(&self) -> &Vec<DialInfoDetail> {
         &self.dial_info_details
     }
-    pub(super) fn clear_dial_info_details(&mut self, address_type: Option<AddressType>, protocol_type: Option<ProtocolType>) {
+    pub(super) fn clear_dial_info_details(
+        &mut self,
+        address_type: Option<AddressType>,
+        protocol_type: Option<ProtocolType>,
+    ) {
         self.dial_info_details.retain_mut(|e| {
             let mut remove = true;
             if let Some(pt) = protocol_type {
@@ -138,41 +142,23 @@ impl RoutingDomainDetailCommon {
             VALID_ENVELOPE_VERSIONS.to_vec(),
             VALID_CRYPTO_KINDS.to_vec(),
             self.capabilities.clone(),
-            self.dial_info_details.clone()
+            self.dial_info_details.clone(),
         );
 
-        // Check if any of our dialinfo require a relay for signaling
-        // FullConeNAT requires a relay but it does not have to be published because it does not require signaling
-        let mut publish_relay = node_info.network_class().inbound_wants_relay() || node_info.network_class().outbound_wants_relay();
-        if !publish_relay {
-            // Check the dialinfo to see if they might want to publish a relay for signalling specifically
-            for did in self.dial_info_details() {
-                if did.class.requires_signal() {
-                    publish_relay = true;
-                    break;
-                }
-            }       
-        }
-
-        let relay_info = if publish_relay {
-            self
-            .relay_node
-            .as_ref()
-            .and_then(|rn| {
-                let opt_relay_pi = rn.locked(rti).make_peer_info(self.routing_domain);
-                if let Some(relay_pi) = opt_relay_pi {
-                    let (relay_ids, relay_sni) = relay_pi.destructure();
-                    match relay_sni {
-                        SignedNodeInfo::Direct(d) => Some((relay_ids, d)), 
-                        SignedNodeInfo::Relayed(_) => {
-                            warn!("relay node should not have a relay itself! if this happens, a relay updated its signed node info and became a relay, which should cause the relay to be dropped");
-                            None
-                        },
+        let relay_info = if let Some(rn) = &self.relay_node {
+            let opt_relay_pi = rn.locked(rti).make_peer_info(self.routing_domain);
+            if let Some(relay_pi) = opt_relay_pi {
+                let (relay_ids, relay_sni) = relay_pi.destructure();
+                match relay_sni {
+                    SignedNodeInfo::Direct(d) => Some((relay_ids, d)),
+                    SignedNodeInfo::Relayed(_) => {
+                        warn!("relay node should not have a relay itself! if this happens, a relay updated its signed node info and became a relay, which should cause the relay to be dropped");
+                        None
                     }
-                } else {
-                    None
                 }
-            })
+            } else {
+                None
+            }
         } else {
             None
         };
@@ -184,7 +170,7 @@ impl RoutingDomainDetailCommon {
                     rti.unlocked_inner.node_id_typed_key_pairs(),
                     node_info,
                     relay_ids,
-                    relay_sdni,                    
+                    relay_sdni,
                 )
                 .unwrap(),
             ),
@@ -194,7 +180,7 @@ impl RoutingDomainDetailCommon {
                     rti.unlocked_inner.node_id_typed_key_pairs(),
                     node_info,
                 )
-                .unwrap()
+                .unwrap(),
             ),
         };
 
@@ -277,9 +263,8 @@ fn first_filtered_dial_info_detail_between_nodes(
     to_node: &NodeInfo,
     dial_info_filter: &DialInfoFilter,
     sequencing: Sequencing,
-    dif_sort: Option<Arc<DialInfoDetailSort>>
+    dif_sort: Option<Arc<DialInfoDetailSort>>,
 ) -> Option<DialInfoDetail> {
-
     // Consider outbound capabilities
     let dial_info_filter = (*dial_info_filter).filtered(
         &DialInfoFilter::all()
@@ -289,23 +274,25 @@ fn first_filtered_dial_info_detail_between_nodes(
 
     // Apply sequencing and get sort
     // Include sorting by external dial info sort for rotating through dialinfo
-    // based on an external preference table, for example the one kept by 
+    // based on an external preference table, for example the one kept by
     // AddressFilter to deprioritize dialinfo that have recently failed to connect
     let (ordered, dial_info_filter) = dial_info_filter.with_sequencing(sequencing);
     let sort: Option<Box<DialInfoDetailSort>> = if ordered {
         if let Some(dif_sort) = dif_sort {
             Some(Box::new(move |a, b| {
-                let mut ord = dif_sort(a,b);
+                let mut ord = dif_sort(a, b);
                 if ord == core::cmp::Ordering::Equal {
-                    ord = DialInfoDetail::ordered_sequencing_sort(a,b);
+                    ord = DialInfoDetail::ordered_sequencing_sort(a, b);
                 }
                 ord
             }))
         } else {
-            Some(Box::new(move |a,b| { DialInfoDetail::ordered_sequencing_sort(a,b) }))
+            Some(Box::new(move |a, b| {
+                DialInfoDetail::ordered_sequencing_sort(a, b)
+            }))
         }
     } else if let Some(dif_sort) = dif_sort {
-        Some(Box::new(move |a,b| { dif_sort(a,b) }))
+        Some(Box::new(move |a, b| dif_sort(a, b)))
     } else {
         None
     };
@@ -332,16 +319,26 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
     }
     fn get_contact_method(
         &self,
-        _rti: &RoutingTableInner,
+        rti: &RoutingTableInner,
         peer_a: &PeerInfo,
         peer_b: &PeerInfo,
         dial_info_filter: DialInfoFilter,
         sequencing: Sequencing,
         dif_sort: Option<Arc<DialInfoDetailSort>>,
     ) -> ContactMethod {
+        let ip6_prefix_size = rti
+            .unlocked_inner
+            .config
+            .get()
+            .network
+            .max_connections_per_ip6_prefix_size as usize;
+
         // Get the nodeinfos for convenience
         let node_a = peer_a.signed_node_info().node_info();
         let node_b = peer_b.signed_node_info().node_info();
+
+        // Check to see if these nodes are on the same network
+        let same_ipblock = node_a.node_is_on_same_ipblock(node_b, ip6_prefix_size);
 
         // Get the node ids that would be used between these peers
         let cck = common_crypto_kinds(&peer_a.node_ids().kinds(), &peer_b.node_ids().kinds());
@@ -354,8 +351,19 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
         let node_b_id = peer_b.node_ids().get(best_ck).unwrap();
 
         // Get the best match dial info for node B if we have it
-        if let Some(target_did) =
-            first_filtered_dial_info_detail_between_nodes(node_a, node_b, &dial_info_filter, sequencing, dif_sort.clone())
+        // Don't try direct inbound at all if the two nodes are on the same ipblock to avoid hairpin NAT issues
+        // as well avoiding direct traffic between same-network nodes. This would be done in the LocalNetwork RoutingDomain.
+        if let Some(target_did) = (!same_ipblock)
+            .then(|| {
+                first_filtered_dial_info_detail_between_nodes(
+                    node_a,
+                    node_b,
+                    &dial_info_filter,
+                    sequencing,
+                    dif_sort.clone(),
+                )
+            })
+            .flatten()
         {
             // Do we need to signal before going inbound?
             if !target_did.class.requires_signal() {
@@ -365,16 +373,20 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
 
             // Get the target's inbound relay, it must have one or it is not reachable
             if let Some(node_b_relay) = peer_b.signed_node_info().relay_info() {
-
                 // Note that relay_peer_info could be node_a, in which case a connection already exists
                 // and we only get here if the connection had dropped, in which case node_a is unreachable until
                 // it gets a new relay connection up
-                if peer_b.signed_node_info().relay_ids().contains_any(peer_a.node_ids()) {
+                if peer_b
+                    .signed_node_info()
+                    .relay_ids()
+                    .contains_any(peer_a.node_ids())
+                {
                     return ContactMethod::Existing;
                 }
 
                 // Get best node id to contact relay with
-                let Some(node_b_relay_id) = peer_b.signed_node_info().relay_ids().get(best_ck) else {
+                let Some(node_b_relay_id) = peer_b.signed_node_info().relay_ids().get(best_ck)
+                else {
                     // No best relay id
                     return ContactMethod::Unreachable;
                 };
@@ -399,12 +411,10 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                             node_a,
                             &dial_info_filter,
                             sequencing,
-                            dif_sort.clone()
+                            dif_sort.clone(),
                         ) {
                             // Ensure we aren't on the same public IP address (no hairpin nat)
-                            if reverse_did.dial_info.ip_addr()
-                                != target_did.dial_info.ip_addr()
-                            {
+                            if reverse_did.dial_info.ip_addr() != target_did.dial_info.ip_addr() {
                                 // Can we receive a direct reverse connection?
                                 if !reverse_did.class.requires_signal() {
                                     return ContactMethod::SignalReverse(
@@ -425,16 +435,18 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                             node_b,
                             &udp_dial_info_filter,
                             sequencing,
-                            dif_sort.clone()
+                            dif_sort.clone(),
                         ) {
                             // Does node A have a direct udp dialinfo that node B can reach?
-                            if let Some(reverse_udp_did) = first_filtered_dial_info_detail_between_nodes(
-                                node_b,
-                                node_a,
-                                &udp_dial_info_filter,
-                                sequencing,
-                                dif_sort.clone(),
-                            ) {
+                            if let Some(reverse_udp_did) =
+                                first_filtered_dial_info_detail_between_nodes(
+                                    node_b,
+                                    node_a,
+                                    &udp_dial_info_filter,
+                                    sequencing,
+                                    dif_sort.clone(),
+                                )
+                            {
                                 // Ensure we aren't on the same public IP address (no hairpin nat)
                                 if reverse_udp_did.dial_info.ip_addr()
                                     != target_udp_did.dial_info.ip_addr()
@@ -454,13 +466,16 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                 }
             }
         }
-        // If the node B has no direct dial info, it needs to have an inbound relay
+        // If the node B has no direct dial info or is on the same ipblock, it needs to have an inbound relay
         else if let Some(node_b_relay) = peer_b.signed_node_info().relay_info() {
-
             // Note that relay_peer_info could be node_a, in which case a connection already exists
             // and we only get here if the connection had dropped, in which case node_b is unreachable until
             // it gets a new relay connection up
-            if peer_b.signed_node_info().relay_ids().contains_any(peer_a.node_ids()) {
+            if peer_b
+                .signed_node_info()
+                .relay_ids()
+                .contains_any(peer_a.node_ids())
+            {
                 return ContactMethod::Existing;
             }
 
@@ -476,26 +491,29 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                 node_b_relay,
                 &dial_info_filter,
                 sequencing,
-                dif_sort.clone()
+                dif_sort.clone(),
             )
             .is_some()
             {
                 ///////// Reverse connection
 
                 // Get the best match dial info for an reverse inbound connection from node B to node A
-                if let Some(reverse_did) = first_filtered_dial_info_detail_between_nodes(
-                    node_b,
-                    node_a,
-                    &dial_info_filter,
-                    sequencing,
-                    dif_sort.clone()
-                ) {
+                // unless both nodes are on the same ipblock
+                if let Some(reverse_did) = (!same_ipblock)
+                    .then(|| {
+                        first_filtered_dial_info_detail_between_nodes(
+                            node_b,
+                            node_a,
+                            &dial_info_filter,
+                            sequencing,
+                            dif_sort.clone(),
+                        )
+                    })
+                    .flatten()
+                {
                     // Can we receive a direct reverse connection?
                     if !reverse_did.class.requires_signal() {
-                        return ContactMethod::SignalReverse(
-                            node_b_relay_id,
-                            node_b_id,
-                        );
+                        return ContactMethod::SignalReverse(node_b_relay_id, node_b_id);
                     }
                 }
 
@@ -504,7 +522,12 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
         }
 
         // If node A can't reach the node by other means, it may need to use its outbound relay
-        if peer_a.signed_node_info().node_info().network_class().outbound_wants_relay() {
+        if peer_a
+            .signed_node_info()
+            .node_info()
+            .network_class()
+            .outbound_wants_relay()
+        {
             if let Some(node_a_relay_id) = peer_a.signed_node_info().relay_ids().get(best_ck) {
                 // Ensure it's not our relay we're trying to reach
                 if node_a_relay_id != node_b_id {
@@ -573,7 +596,6 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
         sequencing: Sequencing,
         dif_sort: Option<Arc<DialInfoDetailSort>>,
     ) -> ContactMethod {
-
         // Get the nodeinfos for convenience
         let node_a = peer_a.signed_node_info().node_info();
         let node_b = peer_b.signed_node_info().node_info();
@@ -585,10 +607,16 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
             return ContactMethod::Unreachable;
         };
 
-        if let Some(target_did) = first_filtered_dial_info_detail_between_nodes(node_a, node_b, &dial_info_filter, sequencing, dif_sort) {
+        if let Some(target_did) = first_filtered_dial_info_detail_between_nodes(
+            node_a,
+            node_b,
+            &dial_info_filter,
+            sequencing,
+            dif_sort,
+        ) {
             return ContactMethod::Direct(target_did.dial_info);
         }
-        
+
         ContactMethod::Unreachable
     }
 }

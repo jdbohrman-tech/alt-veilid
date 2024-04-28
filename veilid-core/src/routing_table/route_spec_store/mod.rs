@@ -215,6 +215,13 @@ impl RouteSpecStore {
     ) -> VeilidAPIResult<RouteId> {
         use core::cmp::Ordering;
 
+        let ip6_prefix_size = rti
+            .unlocked_inner
+            .config
+            .get()
+            .network
+            .max_connections_per_ip6_prefix_size as usize;
+
         if hop_count < 1 {
             apibail_invalid_argument!(
                 "Not allocating route less than one hop in length",
@@ -285,6 +292,39 @@ impl RouteSpecStore {
                     let Some(sni) = e.signed_node_info(RoutingDomain::PublicInternet) else {
                         return false;
                     };
+
+                    // Exclude nodes on our same ipblock, or their relay is on our same ipblock
+                    // or our relay is on their ipblock, or their relay is on our relays same ipblock
+
+                    // our node vs their node
+                    if our_peer_info
+                        .signed_node_info()
+                        .node_info()
+                        .node_is_on_same_ipblock(sni.node_info(), ip6_prefix_size)
+                    {
+                        return false;
+                    }
+                    if let Some(rni) = sni.relay_info() {
+                        // our node vs their relay
+                        if our_peer_info
+                            .signed_node_info()
+                            .node_info()
+                            .node_is_on_same_ipblock(rni, ip6_prefix_size)
+                        {
+                            return false;
+                        }
+                        if let Some(our_rni) = our_peer_info.signed_node_info().relay_info() {
+                            // our relay vs their relay
+                            if our_rni.node_is_on_same_ipblock(rni, ip6_prefix_size) {
+                                return false;
+                            }
+                        }
+                    } else if let Some(our_rni) = our_peer_info.signed_node_info().relay_info() {
+                        // our relay vs their node
+                        if our_rni.node_is_on_same_ipblock(sni.node_info(), ip6_prefix_size) {
+                            return false;
+                        }
+                    }
 
                     // Relay check
                     let relay_ids = sni.relay_ids();
@@ -1527,7 +1567,7 @@ impl RouteSpecStore {
     /// Returns a route set id
     #[cfg_attr(
         feature = "verbose-tracing",
-        instrument(level = "trace", skip(self, blob), ret, err)
+        instrument(level = "trace", skip(self), ret, err)
     )]
     pub fn add_remote_private_route(
         &self,
