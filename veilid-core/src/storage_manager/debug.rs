@@ -50,6 +50,7 @@ impl StorageManager {
         let reclaimed = local_record_store
             .reclaim_space(reclaim.unwrap_or(usize::MAX))
             .await;
+        inner.offline_subkey_writes.clear();
         format!("Local records purged: reclaimed {} bytes", reclaimed)
     }
     pub(crate) async fn purge_remote_records(&self, reclaim: Option<usize>) -> String {

@@ -69,7 +69,7 @@ class RoutingContext(ABC):
 
     @abstractmethod
     async def get_dht_value(
-        self, key: types.TypedKey, subkey: types.ValueSubkey, force_refresh: bool
+        self, key: types.TypedKey, subkey: types.ValueSubkey, force_refresh: bool = False
     ) -> Optional[types.ValueData]:
         pass
 
@@ -84,8 +84,8 @@ class RoutingContext(ABC):
         self,
         key: types.TypedKey,
         subkeys: list[tuple[types.ValueSubkey, types.ValueSubkey]],
-        expiration: types.Timestamp,
-        count: int,
+        expiration: types.Timestamp = 0,
+        count: int = 0xFFFFFFFF,
     ) -> types.Timestamp:
         pass
 
@@ -102,7 +102,7 @@ class RoutingContext(ABC):
         self,
         key: types.TypedKey,
         subkeys: list[tuple[types.ValueSubkey, types.ValueSubkey]],
-        scope: types.DHTReportScope,
+        scope: types.DHTReportScope = types.DHTReportScope.LOCAL,
     ) -> types.DHTRecordReport:
         pass
 

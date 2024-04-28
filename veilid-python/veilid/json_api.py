@@ -619,7 +619,7 @@ class _JsonRoutingContext(RoutingContext):
         )
 
     async def get_dht_value(
-        self, key: TypedKey, subkey: ValueSubkey, force_refresh: bool
+        self, key: TypedKey, subkey: ValueSubkey, force_refresh: bool = False
     ) -> Optional[ValueData]:
         ret = raise_api_result(
             await self.api.send_ndjson_request(
@@ -655,8 +655,8 @@ class _JsonRoutingContext(RoutingContext):
         self,
         key: TypedKey,
         subkeys: list[tuple[ValueSubkey, ValueSubkey]],
-        expiration: Timestamp,
-        count: int,
+        expiration: Timestamp = 0,
+        count: int = 0xFFFFFFFF,
     ) -> Timestamp:
         return Timestamp(
             raise_api_result(
@@ -691,7 +691,7 @@ class _JsonRoutingContext(RoutingContext):
         self,
         key: TypedKey,
         subkeys: list[tuple[ValueSubkey, ValueSubkey]],
-        scope: DHTReportScope,
+        scope: DHTReportScope = DHTReportScope.LOCAL,
     ) -> DHTRecordReport:
         return DHTRecordReport.from_json(            
             raise_api_result(

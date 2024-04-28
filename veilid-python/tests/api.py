@@ -21,16 +21,16 @@ class VeilidTestConnectionError(Exception):
 
 
 @cache
-def server_info() -> tuple[str, int]:
+def server_info(subindex: int = 0) -> tuple[str, int]:
     """Return the hostname and port of the test server."""
     VEILID_SERVER_NETWORK = os.getenv("VEILID_SERVER_NETWORK")
     if VEILID_SERVER_NETWORK is None:
-        return "localhost", 5959
+        return "localhost", 5959 + subindex
 
     hostname, *rest = VEILID_SERVER_NETWORK.split(":")
     if rest:
-        return hostname, int(rest[0])
-    return hostname, 5959
+        return hostname, int(rest[0]) + subindex
+    return hostname, 5959 + subindex
 
 def ipc_path_exists(path: str) -> bool:
     """Determine if an IPC socket exists in a platform independent way."""
@@ -42,42 +42,42 @@ def ipc_path_exists(path: str) -> bool:
         return os.path.exists(path)
         
 @cache
-def ipc_info() -> str:
+def ipc_info(subindex: int = 0) -> str:
     """Return the path of the ipc socket of the test server."""
     VEILID_SERVER_IPC = os.getenv("VEILID_SERVER_IPC")
     if VEILID_SERVER_IPC is not None:
         return VEILID_SERVER_IPC
 
     if os.name == 'nt':
-        return '\\\\.\\PIPE\\veilid-server\\0'
+        return f'\\\\.\\PIPE\\veilid-server\\{subindex}'
     
-    ipc_0_path = "/var/db/veilid-server/ipc/0"
-    if os.path.exists(ipc_0_path):
-        return ipc_0_path
+    ipc_path = f"/var/db/veilid-server/ipc/{subindex}"
+    if os.path.exists(ipc_path):
+        return ipc_path
 
     # hack to deal with rust's 'directories' crate case-inconsistency
     if sys.platform.startswith('darwin'):
         data_dir = appdirs.user_data_dir("org.Veilid.Veilid")
     else:
         data_dir = appdirs.user_data_dir("veilid","veilid")
-    ipc_0_path = os.path.join(data_dir, "ipc", "0")
-    return ipc_0_path
+    ipc_path = os.path.join(data_dir, "ipc", str(subindex))
+    return ipc_path
 
 
-async def api_connector(callback: Callable) -> _JsonVeilidAPI:
+async def api_connector(callback: Callable, subindex: int = 0) -> _JsonVeilidAPI:
     """Return an API connection if possible.
 
     If the connection fails due to an inability to connect to the
     server's socket, raise an easy-to-catch VeilidTestConnectionError.
     """
 
-    ipc_path = ipc_info()    
-    hostname, port = server_info()
+    ipc_path = ipc_info(subindex)    
 
     try:
         if ipc_path_exists(ipc_path):
             return await veilid.json_api_connect_ipc(ipc_path, callback)
         else:
+            hostname, port = server_info(subindex)
             return await veilid.json_api_connect(hostname, port, callback)
     except OSError as exc:
         # This is a little goofy. The underlying Python library handles

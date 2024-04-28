@@ -40,14 +40,20 @@ impl StorageManager {
                 };
                 let Ok(get_result) = get_result else {
                     log_stor!(debug "Offline subkey write had no subkey result: {}:{}", key, subkey);
+                    // drop this one
+                    written_subkeys.insert(subkey);
                     continue;
                 };
                 let Some(value) = get_result.opt_value else {
                     log_stor!(debug "Offline subkey write had no subkey value: {}:{}", key, subkey);
+                    // drop this one
+                    written_subkeys.insert(subkey);
                     continue;
                 };
                 let Some(descriptor) = get_result.opt_descriptor else {
                     log_stor!(debug "Offline subkey write had no descriptor: {}:{}", key, subkey);
+                    // drop this one
+                    written_subkeys.insert(subkey);
                     continue;
                 };
                 log_stor!(debug "Offline subkey write: {}:{} len={}", key, subkey, value.value_data().data().len());

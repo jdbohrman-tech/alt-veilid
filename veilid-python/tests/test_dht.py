@@ -4,6 +4,7 @@ import veilid
 import pytest
 import asyncio
 import json
+import os
 from . import *
 from .api import VeilidTestConnectionError, api_connector
 
@@ -341,3 +342,64 @@ async def test_inspect_dht_record(api_connection: veilid.VeilidAPI):
 
         await rc.close_dht_record(rec.key)
         await rc.delete_dht_record(rec.key)
+
+@pytest.mark.skipif(os.getenv("INTEGRATION") != "1", reason="integration test requires two servers running")
+@pytest.mark.asyncio
+async def test_dht_integration_writer_reader():
+    
+    async def null_update_callback(update: veilid.VeilidUpdate):
+        pass    
+
+    try:
+        api0 = await api_connector(null_update_callback, 0)
+    except VeilidTestConnectionError:
+        pytest.skip("Unable to connect to veilid-server 0.")
+        return
+
+    try:
+        api1 = await api_connector(null_update_callback, 1)
+    except VeilidTestConnectionError:
+        pytest.skip("Unable to connect to veilid-server 1.")
+        return
+
+    async with api0, api1:
+        # purge local and remote record stores to ensure we start fresh
+        await api0.debug("record purge local")
+        await api0.debug("record purge remote")
+        await api1.debug("record purge local")
+        await api1.debug("record purge remote")
+
+        # make routing contexts
+        rc0 = await api0.new_routing_context()
+        rc1 = await api1.new_routing_context()
+        async with rc0, rc1:
+
+            COUNT = 10
+            TEST_DATA = b"test data"
+
+            # write dht records on server 0
+            records = []
+            schema = veilid.DHTSchema.dflt(1)
+            print(f'writing {COUNT} records')
+            for n in range(COUNT):
+                desc = await rc0.create_dht_record(schema)
+                records.append(desc)
+
+                await rc0.set_dht_value(desc.key, 0, TEST_DATA)
+                await rc0.close_dht_record(desc.key)
+                
+                print(f'  {n}')
+            
+            # read dht records on server 1
+            print(f'reading {COUNT} records')
+            n=0
+            for desc0 in records:
+                desc1 = await rc1.open_dht_record(desc0.key)
+                vd1 = await rc1.get_dht_value(desc1.key, 0)
+                assert vd1.data == TEST_DATA
+                await rc1.close_dht_record(desc1.key)
+                
+                print(f'  {n}')
+                n+=1
+                
+            
