@@ -71,9 +71,9 @@ create_build_machines:
   tags:
     - build-orchestration
   script:
-    - /home/gitlab-runner/builds/$CI_RUNNER_ID/0/veilid/veilid/scripts/cicd/build-orchestration/build-machine-ctl.sh create amd64-deb
-    - /home/gitlab-runner/builds/$CI_RUNNER_ID/0/veilid/veilid/scripts/cicd/build-orchestration/build-machine-ctl.sh create arm64-deb
-    - /home/gitlab-runner/builds/$CI_RUNNER_ID/0/veilid/veilid/scripts/cicd/build-orchestration/build-machine-ctl.sh create amd64-rpm
+    - /home/gitlab-runner/builds/fR8Szn9bp/0/veilid/veilid/scripts/cicd/build-orchestration/build-machine-ctl.sh create amd64-deb
+    - /home/gitlab-runner/builds/fR8Szn9bp/0/veilid/veilid/scripts/cicd/build-orchestration/build-machine-ctl.sh create arm64-deb
+    - /home/gitlab-runner/builds/fR8Szn9bp/0/veilid/veilid/scripts/cicd/build-orchestration/build-machine-ctl.sh create amd64-rpm
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
   
@@ -86,7 +86,7 @@ package_amd64_deb:
   script:
     - earthly bootstrap
     - earthly +package-linux-amd64-deb
-    - /home/gitlab-runner/builds/$CI_RUNNER_ID/0/veilid/veilid/scripts/cicd/build-machine/scp-to-orchestrator.sh
+    - /home/gitlab-runner/builds/t338Uo9fn/0/veilid/veilid/scripts/cicd/build-machine/scp-to-orchestrator.sh
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
 
@@ -99,7 +99,7 @@ package_arm64_deb:
   script:
     - earthly bootstrap
     - earthly +package-linux-arm64-deb
-    - /home/gitlab-runner/builds/$CI_RUNNER_ID/0/veilid/veilid/scripts/cicd/build-machine/scp-to-orchestrator.sh
+    - /home/gitlab-runner/builds/7TYBLKUtG/0/veilid/veilid/scripts/cicd/build-machine/scp-to-orchestrator.sh
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
 
@@ -112,7 +112,7 @@ package_amd64_rpm:
   script:
     - earthly bootstrap
     - earthly +package-linux-amd64-rpm
-    - /home/gitlab-runner/builds/$CI_RUNNER_ID/0/veilid/veilid/scripts/cicd/build-machine/scp-to-orchestrator.sh
+    - /home/gitlab-runner/builds/C6yRimG-M/0/veilid/veilid/scripts/cicd/build-machine/scp-to-orchestrator.sh
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
 
@@ -121,7 +121,7 @@ publish_crates:
   tags:
     - build-amd64-deb
   script:
-    - cd /home/gitlab-runner/builds/$CI_RUNNER_ID/0/veilid/veilid/
+    - cd /home/gitlab-runner/builds/t338Uo9fn/0/veilid/veilid/
     - vlt login
     - vlt run --command="cargo publish -p veilid-tools --dry-run"
     - vlt run --command="cargo publish -p veilid-tools"
@@ -136,7 +136,7 @@ publish_python:
     - build-amd64-deb
   script:
     - vlt login
-    - cd /home/gitlab-runner/builds/$CI_RUNNER_ID/0/veilid/veilid/veilid-python && /home/gitlab-runner/.local/bin/poetry build
+    - cd /home/gitlab-runner/builds/t338Uo9fn/0/veilid/veilid/veilid-python && /home/gitlab-runner/.local/bin/poetry build
     - vlt run --command="/home/gitlab-runner/.local/bin/poetry publish"
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
@@ -150,8 +150,8 @@ build_repositories:
   variables:
     SECURE_FILES_DOWNLOAD_PATH: './'
   script:
-    - cp /home/gitlab-runner/builds/$CI_RUNNER_ID/0/veilid/veilid/scripts/cicd/build-orchestration/generate-release.sh ~
-    - /home/gitlab-runner/builds/$CI_RUNNER_ID/0/veilid/veilid/scripts/cicd/build-orchestration/distribute-packages.sh
+    - cp /home/gitlab-runner/builds/fR8Szn9bp/0/veilid/veilid/scripts/cicd/build-orchestration/generate-release.sh ~
+    - /home/gitlab-runner/builds/fR8Szn9bp/0/veilid/veilid/scripts/cicd/build-orchestration/distribute-packages.sh
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
 
@@ -162,7 +162,7 @@ deploy_repos:
   tags: 
     - repo-server
   script: 
-    - /home/gitlab-runner/builds/$CI_RUNNER_ID/0/veilid/veilid/scripts/cicd/repo-server/deploy-repo.sh
+    - /home/gitlab-runner/builds/XTKbS6v-r/0/veilid/veilid/scripts/cicd/repo-server/deploy-repo.sh
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
 
@@ -173,8 +173,8 @@ delete_build_machines:
   tags:
     - build-orchestration
   script:
-    - /home/gitlab-runner/builds/$CI_RUNNER_ID/0/veilid/veilid/scripts/cicd/build-orchestration/build-machine-ctl.sh delete amd64-deb
-    - /home/gitlab-runner/builds/$CI_RUNNER_ID/0/veilid/veilid/scripts/cicd/build-orchestration/build-machine-ctl.sh delete arm64-deb
-    - /home/gitlab-runner/builds/$CI_RUNNER_ID/0/veilid/veilid/scripts/cicd/build-orchestration/build-machine-ctl.sh delete amd64-rpm
+    - /home/gitlab-runner/builds/fR8Szn9bp/0/veilid/veilid/scripts/cicd/build-orchestration/build-machine-ctl.sh delete amd64-deb
+    - /home/gitlab-runner/builds/fR8Szn9bp/0/veilid/veilid/scripts/cicd/build-orchestration/build-machine-ctl.sh delete arm64-deb
+    - /home/gitlab-runner/builds/fR8Szn9bp/0/veilid/veilid/scripts/cicd/build-orchestration/build-machine-ctl.sh delete amd64-rpm
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
