@@ -738,12 +738,11 @@ impl Settings {
     }
 
     pub fn verify(&self) -> EyreResult<()> {
-        let inner = self.inner.read();
-
         cfg_if! {
             if #[cfg(windows)] {
                 // no ipc setup for windows
             } else {
+                let inner = self.inner.read();
                 if inner.client_api.ipc_enabled
                     && !Self::get_or_create_private_directory(&inner.client_api.ipc_directory, true)
                 {
