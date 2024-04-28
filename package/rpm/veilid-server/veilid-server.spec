@@ -33,10 +33,12 @@ adduser --system -U veilid &>/dev/null || true
 mkdir -p /var/db/veilid-server/protected_store
 mkdir -p /var/db/veilid-server/table_store
 mkdir -p /var/db/veilid-server/block_store
+mkdir -p /var/db/veilid-server/ipc
 chown -R veilid:veilid /var/db/veilid-server
 chmod 0750 /var/db/veilid-server/protected_store
 chmod 0750 /var/db/veilid-server/table_store
 chmod 0750 /var/db/veilid-server/block_store 
+chmod 0750 /var/db/veilid-server/ipc
 chmod 0750 /var/db/veilid-server
 chmod 755 /usr/bin/veilid-server
 
@@ -57,3 +59,5 @@ fi
 %changelog
 * Sun Jul 2 2023 TC <tc@veilid.org>
 - experimental RPM building
+* Sun Apr 28 2024 Christien Rioux <chris@veilid.org>
+- add ipc directory to installation

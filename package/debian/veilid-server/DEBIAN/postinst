@@ -9,12 +9,14 @@ adduser --system --group veilid &>/dev/null || true
 mkdir -p /var/db/veilid-server/protected_store
 mkdir -p /var/db/veilid-server/table_store
 mkdir -p /var/db/veilid-server/block_store
+mkdir -p /var/db/veilid-server/ipc
 
 # Set permissions
 chown -R veilid:veilid /var/db/veilid-server
 chmod 0750 /var/db/veilid-server/protected_store
 chmod 0750 /var/db/veilid-server/table_store
 chmod 0750 /var/db/veilid-server/block_store
+chmod 0750 /var/db/veilid-server/ipc
 chmod 0750 /var/db/veilid-server
 
 chmod 755 /usr/bin/veilid-server

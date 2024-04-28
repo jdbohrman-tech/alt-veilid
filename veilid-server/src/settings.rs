@@ -736,6 +736,25 @@ impl Settings {
             inner: Arc::new(RwLock::new(inner)),
         })
     }
+
+    pub fn verify(&self) -> EyreResult<()> {
+        let inner = self.inner.read();
+
+        cfg_if! {
+            if #[cfg(windows)] {
+                // no ipc setup for windows
+            } else {
+                if inner.client_api.ipc_enabled
+                    && !Self::get_or_create_private_directory(&inner.client_api.ipc_directory, true)
+                {
+                    bail!("unable to create default IPC directory");
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn read(&self) -> RwLockReadGuard<SettingsInner> {
         self.inner.read()
     }
@@ -849,13 +868,13 @@ impl Settings {
     }
 
     #[allow(dead_code)]
-    fn get_or_create_default_directory(subpath: &str) -> PathBuf {
+    fn get_default_directory(subpath: &str) -> PathBuf {
         #[cfg(unix)]
         {
-            let globalpath = PathBuf::from("/var/db/veilid-server").join(subpath);
+            let globalpath = PathBuf::from("/var/db/veilid-server");
 
-            if Self::get_or_create_private_directory(&globalpath, true) {
-                return globalpath;
+            if globalpath.exists() {
+                return globalpath.join(subpath);
             }
         }
 
@@ -865,12 +884,7 @@ impl Settings {
             PathBuf::from("./")
         };
         ts_path.push(subpath);
-
-        if Self::get_or_create_private_directory(&ts_path, true) {
-            return ts_path;
-        }
-
-        panic!("Failed to create private directory for '{}'", subpath);
+        ts_path
     }
 
     pub fn get_default_ipc_directory() -> PathBuf {
@@ -878,7 +892,7 @@ impl Settings {
             if #[cfg(windows)] {
                 PathBuf::from(r"\\.\PIPE\veilid-server")
             } else {
-                Self::get_or_create_default_directory("ipc")
+                Self::get_default_directory("ipc")
             }
         }
     }

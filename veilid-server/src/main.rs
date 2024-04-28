@@ -290,6 +290,9 @@ fn main() -> EyreResult<()> {
         .apply_subnode_index()
         .wrap_err("failed to apply subnode index")?;
 
+    // --- Verify Config ---
+    settings.verify()?;
+
     // --- Dump Config ---
     if args.dump_config {
         return serde_yaml::to_writer(std::io::stdout(), &*settings.read())
