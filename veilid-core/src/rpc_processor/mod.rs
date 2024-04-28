@@ -619,9 +619,15 @@ impl RPCProcessor {
                 // Ensure the reply comes over the private route that was requested
                 if let Some(reply_private_route) = waitable_reply.reply_private_route {
                     match &rpcreader.header.detail {
-                        RPCMessageHeaderDetail::Direct(_) | RPCMessageHeaderDetail::SafetyRouted(_) => {
-                            return Err(RPCError::protocol("should have received reply over private route"));
-                        }
+                        RPCMessageHeaderDetail::Direct(_) => {
+                            return Err(RPCError::protocol("should have received reply over private route or stub"));
+                        },
+                        RPCMessageHeaderDetail::SafetyRouted(sr) => {
+                            let node_id = self.routing_table.node_id(sr.direct.envelope.get_crypto_kind());
+                            if node_id.value != reply_private_route {
+                                return Err(RPCError::protocol("should have received reply from safety route to a stub"));    
+                            }
+                        },
                         RPCMessageHeaderDetail::PrivateRouted(pr) => {
                             if pr.private_route != reply_private_route {
                                 return Err(RPCError::protocol("received reply over the wrong private route"));

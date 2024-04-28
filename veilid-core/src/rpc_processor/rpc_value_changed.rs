@@ -1,12 +1,11 @@
 use super::*;
 
 impl RPCProcessor {
-    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), err))]
-    // Sends a high level app message
-    // Can be sent via all methods including relays and routes
+    // Sends a dht value change notification
+    // Can be sent via all methods including relays and routes but never over a safety route
     #[cfg_attr(
         feature = "verbose-tracing",
-        instrument(level = "trace", skip(self, message), fields(message.len = message.len()), err)
+        instrument(level = "trace", skip(self, value), err)
     )]
     pub async fn rpc_call_value_changed(
         self,
