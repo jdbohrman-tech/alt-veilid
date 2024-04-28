@@ -1,3 +1,19 @@
+**Changed in Veilid 0.3.2**
+- DHT optimization and bugfixes
+  - Support for offline write status in DHTRecordReport
+  - Fix deprecated functions
+  - Improve fanout seeding to ensure records are reached as quickly as possible
+- Native IPV4-IPV6 bridging support
+  - fix bug where messages sent to a private route without a safety route would not receive replies
+  - fix verbose-tracing feature flag
+  - improve route allocation to avoid co-located nodes
+  - fix contact method for nodes on the same ipblock
+  - add support for maintaining AddressType-translation relays
+- Removed NDK related hotfix, as this has been integrated into cargo-ndk already
+- Open sourced the CICD build scripts
+- Fixes for watchvalue
+- Refactor low level network
+
 **Changed in Veilid 0.3.1**
 - DHT cleanup
   - Proper application of DHT capabilities
