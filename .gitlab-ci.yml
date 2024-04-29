@@ -180,7 +180,7 @@ delete_build_machines:
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
 
-# Dryrun release -- triggered by changes in .gitlab-ci.yml or CICD scripts
+# Dryrun release -- triggered by changes in .gitlab-ci.yml, CICD scripts, or Earthfile
 
 dryrun_create_build_machines:
   stage: build_packages
@@ -195,6 +195,7 @@ dryrun_create_build_machines:
       changes:
         - .gitlab-ci.yml
         - scripts/cicd/**/*
+        - Earthfile
   
 dryrun_package_amd64_deb:
   stage: build_packages
@@ -211,6 +212,7 @@ dryrun_package_amd64_deb:
       changes:
         - .gitlab-ci.yml
         - scripts/cicd/**/*
+        - Earthfile
 
 dryrun_package_arm64_deb:
   stage: build_packages
@@ -227,6 +229,7 @@ dryrun_package_arm64_deb:
       changes:
         - .gitlab-ci.yml
         - scripts/cicd/**/*
+        - Earthfile
 
 dryrun_package_amd64_rpm:
   stage: build_packages
@@ -243,22 +246,24 @@ dryrun_package_amd64_rpm:
       changes:
         - .gitlab-ci.yml
         - scripts/cicd/**/*
+        - Earthfile
 
-dryrun_publish_crates:
-  stage: build_packages
-  needs:
-    - dryrun_create_build_machines
-  tags:
-    - build-amd64-deb
-  script:
-    - vlt login
-    - vlt run --command="cargo publish -p veilid-tools --dry-run"
-    - vlt run --command="cargo publish -p veilid-core --dry-run"
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "push"
-      changes:
-        - .gitlab-ci.yml
-        - scripts/cicd/**/*
+# dryrun_publish_crates:
+#   stage: build_packages
+#   needs:
+#     - dryrun_create_build_machines
+#   tags:
+#     - build-amd64-deb
+#   script:
+#     - vlt login
+#     - vlt run --command="cargo publish -p veilid-tools --dry-run"
+#     - vlt run --command="cargo publish -p veilid-core --dry-run"
+#   rules:
+#     - if: $CI_PIPELINE_SOURCE == "push"
+#       changes:
+#         - .gitlab-ci.yml
+#         - scripts/cicd/**/*
+#         - Earthfile
 
 dryrun_publish_python:
   stage: build_packages
@@ -274,6 +279,7 @@ dryrun_publish_python:
       changes:
         - .gitlab-ci.yml
         - scripts/cicd/**/*
+        - Earthfile
 
 dryrun_build_repositories:
   stage: distribute
@@ -289,6 +295,7 @@ dryrun_build_repositories:
       changes:
         - .gitlab-ci.yml
         - scripts/cicd/**/*
+        - Earthfile
 
 dryrun_deploy_repos:
   stage: distribute
@@ -303,6 +310,7 @@ dryrun_deploy_repos:
       changes:
         - .gitlab-ci.yml
         - scripts/cicd/**/*
+        - Earthfile
 
 dryrun_delete_build_machines:
   stage: distribute
@@ -319,3 +327,4 @@ dryrun_delete_build_machines:
       changes:
         - .gitlab-ci.yml
         - scripts/cicd/**/*
+        - Earthfile
