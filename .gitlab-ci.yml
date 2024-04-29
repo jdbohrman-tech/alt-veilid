@@ -42,7 +42,7 @@ build_cache:
     - fi
   rules:
     - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
-    - when: never
+      when: never
 
 
 # Runs a basic unit test build, this task will use the `build-cache:latest` as set up in the projects Container Registry
