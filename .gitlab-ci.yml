@@ -119,7 +119,7 @@ package_amd64_rpm:
   script:
     - earthly bootstrap
     - earthly +package-linux-amd64-rpm
-    - bash scripts/cicd/build-machine/scp-amd64-rmps-to-orchestrator.sh
+    - bash scripts/cicd/build-machine/scp-amd64-rpms-to-orchestrator.sh
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
 
@@ -233,7 +233,7 @@ dryrun_package_amd64_rpm:
   script:
     - earthly bootstrap
     - earthly +package-linux-amd64-rpm
-    - bash scripts/cicd/build-machine/scp-amd64-rmps-to-orchestrator.sh
+    - bash scripts/cicd/build-machine/scp-amd64-rpms-to-orchestrator.sh
   rules:
     - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
 
