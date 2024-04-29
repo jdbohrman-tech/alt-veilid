@@ -245,7 +245,7 @@ dryrun_package_amd64_rpm:
     - earthly +package-linux-amd64-rpm
     - bash scripts/cicd/build-machine/scp-to-orchestrator.sh
   rules:
-    - ($CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event") && $CI_COMMIT_TAG == NULL
+    - if: ($CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event") && $CI_COMMIT_TAG == NULL
       changes:
         - .gitlab-ci.yml
         - scripts/cicd/**/*
