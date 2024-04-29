@@ -191,12 +191,7 @@ dryrun_create_build_machines:
     - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh create arm64-deb
     - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh create amd64-rpm
   rules:
-    - if: ($CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event") && $CI_COMMIT_TAG == NULL
-      changes:
-        - .gitlab-ci.yml
-        - scripts/cicd/**/*
-        - Earthfile
-        - package/**/*
+    - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
   
 dryrun_package_amd64_deb:
   stage: build_packages
@@ -209,12 +204,7 @@ dryrun_package_amd64_deb:
     - earthly +package-linux-amd64-deb
     - bash scripts/cicd/build-machine/scp-to-orchestrator.sh
   rules:
-    - if: ($CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event") && $CI_COMMIT_TAG == NULL
-      changes:
-        - .gitlab-ci.yml
-        - scripts/cicd/**/*
-        - Earthfile
-        - package/**/*
+    - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
 
 dryrun_package_arm64_deb:
   stage: build_packages
@@ -227,12 +217,7 @@ dryrun_package_arm64_deb:
     - earthly +package-linux-arm64-deb
     - bash scripts/cicd/build-machine/scp-to-orchestrator.sh
   rules:
-    - if: ($CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event") && $CI_COMMIT_TAG == NULL
-      changes:
-        - .gitlab-ci.yml
-        - scripts/cicd/**/*
-        - Earthfile
-        - package/**/*
+    - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
     
 dryrun_package_amd64_rpm:
   stage: build_packages
@@ -245,12 +230,7 @@ dryrun_package_amd64_rpm:
     - earthly +package-linux-amd64-rpm
     - bash scripts/cicd/build-machine/scp-to-orchestrator.sh
   rules:
-    - if: ($CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event") && $CI_COMMIT_TAG == NULL
-      changes:
-        - .gitlab-ci.yml
-        - scripts/cicd/**/*
-        - Earthfile
-        - package/**/*
+    - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
 
 # dryrun_publish_crates:
 #   stage: build_packages
@@ -279,12 +259,7 @@ dryrun_publish_python:
   script:
     - cd veilid-python && /home/gitlab-runner/.local/bin/poetry build
   rules:
-    - if: ($CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event") && $CI_COMMIT_TAG == NULL
-      changes:
-        - .gitlab-ci.yml
-        - scripts/cicd/**/*
-        - Earthfile
-        - package/**/*
+    - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
 
 dryrun_build_repositories:
   stage: distribute
@@ -296,12 +271,7 @@ dryrun_build_repositories:
     - cp scripts/cicd/build-orchestration/generate-release.sh ~
     - bash scripts/cicd/build-orchestration/distribute-packages.sh
   rules:
-    - if: ($CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event") && $CI_COMMIT_TAG == NULL
-      changes:
-        - .gitlab-ci.yml
-        - scripts/cicd/**/*
-        - Earthfile
-        - package/**/*
+    - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
 
 dryrun_deploy_repos:
   stage: distribute
@@ -312,12 +282,7 @@ dryrun_deploy_repos:
   script: 
     - ls -al repo.tar
   rules:
-    - if: ($CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event") && $CI_COMMIT_TAG == NULL
-      changes:
-        - .gitlab-ci.yml
-        - scripts/cicd/**/*
-        - Earthfile
-        - package/**/*
+    - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
 
 dryrun_delete_build_machines:
   stage: distribute
@@ -330,9 +295,4 @@ dryrun_delete_build_machines:
     - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh delete arm64-deb
     - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh delete amd64-rpm
   rules:
-    - if: ($CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event") && $CI_COMMIT_TAG == NULL
-      changes:
-        - .gitlab-ci.yml
-        - scripts/cicd/**/*
-        - Earthfile
-        - package/**/*
+    - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
