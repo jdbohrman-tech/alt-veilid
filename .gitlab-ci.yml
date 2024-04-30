@@ -237,23 +237,23 @@ dryrun_package_amd64_rpm:
   rules:
     - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
 
-# dryrun_publish_crates:
-#   stage: build_packages
-#   needs:
-#     - dryrun_create_build_machines
-#   tags:
-#     - build-amd64-deb
-#   script:
-#     - vlt login
-#     - vlt run --command="cargo publish -p veilid-tools --dry-run"
-#     - vlt run --command="cargo publish -p veilid-core --dry-run"
-#   rules:
-#     - if: ($CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event") && $CI_COMMIT_TAG == NULL
-#       changes:
-#         - .gitlab-ci.yml
-#         - scripts/cicd/**/*
-#         - Earthfile
-#         - package/**/*
+ dryrun_publish_crates:
+   stage: build_packages
+   needs:
+     - dryrun_create_build_machines
+   tags:
+     - build-amd64-deb
+   script:
+     - vlt login
+     - vlt run --command="cargo publish -p veilid-tools --dry-run"
+     - vlt run --command="cargo publish -p veilid-core --dry-run"
+   rules:
+     - if: ($CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event") && $CI_COMMIT_TAG == NULL
+       changes:
+         - .gitlab-ci.yml
+         - scripts/cicd/**/*
+         - Earthfile
+         - package/**/*
 
 dryrun_publish_python:
   stage: build_packages
@@ -301,5 +301,3 @@ dryrun_delete_build_machines:
     - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh delete amd64-rpm
   rules:
     - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
-
-# Added to test commit message dry run trigger
