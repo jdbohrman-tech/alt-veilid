@@ -44,8 +44,10 @@ dev_dependencies:
     sdk: flutter
   integration_test:
     sdk: flutter
-  flutter_lints: ^3.0.1
-  mutex: ^3.1.0
+  lint_hard: ^4.0.0
+  veilid_test:
+    path: ../packages/veilid_test
+
 
 # The following section is specific to Flutter.
 flutter:

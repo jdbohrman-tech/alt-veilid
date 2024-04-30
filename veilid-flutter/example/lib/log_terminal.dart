@@ -6,7 +6,6 @@ import 'veilid_theme.dart';
 
 const kDefaultTerminalStyle = TerminalStyle(
     fontSize: kDefaultMonoTerminalFontSize,
-    height: kDefaultMonoTerminalFontHeight,
     fontFamily: kDefaultMonoTerminalFontFamily);
 
 class LogTerminal extends StatefulWidget {
@@ -14,7 +13,7 @@ class LogTerminal extends StatefulWidget {
 
   @override
   // ignore: library_private_types_in_public_api
-  _LogTerminalState createState() => _LogTerminalState();
+  State<LogTerminal> createState() => _LogTerminalState();
 }
 
 class _LogTerminalState extends State<LogTerminal> {
@@ -28,32 +27,31 @@ class _LogTerminalState extends State<LogTerminal> {
   void initState() {
     super.initState();
     terminal.setLineFeedMode(true);
-    globalTerminalPrinter
-        .setCallback((log) => {terminal.write("${log.pretty()}\n")});
+    globalTerminalPrinter.setCallback((log) {
+      terminal.write('${log.pretty()}\n');
+    });
   }
 
   @override
-  Widget build(BuildContext context) {
-    return TerminalView(
-      terminal,
-      textStyle: kDefaultTerminalStyle,
-      controller: terminalController,
-      autofocus: true,
-      backgroundOpacity: 0.9,
-      onSecondaryTapDown: (details, offset) async {
-        final selection = terminalController.selection;
-        if (selection != null) {
-          final text = terminal.buffer.getText(selection);
-          terminalController.clearSelection();
-          await Clipboard.setData(ClipboardData(text: text));
-        } else {
-          final data = await Clipboard.getData('text/plain');
-          final text = data?.text;
-          if (text != null) {
-            terminal.paste(text);
+  Widget build(BuildContext context) => TerminalView(
+        terminal,
+        textStyle: kDefaultTerminalStyle,
+        controller: terminalController,
+        autofocus: true,
+        backgroundOpacity: 0.9,
+        onSecondaryTapDown: (details, offset) async {
+          final selection = terminalController.selection;
+          if (selection != null) {
+            final text = terminal.buffer.getText(selection);
+            terminalController.clearSelection();
+            await Clipboard.setData(ClipboardData(text: text));
+          } else {
+            final data = await Clipboard.getData('text/plain');
+            final text = data?.text;
+            if (text != null) {
+              terminal.paste(text);
+            }
           }
-        }
-      },
-    );
-  }
+        },
+      );
 }

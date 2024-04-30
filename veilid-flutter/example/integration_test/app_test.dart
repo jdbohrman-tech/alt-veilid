@@ -1,9 +1,11 @@
 @Timeout(Duration(seconds: 60))
 
+library veilid_flutter_integration_test;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:veilid_test/veilid_test.dart';
 
-import 'fixtures.dart';
 import 'test_crypto.dart';
 import 'test_routing_context.dart';
 import 'test_table_db.dart';
@@ -12,7 +14,8 @@ import 'test_dht.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  final fixture = DefaultFixture();
+  final fixture =
+      DefaultVeilidFixture(programName: 'veilid_flutter integration test');
 
   group('Unstarted Tests', () {
     test('veilid config defaults', testVeilidConfigDefaults);

@@ -17,6 +17,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.11.0"
+  async_tools:
+    dependency: transitive
+    description:
+      name: async_tools
+      sha256: "972f68ab663724d86260a31e363c1355ff493308441b872bf4e7b8adc67c832c"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.1.0"
   boolean_selector:
     dependency: transitive
     description:
@@ -139,14 +147,6 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  flutter_lints:
-    dependency: "direct dev"
-    description:
-      name: flutter_lints
-      sha256: e2a421b7e59244faef694ba7b30562e489c2b489866e505074eb005cd7060db7
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.0.1"
   flutter_test:
     dependency: "direct dev"
     description: flutter
@@ -215,14 +215,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.1"
-  lints:
-    dependency: transitive
+  lint_hard:
+    dependency: "direct dev"
     description:
-      name: lints
-      sha256: cbf8d4b858bb0134ef3ef87841abdf8d63bfc255c266b7bf6b39daa1085c4290
+      name: lint_hard
+      sha256: "44d15ec309b1a8e1aff99069df9dcb1597f49d5f588f32811ca28fb7b38c32fe"
       url: "https://pub.dev"
     source: hosted
-    version: "3.0.0"
+    version: "4.0.0"
   loggy:
     dependency: "direct main"
     description:
@@ -263,14 +263,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.11.0"
-  mutex:
-    dependency: "direct dev"
-    description:
-      name: mutex
-      sha256: "8827da25de792088eb33e572115a5eb0d61d61a3c01acbc8bcbe76ed78f1a1f2"
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.1.0"
   path:
     dependency: "direct main"
     description:
@@ -459,6 +451,13 @@ packages:
       relative: true
     source: path
     version: "0.3.1"
+  veilid_test:
+    dependency: "direct dev"
+    description:
+      path: "../packages/veilid_test"
+      relative: true
+    source: path
+    version: "0.1.0"
   vm_service:
     dependency: transitive
     description:
@@ -508,5 +507,5 @@ packages:
     source: hosted
     version: "0.0.6"
 sdks:
-  dart: ">=3.3.0 <4.0.0"
+  dart: ">=3.3.4 <4.0.0"
   flutter: ">=3.19.1"

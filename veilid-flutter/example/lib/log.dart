@@ -1,8 +1,8 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
-import 'package:veilid/veilid.dart';
-import 'package:loggy/loggy.dart';
 import 'package:ansicolor/ansicolor.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:loggy/loggy.dart';
+import 'package:veilid/veilid.dart';
 
 // Loggy tools
 const LogLevel traceLevel = LogLevel('Trace', 1);
@@ -86,24 +86,23 @@ class CallbackPrinter extends LoggyPrinter {
     callback?.call(record);
   }
 
-  void setCallback(Function(LogRecord)? cb) {
+  // ignore: use_setters_to_change_properties
+  void setCallback(void Function(LogRecord)? cb) {
     callback = cb;
   }
 }
 
-var globalTerminalPrinter = CallbackPrinter();
+CallbackPrinter globalTerminalPrinter = CallbackPrinter();
 
 extension TraceLoggy on Loggy {
   void trace(dynamic message, [Object? error, StackTrace? stackTrace]) =>
       log(traceLevel, message, error, stackTrace);
 }
 
-LogOptions getLogOptions(LogLevel? level) {
-  return LogOptions(
-    level ?? LogLevel.all,
-    stackTraceLevel: LogLevel.error,
-  );
-}
+LogOptions getLogOptions(LogLevel? level) => LogOptions(
+      level ?? LogLevel.all,
+      stackTraceLevel: LogLevel.error,
+    );
 
 void initLoggy() {
   Loggy.initLoggy(

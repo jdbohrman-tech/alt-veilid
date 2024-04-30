@@ -1,11 +1,20 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
-import 'package:mutex/mutex.dart';
+import 'package:async_tools/async_tools.dart';
 import 'package:veilid/veilid.dart';
 
-class DefaultFixture {
-  DefaultFixture();
+bool kIsWeb = bool.fromEnvironment('dart.library.js_util');
+
+abstract class VeilidFixture {
+  Future<void> setUp();
+  Future<void> tearDown();
+  Future<void> attach();
+  Future<void> detach();
+  Stream<VeilidUpdate> get updateStream;
+}
+
+class DefaultVeilidFixture implements VeilidFixture {
+  DefaultVeilidFixture({required this.programName});
 
   StreamSubscription<VeilidUpdate>? _veilidUpdateSubscription;
   Stream<VeilidUpdate>? _veilidUpdateStream;
@@ -13,7 +22,9 @@ class DefaultFixture {
       StreamController.broadcast();
 
   static final _fixtureMutex = Mutex();
+  final String programName;
 
+  @override
   Future<void> setUp() async {
     await _fixtureMutex.acquire();
 
@@ -70,7 +81,7 @@ class DefaultFixture {
 
     var config = await getDefaultVeilidConfig(
       isWeb: kIsWeb,
-      programName: 'Veilid Tests',
+      programName: programName,
       // ignore: avoid_redundant_argument_values, do_not_use_environment
       bootstrap: const String.fromEnvironment('BOOTSTRAP'),
       // ignore: avoid_redundant_argument_values, do_not_use_environment
@@ -104,8 +115,10 @@ class DefaultFixture {
     });
   }
 
+  @override
   Stream<VeilidUpdate> get updateStream => _updateStreamController.stream;
 
+  @override
   Future<void> attach() async {
     await Veilid.instance.attach();
 
@@ -121,7 +134,11 @@ class DefaultFixture {
             break;
           case AttachmentState.detaching:
             break;
-          default:
+          case AttachmentState.attachedGood:
+          case AttachmentState.attachedStrong:
+          case AttachmentState.attachedWeak:
+          case AttachmentState.overAttached:
+          case AttachmentState.fullyAttached:
             done = true;
             break;
         }
@@ -129,16 +146,18 @@ class DefaultFixture {
       if (done) {
         break;
       }
-      await Future.delayed(const Duration(seconds: 1));
+      await Future<void>.delayed(const Duration(seconds: 1));
     }
   }
 
+  @override
   Future<void> detach() async {
     await Veilid.instance.detach();
   }
 
+  @override
   Future<void> tearDown() async {
-    assert(_veilidUpdateStream != null, 'should not tearDown without setUp');
+    assert(_fixtureMutex.isLocked, 'should not tearDown without setUp');
 
     final cancelFut = _veilidUpdateSubscription?.cancel();
     await Veilid.instance.shutdownVeilidCore();
