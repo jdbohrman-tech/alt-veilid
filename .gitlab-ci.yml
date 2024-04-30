@@ -43,6 +43,9 @@ build_cache:
   rules:
     - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
       when: never
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "push"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 
 # Runs a basic unit test build, this task will use the `build-cache:latest` as set up in the projects Container Registry
@@ -280,7 +283,7 @@ dryrun_deploy_repos:
   tags: 
     - repo-server
   script: 
-    - ls -al repo.tar
+    - ls -al $HOME/repo.tar
   rules:
     - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
 
