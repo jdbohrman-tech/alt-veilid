@@ -296,3 +296,5 @@ dryrun_delete_build_machines:
     - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh delete amd64-rpm
   rules:
     - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
+
+# Just a note so I can try dry run
