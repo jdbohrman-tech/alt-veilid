@@ -40,20 +40,27 @@ build_cache:
     - else
     -   echo "No need to rebuild"
     - fi
+  rules:
+    - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
+      when: never
+
 
 # Runs a basic unit test build, this task will use the `build-cache:latest` as set up in the projects Container Registry
 test_build:
   extends: .base
   stage: test
-  only:
-    - main
-    - pushes
-    - merge_requests
   script:
     - *earthly_setup
     - earthly --use-inline-cache +unit-tests-linux --BASE=container $project_args
   resource_group: test
-  # when: manual
+  rules:
+    - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "push"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Actual release -- triggered by pushing a new version tag
 
 release_job:
   stage: release
@@ -86,7 +93,7 @@ package_amd64_deb:
   script:
     - earthly bootstrap
     - earthly +package-linux-amd64-deb
-    - bash scripts/cicd/build-machine/scp-to-orchestrator.sh
+    - bash scripts/cicd/build-machine/scp-amd64-debs-to-orchestrator.sh
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
 
@@ -99,7 +106,7 @@ package_arm64_deb:
   script:
     - earthly bootstrap
     - earthly +package-linux-arm64-deb
-    - bash scripts/cicd/build-machine/scp-to-orchestrator.sh
+    - bash scripts/cicd/build-machine/scp-arm64-debs-to-orchestrator.sh
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
 
@@ -112,7 +119,7 @@ package_amd64_rpm:
   script:
     - earthly bootstrap
     - earthly +package-linux-amd64-rpm
-    - bash scripts/cicd/build-machine/scp-to-orchestrator.sh
+    - bash scripts/cicd/build-machine/scp-amd64-rpms-to-orchestrator.sh
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
 
@@ -177,3 +184,115 @@ delete_build_machines:
     - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh delete amd64-rpm
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
+
+# Dryrun release -- triggered by changes in .gitlab-ci.yml, CICD scripts, or Earthfile
+
+dryrun_create_build_machines:
+  stage: build_packages
+  tags:
+    - build-orchestration
+  script:
+    - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh create amd64-deb
+    - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh create arm64-deb
+    - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh create amd64-rpm
+  rules:
+    - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
+  
+dryrun_package_amd64_deb:
+  stage: build_packages
+  needs:
+    - dryrun_create_build_machines
+  tags:
+    - build-amd64-deb
+  script:
+    - earthly bootstrap
+    - earthly +package-linux-amd64-deb
+    - bash scripts/cicd/build-machine/scp-amd64-debs-to-orchestrator.sh
+  rules:
+    - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
+
+dryrun_package_arm64_deb:
+  stage: build_packages
+  needs:
+    - dryrun_create_build_machines
+  tags:
+    - build-arm64-deb
+  script:
+    - earthly bootstrap
+    - earthly +package-linux-arm64-deb
+    - bash scripts/cicd/build-machine/scp-arm64-debs-to-orchestrator.sh
+  rules:
+    - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
+    
+dryrun_package_amd64_rpm:
+  stage: build_packages
+  needs:
+    - dryrun_create_build_machines
+  tags:
+    - build-amd64-rpm
+  script:
+    - earthly bootstrap
+    - earthly +package-linux-amd64-rpm
+    - bash scripts/cicd/build-machine/scp-amd64-rpms-to-orchestrator.sh
+  rules:
+    - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
+
+dryrun_publish_crates:
+  stage: build_packages
+  needs:
+    - dryrun_create_build_machines
+  tags:
+    - build-amd64-deb
+  script:
+    - vlt login
+    - vlt run --command="cargo publish -p veilid-tools --dry-run"
+    - vlt run --command="cargo publish -p veilid-core --dry-run"
+  rules:
+    - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
+
+dryrun_publish_python:
+  stage: build_packages
+  needs:
+    - dryrun_create_build_machines
+  tags:
+    - build-amd64-deb
+  script:
+    - cd veilid-python && /home/gitlab-runner/.local/bin/poetry build
+  rules:
+    - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
+
+dryrun_build_repositories:
+  stage: distribute
+  tags:
+    - build-orchestration
+  variables:
+    SECURE_FILES_DOWNLOAD_PATH: './'
+  script:
+    - cp scripts/cicd/build-orchestration/generate-release.sh ~
+    - bash scripts/cicd/build-orchestration/distribute-packages.sh
+  rules:
+    - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
+
+dryrun_deploy_repos:
+  stage: distribute
+  needs:
+    - dryrun_build_repositories
+  tags: 
+    - repo-server
+  script: 
+    - ls -al repo.tar
+  rules:
+    - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
+
+dryrun_delete_build_machines:
+  stage: distribute
+  needs:
+    - dryrun_deploy_repos
+  tags:
+    - build-orchestration
+  script:
+    - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh delete amd64-deb
+    - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh delete arm64-deb
+    - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh delete amd64-rpm
+  rules:
+    - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/

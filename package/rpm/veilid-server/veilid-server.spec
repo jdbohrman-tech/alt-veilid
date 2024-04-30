@@ -57,7 +57,8 @@ else
 fi
 
 %changelog
-* Sun Jul 2 2023 TC <tc@veilid.org>
-- experimental RPM building
 * Sun Apr 28 2024 Christien Rioux <chris@veilid.org>
 - add ipc directory to installation
+* Sun Jul 2 2023 TC <tc@veilid.org>
+- experimental RPM building
+
