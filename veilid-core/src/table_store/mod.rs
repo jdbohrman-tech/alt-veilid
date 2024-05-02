@@ -26,8 +26,8 @@ struct TableStoreInner {
     crypto: Option<Crypto>,
 }
 
-/// Veilid Table Storage
-/// Database for storing key value pairs persistently and securely across runs
+/// Veilid Table Storage.
+/// Database for storing key value pairs persistently and securely across runs.
 #[derive(Clone)]
 pub struct TableStore {
     config: VeilidConfig,
@@ -444,7 +444,7 @@ impl TableStore {
     }
 
     /// Get or create a TableDB database table. If the column count is greater than an
-    /// existing TableDB's column count, the database will be upgraded to add the missing columns
+    /// existing TableDB's column count, the database will be upgraded to add the missing columns.
     pub async fn open(&self, name: &str, column_count: u32) -> VeilidAPIResult<TableDB> {
         let _async_guard = self.async_lock.lock().await;
 

@@ -120,7 +120,7 @@ impl AttachmentManager {
     }
 
     /// Update attachment and network readiness state
-    /// and possibly send a VeilidUpdate::Attachment
+    /// and possibly send a VeilidUpdate::Attachment.
     fn update_attachment(&self) {
         // update the routing table health
         let routing_table = self.network_manager().routing_table();

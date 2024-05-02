@@ -1924,7 +1924,7 @@ impl VeilidAPI {
         }
     }
 
-    /// Get the help text for 'internal debug' commands
+    /// Get the help text for 'internal debug' commands.
     pub async fn debug_help(&self, _args: String) -> VeilidAPIResult<String> {
         Ok(r#"buckets [dead|reliable]
 dialinfo
@@ -2002,7 +2002,7 @@ record list <local|remote|opened|offline>
         .to_owned())
     }
 
-    /// Execute an 'internal debug command'
+    /// Execute an 'internal debug command'.
     pub async fn debug(&self, args: String) -> VeilidAPIResult<String> {
         let res = {
             let args = args.trim_start();

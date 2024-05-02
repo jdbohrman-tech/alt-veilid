@@ -1,7 +1,7 @@
 #[cfg(feature = "unstable-tunnels")]
 use super::*;
 
-/// Tunnel identifier
+/// Tunnel identifier.
 #[cfg(feature = "unstable-tunnels")]
 pub type TunnelId = AlignedU64;
 

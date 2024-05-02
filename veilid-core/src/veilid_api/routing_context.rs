@@ -2,19 +2,19 @@ use super::*;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 
-/// Valid destinations for a message sent over a routing context
+/// Valid destinations for a message sent over a routing context.
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Copy, PartialOrd, Ord)]
 pub enum Target {
-    /// Node by its public key
+    /// Node by its public key.
     NodeId(TypedKey),
-    /// Remote private route by its id
+    /// Remote private route by its id.
     PrivateRoute(RouteId),
 }
 
 pub struct RoutingContextInner {}
 
 pub struct RoutingContextUnlockedInner {
-    /// Safety routing requirements
+    /// Safety routing requirements.
     safety_selection: SafetySelection,
 }
 
@@ -26,7 +26,7 @@ pub struct RoutingContextUnlockedInner {
 ///
 #[derive(Clone)]
 pub struct RoutingContext {
-    /// Veilid API handle
+    /// Veilid API handle.
     api: VeilidAPI,
     inner: Arc<Mutex<RoutingContextInner>>,
     unlocked_inner: Arc<RoutingContextUnlockedInner>,
@@ -69,7 +69,7 @@ impl RoutingContext {
     ///
     /// * Hop count default is dependent on config, but is set to 1 extra hop.
     /// * Stability default is to choose 'low latency' routes, preferring them over long-term reliability.
-    /// * Sequencing default is to prefer ordered before unordered message delivery
+    /// * Sequencing default is to prefer ordered before unordered message delivery.
     ///
     /// To customize the safety selection in use, use [RoutingContext::with_safety()].
     #[instrument(target = "veilid_api", level = "debug", ret, err)]
@@ -88,7 +88,7 @@ impl RoutingContext {
         }))
     }
 
-    /// Use a custom [SafetySelection]. Can be used to disable safety via [SafetySelection::Unsafe]
+    /// Use a custom [SafetySelection]. Can be used to disable safety via [SafetySelection::Unsafe].
     #[instrument(target = "veilid_api", level = "debug", ret, err)]
     pub fn with_safety(self, safety_selection: SafetySelection) -> VeilidAPIResult<Self> {
         event!(target: "veilid_api", Level::DEBUG, 
@@ -101,7 +101,7 @@ impl RoutingContext {
         })
     }
 
-    /// Use a specified [Sequencing] preference, with or without privacy
+    /// Use a specified [Sequencing] preference, with or without privacy.
     #[instrument(target = "veilid_api", level = "debug", ret)]
     pub fn with_sequencing(self, sequencing: Sequencing) -> Self {
         event!(target: "veilid_api", Level::DEBUG, 
@@ -124,7 +124,7 @@ impl RoutingContext {
         }
     }
 
-    /// Get the safety selection in use on this routing context
+    /// Get the safety selection in use on this routing context.
     pub fn safety(&self) -> SafetySelection {
         self.unlocked_inner.safety_selection
     }
@@ -136,7 +136,7 @@ impl RoutingContext {
         }
     }
 
-    /// Get the [VeilidAPI] object that created this [RoutingContext]
+    /// Get the [VeilidAPI] object that created this [RoutingContext].
     pub fn api(&self) -> VeilidAPI {
         self.api.clone()
     }
@@ -160,10 +160,10 @@ impl RoutingContext {
     ///
     /// Veilid apps may use this for arbitrary message passing.
     ///
-    /// * `target` - can be either a direct node id or a private route
-    /// * `message` - an arbitrary message blob of up to 32768 bytes
+    /// * `target` - can be either a direct node id or a private route.
+    /// * `message` - an arbitrary message blob of up to 32768 bytes.
     ///
-    /// Returns an answer blob of up to 32768 bytes
+    /// Returns an answer blob of up to 32768 bytes.
     #[instrument(target = "veilid_api", level = "debug", ret, err)]
     pub async fn app_call(&self, target: Target, message: Vec<u8>) -> VeilidAPIResult<Vec<u8>> {
         event!(target: "veilid_api", Level::DEBUG, 
@@ -196,8 +196,8 @@ impl RoutingContext {
     ///
     /// Veilid apps may use this for arbitrary message passing.
     ///
-    /// * `target` - can be either a direct node id or a private route
-    /// * `message` - an arbitrary message blob of up to 32768 bytes
+    /// * `target` - can be either a direct node id or a private route.
+    /// * `message` - an arbitrary message blob of up to 32768 bytes.
     #[instrument(target = "veilid_api", level = "debug", ret, err)]
     pub async fn app_message(&self, target: Target, message: Vec<u8>) -> VeilidAPIResult<()> {
         event!(target: "veilid_api", Level::DEBUG, 
@@ -228,7 +228,7 @@ impl RoutingContext {
     ///////////////////////////////////
     /// DHT Records
 
-    /// Creates a new DHT record a specified crypto kind and schema
+    /// Creates a new DHT record a specified crypto kind and schema.
     ///
     /// The record is considered 'open' after the create operation succeeds.
     ///
@@ -251,7 +251,7 @@ impl RoutingContext {
             .await
     }
 
-    /// Opens a DHT record at a specific key
+    /// Opens a DHT record at a specific key.
     ///
     /// Associates a 'default_writer' secret if one is provided to provide writer capability. The
     /// writer can be overridden if specified here via the set_dht_value writer.
@@ -261,7 +261,7 @@ impl RoutingContext {
     /// without first closing it, which will keep the active 'watches' on the record but change the default writer or
     /// safety selection.
     ///
-    /// Returns the DHT record descriptor for the opened record if successful
+    /// Returns the DHT record descriptor for the opened record if successful.
     #[instrument(target = "veilid_api", level = "debug", ret, err)]
     pub async fn open_dht_record(
         &self,
@@ -280,7 +280,7 @@ impl RoutingContext {
 
     /// Closes a DHT record at a specific key that was opened with create_dht_record or open_dht_record.
     ///
-    /// Closing a record allows you to re-open it with a different routing context
+    /// Closing a record allows you to re-open it with a different routing context.
     #[instrument(target = "veilid_api", level = "debug", ret, err)]
     pub async fn close_dht_record(&self, key: TypedKey) -> VeilidAPIResult<()> {
         event!(target: "veilid_api", Level::DEBUG, 
@@ -291,7 +291,7 @@ impl RoutingContext {
         storage_manager.close_record(key).await
     }
 
-    /// Deletes a DHT record at a specific key
+    /// Deletes a DHT record at a specific key.
     ///
     /// If the record is opened, it must be closed before it is deleted.
     /// Deleting a record does not delete it from the network, but will remove the storage of the record
@@ -306,12 +306,12 @@ impl RoutingContext {
         storage_manager.delete_record(key).await
     }
 
-    /// Gets the latest value of a subkey
+    /// Gets the latest value of a subkey.
     ///
-    /// May pull the latest value from the network, but by setting 'force_refresh' you can force a network data refresh
+    /// May pull the latest value from the network, but by setting 'force_refresh' you can force a network data refresh.
     ///
-    /// Returns `None` if the value subkey has not yet been set
-    /// Returns `Some(data)` if the value subkey has valid data
+    /// Returns `None` if the value subkey has not yet been set.
+    /// Returns `Some(data)` if the value subkey has valid data.
     #[instrument(target = "veilid_api", level = "debug", ret, err)]
     pub async fn get_dht_value(
         &self,
@@ -327,13 +327,13 @@ impl RoutingContext {
         storage_manager.get_value(key, subkey, force_refresh).await
     }
 
-    /// Pushes a changed subkey value to the network
+    /// Pushes a changed subkey value to the network.
     /// The DHT record must first by opened via open_dht_record or create_dht_record.
     ///
     /// The writer, if specified, will override the 'default_writer' specified when the record is opened.
     ///
-    /// Returns `None` if the value was successfully put
-    /// Returns `Some(data)` if the value put was older than the one available on the network
+    /// Returns `None` if the value was successfully put.
+    /// Returns `Some(data)` if the value put was older than the one available on the network.
     #[instrument(target = "veilid_api", level = "debug", ret, err)]
     pub async fn set_dht_value(
         &self,
@@ -366,8 +366,8 @@ impl RoutingContext {
     /// If the returned timestamp is zero it indicates that the watch creation or update has failed. In the case of a faild update, the watch is considered cancelled.
     ///
     /// DHT watches are accepted with the following conditions:
-    /// * First-come first-served basis for arbitrary unauthenticated readers, up to network.dht.public_watch_limit per record
-    /// * If a member (either the owner or a SMPL schema member) has opened the key for writing (even if no writing is performed) then the watch will be signed and guaranteed network.dht.member_watch_limit per writer
+    /// * First-come first-served basis for arbitrary unauthenticated readers, up to network.dht.public_watch_limit per record.
+    /// * If a member (either the owner or a SMPL schema member) has opened the key for writing (even if no writing is performed) then the watch will be signed and guaranteed network.dht.member_watch_limit per writer.
     ///
     /// Members can be specified via the SMPL schema and do not need to allocate writable subkeys in order to offer a member watch capability.
     #[instrument(target = "veilid_api", level = "debug", ret, err)]
@@ -388,14 +388,15 @@ impl RoutingContext {
             .await
     }
 
-    /// Cancels a watch early
+    /// Cancels a watch early.
     ///
     /// This is a convenience function that cancels watching all subkeys in a range. The subkeys specified here
     /// are subtracted from the watched subkey range. If no range is specified, this is equivalent to cancelling the entire range of subkeys.
     /// Only the subkey range is changed, the expiration and count remain the same.
     /// If no subkeys remain, the watch is entirely cancelled and will receive no more updates.
-    /// Returns Ok(true) if there is any remaining watch for this record
-    /// Returns Ok(false) if the entire watch has been cancelled
+    ///
+    /// Returns Ok(true) if there is any remaining watch for this record.
+    /// Returns Ok(false) if the entire watch has been cancelled.
     #[instrument(target = "veilid_api", level = "debug", ret, err)]
     pub async fn cancel_dht_watch(
         &self,
@@ -421,32 +422,32 @@ impl RoutingContext {
     ///
     ///   - DHTReportScope::Local
     ///     Results will be only for a locally stored record.
-    ///     Useful for seeing what subkeys you have locally and which ones have not been retrieved
+    ///     Useful for seeing what subkeys you have locally and which ones have not been retrieved.
     ///
     ///   - DHTReportScope::SyncGet
-    ///     Return the local sequence numbers and the network sequence numbers with GetValue fanout parameters
-    ///     Provides an independent view of both the local sequence numbers and the network sequence numbers for nodes that
+    ///     Return the local sequence numbers and the network sequence numbers with GetValue fanout parameters.
+    ///     Provides an independent view of both the local sequence numbers and the network sequence numbers for nodes that.
     ///     would be reached as if the local copy did not exist locally.
     ///     Useful for determining if the current local copy should be updated from the network.
     ///
     ///   - DHTReportScope::SyncSet
-    ///     Return the local sequence numbers and the network sequence numbers with SetValue fanout parameters
-    ///     Provides an independent view of both the local sequence numbers and the network sequence numbers for nodes that
+    ///     Return the local sequence numbers and the network sequence numbers with SetValue fanout parameters.
+    ///     Provides an independent view of both the local sequence numbers and the network sequence numbers for nodes that.
     ///     would be reached as if the local copy did not exist locally.
     ///     Useful for determining if the unchanged local copy should be pushed to the network.
     ///
     ///   - DHTReportScope::UpdateGet
-    ///     Return the local sequence numbers and the network sequence numbers with GetValue fanout parameters
-    ///     Provides an view of both the local sequence numbers and the network sequence numbers for nodes that
+    ///     Return the local sequence numbers and the network sequence numbers with GetValue fanout parameters.
+    ///     Provides an view of both the local sequence numbers and the network sequence numbers for nodes that.
     ///     would be reached as if a GetValue operation were being performed, including accepting newer values from the network.
-    ///     Useful for determining which subkeys would change with a GetValue operation
+    ///     Useful for determining which subkeys would change with a GetValue operation.
     ///
     ///   - DHTReportScope::UpdateSet
-    ///     Return the local sequence numbers and the network sequence numbers with SetValue fanout parameters
-    ///     Provides an view of both the local sequence numbers and the network sequence numbers for nodes that
+    ///     Return the local sequence numbers and the network sequence numbers with SetValue fanout parameters.
+    ///     Provides an view of both the local sequence numbers and the network sequence numbers for nodes that.
     ///     would be reached as if a SetValue operation were being performed, including accepting newer values from the network.
     ///     This simulates a SetValue with the initial sequence number incremented by 1, like a real SetValue would when updating.
-    ///     Useful for determine which subkeys would change with an SetValue operation
+    ///     Useful for determine which subkeys would change with an SetValue operation.
     ///
     /// Returns a DHTRecordReport with the subkey ranges that were returned that overlapped the schema, and sequence numbers for each of the subkeys in the range.
     #[instrument(target = "veilid_api", level = "debug", ret, err)]

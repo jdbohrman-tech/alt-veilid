@@ -43,7 +43,7 @@ impl Default for Stability {
     }
 }
 
-/// The choice of safety route to include in compiled routes
+/// The choice of safety route to include in compiled routes.
 #[derive(
     Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema,
 )]
@@ -54,9 +54,9 @@ impl Default for Stability {
 )]
 
 pub enum SafetySelection {
-    /// Don't use a safety route, only specify the sequencing preference
+    /// Don't use a safety route, only specify the sequencing preference.
     Unsafe(Sequencing),
-    /// Use a safety route and parameters specified by a SafetySpec
+    /// Use a safety route and parameters specified by a SafetySpec.
     Safe(SafetySpec),
 }
 
@@ -75,20 +75,20 @@ impl Default for SafetySelection {
     }
 }
 
-/// Options for safety routes (sender privacy)
+/// Options for safety routes (sender privacy).
 #[derive(
     Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema,
 )]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct SafetySpec {
-    /// preferred safety route set id if it still exists
+    /// Preferred safety route set id if it still exists.
     #[schemars(with = "Option<String>")]
     #[cfg_attr(target_arch = "wasm32", tsify(optional, type = "string"))]
     pub preferred_route: Option<RouteId>,
-    /// must be greater than 0
+    /// Must be greater than 0.
     pub hop_count: usize,
-    /// prefer reliability over speed
+    /// Prefer reliability over speed.
     pub stability: Stability,
-    /// prefer connection-oriented sequenced protocols
+    /// Prefer connection-oriented sequenced protocols.
     pub sequencing: Sequencing,
 }

@@ -1,9 +1,9 @@
 use super::*;
 
-/// Aligned u64
-/// Required on 32-bit platforms for serialization because Rust aligns u64 on 4 byte boundaries
-/// Some zero-copy serialization frameworks also want 8-byte alignment
-/// Supports serializing to string for JSON as well, since JSON can't handle 64-bit numbers to Javascript
+/// Aligned u64.
+/// Required on 32-bit platforms for serialization because Rust aligns u64 on 4 byte boundaries.
+/// Some zero-copy serialization frameworks also want 8-byte alignment.
+/// Supports serializing to string for JSON as well, since JSON can't handle 64-bit numbers to Javascript.
 
 #[derive(
     Clone, Default, PartialEq, Eq, PartialOrd, Ord, Copy, Hash, Serialize, Deserialize, JsonSchema,

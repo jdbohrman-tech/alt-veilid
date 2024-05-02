@@ -1,6 +1,6 @@
 use super::*;
 
-/// FOURCC code
+/// FOURCC code.
 #[derive(
     Copy, Default, Clone, Hash, PartialOrd, Ord, PartialEq, Eq, Serialize, Deserialize, JsonSchema,
 )]

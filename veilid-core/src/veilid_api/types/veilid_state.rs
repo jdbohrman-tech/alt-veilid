@@ -1,6 +1,6 @@
 use super::*;
 
-/// Attachment abstraction for network 'signal strength'
+/// Attachment abstraction for network 'signal strength'.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(
     target_arch = "wasm32",

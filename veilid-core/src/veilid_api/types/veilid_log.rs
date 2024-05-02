@@ -1,6 +1,6 @@
 use super::*;
 
-/// Log level for VeilidCore
+/// Log level for VeilidCore.
 #[derive(
     Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Copy, Serialize, Deserialize, JsonSchema,
 )]
@@ -79,7 +79,7 @@ impl fmt::Display for VeilidLogLevel {
         write!(f, "{}", text)
     }
 }
-/// A VeilidCore log message with optional backtrace
+/// A VeilidCore log message with optional backtrace.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidLog {
