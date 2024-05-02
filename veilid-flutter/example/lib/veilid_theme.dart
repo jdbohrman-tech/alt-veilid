@@ -241,62 +241,49 @@ const MaterialColor materialPopComplementaryColor =
 
 const kDefaultSpacingFactor = 4.0;
 
-const kDefaultMonoTerminalFontFamily = "Fira Code";
+const kDefaultMonoTerminalFontFamily = 'Fira Code';
 const kDefaultMonoTerminalFontHeight = 1.2;
 const kDefaultMonoTerminalFontSize = 12.0;
 
-double spacingFactor(double multiplier) {
-  return multiplier * kDefaultSpacingFactor;
-}
+double spacingFactor(double multiplier) => multiplier * kDefaultSpacingFactor;
 
-Padding pad(Widget child) {
-  return Padding(
-      padding: const EdgeInsets.all(kDefaultSpacingFactor), child: child);
-}
+Padding pad(Widget child) =>
+    Padding(padding: const EdgeInsets.all(kDefaultSpacingFactor), child: child);
 
 /////////////////////////////////////////////////////////
 // Theme
 
 InputDecoration newInputDecoration(
-    String labelText, String? errorText, bool enabled) {
-  return InputDecoration(
-      labelText: labelText,
-      errorText: errorText,
-      filled: !enabled,
-      fillColor: materialPrimaryColor.shade300.withOpacity(0.1));
-}
+        String labelText, String? errorText, bool enabled) =>
+    InputDecoration(
+        labelText: labelText,
+        errorText: errorText,
+        filled: !enabled,
+        fillColor: materialPrimaryColor.shade300.withOpacity(0.1));
 
-InputDecorationTheme newInputDecorationTheme() {
-  return InputDecorationTheme(
-      border: OutlineInputBorder(
-          borderSide:
-              BorderSide(color: materialPrimaryColor.shade300, width: 1.0)),
-      disabledBorder: OutlineInputBorder(
-          borderSide:
-              BorderSide(color: materialPrimaryColor.shade600, width: 1.0)),
-      focusedBorder: OutlineInputBorder(
-          borderSide:
-              BorderSide(color: materialPrimaryColor.shade900, width: 1.0)),
-      errorBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: materialPopColor.shade800, width: 1.0)),
-      focusedErrorBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: materialPopColor.shade600, width: 1.0)),
-      errorStyle: TextStyle(
-        color: materialPopColor.shade600,
-        letterSpacing: 1.1,
-      ),
-      floatingLabelBehavior: FloatingLabelBehavior.auto,
-      floatingLabelStyle: TextStyle(
-        color: materialPrimaryColor.shade900,
-        letterSpacing: 1.1,
-      ));
-}
+InputDecorationTheme newInputDecorationTheme() => InputDecorationTheme(
+    border: OutlineInputBorder(
+        borderSide: BorderSide(color: materialPrimaryColor.shade300)),
+    disabledBorder: OutlineInputBorder(
+        borderSide: BorderSide(color: materialPrimaryColor.shade600)),
+    focusedBorder: OutlineInputBorder(
+        borderSide: BorderSide(color: materialPrimaryColor.shade900)),
+    errorBorder: OutlineInputBorder(
+        borderSide: BorderSide(color: materialPopColor.shade800)),
+    focusedErrorBorder: OutlineInputBorder(
+        borderSide: BorderSide(color: materialPopColor.shade600)),
+    errorStyle: TextStyle(
+      color: materialPopColor.shade600,
+      letterSpacing: 1.1,
+    ),
+    floatingLabelStyle: TextStyle(
+      color: materialPrimaryColor.shade900,
+      letterSpacing: 1.1,
+    ));
 
-ThemeData newVeilidTheme() {
-  return ThemeData(
-    primarySwatch: materialPrimaryColor,
-    secondaryHeaderColor: materialSecondaryColor,
-    visualDensity: VisualDensity.adaptivePlatformDensity,
-    inputDecorationTheme: newInputDecorationTheme(),
-  );
-}
+ThemeData newVeilidTheme() => ThemeData(
+      primarySwatch: materialPrimaryColor,
+      secondaryHeaderColor: materialSecondaryColor,
+      visualDensity: VisualDensity.adaptivePlatformDensity,
+      inputDecorationTheme: newInputDecorationTheme(),
+    );

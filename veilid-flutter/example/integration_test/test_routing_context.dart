@@ -14,6 +14,7 @@ Future<void> testRoutingContexts() async {
   {
     final rc = await Veilid.instance.routingContext();
     final rcp = rc.withDefaultSafety();
+    // ignore: cascade_invocations
     rcp.close();
     rc.close();
   }
@@ -21,6 +22,7 @@ Future<void> testRoutingContexts() async {
   {
     final rc = await Veilid.instance.routingContext();
     final rcp = rc.withSequencing(Sequencing.ensureOrdered);
+    // ignore: cascade_invocations
     rcp.close();
     rc.close();
   }
@@ -32,6 +34,7 @@ Future<void> testRoutingContexts() async {
             hopCount: 2,
             stability: Stability.lowLatency,
             sequencing: Sequencing.noPreference)));
+    // ignore: cascade_invocations
     rcp.close();
     rc.close();
   }
@@ -39,6 +42,7 @@ Future<void> testRoutingContexts() async {
     final rc = await Veilid.instance.routingContext();
     final rcp = rc.withSafety(
         const SafetySelectionUnsafe(sequencing: Sequencing.preferOrdered));
+    // ignore: cascade_invocations
     rcp.close();
     rc.close();
   }
@@ -52,7 +56,7 @@ Future<void> testAppMessageLoopback(Stream<VeilidUpdate> updateStream) async {
     }
   });
   try {
-    await Veilid.instance.debug("purge routes");
+    await Veilid.instance.debug('purge routes');
 
     // make a routing context that uses a safety route
     final rc = await Veilid.instance.routingContext();
@@ -64,7 +68,7 @@ Future<void> testAppMessageLoopback(Stream<VeilidUpdate> updateStream) async {
         final prr = await Veilid.instance.importRemotePrivateRoute(prl.blob);
         try {
           // send an app message to our own private route
-          final message = utf8.encode("abcd1234");
+          final message = utf8.encode('abcd1234');
           await rc.appMessage(prr, message);
 
           // we should get the same message back
@@ -82,6 +86,7 @@ Future<void> testAppMessageLoopback(Stream<VeilidUpdate> updateStream) async {
     }
   } finally {
     await appMessageSubscription.cancel();
+    await appMessageQueue.close();
   }
 }
 
@@ -93,7 +98,7 @@ Future<void> testAppCallLoopback(Stream<VeilidUpdate> updateStream) async {
     }
   });
   try {
-    await Veilid.instance.debug("purge routes");
+    await Veilid.instance.debug('purge routes');
 
     // make a routing context that uses a safety route
     final rc = await Veilid.instance.routingContext();
@@ -105,7 +110,7 @@ Future<void> testAppCallLoopback(Stream<VeilidUpdate> updateStream) async {
         final prr = await Veilid.instance.importRemotePrivateRoute(prl.blob);
         try {
           // send an app call to our own private route
-          final message = utf8.encode("abcd1234");
+          final message = utf8.encode('abcd1234');
           final appCallFuture = rc.appCall(prr, message);
 
           // we should get the same call back
@@ -116,7 +121,7 @@ Future<void> testAppCallLoopback(Stream<VeilidUpdate> updateStream) async {
           expect(update.routeId, isNotNull);
 
           // now we reply to the request
-          final reply = utf8.encode("qwer5678");
+          final reply = utf8.encode('qwer5678');
           await Veilid.instance.appCallReply(appcallid, reply);
 
           // now we should get the reply from the call
@@ -133,6 +138,7 @@ Future<void> testAppCallLoopback(Stream<VeilidUpdate> updateStream) async {
     }
   } finally {
     await appMessageSubscription.cancel();
+    await appCallQueue.close();
   }
 }
 
@@ -150,7 +156,7 @@ Future<void> testAppMessageLoopbackBigPackets(
   final cs = await Veilid.instance.bestCryptoSystem();
 
   try {
-    await Veilid.instance.debug("purge routes");
+    await Veilid.instance.debug('purge routes');
 
     // make a routing context that uses a safety route
     final rc = await Veilid.instance.routingContext();
@@ -160,6 +166,8 @@ Future<void> testAppMessageLoopbackBigPackets(
       try {
         // import it as a remote route as well so we can send to it
         final prr = await Veilid.instance.importRemotePrivateRoute(prl.blob);
+
+        final appMessageQueueIterator = StreamIterator(appMessageQueue.stream);
         try {
           for (var i = 0; i < 5; i++) {
             // send an app message to our own private route
@@ -168,9 +176,6 @@ Future<void> testAppMessageLoopbackBigPackets(
             sentMessages.add(base64Url.encode(message));
           }
 
-          final appMessageQueueIterator =
-              StreamIterator(appMessageQueue.stream);
-
           // we should get the same messages back
           for (var i = 0; i < sentMessages.length; i++) {
             if (await appMessageQueueIterator.moveNext()) {
@@ -178,10 +183,11 @@ Future<void> testAppMessageLoopbackBigPackets(
               expect(sentMessages.contains(base64Url.encode(update.message)),
                   isTrue);
             } else {
-              fail("not enough messages in the queue");
+              fail('not enough messages in the queue');
             }
           }
         } finally {
+          await appMessageQueueIterator.cancel();
           await Veilid.instance.releasePrivateRoute(prr);
         }
       } finally {
@@ -192,6 +198,7 @@ Future<void> testAppMessageLoopbackBigPackets(
     }
   } finally {
     await appMessageSubscription.cancel();
+    await appMessageQueue.close();
   }
 }
 
@@ -214,7 +221,7 @@ Future<void> testAppCallLoopbackBigPackets(
   final cs = await Veilid.instance.bestCryptoSystem();
 
   try {
-    await Veilid.instance.debug("purge routes");
+    await Veilid.instance.debug('purge routes');
 
     // make a routing context that uses a safety route
     final rc = await Veilid.instance.routingContext();
@@ -224,6 +231,8 @@ Future<void> testAppCallLoopbackBigPackets(
       try {
         // import it as a remote route as well so we can send to it
         final prr = await Veilid.instance.importRemotePrivateRoute(prl.blob);
+        final appMessageQueueIterator = StreamIterator(appCallQueue.stream);
+
         try {
           for (var i = 0; i < 5; i++) {
             // send an app message to our own private route
@@ -232,8 +241,6 @@ Future<void> testAppCallLoopbackBigPackets(
             expect(message, equals(outmessage));
           }
 
-          final appMessageQueueIterator = StreamIterator(appCallQueue.stream);
-
           // we should get the same messages back
           for (var i = 0; i < sentMessages.length; i++) {
             if (await appMessageQueueIterator.moveNext()) {
@@ -241,10 +248,11 @@ Future<void> testAppCallLoopbackBigPackets(
               expect(sentMessages.contains(base64Url.encode(update.message)),
                   isTrue);
             } else {
-              fail("not enough messages in the queue");
+              fail('not enough messages in the queue');
             }
           }
         } finally {
+          await appMessageQueueIterator.cancel();
           await Veilid.instance.releasePrivateRoute(prr);
         }
       } finally {

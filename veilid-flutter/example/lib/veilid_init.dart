@@ -5,7 +5,7 @@ import 'package:veilid/veilid.dart';
 // Call only once.
 void veilidInit() {
   if (kIsWeb) {
-    var platformConfig = const VeilidWASMConfig(
+    const platformConfig = VeilidWASMConfig(
         logging: VeilidWASMConfigLogging(
             performance: VeilidWASMConfigLoggingPerformance(
                 enabled: true,
@@ -16,7 +16,7 @@ void veilidInit() {
                 enabled: true, level: VeilidConfigLogLevel.info)));
     Veilid.instance.initializeVeilidCore(platformConfig.toJson());
   } else {
-    var platformConfig = const VeilidFFIConfig(
+    const platformConfig = VeilidFFIConfig(
         logging: VeilidFFIConfigLogging(
             terminal: VeilidFFIConfigLoggingTerminal(
               enabled: false,
@@ -25,8 +25,8 @@ void veilidInit() {
             otlp: VeilidFFIConfigLoggingOtlp(
                 enabled: false,
                 level: VeilidConfigLogLevel.trace,
-                grpcEndpoint: "localhost:4317",
-                serviceName: "VeilidExample"),
+                grpcEndpoint: 'localhost:4317',
+                serviceName: 'VeilidExample'),
             api: VeilidFFIConfigLoggingApi(
                 enabled: true, level: VeilidConfigLogLevel.info)));
     Veilid.instance.initializeVeilidCore(platformConfig.toJson());

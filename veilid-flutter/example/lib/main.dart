@@ -1,32 +1,9 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter_acrylic/flutter_acrylic.dart';
 
-import 'veilid_theme.dart';
-import 'log.dart';
 import 'app.dart';
+import 'log.dart';
 import 'veilid_init.dart';
-
-/////////////////////////////// Acrylic
-
-bool get isDesktop {
-  if (kIsWeb) return false;
-  return [
-    TargetPlatform.windows,
-    TargetPlatform.linux,
-    TargetPlatform.macOS,
-  ].contains(defaultTargetPlatform);
-}
-
-Future<void> setupAcrylic() async {
-  await Window.initialize();
-  await Window.makeTitlebarTransparent();
-  await Window.setEffect(
-      effect: WindowEffect.aero, color: const Color(0xFFFFFFFF));
-  await Window.setBlurViewState(MacOSBlurViewState.active);
-}
+import 'veilid_theme.dart';
 
 /////////////////////////////// Entrypoint
 void main() {

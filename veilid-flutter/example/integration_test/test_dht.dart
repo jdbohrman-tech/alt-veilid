@@ -5,13 +5,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:veilid/veilid.dart';
 
 final bogusKey =
-    TypedKey.fromString("VLD0:qD10lHHPD1_Qr23_Qy-1JnxTht12eaWwENVG_m2v7II");
+    TypedKey.fromString('VLD0:qD10lHHPD1_Qr23_Qy-1JnxTht12eaWwENVG_m2v7II');
 
 Future<void> testGetDHTValueUnopened() async {
   final rc = await Veilid.instance.routingContext();
   try {
-    await expectLater(
-        () async => await rc.getDHTValue(bogusKey, 0, forceRefresh: false),
+    await expectLater(() async => rc.getDHTValue(bogusKey, 0),
         throwsA(isA<VeilidAPIException>()));
   } finally {
     rc.close();
@@ -21,7 +20,7 @@ Future<void> testGetDHTValueUnopened() async {
 Future<void> testOpenDHTRecordNonexistentNoWriter() async {
   final rc = await Veilid.instance.routingContext();
   try {
-    await expectLater(() async => await rc.openDHTRecord(bogusKey),
+    await expectLater(() async => rc.openDHTRecord(bogusKey),
         throwsA(isA<VeilidAPIException>()));
   } finally {
     rc.close();
@@ -31,7 +30,7 @@ Future<void> testOpenDHTRecordNonexistentNoWriter() async {
 Future<void> testCloseDHTRecordNonexistent() async {
   final rc = await Veilid.instance.routingContext();
   try {
-    await expectLater(() async => await rc.closeDHTRecord(bogusKey),
+    await expectLater(() async => rc.closeDHTRecord(bogusKey),
         throwsA(isA<VeilidAPIException>()));
   } finally {
     rc.close();
@@ -41,7 +40,7 @@ Future<void> testCloseDHTRecordNonexistent() async {
 Future<void> testDeleteDHTRecordNonexistent() async {
   final rc = await Veilid.instance.routingContext();
   try {
-    await expectLater(() async => await rc.deleteDHTRecord(bogusKey),
+    await expectLater(() async => rc.deleteDHTRecord(bogusKey),
         throwsA(isA<VeilidAPIException>()));
   } finally {
     rc.close();
@@ -84,7 +83,7 @@ Future<void> testSetGetDHTValue() async {
   final rc = await Veilid.instance.routingContext();
   try {
     final rec = await rc.createDHTRecord(const DHTSchema.dflt(oCnt: 2));
-    expect(await rc.setDHTValue(rec.key, 0, utf8.encode("BLAH BLAH BLAH")),
+    expect(await rc.setDHTValue(rec.key, 0, utf8.encode('BLAH BLAH BLAH')),
         isNull);
     final vd2 = await rc.getDHTValue(rec.key, 0);
     expect(vd2, isNotNull);
@@ -115,9 +114,9 @@ Future<void> testOpenWriterDHTValue() async {
     expect(await cs.validateKeyPair(owner, secret), isTrue);
     final otherKeyPair = await cs.generateKeyPair();
 
-    final va = utf8.encode("Qwertyuiop Asdfghjkl Zxcvbnm");
-    final vb = utf8.encode("1234567890");
-    final vc = utf8.encode("!@#\$%^&*()");
+    final va = utf8.encode('Qwertyuiop Asdfghjkl Zxcvbnm');
+    final vb = utf8.encode('1234567890');
+    final vc = utf8.encode(r'!@#$%^&*()');
 
     // Test subkey writes
     expect(await rc.setDHTValue(key, 1, va), isNull);
@@ -179,7 +178,8 @@ Future<void> testOpenWriterDHTValue() async {
     expect(vdtemp.seq, equals(1));
     expect(vdtemp.writer, equals(owner));
 
-    // Verify subkey 1 can be set a second time and it updates because seq is newer
+    // Verify subkey 1 can be set a second time
+    // and it updates because seq is newer
     expect(await rc.setDHTValue(key, 1, vc), isNull);
 
     // Verify the network got the subkey update with a refresh check
@@ -203,11 +203,11 @@ Future<void> testOpenWriterDHTValue() async {
     expect(rec.schema.oCnt, equals(2));
 
     // Verify subkey 1 can NOT be set because we have the wrong writer
-    await expectLater(() async => await rc.setDHTValue(key, 1, va),
+    await expectLater(() async => rc.setDHTValue(key, 1, va),
         throwsA(isA<VeilidAPIException>()));
 
     // Verify subkey 0 can NOT be set because we have the wrong writer
-    await expectLater(() async => await rc.setDHTValue(key, 0, va),
+    await expectLater(() async => rc.setDHTValue(key, 0, va),
         throwsA(isA<VeilidAPIException>()));
 
     // Verify subkey 0 can be set because override with the right writer
@@ -250,7 +250,7 @@ Future<void> testWatchDHTValues(Stream<VeilidUpdate> updateStream) async {
 
       // Set some subkey we care about
       expect(
-          await rcWatch.setDHTValue(rec.key, 3, utf8.encode("BLAH BLAH BLAH")),
+          await rcWatch.setDHTValue(rec.key, 3, utf8.encode('BLAH BLAH BLAH')),
           isNull);
 
       // Make a watch on that subkey
@@ -261,24 +261,23 @@ Future<void> testWatchDHTValues(Stream<VeilidUpdate> updateStream) async {
       rec = await rcSet.openDHTRecord(rec.key, writer: rec.ownerKeyPair());
 
       // Now set the subkey and trigger an update
-      expect(await rcSet.setDHTValue(rec.key, 3, utf8.encode("BLAH")), isNull);
+      expect(await rcSet.setDHTValue(rec.key, 3, utf8.encode('BLAH')), isNull);
 
       // Now we should NOT get an update because the update
       // is the same as our local copy
       if (await valueChangeQueueIterator
           .moveNext()
-          .timeout(const Duration(seconds: 5), onTimeout: () {
-        return false;
-      })) {
-        fail("should not have a change");
+          .timeout(const Duration(seconds: 5), onTimeout: () => false)) {
+        fail('should not have a change');
       }
+      await valueChangeQueueIterator.cancel();
       valueChangeQueueIterator = StreamIterator(valueChangeQueue.stream);
 
       // Now set multiple subkeys and trigger an update
       expect(
           await [
-            rcSet.setDHTValue(rec.key, 3, utf8.encode("BLAH BLAH")),
-            rcSet.setDHTValue(rec.key, 4, utf8.encode("BZORT"))
+            rcSet.setDHTValue(rec.key, 3, utf8.encode('BLAH BLAH')),
+            rcSet.setDHTValue(rec.key, 4, utf8.encode('BZORT'))
           ].wait,
           equals([null, null]));
 
@@ -286,7 +285,7 @@ Future<void> testWatchDHTValues(Stream<VeilidUpdate> updateStream) async {
       await valueChangeQueueIterator
           .moveNext()
           .timeout(const Duration(seconds: 5), onTimeout: () {
-        fail("should have a change");
+        fail('should have a change');
       });
 
       // Verify the update
@@ -311,8 +310,8 @@ Future<void> testWatchDHTValues(Stream<VeilidUpdate> updateStream) async {
       // Now set multiple subkeys and trigger an update
       expect(
           await [
-            rcSet.setDHTValue(rec.key, 3, utf8.encode("BLAH BLAH BLAH")),
-            rcSet.setDHTValue(rec.key, 5, utf8.encode("BZORT BZORT"))
+            rcSet.setDHTValue(rec.key, 3, utf8.encode('BLAH BLAH BLAH')),
+            rcSet.setDHTValue(rec.key, 5, utf8.encode('BZORT BZORT'))
           ].wait,
           equals([null, null]));
 
@@ -320,10 +319,11 @@ Future<void> testWatchDHTValues(Stream<VeilidUpdate> updateStream) async {
       await valueChangeQueueIterator
           .moveNext()
           .timeout(const Duration(seconds: 5), onTimeout: () {
-        fail("should have a change");
+        fail('should have a change');
       });
 
-      // Verify the update came back but we don't get a new value because the sequence number is the same
+      // Verify the update came back but we don't get a new value because the
+      // sequence number is the same
       expect(valueChangeQueueIterator.current.key, equals(rec.key));
       expect(valueChangeQueueIterator.current.count, equals(0xFFFFFFFC));
       expect(valueChangeQueueIterator.current.subkeys,
@@ -345,18 +345,16 @@ Future<void> testWatchDHTValues(Stream<VeilidUpdate> updateStream) async {
       // Now set multiple subkeys and trigger an update
       expect(
           await [
-            rcSet.setDHTValue(rec.key, 3, utf8.encode("BLAH BLAH BLAH BLAH")),
-            rcSet.setDHTValue(rec.key, 5, utf8.encode("BZORT BZORT BZORT"))
+            rcSet.setDHTValue(rec.key, 3, utf8.encode('BLAH BLAH BLAH BLAH')),
+            rcSet.setDHTValue(rec.key, 5, utf8.encode('BZORT BZORT BZORT'))
           ].wait,
           equals([null, null]));
 
       // Now we should NOT get an update
       if (await valueChangeQueueIterator
           .moveNext()
-          .timeout(const Duration(seconds: 5), onTimeout: () {
-        return false;
-      })) {
-        fail("should not have a change");
+          .timeout(const Duration(seconds: 5), onTimeout: () => false)) {
+        fail('should not have a change');
       }
 
       // Clean up
@@ -367,16 +365,18 @@ Future<void> testWatchDHTValues(Stream<VeilidUpdate> updateStream) async {
       rcSet.close();
     }
   } finally {
+    await valueChangeQueueIterator.cancel();
     await valueChangeSubscription.cancel();
+    await valueChangeQueue.close();
   }
 }
 
 Future<void> testInspectDHTRecord() async {
   final rc = await Veilid.instance.routingContext();
   try {
-    var rec = await rc.createDHTRecord(const DHTSchema.dflt(oCnt: 2));
+    final rec = await rc.createDHTRecord(const DHTSchema.dflt(oCnt: 2));
 
-    expect(await rc.setDHTValue(rec.key, 0, utf8.encode("BLAH BLAH BLAH")),
+    expect(await rc.setDHTValue(rec.key, 0, utf8.encode('BLAH BLAH BLAH')),
         isNull);
 
     final rr = await rc.inspectDHTRecord(rec.key);

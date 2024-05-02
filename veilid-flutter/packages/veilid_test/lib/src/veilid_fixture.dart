@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:async_tools/async_tools.dart';
 import 'package:veilid/veilid.dart';
 
-bool kIsWeb = bool.fromEnvironment('dart.library.js_util');
+// ignore: do_not_use_environment
+bool kIsWeb = const bool.fromEnvironment('dart.library.js_util');
 
 abstract class VeilidFixture {
   Future<void> setUp();
@@ -18,8 +19,7 @@ class DefaultVeilidFixture implements VeilidFixture {
 
   StreamSubscription<VeilidUpdate>? _veilidUpdateSubscription;
   Stream<VeilidUpdate>? _veilidUpdateStream;
-  final StreamController<VeilidUpdate> _updateStreamController =
-      StreamController.broadcast();
+  late final StreamController<VeilidUpdate> _updateStreamController;
 
   static final _fixtureMutex = Mutex();
   final String programName;
@@ -27,8 +27,9 @@ class DefaultVeilidFixture implements VeilidFixture {
   @override
   Future<void> setUp() async {
     await _fixtureMutex.acquire();
-
     assert(_veilidUpdateStream == null, 'should not set up fixture twice');
+
+    _updateStreamController = StreamController.broadcast();
 
     final ignoreLogTargetsStr =
         // ignore: do_not_use_environment
@@ -162,6 +163,8 @@ class DefaultVeilidFixture implements VeilidFixture {
     final cancelFut = _veilidUpdateSubscription?.cancel();
     await Veilid.instance.shutdownVeilidCore();
     await cancelFut;
+
+    await _updateStreamController.close();
 
     _veilidUpdateSubscription = null;
     _veilidUpdateStream = null;

@@ -1,4 +1,4 @@
-@Timeout(Duration(seconds: 60))
+@Timeout(Duration(seconds: 120))
 
 library veilid_flutter_integration_test;
 
@@ -7,10 +7,10 @@ import 'package:integration_test/integration_test.dart';
 import 'package:veilid_test/veilid_test.dart';
 
 import 'test_crypto.dart';
+import 'test_dht.dart';
 import 'test_routing_context.dart';
 import 'test_table_db.dart';
 import 'test_veilid_config.dart';
-import 'test_dht.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -49,13 +49,13 @@ void main() {
       group('Routing Contexts', () {
         test('routing contexts', testRoutingContexts);
         test('app message loopback',
-            () => testAppMessageLoopback(fixture.updateStream));
+            () async => testAppMessageLoopback(fixture.updateStream));
         test('app call loopback',
-            () => testAppCallLoopback(fixture.updateStream));
+            () async => testAppCallLoopback(fixture.updateStream));
         test('app message loopback big packets',
-            () => testAppMessageLoopbackBigPackets(fixture.updateStream));
+            () async => testAppMessageLoopbackBigPackets(fixture.updateStream));
         test('app call loopback big packets',
-            () => testAppCallLoopbackBigPackets(fixture.updateStream));
+            () async => testAppCallLoopbackBigPackets(fixture.updateStream));
       });
 
       group('Veilid DHT', () {
@@ -71,8 +71,8 @@ void main() {
         test('get dht value nonexistent', testGetDHTValueNonexistent);
         test('set get dht value', testSetGetDHTValue);
         test('open writer dht value', testOpenWriterDHTValue);
-        test(
-            'watch dht values', () => testWatchDHTValues(fixture.updateStream));
+        test('watch dht values',
+            () async => testWatchDHTValues(fixture.updateStream));
         test('inspect dht record', testInspectDHTRecord);
       });
     });

@@ -14,8 +14,7 @@ Future<void> testGetCryptoSystem() async {
 }
 
 Future<void> testGetCryptoSystemInvalid() async {
-  await expectLater(
-      () async => await Veilid.instance.getCryptoSystem(cryptoKindNONE),
+  await expectLater(() async => Veilid.instance.getCryptoSystem(cryptoKindNONE),
       throwsA(isA<VeilidAPIException>()));
 }
 
@@ -25,12 +24,12 @@ Future<void> testHashAndVerifyPassword() async {
   final salt = nonce.decode();
 
   // Password match
-  final phash = await cs.hashPassword(utf8.encode("abc123"), salt);
-  expect(await cs.verifyPassword(utf8.encode("abc123"), phash), isTrue);
+  final phash = await cs.hashPassword(utf8.encode('abc123'), salt);
+  expect(await cs.verifyPassword(utf8.encode('abc123'), phash), isTrue);
 
   // Password mismatch
-  await cs.hashPassword(utf8.encode("abc1234"), salt);
-  expect(await cs.verifyPassword(utf8.encode("abc1235"), phash), isFalse);
+  await cs.hashPassword(utf8.encode('abc1234'), salt);
+  expect(await cs.verifyPassword(utf8.encode('abc1235'), phash), isFalse);
 }
 
 Future<void> testGenerateSharedSecret() async {
@@ -41,19 +40,19 @@ Future<void> testGenerateSharedSecret() async {
   final kp3 = await cs.generateKeyPair();
 
   final ssA =
-      await cs.generateSharedSecret(kp1.key, kp2.secret, utf8.encode("abc123"));
+      await cs.generateSharedSecret(kp1.key, kp2.secret, utf8.encode('abc123'));
   final ssB =
-      await cs.generateSharedSecret(kp2.key, kp1.secret, utf8.encode("abc123"));
+      await cs.generateSharedSecret(kp2.key, kp1.secret, utf8.encode('abc123'));
 
   expect(ssA, equals(ssB));
 
   final ssC = await cs.generateSharedSecret(
-      kp2.key, kp1.secret, utf8.encode("abc1234"));
+      kp2.key, kp1.secret, utf8.encode('abc1234'));
 
   expect(ssA, isNot(equals(ssC)));
 
   final ssD =
-      await cs.generateSharedSecret(kp3.key, kp1.secret, utf8.encode("abc123"));
+      await cs.generateSharedSecret(kp3.key, kp1.secret, utf8.encode('abc123'));
 
   expect(ssA, isNot(equals(ssD)));
 }

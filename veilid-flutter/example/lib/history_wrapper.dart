@@ -6,11 +6,9 @@ class HistoryWrapper {
   final List<String> _history = [];
   int _historyPosition = 0;
   final _historyTextEditingController = TextEditingController();
-  String _historyCurrentEdit = "";
+  String _historyCurrentEdit = '';
 
-  TextEditingController get controller {
-    return _historyTextEditingController;
-  }
+  TextEditingController get controller => _historyTextEditingController;
 
   void submit(String v) {
     // add to history
@@ -21,14 +19,14 @@ class HistoryWrapper {
       }
     }
     _historyPosition = _history.length;
-    _historyTextEditingController.text = "";
+    _historyTextEditingController.text = '';
   }
 
   Widget wrap(
       void Function(void Function())? stateSetter, TextField textField) {
-    void Function(void Function()) setState = stateSetter ?? (x) => x();
+    final setState = stateSetter ?? (x) => x();
     return KeyboardListener(
-      onKeyEvent: (KeyEvent event) {
+      onKeyEvent: (event) {
         setState(() {
           if (event.runtimeType == KeyDownEvent &&
               event.logicalKey == LogicalKeyboardKey.arrowUp) {
@@ -55,7 +53,7 @@ class HistoryWrapper {
           }
         });
       },
-      focusNode: FocusNode(onKeyEvent: (FocusNode node, KeyEvent event) {
+      focusNode: FocusNode(onKeyEvent: (node, event) {
         if (event.logicalKey == LogicalKeyboardKey.arrowDown ||
             event.logicalKey == LogicalKeyboardKey.arrowUp) {
           return KeyEventResult.handled;

@@ -3,13 +3,13 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:veilid/veilid.dart';
 import 'package:loggy/loggy.dart';
-import 'package:veilid_example/veilid_theme.dart';
+import 'package:veilid/veilid.dart';
 
-import 'log_terminal.dart';
-import 'log.dart';
 import 'history_wrapper.dart';
+import 'log.dart';
+import 'log_terminal.dart';
+import 'veilid_theme.dart';
 
 // Main App
 class MyApp extends StatefulWidget {
@@ -31,7 +31,7 @@ class _MyAppState extends State<MyApp> with UiLoggy {
   void initState() {
     super.initState();
 
-    initPlatformState();
+    unawaited(initPlatformState());
   }
 
   // Platform messages are asynchronous, so we initialize in an async method.
@@ -55,7 +55,9 @@ class _MyAppState extends State<MyApp> with UiLoggy {
     // If the widget was removed from the tree while the asynchronous platform
     // message was in flight, we want to discard the reply rather than calling
     // setState to update our non-existent appearance.
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     setState(() {
       _veilidVersion = veilidVersion;
@@ -67,8 +69,7 @@ class _MyAppState extends State<MyApp> with UiLoggy {
     Object? error;
     final backtrace = log.backtrace;
     if (backtrace != null) {
-      stackTrace =
-          StackTrace.fromString("$backtrace\n${StackTrace.current.toString()}");
+      stackTrace = StackTrace.fromString('$backtrace\n${StackTrace.current}');
       error = 'embedded stack trace for ${log.logLevel} ${log.message}';
     }
 
@@ -92,17 +93,17 @@ class _MyAppState extends State<MyApp> with UiLoggy {
   }
 
   Future<void> processUpdates() async {
-    var stream = _updateStream;
+    final stream = _updateStream;
     if (stream != null) {
       await for (final update in stream) {
         if (update is VeilidLog) {
           await processLog(update);
         } else if (update is VeilidAppMessage) {
-          loggy.info("AppMessage: ${jsonEncode(update)}");
+          loggy.info('AppMessage: ${jsonEncode(update)}');
         } else if (update is VeilidAppCall) {
-          loggy.info("AppCall: ${jsonEncode(update)}");
+          loggy.info('AppCall: ${jsonEncode(update)}');
         } else {
-          loggy.trace("Update: ${jsonEncode(update)}");
+          loggy.trace('Update: ${jsonEncode(update)}');
         }
       }
     }
@@ -111,21 +112,24 @@ class _MyAppState extends State<MyApp> with UiLoggy {
   Future<void> toggleStartup(bool startup) async {
     if (startup && !_startedUp) {
       var config = await getDefaultVeilidConfig(
-          isWeb: kIsWeb, programName: "Veilid Plugin Example");
-      if (const String.fromEnvironment("DELETE_TABLE_STORE") == "1") {
+          isWeb: kIsWeb, programName: 'Veilid Plugin Example');
+      // ignore: do_not_use_environment
+      if (const String.fromEnvironment('DELETE_TABLE_STORE') == '1') {
         config = config.copyWith(
             tableStore: config.tableStore.copyWith(delete: true));
       }
-      if (const String.fromEnvironment("DELETE_PROTECTED_STORE") == "1") {
+      // ignore: do_not_use_environment
+      if (const String.fromEnvironment('DELETE_PROTECTED_STORE') == '1') {
         config = config.copyWith(
             protectedStore: config.protectedStore.copyWith(delete: true));
       }
-      if (const String.fromEnvironment("DELETE_BLOCK_STORE") == "1") {
+      // ignore: do_not_use_environment
+      if (const String.fromEnvironment('DELETE_BLOCK_STORE') == '1') {
         config = config.copyWith(
             blockStore: config.blockStore.copyWith(delete: true));
       }
 
-      var updateStream = await Veilid.instance.startupVeilidCore(config);
+      final updateStream = await Veilid.instance.startupVeilidCore(config);
       setState(() {
         _updateStream = updateStream;
         _updateProcessor = processUpdates();
@@ -149,92 +153,90 @@ class _MyAppState extends State<MyApp> with UiLoggy {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-        appBar: AppBar(
-          title: Text('Veilid Plugin Version $_veilidVersion'),
-        ),
-        body: Column(children: [
-          const Expanded(child: LogTerminal()),
-          Container(
-            decoration: BoxDecoration(
-                color: materialBackgroundColor.shade100,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
-                    spreadRadius: 4,
-                    blurRadius: 4,
-                  )
-                ]),
-            padding: const EdgeInsets.all(5.0),
-            child: Row(children: [
-              Expanded(
-                  child: pad(_debugHistoryWrapper.wrap(
-                setState,
-                TextField(
-                    controller: _debugHistoryWrapper.controller,
-                    decoration: newInputDecoration(
-                        'Debug Command', _errorText, _startedUp),
-                    textInputAction: TextInputAction.unspecified,
-                    enabled: _startedUp,
-                    onChanged: (v) {
-                      setState(() {
-                        _errorText = null;
-                      });
-                    },
-                    onSubmitted: (String v) async {
-                      try {
-                        if (v.isEmpty) {
-                          return;
-                        }
-                        var res = await Veilid.instance.debug(v);
-                        loggy.info(res);
-                        setState(() {
-                          _debugHistoryWrapper.submit(v);
-                        });
-                      } on VeilidAPIException catch (e) {
-                        setState(() {
-                          _errorText = e.toDisplayError();
-                        });
+  Widget build(BuildContext context) => Scaffold(
+      appBar: AppBar(
+        title: Text('Veilid Plugin Version $_veilidVersion'),
+      ),
+      body: Column(children: [
+        const Expanded(child: LogTerminal()),
+        Container(
+          decoration: BoxDecoration(
+              color: materialBackgroundColor.shade100,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  spreadRadius: 4,
+                  blurRadius: 4,
+                )
+              ]),
+          padding: const EdgeInsets.all(5),
+          child: Row(children: [
+            Expanded(
+                child: pad(_debugHistoryWrapper.wrap(
+              setState,
+              TextField(
+                  controller: _debugHistoryWrapper.controller,
+                  decoration: newInputDecoration(
+                      'Debug Command', _errorText, _startedUp),
+                  textInputAction: TextInputAction.unspecified,
+                  enabled: _startedUp,
+                  onChanged: (v) {
+                    setState(() {
+                      _errorText = null;
+                    });
+                  },
+                  onSubmitted: (v) async {
+                    try {
+                      if (v.isEmpty) {
+                        return;
                       }
-                    }),
-              ))),
-              pad(
-                Column(children: [
-                  const Text('Startup'),
-                  Switch(
-                      value: _startedUp,
-                      onChanged: (bool value) async {
-                        await toggleStartup(value);
-                      }),
-                ]),
-              ),
-              pad(Column(children: [
-                const Text('Log Level'),
-                DropdownButton<LogLevel>(
-                    value: loggy.level.logLevel,
-                    onChanged: (LogLevel? newLevel) {
+                      final res = await Veilid.instance.debug(v);
+                      loggy.info(res);
                       setState(() {
-                        setRootLogLevel(newLevel);
+                        _debugHistoryWrapper.submit(v);
                       });
-                    },
-                    items: const [
-                      DropdownMenuItem<LogLevel>(
-                          value: LogLevel.error, child: Text("Error")),
-                      DropdownMenuItem<LogLevel>(
-                          value: LogLevel.warning, child: Text("Warning")),
-                      DropdownMenuItem<LogLevel>(
-                          value: LogLevel.info, child: Text("Info")),
-                      DropdownMenuItem<LogLevel>(
-                          value: LogLevel.debug, child: Text("Debug")),
-                      DropdownMenuItem<LogLevel>(
-                          value: traceLevel, child: Text("Trace")),
-                      DropdownMenuItem<LogLevel>(
-                          value: LogLevel.all, child: Text("All")),
-                    ]),
-              ])),
-            ]),
-          ),
-        ]));
-  }
+                    } on VeilidAPIException catch (e) {
+                      setState(() {
+                        _errorText = e.toDisplayError();
+                      });
+                    }
+                  }),
+            ))),
+            pad(
+              Column(children: [
+                const Text('Startup'),
+                Switch(
+                    value: _startedUp,
+                    onChanged: (value) async {
+                      await toggleStartup(value);
+                    }),
+              ]),
+            ),
+            pad(Column(children: [
+              const Text('Log Level'),
+              DropdownButton<LogLevel>(
+                  value: loggy.level.logLevel,
+                  onChanged: (newLevel) {
+                    setState(() {
+                      setRootLogLevel(newLevel);
+                    });
+                  },
+                  items: const [
+                    DropdownMenuItem<LogLevel>(
+                        value: LogLevel.error, child: Text('Error')),
+                    DropdownMenuItem<LogLevel>(
+                        value: LogLevel.warning, child: Text('Warning')),
+                    DropdownMenuItem<LogLevel>(
+                        value: LogLevel.info, child: Text('Info')),
+                    DropdownMenuItem<LogLevel>(
+                        value: LogLevel.debug, child: Text('Debug')),
+                    DropdownMenuItem<LogLevel>(
+                        value: traceLevel, child: Text('Trace')),
+                    DropdownMenuItem<LogLevel>(
+                        value: LogLevel.all, child: Text('All')),
+                  ]),
+            ])),
+          ]),
+        ),
+      ]));
 }

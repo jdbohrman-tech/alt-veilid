@@ -17,39 +17,39 @@ class LogTerminal extends StatefulWidget {
 }
 
 class _LogTerminalState extends State<LogTerminal> {
-  final terminal = Terminal(
+  final _terminal = Terminal(
     maxLines: 10000,
   );
 
-  final terminalController = TerminalController();
+  final _terminalController = TerminalController();
 
   @override
   void initState() {
     super.initState();
-    terminal.setLineFeedMode(true);
+    _terminal.setLineFeedMode(true);
     globalTerminalPrinter.setCallback((log) {
-      terminal.write('${log.pretty()}\n');
+      _terminal.write('${log.pretty()}\n');
     });
   }
 
   @override
   Widget build(BuildContext context) => TerminalView(
-        terminal,
+        _terminal,
         textStyle: kDefaultTerminalStyle,
-        controller: terminalController,
+        controller: _terminalController,
         autofocus: true,
         backgroundOpacity: 0.9,
         onSecondaryTapDown: (details, offset) async {
-          final selection = terminalController.selection;
+          final selection = _terminalController.selection;
           if (selection != null) {
-            final text = terminal.buffer.getText(selection);
-            terminalController.clearSelection();
+            final text = _terminal.buffer.getText(selection);
+            _terminalController.clearSelection();
             await Clipboard.setData(ClipboardData(text: text));
           } else {
             final data = await Clipboard.getData('text/plain');
             final text = data?.text;
             if (text != null) {
-              terminal.paste(text);
+              _terminal.paste(text);
             }
           }
         },
