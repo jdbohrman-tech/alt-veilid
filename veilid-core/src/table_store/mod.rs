@@ -313,8 +313,7 @@ impl TableStore {
                 log_tstore!(debug "changing dek password");
                 self.config
                     .with_mut(|c| {
-                        c.protected_store.device_encryption_key_password =
-                            new_device_encryption_key_password.clone();
+                        c.protected_store.device_encryption_key_password.clone_from(&new_device_encryption_key_password);
                         Ok(new_device_encryption_key_password)
                     })
                     .unwrap()

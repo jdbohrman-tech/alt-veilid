@@ -186,7 +186,6 @@ impl ServicesContext {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-///
 pub(crate) struct VeilidCoreContext {
     pub config: VeilidConfig,
     pub update_callback: UpdateCallback,

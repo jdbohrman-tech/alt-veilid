@@ -26,7 +26,6 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use thiserror::Error;
 //////////////////////////////////////////////////////////////
-///
 struct Dirty<T>
 where
     T: PartialEq,
@@ -373,7 +372,7 @@ impl CursiveUI {
         // save edited command to newest history slot
         let hlen = inner.cmd_history.len();
         inner.cmd_history_position = hlen - 1;
-        inner.cmd_history[hlen - 1] = text.to_owned();
+        text.clone_into(&mut inner.cmd_history[hlen - 1]);
     }
 
     fn enable_command_ui(s: &mut Cursive, enabled: bool) {
@@ -465,7 +464,7 @@ impl CursiveUI {
             let mut inner = Self::inner_mut(s);
 
             let hlen = inner.cmd_history.len();
-            inner.cmd_history[hlen - 1] = text.to_owned();
+            text.clone_into(&mut inner.cmd_history[hlen - 1]);
 
             if hlen >= 2 && inner.cmd_history[hlen - 1] == inner.cmd_history[hlen - 2] {
                 inner.cmd_history[hlen - 1] = "".to_string();

@@ -918,7 +918,7 @@ impl VeilidConfig {
 
         // Remove secrets
         safe_cfg.network.routing_table.node_id_secret = TypedSecretGroup::new();
-        safe_cfg.protected_store.device_encryption_key_password = "".to_owned();
+        "".clone_into(&mut safe_cfg.protected_store.device_encryption_key_password);
         safe_cfg.protected_store.new_device_encryption_key_password = None;
 
         safe_cfg
@@ -929,7 +929,7 @@ impl VeilidConfig {
 
         // Remove secrets
         safe_cfg.network.routing_table.node_id_secret = TypedSecretGroup::new();
-        safe_cfg.protected_store.device_encryption_key_password = "".to_owned();
+        "".clone_into(&mut safe_cfg.protected_store.device_encryption_key_password);
         safe_cfg.protected_store.new_device_encryption_key_password = None;
 
         VeilidConfig {

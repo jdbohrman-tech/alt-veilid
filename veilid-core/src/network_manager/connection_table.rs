@@ -166,7 +166,7 @@ impl ConnectionTable {
         if inner.conn_by_id[protocol_index].contains_key(&id) {
             panic!("duplicate connection id: {:#?}", network_connection);
         }
-        if inner.protocol_index_by_id.get(&id).is_some() {
+        if inner.protocol_index_by_id.contains_key(&id) {
             panic!("duplicate id to protocol index: {:#?}", network_connection);
         }
         if let Some(ids) = inner.ids_by_remote.get(&flow.remote()) {

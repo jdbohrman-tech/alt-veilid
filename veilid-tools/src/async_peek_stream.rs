@@ -4,12 +4,10 @@ use std::io;
 use task::{Context, Poll};
 
 ////////
-///
 trait SendStream: AsyncRead + AsyncWrite + Send + Unpin {}
 impl<S> SendStream for S where S: AsyncRead + AsyncWrite + Send + Unpin + 'static {}
 
 ////////
-///
 
 pub struct Peek<'a> {
     aps: AsyncPeekStream,
@@ -55,7 +53,6 @@ impl Future for Peek<'_> {
 }
 
 ////////
-///
 
 pub struct PeekExact<'a> {
     aps: AsyncPeekStream,
@@ -106,7 +103,6 @@ impl Future for PeekExact<'_> {
     }
 }
 /////////
-///
 struct AsyncPeekStreamInner {
     stream: Box<dyn SendStream>,
     peekbuf: Vec<u8>,

@@ -176,7 +176,6 @@ where
 }
 
 ///////////////////////////////////////////////////////////
-///
 struct WebsocketProtocolHandlerArc {
     tls: bool,
     request_path: Vec<u8>,
