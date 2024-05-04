@@ -1919,6 +1919,8 @@ impl VeilidAPI {
 
         if command == "list" {
             self.debug_punish_list(args).await
+        } else if command == "clear" {
+            self.debug_punish_clear(args).await
         } else {
             Ok(">>> Unknown command\n".to_owned())
         }
