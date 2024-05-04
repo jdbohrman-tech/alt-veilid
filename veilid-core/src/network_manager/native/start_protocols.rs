@@ -295,7 +295,7 @@ impl Network {
             if split_url.scheme.to_ascii_lowercase() != "ws" {
                 bail!("WS URL must use 'ws://' scheme");
             }
-            split_url.scheme = "ws".to_owned();
+            "ws".clone_into(&mut split_url.scheme);
 
             // Resolve static public hostnames
             let global_socket_addrs = split_url
@@ -413,7 +413,7 @@ impl Network {
             if split_url.scheme.to_ascii_lowercase() != "wss" {
                 bail!("WSS URL must use 'wss://' scheme");
             }
-            split_url.scheme = "wss".to_owned();
+            "wss".clone_into(&mut split_url.scheme);
 
             // Resolve static public hostnames
             let global_socket_addrs = split_url

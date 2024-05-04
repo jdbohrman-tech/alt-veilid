@@ -1,6 +1,6 @@
 use super::*;
 
-/// Direct statement blob passed to hosting application for processing
+/// Direct statement blob passed to hosting application for processing.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidAppMessage {
@@ -33,23 +33,23 @@ impl VeilidAppMessage {
         }
     }
 
-    /// Some(sender) if the message was sent directly, None if received via a private/safety route
+    /// Some(sender) if the message was sent directly, None if received via a private/safety route.
     pub fn sender(&self) -> Option<&TypedKey> {
         self.sender.as_ref()
     }
 
-    /// Some(route_id) if the message was received over a private route, None if received only a safety route or directly
+    /// Some(route_id) if the message was received over a private route, None if received only a safety route or directly.
     pub fn route_id(&self) -> Option<&RouteId> {
         self.route_id.as_ref()
     }
 
-    /// The content of the message to deliver to the application
+    /// The content of the message to deliver to the application.
     pub fn message(&self) -> &[u8] {
         &self.message
     }
 }
 
-/// Direct question blob passed to hosting application for processing to send an eventual AppReply
+/// Direct question blob passed to hosting application for processing to send an eventual AppReply.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidAppCall {
@@ -92,22 +92,22 @@ impl VeilidAppCall {
         }
     }
 
-    /// Some(sender) if the request was sent directly, None if received via a private/safety route
+    /// Some(sender) if the request was sent directly, None if received via a private/safety route.
     pub fn sender(&self) -> Option<&TypedKey> {
         self.sender.as_ref()
     }
 
-    /// Some(route_id) if the request was received over a private route, None if received only a safety route or directly
+    /// Some(route_id) if the request was received over a private route, None if received only a safety route or directly.
     pub fn route_id(&self) -> Option<&RouteId> {
         self.route_id.as_ref()
     }
 
-    /// The content of the request to deliver to the application
+    /// The content of the request to deliver to the application.
     pub fn message(&self) -> &[u8] {
         &self.message
     }
 
-    /// The id to specify as `call_id` in the [VeilidAPI::app_call_reply] function
+    /// The id to specify as `call_id` in the [VeilidAPI::app_call_reply] function.
     pub fn id(&self) -> OperationId {
         self.call_id
     }

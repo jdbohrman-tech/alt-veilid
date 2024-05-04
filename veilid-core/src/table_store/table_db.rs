@@ -88,19 +88,19 @@ impl TableDB {
         Arc::downgrade(&self.unlocked_inner)
     }
 
-    /// Get the total number of columns in the TableDB
-    /// Not the number of columns that were opened, rather the total number that could be opened
+    /// Get the total number of columns in the TableDB.
+    /// Not the number of columns that were opened, rather the total number that could be opened.
     pub fn get_column_count(&self) -> VeilidAPIResult<u32> {
         let db = &self.unlocked_inner.database;
         db.num_columns().map_err(VeilidAPIError::from)
     }
 
-    /// Encrypt buffer using encrypt key and prepend nonce to output
-    /// Keyed nonces are unique because keys must be unique
-    /// Normally they must be sequential or random, but the critical
+    /// Encrypt buffer using encrypt key and prepend nonce to output.
+    /// Keyed nonces are unique because keys must be unique.
+    /// Normally they must be sequential or random, but the critical.
     /// requirement is that they are different for each encryption
     /// but if the contents are guaranteed to be unique, then a nonce
-    /// can be generated from the hash of the contents and the encryption key itself
+    /// can be generated from the hash of the contents and the encryption key itself.
     fn maybe_encrypt(&self, data: &[u8], keyed_nonce: bool) -> Vec<u8> {
         let data = compress_prepend_size(data);
         if let Some(ei) = &self.unlocked_inner.encrypt_info {
@@ -155,7 +155,7 @@ impl TableDB {
         }
     }
 
-    /// Get the list of keys in a column of the TableDAB
+    /// Get the list of keys in a column of the TableDB
     pub async fn get_keys(&self, col: u32) -> VeilidAPIResult<Vec<Vec<u8>>> {
         if col >= self.opened_column_count {
             apibail_generic!(format!(

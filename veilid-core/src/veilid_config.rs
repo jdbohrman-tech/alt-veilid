@@ -20,7 +20,7 @@ cfg_if::cfg_if! {
 pub type ConfigCallbackReturn = VeilidAPIResult<Box<dyn core::any::Any + Send>>;
 pub type ConfigCallback = Arc<dyn Fn(String) -> ConfigCallbackReturn + Send + Sync>;
 
-/// Enable and configure HTTPS access to the Veilid node
+/// Enable and configure HTTPS access to the Veilid node.
 ///
 /// ```yaml
 /// https:
@@ -51,7 +51,7 @@ impl Default for VeilidConfigHTTPS {
     }
 }
 
-/// Enable and configure HTTP access to the Veilid node
+/// Enable and configure HTTP access to the Veilid node.
 ///
 /// ```yaml
 /// http:
@@ -82,9 +82,9 @@ impl Default for VeilidConfigHTTP {
     }
 }
 
-/// Application configuration
+/// Application configuration.
 ///
-/// Configure web access to the Progressive Web App (PWA)
+/// Configure web access to the Progressive Web App (PWA).
 ///
 /// To be implemented...
 ///
@@ -95,7 +95,7 @@ pub struct VeilidConfigApplication {
     pub http: VeilidConfigHTTP,
 }
 
-/// Enable and configure UDP
+/// Enable and configure UDP.
 ///
 /// ```yaml
 /// udp:
@@ -133,7 +133,7 @@ impl Default for VeilidConfigUDP {
     }
 }
 
-/// Enable and configure TCP
+/// Enable and configure TCP.
 ///
 /// ```yaml
 /// tcp:
@@ -175,7 +175,7 @@ impl Default for VeilidConfigTCP {
     }
 }
 
-/// Enable and configure Web Sockets
+/// Enable and configure Web Sockets.
 ///
 /// ```yaml
 /// ws:
@@ -221,7 +221,7 @@ impl Default for VeilidConfigWS {
     }
 }
 
-/// Enable and configure Secure Web Sockets
+/// Enable and configure Secure Web Sockets.
 ///
 /// ```yaml
 /// wss:
@@ -258,7 +258,7 @@ impl Default for VeilidConfigWSS {
     }
 }
 
-/// Configure Network Protocols
+/// Configure Network Protocols.
 ///
 /// Veilid can communicate over UDP, TCP, and Web Sockets.
 ///
@@ -275,7 +275,7 @@ pub struct VeilidConfigProtocol {
     pub wss: VeilidConfigWSS,
 }
 
-/// Configure TLS
+/// Configure TLS.
 ///
 /// ```yaml
 /// tls:
@@ -326,7 +326,7 @@ pub fn get_default_ssl_directory(sub_path: &str) -> String {
     }
 }
 
-/// Configure the Distributed Hash Table (DHT)
+/// Configure the Distributed Hash Table (DHT).
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
@@ -410,7 +410,7 @@ impl Default for VeilidConfigDHT {
     }
 }
 
-/// Configure RPC
+/// Configure RPC.
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
@@ -440,7 +440,7 @@ impl Default for VeilidConfigRPC {
     }
 }
 
-/// Configure the network routing table
+/// Configure the network routing table.
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
@@ -721,9 +721,9 @@ pub struct VeilidConfigInner {
     pub network: VeilidConfigNetwork,
 }
 
-/// The Veilid Configuration
+/// The Veilid Configuration.
 ///
-/// Veilid is configured
+/// Veilid is configured.
 #[derive(Clone)]
 pub struct VeilidConfig {
     update_cb: Option<UpdateCallback>,
@@ -918,7 +918,7 @@ impl VeilidConfig {
 
         // Remove secrets
         safe_cfg.network.routing_table.node_id_secret = TypedSecretGroup::new();
-        safe_cfg.protected_store.device_encryption_key_password = "".to_owned();
+        "".clone_into(&mut safe_cfg.protected_store.device_encryption_key_password);
         safe_cfg.protected_store.new_device_encryption_key_password = None;
 
         safe_cfg
@@ -929,7 +929,7 @@ impl VeilidConfig {
 
         // Remove secrets
         safe_cfg.network.routing_table.node_id_secret = TypedSecretGroup::new();
-        safe_cfg.protected_store.device_encryption_key_password = "".to_owned();
+        "".clone_into(&mut safe_cfg.protected_store.device_encryption_key_password);
         safe_cfg.protected_store.new_device_encryption_key_password = None;
 
         VeilidConfig {
@@ -1223,8 +1223,8 @@ impl VeilidConfig {
         Ok((node_id, node_id_secret))
     }
 
-    /// Get the node id from config if one is specified
-    /// Must be done -after- protected store startup
+    /// Get the node id from config if one is specified.
+    /// Must be done -after- protected store startup.
     #[cfg_attr(test, allow(unused_variables))]
     pub async fn init_node_ids(
         &self,
@@ -1263,7 +1263,7 @@ impl VeilidConfig {
     }
 }
 
-/// Return the default veilid config as a json object
+/// Return the default veilid config as a json object.
 pub fn default_veilid_config() -> String {
     serialize_json(VeilidConfigInner::default())
 }

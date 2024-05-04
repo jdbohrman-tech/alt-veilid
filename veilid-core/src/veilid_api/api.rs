@@ -20,19 +20,19 @@ impl Drop for VeilidAPIInner {
     }
 }
 
-/// The primary developer entrypoint into `veilid-core` functionality
+/// The primary developer entrypoint into `veilid-core` functionality.
 ///
 /// From [VeilidAPI] one can access:
 ///
-/// * [VeilidConfig] - The Veilid configuration specified at startup time
-/// * [Crypto] - The available set of cryptosystems provided by Veilid
-/// * [TableStore] - The Veilid table-based encrypted persistent key-value store
-/// * [ProtectedStore] - The Veilid abstract of the device's low-level 'protected secret storage'
-/// * [VeilidState] - The current state of the Veilid node this API accesses
-/// * [RoutingContext] - Communication methods between Veilid nodes and private routes
-/// * Attach and detach from the network
-/// * Create and import private routes
-/// * Reply to `AppCall` RPCs
+/// * [VeilidConfig] - The Veilid configuration specified at startup time.
+/// * [Crypto] - The available set of cryptosystems provided by Veilid.
+/// * [TableStore] - The Veilid table-based encrypted persistent key-value store.
+/// * [ProtectedStore] - The Veilid abstract of the device's low-level 'protected secret storage'.
+/// * [VeilidState] - The current state of the Veilid node this API accesses.
+/// * [RoutingContext] - Communication methods between Veilid nodes and private routes.
+/// * Attach and detach from the network.
+/// * Create and import private routes.
+/// * Reply to `AppCall` RPCs.
 #[derive(Clone, Debug)]
 pub struct VeilidAPI {
     inner: Arc<Mutex<VeilidAPIInner>>,
@@ -50,7 +50,7 @@ impl VeilidAPI {
         }
     }
 
-    /// Shut down Veilid and terminate the API
+    /// Shut down Veilid and terminate the API.
     #[instrument(target = "veilid_api", level = "debug", skip_all)]
     pub async fn shutdown(self) {
         event!(target: "veilid_api", Level::DEBUG, 
@@ -61,7 +61,7 @@ impl VeilidAPI {
         }
     }
 
-    /// Check to see if Veilid is already shut down
+    /// Check to see if Veilid is already shut down.
     pub fn is_shutdown(&self) -> bool {
         self.inner.lock().context.is_none()
     }
@@ -69,7 +69,7 @@ impl VeilidAPI {
     ////////////////////////////////////////////////////////////////
     // Public Accessors
 
-    /// Access the configuration that Veilid was initialized with
+    /// Access the configuration that Veilid was initialized with.
     pub fn config(&self) -> VeilidAPIResult<VeilidConfig> {
         let inner = self.inner.lock();
         if let Some(context) = &inner.context {
@@ -78,7 +78,7 @@ impl VeilidAPI {
         Err(VeilidAPIError::NotInitialized)
     }
 
-    /// Get the cryptosystem manager
+    /// Get the cryptosystem manager.
     pub fn crypto(&self) -> VeilidAPIResult<Crypto> {
         let inner = self.inner.lock();
         if let Some(context) = &inner.context {
@@ -87,7 +87,7 @@ impl VeilidAPI {
         Err(VeilidAPIError::NotInitialized)
     }
 
-    /// Get the TableStore manager
+    /// Get the TableStore manager.
     pub fn table_store(&self) -> VeilidAPIResult<TableStore> {
         let inner = self.inner.lock();
         if let Some(context) = &inner.context {
@@ -96,7 +96,7 @@ impl VeilidAPI {
         Err(VeilidAPIError::not_initialized())
     }
 
-    /// Get the ProtectedStore manager
+    /// Get the ProtectedStore manager.
     pub fn protected_store(&self) -> VeilidAPIResult<ProtectedStore> {
         let inner = self.inner.lock();
         if let Some(context) = &inner.context {
@@ -154,7 +154,7 @@ impl VeilidAPI {
     ////////////////////////////////////////////////////////////////
     // Attach/Detach
 
-    /// Get a full copy of the current state of Veilid
+    /// Get a full copy of the current state of Veilid.
     pub async fn get_state(&self) -> VeilidAPIResult<VeilidState> {
         let attachment_manager = self.attachment_manager()?;
         let network_manager = attachment_manager.network_manager();
@@ -171,7 +171,7 @@ impl VeilidAPI {
         })
     }
 
-    /// Connect to the network
+    /// Connect to the network.
     #[instrument(target = "veilid_api", level = "debug", skip_all, ret, err)]
     pub async fn attach(&self) -> VeilidAPIResult<()> {
         event!(target: "veilid_api", Level::DEBUG, 
@@ -184,7 +184,7 @@ impl VeilidAPI {
         Ok(())
     }
 
-    /// Disconnect from the network
+    /// Disconnect from the network.
     #[instrument(target = "veilid_api", level = "debug", skip_all, ret, err)]
     pub async fn detach(&self) -> VeilidAPIResult<()> {
         event!(target: "veilid_api", Level::DEBUG, 
@@ -209,13 +209,13 @@ impl VeilidAPI {
         RoutingContext::try_new(self.clone())
     }
 
-    /// Parse a string into a target object that can be used in a [RoutingContext]
+    /// Parse a string into a target object that can be used in a [RoutingContext].
     ///
     /// Strings are in base64url format and can either be a remote route id or a node id.
     /// Strings may have a [CryptoKind] [FourCC] prefix separated by a colon, such as:
     /// `VLD0:XmnGyJrjMJBRC5ayJZRPXWTBspdX36-pbLb98H3UMeE` but if the prefix is left off
     /// `XmnGyJrjMJBRC5ayJZRPXWTBspdX36-pbLb98H3UMeE` will be parsed with the 'best' cryptosystem
-    /// available (at the time of this writing this is `VLD0`)
+    /// available (at the time of this writing this is `VLD0`).
     #[instrument(target = "veilid_api", level = "debug", skip(self), fields(s=s.to_string()), ret, err)]
     pub fn parse_as_target<S: ToString>(&self, s: S) -> VeilidAPIResult<Target> {
         let s = s.to_string();
@@ -245,10 +245,10 @@ impl VeilidAPI {
     ////////////////////////////////////////////////////////////////
     // Private route allocation
 
-    /// Allocate a new private route set with default cryptography and network options
-    /// Default settings are for Stability::Reliable and Sequencing::EnsureOrdered
-    /// Returns a route id and a publishable 'blob' with the route encrypted with each crypto kind
-    /// Those nodes importing the blob will have their choice of which crypto kind to use
+    /// Allocate a new private route set with default cryptography and network options.
+    /// Default settings are for [Stability::Reliable] and [Sequencing::EnsureOrdered].
+    /// Returns a route id and a publishable 'blob' with the route encrypted with each crypto kind.
+    /// Those nodes importing the blob will have their choice of which crypto kind to use.
     ///
     /// Returns a route id and 'blob' that can be published over some means (DHT or otherwise) to be
     /// imported by another Veilid node.
@@ -262,11 +262,11 @@ impl VeilidAPI {
         .await
     }
 
-    /// Allocate a new private route and specify a specific cryptosystem, stability and sequencing preference
-    /// Faster connections may be possible with Stability::LowLatency, and Sequencing::NoPreference at the 
-    /// expense of some loss of messages
-    /// Returns a route id and a publishable 'blob' with the route encrypted with each crypto kind
-    /// Those nodes importing the blob will have their choice of which crypto kind to use
+    /// Allocate a new private route and specify a specific cryptosystem, stability and sequencing preference.
+    /// Faster connections may be possible with [Stability::LowLatency], and [Sequencing::NoPreference] at the 
+    /// expense of some loss of messages.
+    /// Returns a route id and a publishable 'blob' with the route encrypted with each crypto kind.
+    /// Those nodes importing the blob will have their choice of which crypto kind to use.
     ///
     /// Returns a route id and 'blob' that can be published over some means (DHT or otherwise) to be
     /// imported by another Veilid node.
@@ -332,7 +332,7 @@ impl VeilidAPI {
         rss.import_remote_private_route_blob(blob)
     }
 
-    /// Release either a locally allocated or remotely imported private route
+    /// Release either a locally allocated or remotely imported private route.
     ///
     /// This will deactivate the route and free its resources and it can no longer be sent to
     /// or received from.
@@ -353,7 +353,7 @@ impl VeilidAPI {
     /// Respond to an AppCall received over a [VeilidUpdate::AppCall].
     ///
     /// * `call_id` - specifies which call to reply to, and it comes from a [VeilidUpdate::AppCall], specifically the [VeilidAppCall::id()] value.
-    /// * `message` - is an answer blob to be returned by the remote node's [RoutingContext::app_call()] function, and may be up to 32768 bytes
+    /// * `message` - is an answer blob to be returned by the remote node's [RoutingContext::app_call()] function, and may be up to 32768 bytes.
     #[instrument(target = "veilid_api", level = "debug", skip(self), ret, err)]
     pub async fn app_call_reply(
         &self,

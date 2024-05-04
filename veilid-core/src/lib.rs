@@ -14,12 +14,12 @@
 //!
 //! The default `veilid-core` configurations are:
 //!
-//! * `default` - Uses `tokio` as the async runtime
+//! * `default` - Uses `tokio` as the async runtime.
 //!
 //! If you use `--no-default-features`, you can switch to other runtimes:
 //!
-//! * `default-async-std` - Uses `async-std` as the async runtime
-//! * `default-wasm` - When building for the `wasm32` architecture, use this to enable `wasm-bindgen-futures` as the async runtime
+//! * `default-async-std` - Uses `async-std` as the async runtime.
+//! * `default-wasm` - When building for the `wasm32` architecture, use this to enable `wasm-bindgen-futures` as the async runtime.
 //!
 
 #![deny(clippy::all)]
@@ -67,7 +67,7 @@ pub use self::veilid_api::*;
 pub use self::veilid_config::*;
 pub use veilid_tools as tools;
 
-/// The on-the-wire serialization format for Veilid RPC
+/// The on-the-wire serialization format for Veilid RPC.
 pub mod veilid_capnp {
     include!("../proto/veilid_capnp.rs");
 }
@@ -75,12 +75,12 @@ pub mod veilid_capnp {
 #[doc(hidden)]
 pub mod tests;
 
-/// Return the cargo package version of veilid-core in string format
+/// Return the cargo package version of veilid-core in string format.
 pub fn veilid_version_string() -> String {
     env!("CARGO_PKG_VERSION").to_owned()
 }
 
-/// Return the cargo package version of veilid-core in tuple format
+/// Return the cargo package version of veilid-core in tuple format.
 pub fn veilid_version() -> (u32, u32, u32) {
     (
         u32::from_str(env!("CARGO_PKG_VERSION_MAJOR")).unwrap(),

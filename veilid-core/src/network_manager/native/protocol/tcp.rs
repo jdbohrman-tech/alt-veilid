@@ -109,7 +109,6 @@ impl RawTcpNetworkConnection {
 }
 
 ///////////////////////////////////////////////////////////
-///
 
 #[derive(Clone)]
 pub(in crate::network_manager) struct RawTcpProtocolHandler

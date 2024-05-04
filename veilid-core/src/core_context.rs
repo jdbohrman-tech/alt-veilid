@@ -8,9 +8,9 @@ use crate::*;
 
 pub type UpdateCallback = Arc<dyn Fn(VeilidUpdate) + Send + Sync>;
 
-/// Internal services startup mechanism
+/// Internal services startup mechanism.
 /// Ensures that everything is started up, and shut down in the right order
-/// and provides an atomic state for if the system is properly operational
+/// and provides an atomic state for if the system is properly operational.
 struct ServicesContext {
     pub config: VeilidConfig,
     pub update_callback: UpdateCallback,
@@ -186,7 +186,6 @@ impl ServicesContext {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-///
 pub(crate) struct VeilidCoreContext {
     pub config: VeilidConfig,
     pub update_callback: UpdateCallback,
@@ -289,12 +288,12 @@ lazy_static::lazy_static! {
 
 /// Initialize a Veilid node.
 ///
-/// Must be called only once at the start of an application
+/// Must be called only once at the start of an application.
 ///
-/// * `update_callback` - called when internal state of the Veilid node changes, for example, when app-level messages are received, when private routes die and need to be reallocated, or when routing table states change
-/// * `config_callback` - called at startup to supply a configuration object directly to Veilid
+/// * `update_callback` - called when internal state of the Veilid node changes, for example, when app-level messages are received, when private routes die and need to be reallocated, or when routing table states change.
+/// * `config_callback` - called at startup to supply a configuration object directly to Veilid.
 ///
-/// Returns a [VeilidAPI] object that can be used to operate the node
+/// Returns a [VeilidAPI] object that can be used to operate the node.
 #[instrument(err, skip_all)]
 pub async fn api_startup(
     update_callback: UpdateCallback,
@@ -318,14 +317,14 @@ pub async fn api_startup(
     Ok(veilid_api)
 }
 
-/// Initialize a Veilid node, with the configuration in JSON format
+/// Initialize a Veilid node, with the configuration in JSON format.
 ///
-/// Must be called only once at the start of an application
+/// Must be called only once at the start of an application.
 ///
-/// * `update_callback` - called when internal state of the Veilid node changes, for example, when app-level messages are received, when private routes die and need to be reallocated, or when routing table states change
-/// * `config_json` - called at startup to supply a JSON configuration object
+/// * `update_callback` - called when internal state of the Veilid node changes, for example, when app-level messages are received, when private routes die and need to be reallocated, or when routing table states change.
+/// * `config_json` - called at startup to supply a JSON configuration object.
 ///
-/// Returns a [VeilidAPI] object that can be used to operate the node
+/// Returns a [VeilidAPI] object that can be used to operate the node.
 #[instrument(err, skip_all)]
 pub async fn api_startup_json(
     update_callback: UpdateCallback,
@@ -348,14 +347,14 @@ pub async fn api_startup_json(
     Ok(veilid_api)
 }
 
-/// Initialize a Veilid node, with the configuration object
+/// Initialize a Veilid node, with the configuration object.
 ///
-/// Must be called only once at the start of an application
+/// Must be called only once at the start of an application.
 ///
-/// * `update_callback` - called when internal state of the Veilid node changes, for example, when app-level messages are received, when private routes die and need to be reallocated, or when routing table states change
-/// * `config` - called at startup to supply a configuration object
+/// * `update_callback` - called when internal state of the Veilid node changes, for example, when app-level messages are received, when private routes die and need to be reallocated, or when routing table states change.
+/// * `config` - called at startup to supply a configuration object.
 ///
-/// Returns a [VeilidAPI] object that can be used to operate the node
+/// Returns a [VeilidAPI] object that can be used to operate the node.
 #[instrument(err, skip_all)]
 pub async fn api_startup_config(
     update_callback: UpdateCallback,

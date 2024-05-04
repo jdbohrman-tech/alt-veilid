@@ -14,10 +14,10 @@ pub use process::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Request {
-    /// Operation Id (pairs with Response, or empty if unidirectional)
+    /// Operation Id (pairs with Response, or empty if unidirectional).
     #[serde(default)]
     pub id: u32,
-    /// The request operation variant
+    /// The request operation variant.
     #[serde(flatten)]
     pub op: RequestOp,
 }
@@ -31,10 +31,10 @@ pub enum RecvMessage {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Response {
-    /// Operation Id (pairs with Request, or empty if unidirectional)
+    /// Operation Id (pairs with Request, or empty if unidirectional).
     #[serde(default)]
     pub id: u32,
-    /// The response operation variant
+    /// The response operation variant.
     #[serde(flatten)]
     pub op: ResponseOp,
 }
