@@ -224,42 +224,42 @@ impl AttachmentManager {
             if let Err(err) = netman.startup().await {
                 error!("network startup failed: {}", err);
                 netman.shutdown().await;
-                break;
-            }
+                restart = true;
+            } else {
+                log_net!(debug "started maintaining peers");
+                while self.inner.lock().maintain_peers {
+                    // tick network manager
+                    if let Err(err) = netman.tick().await {
+                        error!("Error in network manager: {}", err);
+                        self.inner.lock().maintain_peers = false;
+                        restart = true;
+                        break;
+                    }
 
-            log_net!(debug "started maintaining peers");
-            while self.inner.lock().maintain_peers {
-                // tick network manager
-                if let Err(err) = netman.tick().await {
-                    error!("Error in network manager: {}", err);
-                    self.inner.lock().maintain_peers = false;
-                    restart = true;
-                    break;
+                    // see if we need to restart the network
+                    if netman.needs_restart() {
+                        info!("Restarting network");
+                        restart = true;
+                        break;
+                    }
+
+                    // Update attachment and network readiness state
+                    // and possibly send a VeilidUpdate::Attachment
+                    self.update_attachment();
+
+                    // sleep should be at the end in case maintain_peers changes state
+                    sleep(1000).await;
+                }
+                log_net!(debug "stopped maintaining peers");
+
+                if !restart {
+                    self.update_attaching_detaching_state(AttachmentState::Detaching);
+                    log_net!(debug "attachment stopping");
                 }
 
-                // see if we need to restart the network
-                if netman.needs_restart() {
-                    info!("Restarting network");
-                    restart = true;
-                    break;
-                }
-
-                // Update attachment and network readiness state
-                // and possibly send a VeilidUpdate::Attachment
-                self.update_attachment();
-
-                // sleep should be at the end in case maintain_peers changes state
-                sleep(1000).await;
+                log_net!(debug "stopping network");
+                netman.shutdown().await;
             }
-            log_net!(debug "stopped maintaining peers");
-
-            if !restart {
-                self.update_attaching_detaching_state(AttachmentState::Detaching);
-                log_net!(debug "attachment stopping");
-            }
-
-            log_net!(debug "stopping network");
-            netman.shutdown().await;
 
             if !restart {
                 break;
