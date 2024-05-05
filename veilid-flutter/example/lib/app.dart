@@ -112,7 +112,12 @@ class _MyAppState extends State<MyApp> with UiLoggy {
   Future<void> toggleStartup(bool startup) async {
     if (startup && !_startedUp) {
       var config = await getDefaultVeilidConfig(
-          isWeb: kIsWeb, programName: 'Veilid Plugin Example');
+          isWeb: kIsWeb,
+          programName: 'Veilid Plugin Example',
+          // ignore: avoid_redundant_argument_values, do_not_use_environment
+          bootstrap: const String.fromEnvironment('BOOTSTRAP'),
+          // ignore: avoid_redundant_argument_values, do_not_use_environment
+          networkKeyPassword: const String.fromEnvironment('NETWORK_KEY'));
       // ignore: do_not_use_environment
       if (const String.fromEnvironment('DELETE_TABLE_STORE') == '1') {
         config = config.copyWith(

@@ -38,20 +38,24 @@ class DefaultVeilidFixture implements VeilidFixture {
         ? <String>[]
         : ignoreLogTargetsStr.split(',').map((e) => e.trim()).toList();
 
+    final logLevel = VeilidConfigLogLevel.fromJson(
+        // ignore: do_not_use_environment
+        const String.fromEnvironment('LOG_LEVEL', defaultValue: 'info'));
+
     final Map<String, dynamic> platformConfigJson;
     if (kIsWeb) {
       final platformConfig = VeilidWASMConfig(
           logging: VeilidWASMConfigLogging(
               performance: VeilidWASMConfigLoggingPerformance(
                 enabled: true,
-                level: VeilidConfigLogLevel.debug,
+                level: logLevel,
                 logsInTimings: true,
-                logsInConsole: false,
+                logsInConsole: true,
                 ignoreLogTargets: ignoreLogTargets,
               ),
               api: VeilidWASMConfigLoggingApi(
                 enabled: true,
-                level: VeilidConfigLogLevel.info,
+                level: logLevel,
                 ignoreLogTargets: ignoreLogTargets,
               )));
       platformConfigJson = platformConfig.toJson();
@@ -72,8 +76,7 @@ class DefaultVeilidFixture implements VeilidFixture {
               ),
               api: VeilidFFIConfigLoggingApi(
                 enabled: true,
-                // level: VeilidConfigLogLevel.debug,
-                level: VeilidConfigLogLevel.info,
+                level: logLevel,
                 ignoreLogTargets: ignoreLogTargets,
               )));
       platformConfigJson = platformConfig.toJson();

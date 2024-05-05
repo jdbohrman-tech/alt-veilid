@@ -103,10 +103,11 @@ async fn wasm_test_serialize_routing_table() {
     setup();
     test_serialize_routing_table::test_all().await;
 }
-
+/* Should be an integration test not a unit test
 #[wasm_bindgen_test]
 #[serial]
 async fn wasm_test_dht() {
     setup();
     test_dht::test_all().await;
 }
+*/
