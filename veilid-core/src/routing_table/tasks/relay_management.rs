@@ -163,8 +163,19 @@ impl RoutingTable {
             if e.has_node_info(RoutingDomain::LocalNetwork.into()) {
                 return false;
             }
-            let Some(node_info) = e.node_info(RoutingDomain::PublicInternet) else {
+            let Some(signed_node_info) = e.signed_node_info(RoutingDomain::PublicInternet) else {
                 return false;
+            };
+
+            // Until we have a way of reducing a SignedRelayedNodeInfo to a SignedDirectNodeInfo
+            // See https://gitlab.com/veilid/veilid/-/issues/381
+            // We should consider nodes with allocated relays as disqualified from being a relay themselves
+            // due to limitations in representing the PeerInfo for relays that also have relays.
+            let node_info = match signed_node_info {
+                SignedNodeInfo::Direct(d) => d.node_info(),
+                SignedNodeInfo::Relayed(_) => {
+                    return false;
+                }
             };
 
             // Disqualify nodes that don't have relay capability or require a relay themselves
