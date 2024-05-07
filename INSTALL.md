@@ -112,4 +112,8 @@ sudo -u veilid veilid-server
 
 ## Post Install
 
-To let veilid access other nodes, you'll need to open up access to port 5150 for both tcp and udp. You can additionally open port 5151 as well, though if 5150 is open, that should be enough.
+To let veilid access other nodes in the wider network, you'll need to open up access to port 5150 for both tcp and udp. This is the port that the process uses by default.
+
+If something is already using port 5150, then veilid will attempt the next port up (ie, 5151). Veilid-server typically only has a single instance running on a machine. However, machines can run several different processes which include veilid-core. These additional processes will try to use ports 5151, 5152, and so on.
+
+In the event the listening port is not opened in the firewall, an application will still operate, though in a fairly degraded mode that relies on another node to relay incoming RPC messages to them.
