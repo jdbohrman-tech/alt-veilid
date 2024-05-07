@@ -34,7 +34,13 @@ build_cache:
   extends: .base
   stage: prepare
   script:
-    - if ! docker manifest inspect $CI_REGISTRY_IMAGE/build-cache:latest > /dev/null || [[ "$CI_PIPELINE_SOURCE" == "schedule" ]] || [[ "$CI_PIPELINE_SOURCE" == "web" ]] ; then
+    - apk update && apk add jq && apk add curl
+    - 'CONT_REPO_ID=$(curl "https://gitlab.com/api/graphql" --header "Content-Type: application/json" --request POST --data "{\"query\": \"query { project(fullPath: \\\"$CI_PROJECT_PATH\\\" ) { containerRepositories( name: \\\"build-cache\\\" ) { nodes { id }}}} \"}" | jq -r ".data.project.containerRepositories.nodes[0].id")'
+    - 'CACHE_TS=$(curl "https://gitlab.com/api/graphql" --header "Content-Type: application/json" --request POST --data "{\"query\": \"query { containerRepository(id: \\\"$CONT_REPO_ID\\\") { tags( first: 1 name: \\\"latest\\\" ) { nodes { location publishedAt }}}} \"}" | jq -r ".data.containerRepository.tags.nodes[0].publishedAt" | cut -d "+" -f1 | sed "s/T/ /g" )'
+    - CACHE_EPOCH=$(date -d "$CACHE_TS" +%s)
+    - EARTHLY_EPOCH=$(git log -1 --format=%ct Earthfile)
+    - echo "CACHE EPOCH = $CACHE_EPOCH, EARTHLY EPOCH = $EARTHLY_EPOCH"
+    - if ! docker manifest inspect $CI_REGISTRY_IMAGE/build-cache:latest > /dev/null || [[ $EARTHLY_EPOCH -gt $CACHE_EPOCH ]] || [[ "$CI_PIPELINE_SOURCE" == "schedule" ]] || [[ "$CI_PIPELINE_SOURCE" == "web" ]] ; then
     -   *earthly_setup
     -   earthly --use-inline-cache --save-inline-cache --strict --push -P +build-linux-cache $project_args
     - else
