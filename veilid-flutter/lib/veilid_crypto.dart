@@ -131,6 +131,7 @@ class TypedKeyPair extends Equatable {
   String toString() => '${cryptoKindToString(kind)}:$key:$secret';
 
   String toJson() => toString();
+  KeyPair toKeyPair() => KeyPair(key: key, secret: secret);
 }
 
 typedef CryptoKey = FixedEncodedString43;
