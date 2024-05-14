@@ -8,7 +8,7 @@ use std::{
     process::{Command, Stdio},
 };
 
-const CAPNP_VERSION: &str = "1.0.1";
+const CAPNP_VERSION: &str = "1.0.2";
 
 fn get_desired_capnp_version_string() -> String {
     CAPNP_VERSION.to_string()
