@@ -133,7 +133,13 @@ fn main() {
         return;
     }
 
-    if is_input_file_outdated("./proto/veilid.capnp", "./proto/veilid_capnp.rs").unwrap() {
+    // Check if installed capnp version is different from the desired version - force rebuild then
+    if get_capnp_version_string() != get_desired_capnp_version_string() {
+        println!("cargo:warning=rebuilding proto/veilid_capnp.rs because desired capnp version is different from the installed version");
+        do_capnp_build();
+    }
+    // Check if the hash in the generated file is different from the hash of the input file - force rebuild then (This signifies there's been a change in the input)
+    else if is_input_file_outdated("./proto/veilid.capnp", "./proto/veilid_capnp.rs").unwrap() {
         println!("cargo:warning=rebuilding proto/veilid_capnp.rs because it has changed from the last generation of proto/veilid.capnp");
         do_capnp_build();
     }
