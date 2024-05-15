@@ -35,7 +35,8 @@ deps-base:
         cd capnproto-c++-1.0.2; \
         ./configure; \
         make -j6 check; \
-        sudo make install;
+        make install; \
+        rm -rf capnproto-*;
 
 # Install Rust
 deps-rust:
