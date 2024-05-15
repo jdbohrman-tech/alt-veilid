@@ -28,7 +28,14 @@ WORKDIR /veilid
 # Install build prerequisites & setup required directories
 deps-base:
     RUN apt-get -y update
-    RUN apt-get install -y iproute2 curl build-essential cmake libssl-dev openssl file git pkg-config libdbus-1-dev libdbus-glib-1-dev libgirepository1.0-dev libcairo2-dev checkinstall unzip libncursesw5-dev libncurses5-dev capnproto
+    RUN apt-get install -y iproute2 curl build-essential cmake libssl-dev openssl file git pkg-config libdbus-1-dev libdbus-glib-1-dev libgirepository1.0-dev libcairo2-dev checkinstall unzip libncursesw5-dev libncurses5-dev
+    # Install a fixed version of capnproto
+    RUN curl -O https://capnproto.org/capnproto-c++-1.0.2.tar.gz; \
+        tar zxf capnproto-c++-1.0.2.tar.gz; \
+        cd capnproto-c++-1.0.2; \
+        ./configure; \
+        make -j6 check; \
+        sudo make install;
 
 # Install Rust
 deps-rust:
