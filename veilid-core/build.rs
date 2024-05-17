@@ -36,14 +36,30 @@ where
     P: AsRef<Path>,
     Q: AsRef<Path>,
 {
-    let Some(out_bh) = get_build_hash(output) else {
+    let (Some(out_bh), Some(out_capnp_hash)) = get_build_hash_and_capnp_version_hash(output) else {
         // output file not found or no build hash, we are outdated
+        println!("cargo:warning=Output file not found or no build hash.");
         return Ok(true);
     };
 
+    // Check if capnp version hash has changed
+    let mut hasher = Sha256::new();
+    hasher.update(get_capnp_version_string().as_bytes());
+    let capnp_hash = hex::encode(hasher.finalize()).as_bytes().to_vec();
+
     let in_bh = make_build_hash(input);
 
-    Ok(out_bh != in_bh)
+    if out_bh != in_bh {
+        println!("cargo:warning=Build hash has changed.");
+        return Ok(true);
+    }
+
+    if out_capnp_hash != capnp_hash {
+        println!("cargo:warning=Capnp version hash has changed.");
+        return Ok(true);
+    }
+
+    Ok(false)
 }
 
 fn calculate_hash(lines: std::io::Lines<std::io::BufReader<std::fs::File>>) -> Vec<u8> {
@@ -58,15 +74,21 @@ fn calculate_hash(lines: std::io::Lines<std::io::BufReader<std::fs::File>>) -> V
     out.to_vec()
 }
 
-fn get_build_hash<Q: AsRef<Path>>(output_path: Q) -> Option<Vec<u8>> {
-    let lines = std::io::BufReader::new(std::fs::File::open(output_path).ok()?).lines();
+fn get_build_hash_and_capnp_version_hash<Q: AsRef<Path>>(
+    output_path: Q,
+) -> (Option<Vec<u8>>, Option<Vec<u8>>) {
+    let lines = std::io::BufReader::new(std::fs::File::open(output_path).ok().unwrap()).lines();
+    let mut build_hash = None;
+    let mut capnp_version_hash = None;
     for l in lines {
         let l = l.unwrap();
         if let Some(rest) = l.strip_prefix("//BUILDHASH:") {
-            return Some(hex::decode(rest).unwrap());
+            build_hash = Some(hex::decode(rest).unwrap());
+        } else if let Some(rest) = l.strip_prefix("//CAPNPVERSIONHASH:") {
+            capnp_version_hash = Some(hex::decode(rest).unwrap());
         }
     }
-    None
+    (build_hash, capnp_version_hash)
 }
 
 fn make_build_hash<P: AsRef<Path>>(input_path: P) -> Vec<u8> {
@@ -75,13 +97,26 @@ fn make_build_hash<P: AsRef<Path>>(input_path: P) -> Vec<u8> {
     calculate_hash(lines)
 }
 
-fn append_hash<P: AsRef<Path>, Q: AsRef<Path>>(input_path: P, output_path: Q) {
+fn append_hash_and_detected_capnp_version_hash<P: AsRef<Path>, Q: AsRef<Path>>(
+    input_path: P,
+    output_path: Q,
+) {
     let input_path = input_path.as_ref();
     let output_path = output_path.as_ref();
     let lines = std::io::BufReader::new(std::fs::File::open(input_path).unwrap()).lines();
     let h = calculate_hash(lines);
+
     let mut out_file = OpenOptions::new().append(true).open(output_path).unwrap();
     writeln!(out_file, "\n//BUILDHASH:{}", hex::encode(h)).unwrap();
+
+    let mut hasher = Sha256::new();
+    hasher.update(get_capnp_version_string().as_bytes());
+    writeln!(
+        out_file,
+        "\n//CAPNPVERSIONHASH:{}",
+        hex::encode(hasher.finalize())
+    )
+    .unwrap();
 }
 
 fn do_capnp_build() {
@@ -122,7 +157,8 @@ fn do_capnp_build() {
         .expect("compiling schema");
 
     // If successful, append a hash of the input to the output file
-    append_hash("proto/veilid.capnp", "proto/veilid_capnp.rs");
+    // Also append a hash of the detected capnp version to the output file
+    append_hash_and_detected_capnp_version_hash("proto/veilid.capnp", "proto/veilid_capnp.rs");
 }
 
 fn main() {
@@ -133,13 +169,7 @@ fn main() {
         return;
     }
 
-    // Check if installed capnp version is different from the desired version - force rebuild then
-    if get_capnp_version_string() != get_desired_capnp_version_string() {
-        println!("cargo:warning=rebuilding proto/veilid_capnp.rs because desired capnp version is different from the installed version");
-        do_capnp_build();
-    }
-    // Check if the hash in the generated file is different from the hash of the input file - force rebuild then (This signifies there's been a change in the input)
-    else if is_input_file_outdated("./proto/veilid.capnp", "./proto/veilid_capnp.rs").unwrap() {
+    if is_input_file_outdated("./proto/veilid.capnp", "./proto/veilid_capnp.rs").unwrap() {
         println!("cargo:warning=rebuilding proto/veilid_capnp.rs because it has changed from the last generation of proto/veilid.capnp");
         do_capnp_build();
     }
