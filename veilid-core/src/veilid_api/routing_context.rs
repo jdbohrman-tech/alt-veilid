@@ -228,10 +228,11 @@ impl RoutingContext {
     ///////////////////////////////////
     /// DHT Records
 
-    /// Creates a new DHT record a specified crypto kind and schema.
+    /// Creates a new DHT record
     ///
     /// The record is considered 'open' after the create operation succeeds.
-    ///
+    /// * 'schema' - the schema to use when creating the DHT record
+    /// * 'kind' - specify a cryptosystem kind to use. Normally you will leave this as None to choose the 'best' cryptosystem available.
     /// Returns the newly allocated DHT record's key if successful.    
     #[instrument(target = "veilid_api", level = "debug", ret, err)]
     pub async fn create_dht_record(

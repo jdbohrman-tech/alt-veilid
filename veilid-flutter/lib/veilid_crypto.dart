@@ -28,6 +28,9 @@ Uint8List cryptoKindToBytes(CryptoKind kind) {
   return b;
 }
 
+CryptoKind cryptoKindFromBytes(Uint8List b) =>
+    ByteData.sublistView(b).getUint32(0);
+
 CryptoKind cryptoKindFromString(String s) {
   if (s.codeUnits.length != 4) {
     throw const FormatException('malformed string');
@@ -53,6 +56,11 @@ class Typed<V extends EncodedString> extends Equatable {
     final value = EncodedString.fromString<V>(parts.sublist(1).join(':'));
     return Typed(kind: kind, value: value);
   }
+  factory Typed.fromBytes(Uint8List b) {
+    final kind = cryptoKindFromBytes(b);
+    final value = EncodedString.fromBytes<V>(b.sublist(4));
+    return Typed(kind: kind, value: value);
+  }
   factory Typed.fromJson(dynamic json) => Typed.fromString(json as String);
   final CryptoKind kind;
   final V value;
@@ -67,6 +75,32 @@ class Typed<V extends EncodedString> extends Equatable {
       ..add(cryptoKindToBytes(kind))
       ..add(value.decode());
     return b.toBytes();
+  }
+
+  static int encodedLength<X>() {
+    switch (X) {
+      case const (Typed<FixedEncodedString32>):
+        return FixedEncodedString32.encodedLength() + 5;
+      case const (Typed<FixedEncodedString43>):
+        return FixedEncodedString43.encodedLength() + 5;
+      case const (Typed<FixedEncodedString86>):
+        return FixedEncodedString86.encodedLength() + 5;
+      default:
+        throw UnimplementedError();
+    }
+  }
+
+  static int decodedLength<X>() {
+    switch (X) {
+      case const (Typed<FixedEncodedString32>):
+        return FixedEncodedString32.decodedLength() + 4;
+      case const (Typed<FixedEncodedString43>):
+        return FixedEncodedString43.decodedLength() + 4;
+      case const (Typed<FixedEncodedString86>):
+        return FixedEncodedString86.decodedLength() + 4;
+      default:
+        throw UnimplementedError();
+    }
   }
 
   String toJson() => toString();

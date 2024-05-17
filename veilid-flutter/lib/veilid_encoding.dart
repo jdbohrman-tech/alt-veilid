@@ -52,6 +52,32 @@ abstract class EncodedString extends Equatable {
   @override
   String toString() => contents;
 
+  static int encodedLength<T extends EncodedString>() {
+    switch (T) {
+      case FixedEncodedString32:
+        return FixedEncodedString32.encodedLength();
+      case FixedEncodedString43:
+        return FixedEncodedString43.encodedLength();
+      case FixedEncodedString86:
+        return FixedEncodedString86.encodedLength();
+      default:
+        throw UnimplementedError();
+    }
+  }
+
+  static int decodedLength<T extends EncodedString>() {
+    switch (T) {
+      case FixedEncodedString32:
+        return FixedEncodedString32.decodedLength();
+      case FixedEncodedString43:
+        return FixedEncodedString43.decodedLength();
+      case FixedEncodedString86:
+        return FixedEncodedString86.decodedLength();
+      default:
+        throw UnimplementedError();
+    }
+  }
+
   static T fromBytes<T extends EncodedString>(Uint8List bytes) {
     switch (T) {
       case FixedEncodedString32:
