@@ -32,6 +32,8 @@ pub(super) struct StorageManagerInner {
     pub tick_future: Option<SendPinBoxFuture<()>>,
     /// Update callback to send ValueChanged notification to
     pub update_callback: Option<UpdateCallback>,
+    /// Deferred result processor
+    pub deferred_result_processor: DeferredStreamProcessor,
 
     /// The maximum consensus count
     set_consensus_count: usize,
@@ -88,6 +90,7 @@ impl StorageManagerInner {
             opt_routing_table: Default::default(),
             tick_future: Default::default(),
             update_callback: None,
+            deferred_result_processor: DeferredStreamProcessor::default(),
             set_consensus_count,
         }
     }
@@ -126,6 +129,9 @@ impl StorageManagerInner {
 
         self.load_metadata().await?;
 
+        // Start deferred results processors
+        self.deferred_result_processor.init().await;
+
         // Schedule tick
         let tick_future = interval(1000, move || {
             let this = outer_self.clone();
@@ -150,6 +156,9 @@ impl StorageManagerInner {
         if let Some(f) = tick_future {
             f.await;
         }
+
+        // Stop deferred result processor
+        self.deferred_result_processor.terminate().await;
 
         // Final flush on record stores
         if let Some(mut local_record_store) = self.local_record_store.take() {
@@ -707,5 +716,13 @@ impl StorageManagerInner {
                 safety_selection,
                 subkeys: ValueSubkeyRangeSet::single(subkey),
             });
+    }
+
+    pub fn process_deferred_results<T: Send + 'static>(
+        &mut self,
+        receiver: flume::Receiver<T>,
+        handler: impl FnMut(T) -> SendPinBoxFuture<bool> + Send + 'static,
+    ) -> bool {
+        self.deferred_result_processor.add(receiver, handler)
     }
 }

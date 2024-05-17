@@ -10,9 +10,15 @@ where
 
 #[derive(Debug, Copy, Clone)]
 pub(crate) enum FanoutResultKind {
+    Partial,
     Timeout,
     Finished,
     Exhausted,
+}
+impl FanoutResultKind {
+    pub fn is_partial(&self) -> bool {
+        matches!(self, Self::Partial)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -23,6 +29,7 @@ pub(crate) struct FanoutResult {
 
 pub(crate) fn debug_fanout_result(result: &FanoutResult) -> String {
     let kc = match result.kind {
+        FanoutResultKind::Partial => "P",
         FanoutResultKind::Timeout => "T",
         FanoutResultKind::Finished => "F",
         FanoutResultKind::Exhausted => "E",
