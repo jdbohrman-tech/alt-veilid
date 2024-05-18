@@ -1090,7 +1090,7 @@ impl NetworkManager {
         };
 
         // Cache the envelope information in the routing table
-        let source_noderef = match routing_table.register_node_with_existing_connection(
+        let mut source_noderef = match routing_table.register_node_with_existing_connection(
             envelope.get_sender_typed_id(),
             flow,
             ts,
@@ -1103,6 +1103,9 @@ impl NetworkManager {
             }
         };
         source_noderef.add_envelope_version(envelope.get_version());
+
+        // Enforce routing domain
+        source_noderef.merge_filter(NodeRefFilter::new().with_routing_domain(routing_domain));
 
         // Pass message to RPC system
         rpc.enqueue_direct_message(envelope, source_noderef, flow, routing_domain, body)?;

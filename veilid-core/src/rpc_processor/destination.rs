@@ -28,6 +28,14 @@ pub(crate) enum Destination {
     },
 }
 
+/// Routing configuration for destination
+#[derive(Debug, Clone)]
+pub struct UnsafeRoutingInfo {
+    pub opt_node: Option<NodeRef>,
+    pub opt_relay: Option<NodeRef>,
+    pub opt_routing_domain: Option<RoutingDomain>,
+}
+
 impl Destination {
     pub fn node(&self) -> Option<NodeRef> {
         match self {
@@ -137,6 +145,81 @@ impl Destination {
                 Ok(Target::PrivateRoute(route_id))
             }
         }
+    }
+
+    pub fn get_unsafe_routing_info(
+        &self,
+        routing_table: RoutingTable,
+    ) -> Option<UnsafeRoutingInfo> {
+        // If there's a safety route in use, the safety route will be responsible for the routing
+        match self.get_safety_selection() {
+            SafetySelection::Unsafe(_) => {}
+            SafetySelection::Safe(_) => {
+                return None;
+            }
+        }
+
+        // Get:
+        // * The target node (possibly relayed)
+        // * The routing domain we are sending to if we can determine it
+        let (opt_node, opt_relay, opt_routing_domain) = match self {
+            Destination::Direct {
+                node,
+                safety_selection: _,
+            } => {
+                let opt_routing_domain = node.best_routing_domain();
+                if opt_routing_domain.is_none() {
+                    // No routing domain for target, no node info
+                    // Only a stale connection or no connection exists
+                    log_rpc!(debug "No routing domain for node: node={}", node);
+                };
+                (Some(node.clone()), None, opt_routing_domain)
+            }
+            Destination::Relay {
+                relay,
+                node,
+                safety_selection: _,
+            } => {
+                // Outbound relays are defined as routing to and from PublicInternet only right now
+
+                // Resolve the relay for this target's routing domain and see if it matches this relay
+                let mut opt_routing_domain = None;
+                for target_rd in node.routing_domain_set() {
+                    // Check out inbound/outbound relay to match routing domain
+                    if let Some(relay_node) = routing_table.relay_node(target_rd) {
+                        if relay.same_entry(&relay_node) {
+                            // Relay for this destination is one of our routing domain relays (our inbound or outbound)
+                            opt_routing_domain = Some(target_rd);
+                            break;
+                        }
+                    }
+                    // Check remote node's published relay to see if that who is relaying
+                    if let Some(target_relay) = node.relay(target_rd).ok().flatten() {
+                        if relay.same_entry(&target_relay) {
+                            // Relay for this destination is one of its published relays
+                            opt_routing_domain = Some(target_rd);
+                            break;
+                        }
+                    }
+                }
+                if opt_routing_domain.is_none() {
+                    // In the case of an unexpected relay, log it and don't pass any sender peer info into an unexpected relay
+                    log_rpc!(debug "Unexpected relay used for node: relay={}, node={}", relay, node);
+                };
+
+                (Some(node.clone()), Some(relay.clone()), opt_routing_domain)
+            }
+            Destination::PrivateRoute {
+                private_route: _,
+                safety_selection: _,
+            } => (None, None, Some(RoutingDomain::PublicInternet)),
+        };
+
+        Some(UnsafeRoutingInfo {
+            opt_node,
+            opt_relay,
+            opt_routing_domain,
+        })
     }
 }
 
