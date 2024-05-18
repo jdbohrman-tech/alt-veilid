@@ -53,11 +53,13 @@ use storage_manager::*;
 struct RPCMessageHeaderDetailDirect {
     /// The decoded header of the envelope
     envelope: Envelope,
-    /// The noderef of the peer that sent the message (not the original sender). Ensures node doesn't get evicted from routing table until we're done with it
+    /// The noderef of the peer that sent the message (not the original sender). 
+    /// Ensures node doesn't get evicted from routing table until we're done with it
+    /// Should be filted to the routing domain of the peer that we received from
     peer_noderef: NodeRef,
     /// The flow from the peer sent the message (not the original sender)
     flow: Flow,
-    /// The routing domain the message was sent through
+    /// The routing domain of the peer that we received from
     routing_domain: RoutingDomain,
 }
 
@@ -869,51 +871,36 @@ impl RPCProcessor {
         // Don't do this if the sender is to remain private
         // Otherwise we would be attaching the original sender's identity to the final destination,
         // thus defeating the purpose of the safety route entirely :P
-        match dest.get_safety_selection() {
-            SafetySelection::Unsafe(_) => {}
-            SafetySelection::Safe(_) => {
-                return SenderPeerInfo::default();
-            }
-        }
-
-        // Get the target we're sending to
-        let routing_table = self.routing_table();
-        let target = match dest {
-            Destination::Direct {
-                node: target,
-                safety_selection: _,
-            } => target.clone(),
-            Destination::Relay {
-                relay: _,
-                node: target,
-                safety_selection: _,
-            } => target.clone(),
-            Destination::PrivateRoute {
-                private_route: _,
-                safety_selection: _,
-            } => {
-                return SenderPeerInfo::default();
-            }
+        let Some(UnsafeRoutingInfo {
+            opt_node, opt_relay: _, opt_routing_domain
+        }) = dest.get_unsafe_routing_info(self.routing_table.clone()) else {
+            return SenderPeerInfo::default();
         };
-
-        let Some(routing_domain) = target.best_routing_domain() else {
+        let Some(node) = opt_node else {
+            // If this is going over a private route, don't bother sending any sender peer info
+            // The other side won't accept it because peer info sent over a private route
+            // could be used to deanonymize the private route's endpoint
+            return SenderPeerInfo::default();
+        };
+        let Some(routing_domain) = opt_routing_domain else {
             // No routing domain for target, no node info
             // Only a stale connection or no connection exists
             return SenderPeerInfo::default();
         };
 
         // Get the target's node info timestamp
-        let target_node_info_ts = target.node_info_ts(routing_domain);
+        let target_node_info_ts = node.node_info_ts(routing_domain);
 
         // Return whatever peer info we have even if the network class is not yet valid
         // That away we overwrite any prior existing valid-network-class nodeinfo in the remote routing table
+        let routing_table = self.routing_table();
         let own_peer_info = routing_table.get_own_peer_info(routing_domain);
 
         // Get our node info timestamp
         let our_node_info_ts = own_peer_info.signed_node_info().timestamp();
 
         // If the target has seen our node info already don't send it again
-        if target.has_seen_our_node_info_ts(routing_domain, our_node_info_ts) {
+        if node.has_seen_our_node_info_ts(routing_domain, our_node_info_ts) {
             return SenderPeerInfo::new_no_peer_info(target_node_info_ts);
         }
 
@@ -1358,6 +1345,7 @@ impl RPCProcessor {
         request: RPCMessage,
         answer: RPCAnswer,
     ) ->RPCNetworkResult<()> {
+
         // Extract destination from respond_to
         let dest = network_result_try!(self.get_respond_to_destination(&request));
 
