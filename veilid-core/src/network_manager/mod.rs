@@ -340,6 +340,14 @@ impl NetworkManager {
             .connection_manager
             .clone()
     }
+    pub fn opt_connection_manager(&self) -> Option<ConnectionManager> {
+        self.unlocked_inner
+            .components
+            .read()
+            .as_ref()
+            .map(|x| x.connection_manager.clone())
+    }
+
     pub fn update_callback(&self) -> UpdateCallback {
         self.unlocked_inner
             .update_callback
