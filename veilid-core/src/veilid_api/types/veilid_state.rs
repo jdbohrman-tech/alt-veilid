@@ -17,6 +17,21 @@ pub enum AttachmentState {
     OverAttached = 6,
     Detaching = 7,
 }
+impl AttachmentState {
+    pub fn is_detached(&self) -> bool {
+        matches!(self, Self::Detached)
+    }
+    pub fn is_attached(&self) -> bool {
+        matches!(
+            self,
+            Self::AttachedWeak
+                | Self::AttachedGood
+                | Self::AttachedStrong
+                | Self::FullyAttached
+                | Self::OverAttached
+        )
+    }
+}
 
 impl fmt::Display for AttachmentState {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {

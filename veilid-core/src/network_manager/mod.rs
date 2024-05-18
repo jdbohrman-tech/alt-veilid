@@ -323,6 +323,14 @@ impl NetworkManager {
             .rpc_processor
             .clone()
     }
+    pub fn opt_rpc_processor(&self) -> Option<RPCProcessor> {
+        self.unlocked_inner
+            .components
+            .read()
+            .as_ref()
+            .map(|x| x.rpc_processor.clone())
+    }
+
     pub fn connection_manager(&self) -> ConnectionManager {
         self.unlocked_inner
             .components
