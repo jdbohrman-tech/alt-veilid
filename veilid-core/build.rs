@@ -42,9 +42,9 @@ where
         return Ok(true);
     };
 
-    // Check if capnp version hash has changed
+    // Check if desired CAPNP_VERSION hash has changed
     let mut hasher = Sha256::new();
-    hasher.update(get_capnp_version_string().as_bytes());
+    hasher.update(get_desired_capnp_version_string().as_bytes());
     let capnp_hash = hex::encode(hasher.finalize()).as_bytes().to_vec();
 
     let in_bh = make_build_hash(input);
@@ -55,7 +55,7 @@ where
     }
 
     if out_capnp_hash != capnp_hash {
-        println!("cargo:warning=Capnp version hash has changed.");
+        println!("cargo:warning=Capnp desired version hash has changed.");
         return Ok(true);
     }
 
@@ -84,7 +84,7 @@ fn get_build_hash_and_capnp_version_hash<Q: AsRef<Path>>(
         let l = l.unwrap();
         if let Some(rest) = l.strip_prefix("//BUILDHASH:") {
             build_hash = Some(hex::decode(rest).unwrap());
-        } else if let Some(rest) = l.strip_prefix("//CAPNPVERSIONHASH:") {
+        } else if let Some(rest) = l.strip_prefix("//CAPNPDESIREDVERSIONHASH:") {
             capnp_version_hash = Some(hex::decode(rest).unwrap());
         }
     }
@@ -113,7 +113,7 @@ fn append_hash_and_detected_capnp_version_hash<P: AsRef<Path>, Q: AsRef<Path>>(
     hasher.update(get_capnp_version_string().as_bytes());
     writeln!(
         out_file,
-        "\n//CAPNPVERSIONHASH:{}",
+        "\n//CAPNPDESIREDVERSIONHASH:{}",
         hex::encode(hasher.finalize())
     )
     .unwrap();

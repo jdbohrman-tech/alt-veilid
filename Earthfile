@@ -13,7 +13,7 @@ VERSION 0.7
 
 # Start with older Ubuntu to ensure GLIBC symbol versioning support for older linux
 # Ensure we are using an amd64 platform because some of these targets use cross-platform tooling
-FROM ubuntu:24.04
+FROM ubuntu:18.04
 
 ENV ZIG_VERSION=0.13.0-dev.46+3648d7df1
 ENV RUSTUP_HOME=/usr/local/rustup
@@ -28,7 +28,7 @@ WORKDIR /veilid
 # Install build prerequisites & setup required directories
 deps-base:
     RUN apt-get -y update
-    RUN apt-get install -y iproute2 curl build-essential cmake libssl-dev openssl file git pkg-config libdbus-1-dev libdbus-glib-1-dev libgirepository1.0-dev libcairo2-dev checkinstall unzip libncursesw5-dev libncurses5-dev capnproto
+    RUN apt-get install -y iproute2 curl build-essential cmake libssl-dev openssl file git pkg-config libdbus-1-dev libdbus-glib-1-dev libgirepository1.0-dev libcairo2-dev checkinstall unzip libncursesw5-dev libncurses5-dev
 
 # Install Rust
 deps-rust:
