@@ -116,7 +116,7 @@ fn append_hash_and_desired_capnp_version_hash<P: AsRef<Path>, Q: AsRef<Path>>(
     writeln!(out_file, "\n//BUILDHASH:{}", hex::encode(h)).unwrap();
 
     let mut hasher = Sha256::new();
-    hasher.update(get_capnp_version_string().as_bytes());
+    hasher.update(get_desired_capnp_version_string().as_bytes());
     writeln!(
         out_file,
         "\n//CAPNPDESIREDVERSIONHASH:{}",
