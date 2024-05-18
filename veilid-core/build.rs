@@ -45,7 +45,7 @@ where
     // Check if desired CAPNP_VERSION hash has changed
     let mut hasher = Sha256::new();
     hasher.update(get_desired_capnp_version_string().as_bytes());
-    let capnp_hash = hex::encode(hasher.finalize()).as_bytes().to_vec();
+    let capnp_hash = hasher.finalize().to_vec();
 
     let in_bh = make_build_hash(input);
 
