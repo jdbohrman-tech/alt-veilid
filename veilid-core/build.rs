@@ -77,7 +77,13 @@ fn calculate_hash(lines: std::io::Lines<std::io::BufReader<std::fs::File>>) -> V
 fn get_build_hash_and_capnp_version_hash<Q: AsRef<Path>>(
     output_path: Q,
 ) -> (Option<Vec<u8>>, Option<Vec<u8>>) {
-    let lines = std::io::BufReader::new(std::fs::File::open(output_path).ok().unwrap()).lines();
+    let output_file = match std::fs::File::open(output_path).ok() {
+        // Returns a file handle if the file exists
+        Some(f) => f,
+        // Returns None, None if the file does not exist
+        None => return (None, None),
+    };
+    let lines = std::io::BufReader::new(output_file).lines();
     let mut build_hash = None;
     let mut capnp_version_hash = None;
     for l in lines {
@@ -97,7 +103,7 @@ fn make_build_hash<P: AsRef<Path>>(input_path: P) -> Vec<u8> {
     calculate_hash(lines)
 }
 
-fn append_hash_and_detected_capnp_version_hash<P: AsRef<Path>, Q: AsRef<Path>>(
+fn append_hash_and_desired_capnp_version_hash<P: AsRef<Path>, Q: AsRef<Path>>(
     input_path: P,
     output_path: Q,
 ) {
@@ -157,8 +163,8 @@ fn do_capnp_build() {
         .expect("compiling schema");
 
     // If successful, append a hash of the input to the output file
-    // Also append a hash of the detected capnp version to the output file
-    append_hash_and_detected_capnp_version_hash("proto/veilid.capnp", "proto/veilid_capnp.rs");
+    // Also append a hash of the desired capnp version to the output file
+    append_hash_and_desired_capnp_version_hash("proto/veilid.capnp", "proto/veilid_capnp.rs");
 }
 
 fn main() {
