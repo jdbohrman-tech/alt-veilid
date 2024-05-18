@@ -860,7 +860,7 @@ impl RoutingTableInner {
         timestamp: Timestamp,
     ) -> EyreResult<NodeRef> {
         let nr = self.create_node_ref(outer_self, &TypedKeyGroup::from(node_id), |_rti, e| {
-            // this node is live because it literally just connected to us
+            //e.make_not_dead(timestamp);
             e.touch_last_seen(timestamp);
         })?;
         // set the most recent node address for connection finding and udp replies

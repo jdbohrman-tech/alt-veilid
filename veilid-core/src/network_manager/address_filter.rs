@@ -272,6 +272,7 @@ impl AddressFilter {
         let mut inner = self.inner.lock();
         inner.punishments_by_ip4.clear();
         inner.punishments_by_ip6_prefix.clear();
+        self.unlocked_inner.routing_table.clear_punishments();
         inner.punishments_by_node_id.clear();
     }
 

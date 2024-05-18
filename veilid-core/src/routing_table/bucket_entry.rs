@@ -275,9 +275,9 @@ impl BucketEntryInner {
                         && signed_node_info.timestamp() == current_sni.timestamp()
                     {
                         // No need to update the signednodeinfo though since the timestamp is the same
-                        // Touch the node and let it try to live again
+                        // Let the node try to live again but don't mark it as seen yet
                         self.updated_since_last_network_change = true;
-                        self.touch_last_seen(get_aligned_timestamp());
+                        self.make_not_dead(get_aligned_timestamp());
                     }
                     return;
                 }
@@ -293,10 +293,11 @@ impl BucketEntryInner {
         let envelope_support = signed_node_info.node_info().envelope_support().to_vec();
         
         // Update the signed node info
+        // Let the node try to live again but don't mark it as seen yet
         *opt_current_sni = Some(Box::new(signed_node_info));
         self.set_envelope_support(envelope_support);
         self.updated_since_last_network_change = true;
-        self.touch_last_seen(get_aligned_timestamp());
+        self.make_not_dead(get_aligned_timestamp());
 
         // If we're updating an entry's node info, purge all 
         // but the last connection in our last connections list
@@ -758,6 +759,13 @@ impl BucketEntryInner {
         }
 
         self.peer_stats.rpc_stats.last_seen_ts = Some(ts);
+    }
+
+    pub(super) fn make_not_dead(&mut self, cur_ts: Timestamp) {
+        self.peer_stats.rpc_stats.last_seen_ts = None;
+        self.peer_stats.rpc_stats.failed_to_send = 0;
+        self.peer_stats.rpc_stats.recent_lost_answers = 0;
+        assert!(!self.check_dead(cur_ts));
     }
 
     pub(super) fn _state_debug_info(&self, cur_ts: Timestamp) -> String {
