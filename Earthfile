@@ -13,7 +13,7 @@ VERSION 0.7
 
 # Start with older Ubuntu to ensure GLIBC symbol versioning support for older linux
 # Ensure we are using an amd64 platform because some of these targets use cross-platform tooling
-FROM ubuntu:18.04
+FROM ubuntu:24.04
 
 ENV ZIG_VERSION=0.13.0-dev.46+3648d7df1
 ENV RUSTUP_HOME=/usr/local/rustup
