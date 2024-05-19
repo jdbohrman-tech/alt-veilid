@@ -76,15 +76,7 @@ impl NetworkManager {
     }
 
     pub fn get_veilid_state(&self) -> Box<VeilidStateNetwork> {
-        let has_state = self
-            .unlocked_inner
-            .components
-            .read()
-            .as_ref()
-            .map(|c| c.net.is_started())
-            .unwrap_or(false);
-
-        if !has_state {
+        if !self.network_is_started() {
             return Box::new(VeilidStateNetwork {
                 started: false,
                 bps_down: 0.into(),

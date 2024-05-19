@@ -117,8 +117,9 @@ pub(crate) enum NodeContactMethod {
     /// Must use outbound relay to reach the node
     OutboundRelay(NodeRef),
 }
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Hash)]
 struct NodeContactMethodCacheKey {
+    node_ids: TypedKeyGroup,
     own_node_info_ts: Timestamp,
     target_node_info_ts: Timestamp,
     target_node_ref_filter: Option<NodeRefFilter>,
@@ -304,6 +305,13 @@ impl NetworkManager {
             .unwrap()
             .net
             .clone()
+    }
+    fn opt_net(&self) -> Option<Network> {
+        self.unlocked_inner
+            .components
+            .read()
+            .as_ref()
+            .map(|x| x.net.clone())
     }
     fn receipt_manager(&self) -> ReceiptManager {
         self.unlocked_inner
@@ -512,9 +520,16 @@ impl NetworkManager {
         }
     }
 
-    pub fn needs_restart(&self) -> bool {
-        let net = self.net();
-        net.needs_restart()
+    pub fn network_needs_restart(&self) -> bool {
+        self.opt_net()
+            .map(|net| net.needs_restart())
+            .unwrap_or(false)
+    }
+
+    pub fn network_is_started(&self) -> bool {
+        self.opt_net()
+            .and_then(|net| net.is_started())
+            .unwrap_or(false)
     }
 
     pub fn generate_node_status(&self, _routing_domain: RoutingDomain) -> NodeStatus {

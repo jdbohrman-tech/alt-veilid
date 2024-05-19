@@ -149,6 +149,11 @@ impl RoutingTable {
             inner.refresh_cached_entry_counts()
         };
 
+        // Only do the rest if the network has started
+        if !self.network_manager().network_is_started() {
+            return Ok(());
+        }
+
         let min_peer_count = self.with_config(|c| c.network.dht.min_peer_count as usize);
 
         // Figure out which tables need bootstrap or peer minimum refresh
