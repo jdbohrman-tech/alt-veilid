@@ -109,6 +109,8 @@ struct NetworkInner {
     listener_states: BTreeMap<SocketAddr, Arc<RwLock<ListenerState>>>,
     /// Preferred local addresses for protocols/address combinations for outgoing connections
     preferred_local_addresses: BTreeMap<(ProtocolType, AddressType), SocketAddr>,
+    /// The list of stable interface addresses we have last seen
+    stable_interface_addresses_at_startup: Vec<IpAddr>,
 }
 
 struct NetworkUnlockedInner {
@@ -155,6 +157,7 @@ impl Network {
             tls_acceptor: None,
             listener_states: BTreeMap::new(),
             preferred_local_addresses: BTreeMap::new(),
+            stable_interface_addresses_at_startup: Vec::new(),
         }
     }
 
@@ -170,7 +173,7 @@ impl Network {
             connection_manager,
             interfaces: NetworkInterfaces::new(),
             update_network_class_task: TickTask::new(1),
-            network_interfaces_task: TickTask::new(5),
+            network_interfaces_task: TickTask::new(1),
             upnp_task: TickTask::new(1),
             igd_manager: igd_manager::IGDManager::new(config.clone()),
         }
@@ -339,13 +342,14 @@ impl Network {
 
     pub fn get_stable_interface_addresses(&self) -> Vec<IpAddr> {
         let addrs = self.unlocked_inner.interfaces.stable_addresses();
-        let addrs: Vec<IpAddr> = addrs
+        let mut addrs: Vec<IpAddr> = addrs
             .into_iter()
             .filter(|addr| {
                 let address = Address::from_ip_addr(*addr);
                 address.is_local() || address.is_global()
             })
             .collect();
+        addrs.sort();
         addrs
     }
 
@@ -361,7 +365,11 @@ impl Network {
             return Ok(false);
         }
 
-        self.inner.lock().needs_public_dial_info_check = true;
+        let mut inner = self.inner.lock();
+        let new_stable_interface_addresses = self.get_stable_interface_addresses();
+        if new_stable_interface_addresses != inner.stable_interface_addresses_at_startup {
+            inner.network_needs_restart = true;
+        }
 
         Ok(true)
     }
@@ -708,8 +716,11 @@ impl Network {
             // determine if we have ipv4/ipv6 addresses
             {
                 let mut inner = self.inner.lock();
+
+                let stable_interface_addresses = self.get_stable_interface_addresses();
+
                 inner.enable_ipv4 = false;
-                for addr in self.get_stable_interface_addresses() {
+                for addr in stable_interface_addresses.iter().copied() {
                     if addr.is_ipv4() {
                         log_net!(debug "enable address {:?} as ipv4", addr);
                         inner.enable_ipv4 = true;
@@ -724,6 +735,7 @@ impl Network {
                         }
                     }
                 }
+                inner.stable_interface_addresses_at_startup = stable_interface_addresses;
             }
 
             // Build our protocol config to share it with other nodes
