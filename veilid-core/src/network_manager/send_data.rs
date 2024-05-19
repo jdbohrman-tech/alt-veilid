@@ -394,6 +394,7 @@ impl NetworkManager {
 
         // Get cache key
         let ncm_key = NodeContactMethodCacheKey {
+            node_ids: target_node_ref.node_ids(),
             own_node_info_ts: routing_table.get_own_node_info_ts(routing_domain),
             target_node_info_ts: target_node_ref.node_info_ts(routing_domain),
             target_node_ref_filter: target_node_ref.filter_ref().cloned(),
