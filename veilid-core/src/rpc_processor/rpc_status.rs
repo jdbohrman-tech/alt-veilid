@@ -23,81 +23,38 @@ impl RPCProcessor {
         self,
         dest: Destination,
     ) -> RPCNetworkResult<Answer<Option<SenderInfo>>> {
-        let (opt_target_nr, routing_domain, node_status) = match dest.get_safety_selection() {
-            SafetySelection::Unsafe(_) => {
-                let (opt_target_nr, routing_domain) = match &dest {
-                    Destination::Direct {
-                        node: target,
-                        safety_selection: _,
-                    } => {
-                        let routing_domain = match target.best_routing_domain() {
-                            Some(rd) => rd,
-                            None => {
-                                // Because this exits before calling 'question()',
-                                // a failure to find a routing domain constitutes a send failure
-                                let send_ts = get_aligned_timestamp();
-                                self.record_send_failure(
-                                    RPCKind::Question,
-                                    send_ts,
-                                    target.clone(),
-                                    None,
-                                    None,
-                                );
-                                return Ok(NetworkResult::no_connection_other(
-                                    "no routing domain for target",
-                                ));
-                            }
-                        };
-                        (Some(target.clone()), routing_domain)
-                    }
-                    Destination::Relay {
-                        relay,
-                        node: target,
-                        safety_selection: _,
-                    } => {
-                        let routing_domain = match relay.best_routing_domain() {
-                            Some(rd) => rd,
-                            None => {
-                                // Because this exits before calling 'question()',
-                                // a failure to find a routing domain constitutes a send failure for both the target and its relay
-                                let send_ts = get_aligned_timestamp();
-                                self.record_send_failure(
-                                    RPCKind::Question,
-                                    send_ts,
-                                    relay.clone(),
-                                    None,
-                                    None,
-                                );
-                                self.record_send_failure(
-                                    RPCKind::Question,
-                                    send_ts,
-                                    target.clone(),
-                                    None,
-                                    None,
-                                );
-                                return Ok(NetworkResult::no_connection_other(
-                                    "no routing domain for peer",
-                                ));
-                            }
-                        };
-                        (Some(target.clone()), routing_domain)
-                    }
-                    Destination::PrivateRoute {
-                        private_route: _,
-                        safety_selection: _,
-                    } => (None, RoutingDomain::PublicInternet),
-                };
+        // Determine routing domain and node status to send
+        let (opt_target_nr, routing_domain, node_status) = if let Some(UnsafeRoutingInfo {
+            opt_node,
+            opt_relay,
+            opt_routing_domain,
+        }) =
+            dest.get_unsafe_routing_info(self.routing_table.clone())
+        {
+            let Some(routing_domain) = opt_routing_domain else {
+                // Because this exits before calling 'question()',
+                // a failure to find a routing domain constitutes a send failure
+                // Record the send failure on both the node and its relay
+                let send_ts = get_aligned_timestamp();
+                if let Some(node) = &opt_node {
+                    self.record_send_failure(RPCKind::Question, send_ts, node.clone(), None, None);
+                }
+                if let Some(relay) = &opt_relay {
+                    self.record_send_failure(RPCKind::Question, send_ts, relay.clone(), None, None);
+                }
+                return Ok(NetworkResult::no_connection_other(
+                    "no routing domain for target",
+                ));
+            };
 
-                let node_status = Some(self.network_manager().generate_node_status(routing_domain));
-                (opt_target_nr, routing_domain, node_status)
-            }
-            SafetySelection::Safe(_) => {
-                let routing_domain = RoutingDomain::PublicInternet;
-                let node_status = None;
-                (None, routing_domain, node_status)
-            }
+            let node_status = Some(self.network_manager().generate_node_status(routing_domain));
+            (opt_node, routing_domain, node_status)
+        } else {
+            // Safety route means we don't exchange node status and things are all PublicInternet RoutingDomain
+            (None, RoutingDomain::PublicInternet, None)
         };
 
+        // Create status rpc question
         let status_q = RPCOperationStatusQ::new(node_status);
         let question = RPCQuestion::new(
             network_result_try!(self.get_destination_respond_to(&dest)?),

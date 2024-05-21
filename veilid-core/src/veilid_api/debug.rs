@@ -853,15 +853,20 @@ impl VeilidAPI {
                 Ok("Buckets purged".to_owned())
             } else if args[0] == "connections" {
                 // Purge connection table
-                let connection_manager = self.network_manager()?.connection_manager();
-                connection_manager.shutdown().await;
+                let opt_connection_manager = self.network_manager()?.opt_connection_manager();
+
+                if let Some(connection_manager) = &opt_connection_manager {
+                    connection_manager.shutdown().await;
+                }
 
                 // Eliminate last_connections from routing table entries
                 self.network_manager()?
                     .routing_table()
                     .purge_last_connections();
 
-                connection_manager.startup().await;
+                if let Some(connection_manager) = &opt_connection_manager {
+                    connection_manager.startup().await;
+                }
 
                 Ok("Connections purged".to_owned())
             } else if args[0] == "routes" {
@@ -940,6 +945,9 @@ impl VeilidAPI {
     async fn debug_resolve(&self, args: String) -> VeilidAPIResult<String> {
         let netman = self.network_manager()?;
         let routing_table = netman.routing_table();
+        let Some(_rpc) = netman.opt_rpc_processor() else {
+            apibail_internal!("Must be attached first");
+        };
 
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
 
@@ -981,7 +989,9 @@ impl VeilidAPI {
     async fn debug_ping(&self, args: String) -> VeilidAPIResult<String> {
         let netman = self.network_manager()?;
         let routing_table = netman.routing_table();
-        let rpc = netman.rpc_processor();
+        let Some(rpc) = netman.opt_rpc_processor() else {
+            apibail_internal!("Must be attached first");
+        };
 
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
 
@@ -1012,7 +1022,9 @@ impl VeilidAPI {
     async fn debug_app_message(&self, args: String) -> VeilidAPIResult<String> {
         let netman = self.network_manager()?;
         let routing_table = netman.routing_table();
-        let rpc = netman.rpc_processor();
+        let Some(rpc) = netman.opt_rpc_processor() else {
+            apibail_internal!("Must be attached first");
+        };
 
         let (arg, rest) = args.split_once(' ').unwrap_or((&args, ""));
         let rest = rest.trim_start().to_owned();
@@ -1046,7 +1058,9 @@ impl VeilidAPI {
     async fn debug_app_call(&self, args: String) -> VeilidAPIResult<String> {
         let netman = self.network_manager()?;
         let routing_table = netman.routing_table();
-        let rpc = netman.rpc_processor();
+        let Some(rpc) = netman.opt_rpc_processor() else {
+            apibail_internal!("Must be attached first");
+        };
 
         let (arg, rest) = args.split_once(' ').unwrap_or((&args, ""));
         let rest = rest.trim_start().to_owned();
@@ -1083,7 +1097,9 @@ impl VeilidAPI {
 
     async fn debug_app_reply(&self, args: String) -> VeilidAPIResult<String> {
         let netman = self.network_manager()?;
-        let rpc = netman.rpc_processor();
+        let Some(rpc) = netman.opt_rpc_processor() else {
+            apibail_internal!("Must be attached first");
+        };
 
         let (call_id, data) = if let Some(stripped_args) = args.strip_prefix('#') {
             let (arg, rest) = stripped_args.split_once(' ').unwrap_or((&args, ""));

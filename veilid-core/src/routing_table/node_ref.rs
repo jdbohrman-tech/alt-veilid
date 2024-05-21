@@ -65,13 +65,13 @@ pub(crate) trait NodeRefBase: Sized {
         }
     }
 
-    fn is_filter_dead(&self) -> bool {
-        if let Some(filter) = &self.common().filter {
-            filter.is_dead()
-        } else {
-            false
-        }
-    }
+    // fn is_filter_dead(&self) -> bool {
+    //     if let Some(filter) = &self.common().filter {
+    //         filter.is_dead()
+    //     } else {
+    //         false
+    //     }
+    // }
 
     fn routing_domain_set(&self) -> RoutingDomainSet {
         self.common()
@@ -117,15 +117,15 @@ pub(crate) trait NodeRefBase: Sized {
             e.update_node_status(routing_domain, node_status);
         });
     }
-    fn envelope_support(&self) -> Vec<u8> {
-        self.operate(|_rti, e| e.envelope_support())
-    }
+    // fn envelope_support(&self) -> Vec<u8> {
+    //     self.operate(|_rti, e| e.envelope_support())
+    // }
     fn add_envelope_version(&self, envelope_version: u8) {
         self.operate_mut(|_rti, e| e.add_envelope_version(envelope_version))
     }
-    fn set_envelope_support(&self, envelope_support: Vec<u8>) {
-        self.operate_mut(|_rti, e| e.set_envelope_support(envelope_support))
-    }
+    // fn set_envelope_support(&self, envelope_support: Vec<u8>) {
+    //     self.operate_mut(|_rti, e| e.set_envelope_support(envelope_support))
+    // }
     fn best_envelope_version(&self) -> Option<u8> {
         self.operate(|_rti, e| e.best_envelope_version())
     }
@@ -167,25 +167,25 @@ pub(crate) trait NodeRefBase: Sized {
     fn set_seen_our_node_info_ts(&self, routing_domain: RoutingDomain, seen_ts: Timestamp) {
         self.operate_mut(|_rti, e| e.set_seen_our_node_info_ts(routing_domain, seen_ts));
     }
-    fn network_class(&self, routing_domain: RoutingDomain) -> Option<NetworkClass> {
-        self.operate(|_rt, e| e.node_info(routing_domain).map(|n| n.network_class()))
-    }
-    fn outbound_protocols(&self, routing_domain: RoutingDomain) -> Option<ProtocolTypeSet> {
-        self.operate(|_rt, e| e.node_info(routing_domain).map(|n| n.outbound_protocols()))
-    }
-    fn address_types(&self, routing_domain: RoutingDomain) -> Option<AddressTypeSet> {
-        self.operate(|_rt, e| e.node_info(routing_domain).map(|n| n.address_types()))
-    }
-    fn node_info_outbound_filter(&self, routing_domain: RoutingDomain) -> DialInfoFilter {
-        let mut dif = DialInfoFilter::all();
-        if let Some(outbound_protocols) = self.outbound_protocols(routing_domain) {
-            dif = dif.with_protocol_type_set(outbound_protocols);
-        }
-        if let Some(address_types) = self.address_types(routing_domain) {
-            dif = dif.with_address_type_set(address_types);
-        }
-        dif
-    }
+    // fn network_class(&self, routing_domain: RoutingDomain) -> Option<NetworkClass> {
+    //     self.operate(|_rt, e| e.node_info(routing_domain).map(|n| n.network_class()))
+    // }
+    // fn outbound_protocols(&self, routing_domain: RoutingDomain) -> Option<ProtocolTypeSet> {
+    //     self.operate(|_rt, e| e.node_info(routing_domain).map(|n| n.outbound_protocols()))
+    // }
+    // fn address_types(&self, routing_domain: RoutingDomain) -> Option<AddressTypeSet> {
+    //     self.operate(|_rt, e| e.node_info(routing_domain).map(|n| n.address_types()))
+    // }
+    // fn node_info_outbound_filter(&self, routing_domain: RoutingDomain) -> DialInfoFilter {
+    //     let mut dif = DialInfoFilter::all();
+    //     if let Some(outbound_protocols) = self.outbound_protocols(routing_domain) {
+    //         dif = dif.with_protocol_type_set(outbound_protocols);
+    //     }
+    //     if let Some(address_types) = self.address_types(routing_domain) {
+    //         dif = dif.with_address_type_set(address_types);
+    //     }
+    //     dif
+    // }
     fn relay(&self, routing_domain: RoutingDomain) -> EyreResult<Option<NodeRef>> {
         self.operate_mut(|rti, e| {
             let Some(sni) = e.signed_node_info(routing_domain) else {

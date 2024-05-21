@@ -237,7 +237,7 @@ impl AttachmentManager {
                     }
 
                     // see if we need to restart the network
-                    if netman.needs_restart() {
+                    if netman.network_needs_restart() {
                         info!("Restarting network");
                         restart = true;
                         break;

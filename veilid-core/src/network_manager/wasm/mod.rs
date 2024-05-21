@@ -52,7 +52,7 @@ pub const MAX_CAPABILITIES: usize = 64;
 /////////////////////////////////////////////////////////////////
 
 struct NetworkInner {
-    network_started: bool,
+    network_started: Option<bool>,
     network_needs_restart: bool,
     protocol_config: ProtocolConfig,
 }
@@ -74,7 +74,7 @@ pub(in crate::network_manager) struct Network {
 impl Network {
     fn new_inner() -> NetworkInner {
         NetworkInner {
-            network_started: false,
+            network_started: Some(false),
             network_needs_restart: false,
             protocol_config: Default::default(),
         }
@@ -334,70 +334,81 @@ impl Network {
     /////////////////////////////////////////////////////////////////
 
     pub async fn startup(&self) -> EyreResult<()> {
-        log_net!(debug "starting network");
-        // get protocol config
-        let protocol_config = {
-            let c = self.config.get();
-            let inbound = ProtocolTypeSet::new();
-            let mut outbound = ProtocolTypeSet::new();
+        self.inner.lock().network_started = None;
+        let startup_func = async {
+            log_net!(debug "starting network");
+            // get protocol config
+            let protocol_config = {
+                let c = self.config.get();
+                let inbound = ProtocolTypeSet::new();
+                let mut outbound = ProtocolTypeSet::new();
 
-            if c.network.protocol.ws.connect {
-                outbound.insert(ProtocolType::WS);
-            }
-            if c.network.protocol.wss.connect {
-                outbound.insert(ProtocolType::WSS);
-            }
+                if c.network.protocol.ws.connect {
+                    outbound.insert(ProtocolType::WS);
+                }
+                if c.network.protocol.wss.connect {
+                    outbound.insert(ProtocolType::WSS);
+                }
 
-            let supported_address_types: AddressTypeSet = if is_ipv6_supported() {
-                AddressType::IPV4 | AddressType::IPV6
-            } else {
-                AddressType::IPV4.into()
+                let supported_address_types: AddressTypeSet = if is_ipv6_supported() {
+                    AddressType::IPV4 | AddressType::IPV6
+                } else {
+                    AddressType::IPV4.into()
+                };
+
+                let family_global = supported_address_types;
+                let family_local = supported_address_types;
+
+                let public_internet_capabilities = {
+                    PUBLIC_INTERNET_CAPABILITIES
+                        .iter()
+                        .copied()
+                        .filter(|cap| !c.capabilities.disable.contains(cap))
+                        .collect::<Vec<Capability>>()
+                };
+
+                ProtocolConfig {
+                    outbound,
+                    inbound,
+                    family_global,
+                    family_local,
+                    local_network_capabilities: vec![],
+                    public_internet_capabilities,
+                }
             };
+            self.inner.lock().protocol_config = protocol_config.clone();
 
-            let family_global = supported_address_types;
-            let family_local = supported_address_types;
+            // Start editing routing table
+            let mut editor_public_internet = self
+                .unlocked_inner
+                .routing_table
+                .edit_routing_domain(RoutingDomain::PublicInternet);
 
-            let public_internet_capabilities = {
-                PUBLIC_INTERNET_CAPABILITIES
-                    .iter()
-                    .copied()
-                    .filter(|cap| !c.capabilities.disable.contains(cap))
-                    .collect::<Vec<Capability>>()
-            };
+            // set up the routing table's network config
+            // if we have static public dialinfo, upgrade our network class
 
-            ProtocolConfig {
-                outbound,
-                inbound,
-                family_global,
-                family_local,
-                local_network_capabilities: vec![],
-                public_internet_capabilities,
-            }
+            editor_public_internet.setup_network(
+                protocol_config.outbound,
+                protocol_config.inbound,
+                protocol_config.family_global,
+                protocol_config.public_internet_capabilities.clone(),
+            );
+            editor_public_internet.set_network_class(Some(NetworkClass::WebApp));
+
+            // commit routing table edits
+            editor_public_internet.commit(true).await;
+            Ok(())
         };
-        self.inner.lock().protocol_config = protocol_config.clone();
 
-        // Start editing routing table
-        let mut editor_public_internet = self
-            .unlocked_inner
-            .routing_table
-            .edit_routing_domain(RoutingDomain::PublicInternet);
+        let res = startup_func.await;
+        if res.is_err() {
+            info!("network failed to start");
+            self.inner.lock().network_started = Some(false);
+            return res;
+        }
 
-        // set up the routing table's network config
-        // if we have static public dialinfo, upgrade our network class
-
-        editor_public_internet.setup_network(
-            protocol_config.outbound,
-            protocol_config.inbound,
-            protocol_config.family_global,
-            protocol_config.public_internet_capabilities.clone(),
-        );
-        editor_public_internet.set_network_class(Some(NetworkClass::WebApp));
-
-        // commit routing table edits
-        editor_public_internet.commit(true).await;
-
-        self.inner.lock().network_started = true;
-        log_net!(debug "network started");
+        info!("network started");
+        self.inner.lock().network_started = Some(true);
         Ok(())
     }
 
@@ -405,7 +416,7 @@ impl Network {
         self.inner.lock().network_needs_restart
     }
 
-    pub fn is_started(&self) -> bool {
+    pub fn is_started(&self) -> Option<bool> {
         self.inner.lock().network_started
     }
 

@@ -68,24 +68,50 @@ impl StorageManager {
                     )
                     .await;
                 match osvres {
-                    Ok(result) => {
-                        let was_offline =
-                            self.check_fanout_set_offline(*key, subkey, &result.fanout_result);
-                        if !was_offline {
-                            if let Some(update_callback) = opt_update_callback.clone() {
-                                // Send valuechange with dead count and no subkeys
-                                update_callback(VeilidUpdate::ValueChange(Box::new(
-                                    VeilidValueChange {
-                                        key: *key,
-                                        subkeys: ValueSubkeyRangeSet::single(subkey),
-                                        count: u32::MAX,
-                                        value: Some(result.signed_value_data.value_data().clone()),
-                                    },
-                                )));
+                    Ok(res_rx) => {
+                        while let Ok(res) = res_rx.recv_async().await {
+                            match res {
+                                Ok(result) => {
+                                    let partial = result.fanout_result.kind.is_partial();
+                                    // Skip partial results in offline subkey write mode
+                                    if partial {
+                                        continue;
+                                    }
+
+                                    // Process non-partial setvalue result
+                                    let was_offline = self.check_fanout_set_offline(
+                                        *key,
+                                        subkey,
+                                        &result.fanout_result,
+                                    );
+                                    if !was_offline {
+                                        if let Some(update_callback) = opt_update_callback.clone() {
+                                            // Send valuechange with dead count and no subkeys
+                                            update_callback(VeilidUpdate::ValueChange(Box::new(
+                                                VeilidValueChange {
+                                                    key: *key,
+                                                    subkeys: ValueSubkeyRangeSet::single(subkey),
+                                                    count: u32::MAX,
+                                                    value: Some(
+                                                        result
+                                                            .signed_value_data
+                                                            .value_data()
+                                                            .clone(),
+                                                    ),
+                                                },
+                                            )));
+                                        }
+                                        written_subkeys.insert(subkey);
+                                    };
+                                    fanout_results.push((subkey, result.fanout_result));
+                                    break;
+                                }
+                                Err(e) => {
+                                    log_stor!(debug "failed to get offline subkey write result: {}:{} {}", key, subkey, e);
+                                    break;
+                                }
                             }
-                            written_subkeys.insert(subkey);
-                        };
-                        fanout_results.push((subkey, result.fanout_result));
+                        }
                     }
                     Err(e) => {
                         log_stor!(debug "failed to write offline subkey: {}:{} {}", key, subkey, e);

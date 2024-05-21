@@ -264,7 +264,7 @@ impl StorageManager {
         // No last descriptor, no last value
         // Use the safety selection we opened the record with
         let subkey: ValueSubkey = 0;
-        let result = self
+        let res_rx = self
             .outbound_get_value(
                 rpc_processor,
                 key,
@@ -273,12 +273,24 @@ impl StorageManager {
                 GetResult::default(),
             )
             .await?;
+        // Wait for the first result
+        let Ok(result) = res_rx.recv_async().await else {
+            apibail_internal!("failed to receive results");
+        };
+        let result = result?;
 
         // If we got nothing back, the key wasn't found
         if result.get_result.opt_value.is_none() && result.get_result.opt_descriptor.is_none() {
             // No result
             apibail_key_not_found!(key);
         };
+        let last_seq = result
+            .get_result
+            .opt_value
+            .as_ref()
+            .unwrap()
+            .value_data()
+            .seq();
 
         // Reopen inner to store value we just got
         let mut inner = self.lock().await?;
@@ -295,9 +307,16 @@ impl StorageManager {
         }
 
         // Open the new record
-        inner
+        let out = inner
             .open_new_record(key, writer, subkey, result.get_result, safety_selection)
-            .await
+            .await;
+
+        if out.is_ok() {
+            self.process_deferred_outbound_get_value_result_inner(
+                &mut inner, res_rx, key, subkey, last_seq,
+            );
+        }
+        out
     }
 
     /// Close an opened local record
@@ -402,7 +421,7 @@ impl StorageManager {
             .opt_value
             .as_ref()
             .map(|v| v.value_data().seq());
-        let result = self
+        let res_rx = self
             .outbound_get_value(
                 rpc_processor,
                 key,
@@ -412,32 +431,33 @@ impl StorageManager {
             )
             .await?;
 
-        // See if we got a value back
-        let Some(get_result_value) = result.get_result.opt_value else {
-            // If we got nothing back then we also had nothing beforehand, return nothing
-            return Ok(None);
+        // Wait for the first result
+        let Ok(result) = res_rx.recv_async().await else {
+            apibail_internal!("failed to receive results");
         };
+        let result = result?;
+        let partial = result.fanout_result.kind.is_partial();
 
-        // Keep the list of nodes that returned a value for later reference
-        let mut inner = self.lock().await?;
-        inner.process_fanout_results(
-            key,
-            core::iter::once((subkey, &result.fanout_result)),
-            false,
-        );
+        // Process the returned result
+        let out = self
+            .process_outbound_get_value_result(key, subkey, opt_last_seq, result)
+            .await?;
 
-        // If we got a new value back then write it to the opened record
-        if Some(get_result_value.value_data().seq()) != opt_last_seq {
-            inner
-                .handle_set_local_value(
+        if let Some(out) = &out {
+            // If there's more to process, do it in the background
+            if partial {
+                let mut inner = self.lock().await?;
+                self.process_deferred_outbound_get_value_result_inner(
+                    &mut inner,
+                    res_rx,
                     key,
                     subkey,
-                    get_result_value.clone(),
-                    WatchUpdateMode::UpdateAll,
-                )
-                .await?;
+                    out.seq(),
+                );
+            }
         }
-        Ok(Some(get_result_value.value_data().clone()))
+
+        Ok(out)
     }
 
     /// Set the value of a subkey on an opened local record
@@ -537,7 +557,7 @@ impl StorageManager {
         log_stor!(debug "Writing subkey to the network: {}:{} len={}", key, subkey, signed_value_data.value_data().data().len() );
 
         // Use the safety selection we opened the record with
-        let result = match self
+        let res_rx = match self
             .outbound_set_value(
                 rpc_processor,
                 key,
@@ -557,36 +577,39 @@ impl StorageManager {
             }
         };
 
-        // Regain the lock after network access
-        let mut inner = self.lock().await?;
+        // Wait for the first result
+        let Ok(result) = res_rx.recv_async().await else {
+            apibail_internal!("failed to receive results");
+        };
+        let result = result?;
+        let partial = result.fanout_result.kind.is_partial();
 
-        // Report on fanout result offline
-        let was_offline = self.check_fanout_set_offline(key, subkey, &result.fanout_result);
-        if was_offline {
-            // Failed to write, try again later
-            inner.add_offline_subkey_write(key, subkey, safety_selection);
+        // Process the returned result
+        let out = self
+            .process_outbound_set_value_result(
+                key,
+                subkey,
+                signed_value_data.value_data().clone(),
+                safety_selection,
+                result,
+            )
+            .await?;
+
+        // If there's more to process, do it in the background
+        if partial {
+            let mut inner = self.lock().await?;
+            self.process_deferred_outbound_set_value_result_inner(
+                &mut inner,
+                res_rx,
+                key,
+                subkey,
+                out.clone()
+                    .unwrap_or_else(|| signed_value_data.value_data().clone()),
+                safety_selection,
+            );
         }
 
-        // Keep the list of nodes that returned a value for later reference
-        inner.process_fanout_results(key, core::iter::once((subkey, &result.fanout_result)), true);
-
-        // Return the new value if it differs from what was asked to set
-        if result.signed_value_data.value_data() != signed_value_data.value_data() {
-            // Record the newer value and send and update since it is different than what we just set
-            inner
-                .handle_set_local_value(
-                    key,
-                    subkey,
-                    result.signed_value_data.clone(),
-                    WatchUpdateMode::UpdateAll,
-                )
-                .await?;
-
-            return Ok(Some(result.signed_value_data.value_data().clone()));
-        }
-
-        // If the original value was set, return None
-        Ok(None)
+        Ok(out)
     }
 
     /// Create,update or cancel an outbound watch to a DHT value
@@ -920,6 +943,31 @@ impl StorageManager {
         Ok(())
     }
 
+    // Send a value change up through the callback
+    #[instrument(level = "trace", skip(self), err)]
+    async fn update_callback_value_change(
+        &self,
+        key: TypedKey,
+        subkeys: ValueSubkeyRangeSet,
+        count: u32,
+        value: Option<ValueData>,
+    ) -> Result<(), VeilidAPIError> {
+        let opt_update_callback = {
+            let inner = self.lock().await?;
+            inner.update_callback.clone()
+        };
+
+        if let Some(update_callback) = opt_update_callback {
+            update_callback(VeilidUpdate::ValueChange(Box::new(VeilidValueChange {
+                key,
+                subkeys,
+                count,
+                value,
+            })));
+        }
+        Ok(())
+    }
+
     fn check_fanout_set_offline(
         &self,
         key: TypedKey,
@@ -927,6 +975,7 @@ impl StorageManager {
         fanout_result: &FanoutResult,
     ) -> bool {
         match fanout_result.kind {
+            FanoutResultKind::Partial => false,
             FanoutResultKind::Timeout => {
                 log_stor!(debug "timeout in set_value, adding offline subkey: {}:{}", key, subkey);
                 true

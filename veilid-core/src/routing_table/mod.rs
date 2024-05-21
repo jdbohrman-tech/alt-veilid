@@ -743,6 +743,16 @@ impl RoutingTable {
         out
     }
 
+    pub fn clear_punishments(&self) {
+        let cur_ts = get_aligned_timestamp();
+        self.inner
+            .write()
+            .with_entries_mut(cur_ts, BucketEntryState::Dead, |rti, e| {
+                e.with_mut(rti, |_rti, ei| ei.set_punished(false));
+                Option::<()>::None
+            });
+    }
+
     //////////////////////////////////////////////////////////////////////
     // Find Nodes
 

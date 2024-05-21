@@ -1056,6 +1056,11 @@ impl RouteSpecStore {
                 // Set sequencing requirement
                 first_hop.set_sequencing(sequencing);
 
+                // Enforce the routing domain
+                first_hop.merge_filter(
+                    NodeRefFilter::new().with_routing_domain(RoutingDomain::PublicInternet),
+                );
+
                 // Return the compiled safety route
                 //info!("compile_safety_route profile (stub): {} us", (get_timestamp() - profile_start_ts));
                 return Ok(CompiledRoute {
@@ -1112,6 +1117,10 @@ impl RouteSpecStore {
 
         // Ensure sequencing requirement is set on first hop
         first_hop.set_sequencing(safety_spec.sequencing);
+
+        // Enforce the routing domain
+        first_hop
+            .merge_filter(NodeRefFilter::new().with_routing_domain(RoutingDomain::PublicInternet));
 
         // Get the safety route secret key
         let secret = safety_rsd.secret_key;

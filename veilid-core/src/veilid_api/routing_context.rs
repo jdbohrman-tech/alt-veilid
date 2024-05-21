@@ -416,7 +416,7 @@ impl RoutingContext {
     /// This is useful for checking if you should push new subkeys to the network, or retrieve the current state of a record from the network
     /// to see what needs updating locally.
     ///
-    /// * `key` is the record key to watch. it must first be opened for reading or writing.
+    /// * `key` is the record key to inspect. it must first be opened for reading or writing.
     /// * `subkeys` is the the range of subkeys to inspect. The range must not exceed 512 discrete non-overlapping or adjacent subranges.
     ///    If no range is specified, this is equivalent to inspecting the entire range of subkeys. In total, the list of subkeys returned will be truncated at 512 elements.
     /// * `scope` is what kind of range the inspection has:

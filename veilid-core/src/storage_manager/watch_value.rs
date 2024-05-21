@@ -417,7 +417,7 @@ impl StorageManager {
         watch_id: u64,
     ) -> VeilidAPIResult<NetworkResult<()>> {
         // Update local record store with new value
-        let (is_value_seq_newer, opt_update_callback, value) = {
+        let (is_value_seq_newer, value) = {
             let mut inner = self.lock().await?;
 
             // Don't process update if the record is closed
@@ -516,7 +516,7 @@ impl StorageManager {
                 }
             }
 
-            (is_value_seq_newer, inner.update_callback.clone(), value)
+            (is_value_seq_newer, value)
         };
 
         // Announce ValueChanged VeilidUpdate
@@ -526,18 +526,13 @@ impl StorageManager {
 
         let do_update = is_value_seq_newer || subkeys.len() > 1 || count == 0;
         if do_update {
-            if let Some(update_callback) = opt_update_callback {
-                update_callback(VeilidUpdate::ValueChange(Box::new(VeilidValueChange {
-                    key,
-                    subkeys,
-                    count,
-                    value: if is_value_seq_newer {
-                        Some(value.unwrap().value_data().clone())
-                    } else {
-                        None
-                    },
-                })));
-            }
+            let value = if is_value_seq_newer {
+                Some(value.unwrap().value_data().clone())
+            } else {
+                None
+            };
+            self.update_callback_value_change(key, subkeys, count, value)
+                .await?;
         }
 
         Ok(NetworkResult::value(()))

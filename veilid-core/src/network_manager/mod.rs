@@ -117,8 +117,9 @@ pub(crate) enum NodeContactMethod {
     /// Must use outbound relay to reach the node
     OutboundRelay(NodeRef),
 }
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Hash)]
 struct NodeContactMethodCacheKey {
+    node_ids: TypedKeyGroup,
     own_node_info_ts: Timestamp,
     target_node_info_ts: Timestamp,
     target_node_ref_filter: Option<NodeRefFilter>,
@@ -305,6 +306,13 @@ impl NetworkManager {
             .net
             .clone()
     }
+    fn opt_net(&self) -> Option<Network> {
+        self.unlocked_inner
+            .components
+            .read()
+            .as_ref()
+            .map(|x| x.net.clone())
+    }
     fn receipt_manager(&self) -> ReceiptManager {
         self.unlocked_inner
             .components
@@ -323,6 +331,14 @@ impl NetworkManager {
             .rpc_processor
             .clone()
     }
+    pub fn opt_rpc_processor(&self) -> Option<RPCProcessor> {
+        self.unlocked_inner
+            .components
+            .read()
+            .as_ref()
+            .map(|x| x.rpc_processor.clone())
+    }
+
     pub fn connection_manager(&self) -> ConnectionManager {
         self.unlocked_inner
             .components
@@ -332,6 +348,14 @@ impl NetworkManager {
             .connection_manager
             .clone()
     }
+    pub fn opt_connection_manager(&self) -> Option<ConnectionManager> {
+        self.unlocked_inner
+            .components
+            .read()
+            .as_ref()
+            .map(|x| x.connection_manager.clone())
+    }
+
     pub fn update_callback(&self) -> UpdateCallback {
         self.unlocked_inner
             .update_callback
@@ -496,9 +520,16 @@ impl NetworkManager {
         }
     }
 
-    pub fn needs_restart(&self) -> bool {
-        let net = self.net();
-        net.needs_restart()
+    pub fn network_needs_restart(&self) -> bool {
+        self.opt_net()
+            .map(|net| net.needs_restart())
+            .unwrap_or(false)
+    }
+
+    pub fn network_is_started(&self) -> bool {
+        self.opt_net()
+            .and_then(|net| net.is_started())
+            .unwrap_or(false)
     }
 
     pub fn generate_node_status(&self, _routing_domain: RoutingDomain) -> NodeStatus {
@@ -1074,7 +1105,7 @@ impl NetworkManager {
         };
 
         // Cache the envelope information in the routing table
-        let source_noderef = match routing_table.register_node_with_existing_connection(
+        let mut source_noderef = match routing_table.register_node_with_existing_connection(
             envelope.get_sender_typed_id(),
             flow,
             ts,
@@ -1087,6 +1118,9 @@ impl NetworkManager {
             }
         };
         source_noderef.add_envelope_version(envelope.get_version());
+
+        // Enforce routing domain
+        source_noderef.merge_filter(NodeRefFilter::new().with_routing_domain(routing_domain));
 
         // Pass message to RPC system
         rpc.enqueue_direct_message(envelope, source_noderef, flow, routing_domain, body)?;
