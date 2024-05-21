@@ -10,9 +10,12 @@ struct OutboundSetValueContext {
     pub missed_since_last_set: usize,
     /// The parsed schema from the descriptor if we have one
     pub schema: DHTSchema,
+    /// If we should send a partial update with the current context
+    pub send_partial_update: bool,
 }
 
 /// The result of the outbound_set_value operation
+#[derive(Clone, Debug)]
 pub(super) struct OutboundSetValueResult {
     /// Fanout result
     pub fanout_result: FanoutResult,
@@ -30,7 +33,7 @@ impl StorageManager {
         safety_selection: SafetySelection,
         value: Arc<SignedValueData>,
         descriptor: Arc<SignedValueDescriptor>,
-    ) -> VeilidAPIResult<OutboundSetValueResult> {
+    ) -> VeilidAPIResult<flume::Receiver<VeilidAPIResult<OutboundSetValueResult>>> {
         let routing_table = rpc_processor.routing_table();
 
         // Get the DHT parameters for 'SetValue'
@@ -50,6 +53,9 @@ impl StorageManager {
             inner.get_value_nodes(key)?.unwrap_or_default()
         };
 
+        // Make the return channel
+        let (out_tx, out_rx) = flume::unbounded::<VeilidAPIResult<OutboundSetValueResult>>();
+
         // Make do-set-value answer context
         let schema = descriptor.schema()?;
         let context = Arc::new(Mutex::new(OutboundSetValueContext {
@@ -57,156 +63,330 @@ impl StorageManager {
             value_nodes: vec![],
             missed_since_last_set: 0,
             schema,
+            send_partial_update: false,
         }));
 
         // Routine to call to generate fanout
-        let call_routine = |next_node: NodeRef| {
-            let rpc_processor = rpc_processor.clone();
+        let call_routine = {
             let context = context.clone();
-            let descriptor = descriptor.clone();
-            async move {
-                let send_descriptor = true; // xxx check if next_node needs the descriptor or not
+            let rpc_processor = rpc_processor.clone();
 
-                // get most recent value to send
-                let value = {
-                    let ctx = context.lock();
-                    ctx.value.clone()
-                };
+            move |next_node: NodeRef| {
+                let rpc_processor = rpc_processor.clone();
+                let context = context.clone();
+                let descriptor = descriptor.clone();
+                async move {
+                    let send_descriptor = true; // xxx check if next_node needs the descriptor or not
 
-                // send across the wire
-                let sva = network_result_try!(
-                    rpc_processor
-                        .clone()
-                        .rpc_call_set_value(
-                            Destination::direct(next_node.clone()).with_safety(safety_selection),
-                            key,
-                            subkey,
-                            (*value).clone(),
-                            (*descriptor).clone(),
-                            send_descriptor,
-                        )
-                        .await?
-                );
+                    // get most recent value to send
+                    let value = {
+                        let ctx = context.lock();
+                        ctx.value.clone()
+                    };
 
-                // If the node was close enough to possibly set the value
-                let mut ctx = context.lock();
-                if !sva.answer.set {
-                    ctx.missed_since_last_set += 1;
+                    // send across the wire
+                    let sva = network_result_try!(
+                        rpc_processor
+                            .clone()
+                            .rpc_call_set_value(
+                                Destination::direct(next_node.clone())
+                                    .with_safety(safety_selection),
+                                key,
+                                subkey,
+                                (*value).clone(),
+                                (*descriptor).clone(),
+                                send_descriptor,
+                            )
+                            .await?
+                    );
 
-                    // Return peers if we have some
-                    log_network_result!(debug "SetValue missed: {}, fanout call returned peers {}", ctx.missed_since_last_set, sva.answer.peers.len());
-                    return Ok(NetworkResult::value(sva.answer.peers));
-                }
+                    // If the node was close enough to possibly set the value
+                    let mut ctx = context.lock();
+                    if !sva.answer.set {
+                        ctx.missed_since_last_set += 1;
 
-                // See if we got a value back
-                let Some(value) = sva.answer.value else {
-                    // No newer value was found and returned, so increase our consensus count
-                    ctx.value_nodes.push(next_node);
+                        // Return peers if we have some
+                        log_network_result!(debug "SetValue missed: {}, fanout call returned peers {}", ctx.missed_since_last_set, sva.answer.peers.len());
+                        return Ok(NetworkResult::value(sva.answer.peers));
+                    }
+
+                    // See if we got a value back
+                    let Some(value) = sva.answer.value else {
+                        // No newer value was found and returned, so increase our consensus count
+                        ctx.value_nodes.push(next_node);
+                        ctx.missed_since_last_set = 0;
+                        // Send an update since it was set
+                        if ctx.value_nodes.len() == 1 {
+                            ctx.send_partial_update = true;
+                        }
+
+                        // Return peers if we have some
+                        log_network_result!(debug "SetValue returned no value, fanout call returned peers {}", sva.answer.peers.len());
+                        return Ok(NetworkResult::value(sva.answer.peers));
+                    };
+
+                    // Keep the value if we got one and it is newer and it passes schema validation
+                    log_dht!(debug "SetValue got value back: len={} seq={}", value.value_data().data().len(), value.value_data().seq());
+
+                    // Validate with schema
+                    if !ctx.schema.check_subkey_value_data(
+                        descriptor.owner(),
+                        subkey,
+                        value.value_data(),
+                    ) {
+                        // Validation failed, ignore this value and pretend we never saw this node
+                        return Ok(NetworkResult::invalid_message(format!(
+                            "Schema validation failed on subkey {}",
+                            subkey
+                        )));
+                    }
+
+                    // If we got a value back it should be different than the one we are setting
+                    // But in the case of a benign bug, we can just move to the next node
+                    if ctx.value.value_data() == value.value_data() {
+                        
+                        ctx.value_nodes.push(next_node);
+                        ctx.missed_since_last_set = 0;
+
+                        // Send an update since it was set
+                        if ctx.value_nodes.len() == 1 {
+                            ctx.send_partial_update = true;
+                        }
+
+                        return Ok(NetworkResult::value(sva.answer.peers));
+                    }
+
+                    // We have a prior value, ensure this is a newer sequence number
+                    let prior_seq = ctx.value.value_data().seq();
+                    let new_seq = value.value_data().seq();
+                    if new_seq < prior_seq {
+                        // If the sequence number is older node should have not returned a value here.
+                        // Skip this node and its closer list because it is misbehaving
+                        // Ignore this value and pretend we never saw this node
+                        return Ok(NetworkResult::invalid_message("Sequence number is older"));
+                    }
+
+                    // If the sequence number is greater or equal, keep it
+                    // even if the sequence number is the same, accept all conflicts in an attempt to resolve them
+                    ctx.value = Arc::new(value);
+                    // One node has shown us this value so far
+                    ctx.value_nodes = vec![next_node];
                     ctx.missed_since_last_set = 0;
+                    // Send an update since the value changed
+                    ctx.send_partial_update = true;
 
-                    // Return peers if we have some
-                    log_network_result!(debug "SetValue returned no value, fanout call returned peers {}", sva.answer.peers.len());
-                    return Ok(NetworkResult::value(sva.answer.peers));
-                };
-
-                // Keep the value if we got one and it is newer and it passes schema validation
-                log_dht!(debug "SetValue got value back: len={} seq={}", value.value_data().data().len(), value.value_data().seq());
-
-                // Validate with schema
-                if !ctx.schema.check_subkey_value_data(
-                    descriptor.owner(),
-                    subkey,
-                    value.value_data(),
-                ) {
-                    // Validation failed, ignore this value and pretend we never saw this node
-                    return Ok(NetworkResult::invalid_message("Schema validation failed"));
+                    Ok(NetworkResult::value(sva.answer.peers))
                 }
-
-                // If we got a value back it should be different than the one we are setting
-                // But in the case of a benign bug, we can just move to the next node
-                if ctx.value.value_data() == value.value_data() {
-                    ctx.value_nodes.push(next_node);
-                    ctx.missed_since_last_set = 0;
-                    return Ok(NetworkResult::value(sva.answer.peers));
-                }
-
-                // We have a prior value, ensure this is a newer sequence number
-                let prior_seq = ctx.value.value_data().seq();
-                let new_seq = value.value_data().seq();
-                if new_seq < prior_seq {
-                    // If the sequence number is older node should have not returned a value here.
-                    // Skip this node and its closer list because it is misbehaving
-                    // Ignore this value and pretend we never saw this node
-                    return Ok(NetworkResult::invalid_message("Sequence number is older"));
-                }
-
-                // If the sequence number is greater or equal, keep it
-                // even if the sequence number is the same, accept all conflicts in an attempt to resolve them
-                ctx.value = Arc::new(value);
-                // One node has shown us this value so far
-                ctx.value_nodes = vec![next_node];
-                ctx.missed_since_last_set = 0;
-                Ok(NetworkResult::value(sva.answer.peers))
             }
         };
 
         // Routine to call to check if we're done at each step
-        let check_done = |_closest_nodes: &[NodeRef]| {
+        let check_done = {
+            let context = context.clone();
+            let out_tx = out_tx.clone();
+            move |_closest_nodes: &[NodeRef]| {
+                let mut ctx = context.lock();
+
+                // send partial update if desired
+                if ctx.send_partial_update {
+                    ctx.send_partial_update = false;
+
+                    // return partial result
+                    let fanout_result = FanoutResult {
+                        kind: FanoutResultKind::Partial,
+                        value_nodes: ctx.value_nodes.clone(),
+                    };
+                    let out=OutboundSetValueResult {
+                        fanout_result,
+                        signed_value_data: ctx.value.clone()};
+                    log_dht!(debug "Sending partial SetValue result: {:?}", out);
+
+                    if let Err(e) = out_tx.send(Ok(out)) {
+                        log_dht!(debug "Sending partial SetValue result failed: {}", e);
+                    }
+                }
+
+                // If we have reached sufficient consensus, return done
+                if ctx.value_nodes.len() >= consensus_count {
+                    return Some(());
+                }
+                // If we have missed more than our consensus count since our last set, return done
+                // This keeps the traversal from searching too many nodes when we aren't converging
+                // Only do this if we have gotten at least half our desired sets.
+                if ctx.value_nodes.len() >= ((consensus_count + 1) / 2)
+                    && ctx.missed_since_last_set >= consensus_count
+                {
+                    return Some(());
+                }
+                None
+            }
+        };
+
+        // Call the fanout in a spawned task
+        spawn(Box::pin(async move {
+            let fanout_call = FanoutCall::new(
+                routing_table.clone(),
+                key,
+                key_count,
+                fanout,
+                timeout_us,
+                capability_fanout_node_info_filter(vec![CAP_DHT]),
+                call_routine,
+                check_done,
+            );
+
+            let kind = match fanout_call.run(init_fanout_queue).await {
+                // If we don't finish in the timeout (too much time passed checking for consensus)
+                TimeoutOr::Timeout => FanoutResultKind::Timeout,
+                // If we finished with or without consensus (enough nodes returning the same value)
+                TimeoutOr::Value(Ok(Some(()))) => FanoutResultKind::Finished,
+                // If we ran out of nodes before getting consensus)
+                TimeoutOr::Value(Ok(None)) => FanoutResultKind::Exhausted,
+                // Failed
+                TimeoutOr::Value(Err(e)) => {
+                    // If we finished with an error, return that
+                    log_dht!(debug "SetValue fanout error: {}", e);
+                    if let Err(e) = out_tx.send(Err(e.into())) {
+                        log_dht!(debug "Sending SetValue fanout error failed: {}", e);
+                    }
+                    return;
+                }
+            };
+
             let ctx = context.lock();
+            let fanout_result = FanoutResult {
+                kind,
+                value_nodes: ctx.value_nodes.clone(),
+            };
+            log_network_result!(debug "SetValue Fanout: {:?}", fanout_result);
 
-            // If we have reached sufficient consensus, return done
-            if ctx.value_nodes.len() >= consensus_count {
-                return Some(());
+            if let Err(e) = out_tx.send(Ok(OutboundSetValueResult {
+                fanout_result,
+                signed_value_data: ctx.value.clone(),
+            })) {
+                log_dht!(debug "Sending SetValue result failed: {}", e);
             }
-            // If we have missed more than our consensus count since our last set, return done
-            // This keeps the traversal from searching too many nodes when we aren't converging
-            // Only do this if we have gotten at least half our desired sets.
-            if ctx.value_nodes.len() >= ((consensus_count + 1) / 2)
-                && ctx.missed_since_last_set >= consensus_count
-            {
-                return Some(());
-            }
-            None
-        };
+        }))
+        .detach();
 
-        // Call the fanout
-        let fanout_call = FanoutCall::new(
-            routing_table.clone(),
-            key,
-            key_count,
-            fanout,
-            timeout_us,
-            capability_fanout_node_info_filter(vec![CAP_DHT]),
-            call_routine,
-            check_done,
-        );
-
-        let kind = match fanout_call.run(init_fanout_queue).await {
-            // If we don't finish in the timeout (too much time passed checking for consensus)
-            TimeoutOr::Timeout => FanoutResultKind::Timeout,
-            // If we finished with or without consensus (enough nodes returning the same value)
-            TimeoutOr::Value(Ok(Some(()))) => FanoutResultKind::Finished,
-            // If we ran out of nodes before getting consensus)
-            TimeoutOr::Value(Ok(None)) => FanoutResultKind::Exhausted,
-            // Failed
-            TimeoutOr::Value(Err(e)) => {
-                // If we finished with an error, return that
-                log_dht!(debug "SetValue Fanout Error: {}", e);
-                return Err(e.into());
-            }
-        };
-        let ctx = context.lock();
-        let fanout_result = FanoutResult {
-            kind,
-            value_nodes: ctx.value_nodes.clone(),
-        };
-        log_network_result!(debug "SetValue Fanout: {:?}", fanout_result);
-
-        Ok(OutboundSetValueResult {
-            fanout_result,
-            signed_value_data: ctx.value.clone(),
-        })
+        Ok(out_rx)
     }
+
+    pub(super) fn process_deferred_outbound_set_value_result_inner(&self, inner: &mut StorageManagerInner, 
+        res_rx: flume::Receiver<Result<set_value::OutboundSetValueResult, VeilidAPIError>>, 
+        key: TypedKey, subkey: ValueSubkey, last_value_data: ValueData, safety_selection: SafetySelection, ) {
+        let this = self.clone();
+        let last_value_data = Arc::new(Mutex::new(last_value_data));
+        inner.process_deferred_results(
+            res_rx,
+            Box::new(
+                move |result: VeilidAPIResult<set_value::OutboundSetValueResult>| -> SendPinBoxFuture<bool> {
+                    let this = this.clone();
+                    let last_value_data = last_value_data.clone();
+                    Box::pin(async move { 
+                        let result = match result {
+                            Ok(v) => v,
+                            Err(e) => {
+                                log_rtab!(debug "Deferred fanout error: {}", e);
+                                return false;
+                            }
+                        };
+                        let is_partial = result.fanout_result.kind.is_partial();
+                        let lvd = last_value_data.lock().clone();
+                        let value_data = match this.process_outbound_set_value_result(key, subkey, lvd, safety_selection, result).await {
+                            Ok(Some(v)) => v,
+                            Ok(None) => {
+                                return is_partial;
+                            }
+                            Err(e) => {
+                                log_rtab!(debug "Deferred fanout error: {}", e);
+                                return false;
+                            }
+                        };
+                        if is_partial {
+                            // If more partial results show up, don't send an update until we're done
+                            return true;
+                        }
+                        // If we processed the final result, possibly send an update 
+                        // if the sequence number changed since our first partial update
+                        // Send with a max count as this is not attached to any watch
+                        let changed = {
+                            let mut lvd = last_value_data.lock();
+                            if lvd.seq() != value_data.seq() {
+                                *lvd = value_data.clone();
+                                true
+                            } else {
+                                false
+                            }
+                        };
+                        if changed {
+                            if let Err(e) = this.update_callback_value_change(key,ValueSubkeyRangeSet::single(subkey), u32::MAX, Some(value_data)).await {
+                                log_rtab!(debug "Failed sending deferred fanout value change: {}", e);
+                            }
+                        }
+
+                        // Return done
+                        false
+                    })
+                },
+            ),
+        );
+    }
+
+    pub(super) async fn process_outbound_set_value_result(&self, key: TypedKey, subkey: ValueSubkey, last_value_data: ValueData, safety_selection: SafetySelection, result: set_value::OutboundSetValueResult) -> Result<Option<ValueData>, VeilidAPIError> {
+
+        // Regain the lock after network access
+        let mut inner = self.lock().await?;
+
+        // Report on fanout result offline
+        let was_offline = self.check_fanout_set_offline(key, subkey, &result.fanout_result);
+        if was_offline {
+            // Failed to write, try again later
+            inner.add_offline_subkey_write(key, subkey, safety_selection);
+        }
+
+        // Keep the list of nodes that returned a value for later reference
+        inner.process_fanout_results(key, core::iter::once((subkey, &result.fanout_result)), true);
+
+        // Return the new value if it differs from what was asked to set
+        if result.signed_value_data.value_data() != &last_value_data {
+            // Record the newer value and send and update since it is different than what we just set
+            inner
+                .handle_set_local_value(
+                    key,
+                    subkey,
+                    result.signed_value_data.clone(),
+                    WatchUpdateMode::UpdateAll,
+                )
+                .await?;
+
+            return Ok(Some(result.signed_value_data.value_data().clone()));
+        }
+
+        // If the original value was set, return None
+        Ok(None)
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     /// Handle a received 'Set Value' query
     /// Returns a None if the value passed in was set
