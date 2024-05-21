@@ -557,7 +557,7 @@ impl StorageManager {
         log_stor!(debug "Writing subkey to the network: {}:{} len={}", key, subkey, signed_value_data.value_data().data().len() );
 
         // Use the safety selection we opened the record with
-        let result = match self
+        let res_rx = match self
             .outbound_set_value(
                 rpc_processor,
                 key,
@@ -577,36 +577,39 @@ impl StorageManager {
             }
         };
 
-        // Regain the lock after network access
-        let mut inner = self.lock().await?;
+        // Wait for the first result
+        let Ok(result) = res_rx.recv_async().await else {
+            apibail_internal!("failed to receive results");
+        };
+        let result = result?;
+        let partial = result.fanout_result.kind.is_partial();
 
-        // Report on fanout result offline
-        let was_offline = self.check_fanout_set_offline(key, subkey, &result.fanout_result);
-        if was_offline {
-            // Failed to write, try again later
-            inner.add_offline_subkey_write(key, subkey, safety_selection);
+        // Process the returned result
+        let out = self
+            .process_outbound_set_value_result(
+                key,
+                subkey,
+                signed_value_data.value_data().clone(),
+                safety_selection,
+                result,
+            )
+            .await?;
+
+        // If there's more to process, do it in the background
+        if partial {
+            let mut inner = self.lock().await?;
+            self.process_deferred_outbound_set_value_result_inner(
+                &mut inner,
+                res_rx,
+                key,
+                subkey,
+                out.clone()
+                    .unwrap_or_else(|| signed_value_data.value_data().clone()),
+                safety_selection,
+            );
         }
 
-        // Keep the list of nodes that returned a value for later reference
-        inner.process_fanout_results(key, core::iter::once((subkey, &result.fanout_result)), true);
-
-        // Return the new value if it differs from what was asked to set
-        if result.signed_value_data.value_data() != signed_value_data.value_data() {
-            // Record the newer value and send and update since it is different than what we just set
-            inner
-                .handle_set_local_value(
-                    key,
-                    subkey,
-                    result.signed_value_data.clone(),
-                    WatchUpdateMode::UpdateAll,
-                )
-                .await?;
-
-            return Ok(Some(result.signed_value_data.value_data().clone()));
-        }
-
-        // If the original value was set, return None
-        Ok(None)
+        Ok(out)
     }
 
     /// Create,update or cancel an outbound watch to a DHT value

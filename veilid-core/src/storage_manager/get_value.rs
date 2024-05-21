@@ -10,11 +10,12 @@ struct OutboundGetValueContext {
     pub descriptor: Option<Arc<SignedValueDescriptor>>,
     /// The parsed schema from the descriptor if we have one
     pub schema: Option<DHTSchema>,
-    /// If we should send a partial update with the current contetx
+    /// If we should send a partial update with the current context
     pub send_partial_update: bool,
 }
 
 /// The result of the outbound_get_value operation
+#[derive(Clone, Debug)]
 pub(super) struct OutboundGetValueResult {
     /// Fanout result
     pub fanout_result: FanoutResult,
@@ -91,11 +92,11 @@ impl StorageManager {
                             )
                             .await?
                     );
+                    let mut ctx = context.lock();
 
                     // Keep the descriptor if we got one. If we had a last_descriptor it will
                     // already be validated by rpc_call_get_value
                     if let Some(descriptor) = gva.answer.descriptor {
-                        let mut ctx = context.lock();
                         if ctx.descriptor.is_none() && ctx.schema.is_none() {
                             let schema = match descriptor.schema() {
                                 Ok(v) => v,
@@ -109,69 +110,73 @@ impl StorageManager {
                     }
 
                     // Keep the value if we got one and it is newer and it passes schema validation
-                    if let Some(value) = gva.answer.value {
-                        log_dht!(debug "Got value back: len={} seq={}", value.value_data().data().len(), value.value_data().seq());
-                        let mut ctx = context.lock();
+                    let Some(value) = gva.answer.value else {
+                        // Return peers if we have some
+                        log_network_result!(debug "GetValue returned no value, fanout call returned peers {}", gva.answer.peers.len());
 
-                        // Ensure we have a schema and descriptor
-                        let (Some(descriptor), Some(schema)) = (&ctx.descriptor, &ctx.schema)
-                        else {
-                            // Got a value but no descriptor for it
-                            // Move to the next node
-                            return Ok(NetworkResult::invalid_message(
-                                "Got value with no descriptor",
-                            ));
-                        };
+                        return Ok(NetworkResult::value(gva.answer.peers))
+                    };
 
-                        // Validate with schema
-                        if !schema.check_subkey_value_data(
-                            descriptor.owner(),
-                            subkey,
-                            value.value_data(),
-                        ) {
-                            // Validation failed, ignore this value
-                            // Move to the next node
-                            return Ok(NetworkResult::invalid_message(format!(
-                                "Schema validation failed on subkey {}",
-                                subkey
-                            )));
-                        }
+                    log_dht!(debug "GetValue got value back: len={} seq={}", value.value_data().data().len(), value.value_data().seq());
 
-                        // If we have a prior value, see if this is a newer sequence number
-                        if let Some(prior_value) = &ctx.value {
-                            let prior_seq = prior_value.value_data().seq();
-                            let new_seq = value.value_data().seq();
+                    // Ensure we have a schema and descriptor
+                    let (Some(descriptor), Some(schema)) = (&ctx.descriptor, &ctx.schema)
+                    else {
+                        // Got a value but no descriptor for it
+                        // Move to the next node
+                        return Ok(NetworkResult::invalid_message(
+                            "Got value with no descriptor",
+                        ));
+                    };
 
-                            if new_seq == prior_seq {
-                                // If sequence number is the same, the data should be the same
-                                if prior_value.value_data() != value.value_data() {
-                                    // Move to the next node
-                                    return Ok(NetworkResult::invalid_message(
-                                        "value data mismatch",
-                                    ));
-                                }
-                                // Increase the consensus count for the existing value
-                                ctx.value_nodes.push(next_node);
-                            } else if new_seq > prior_seq {
-                                // If the sequence number is greater, start over with the new value
-                                ctx.value = Some(Arc::new(value));
-                                // One node has shown us this value so far
-                                ctx.value_nodes = vec![next_node];
-                                // Send an update since the value changed
-                                ctx.send_partial_update = true;
-                            } else {
-                                // If the sequence number is older, ignore it
+                    // Validate with schema
+                    if !schema.check_subkey_value_data(
+                        descriptor.owner(),
+                        subkey,
+                        value.value_data(),
+                    ) {
+                        // Validation failed, ignore this value
+                        // Move to the next node
+                        return Ok(NetworkResult::invalid_message(format!(
+                            "Schema validation failed on subkey {}",
+                            subkey
+                        )));
+                    }
+
+                    // If we have a prior value, see if this is a newer sequence number
+                    if let Some(prior_value) = &ctx.value {
+                        let prior_seq = prior_value.value_data().seq();
+                        let new_seq = value.value_data().seq();
+
+                        if new_seq == prior_seq {
+                            // If sequence number is the same, the data should be the same
+                            if prior_value.value_data() != value.value_data() {
+                                // Move to the next node
+                                return Ok(NetworkResult::invalid_message(
+                                    "value data mismatch",
+                                ));
                             }
-                        } else {
-                            // If we have no prior value, keep it
+                            // Increase the consensus count for the existing value
+                            ctx.value_nodes.push(next_node);
+                        } else if new_seq > prior_seq {
+                            // If the sequence number is greater, start over with the new value
                             ctx.value = Some(Arc::new(value));
                             // One node has shown us this value so far
                             ctx.value_nodes = vec![next_node];
                             // Send an update since the value changed
                             ctx.send_partial_update = true;
+                        } else {
+                            // If the sequence number is older, ignore it
                         }
+                    } else {
+                        // If we have no prior value, keep it
+                        ctx.value = Some(Arc::new(value));
+                        // One node has shown us this value so far
+                        ctx.value_nodes = vec![next_node];
+                        // Send an update since the value changed
+                        ctx.send_partial_update = true;
                     }
-
+                    
                     // Return peers if we have some
                     log_network_result!(debug "GetValue fanout call returned peers {}", gva.answer.peers.len());
 
