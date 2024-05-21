@@ -116,7 +116,7 @@ pub mod key256 {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -273,9 +273,11 @@ pub mod key256 {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1,2,3];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0,1,2,3];
     pub const TYPE_ID: u64 = 0xdde4_4e32_86f6_a90d;
   }
 }
@@ -409,7 +411,7 @@ pub mod signature512 {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -662,9 +664,11 @@ pub mod signature512 {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1,2,3,4,5,6,7];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0,1,2,3,4,5,6,7];
     pub const TYPE_ID: u64 = 0x8067_4904_3a12_9c12;
   }
 }
@@ -778,7 +782,7 @@ pub mod nonce24 {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -911,9 +915,11 @@ pub mod nonce24 {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1,2];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0,1,2];
     pub const TYPE_ID: u64 = 0xb626_0db2_5d8d_7dfc;
   }
 }
@@ -1027,7 +1033,7 @@ pub mod typed_key {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -1059,7 +1065,7 @@ pub mod typed_key {
     }
     #[inline]
     pub fn set_key(&mut self, value: crate::veilid_capnp::key256::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_key(self, ) -> crate::veilid_capnp::key256::Builder<'a> {
@@ -1147,9 +1153,11 @@ pub mod typed_key {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[1,0];
     pub const TYPE_ID: u64 = 0xe2d5_67a9_f1e6_1b29;
   }
 }
@@ -1263,7 +1271,7 @@ pub mod typed_signature {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -1295,7 +1303,7 @@ pub mod typed_signature {
     }
     #[inline]
     pub fn set_signature(&mut self, value: crate::veilid_capnp::signature512::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_signature(self, ) -> crate::veilid_capnp::signature512::Builder<'a> {
@@ -1385,9 +1393,11 @@ pub mod typed_signature {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0,1];
     pub const TYPE_ID: u64 = 0x9631_70c7_298e_3884;
   }
 }
@@ -1493,7 +1503,7 @@ pub mod address_i_p_v4 {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -1578,9 +1588,11 @@ pub mod address_i_p_v4 {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0];
     pub const TYPE_ID: u64 = 0xdb87_6988_1266_a6a0;
   }
 }
@@ -1698,7 +1710,7 @@ pub mod address_i_p_v6 {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -1855,9 +1867,11 @@ pub mod address_i_p_v6 {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1,2,3];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0,1,2,3];
     pub const TYPE_ID: u64 = 0xb35d_6e60_11dc_5c20;
   }
 }
@@ -1987,7 +2001,7 @@ pub mod address {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -2008,7 +2022,7 @@ pub mod address {
     #[inline]
     pub fn set_ipv4(&mut self, value: crate::veilid_capnp::address_i_p_v4::Reader<'_>) -> ::capnp::Result<()> {
       self.builder.set_data_field::<u16>(0, 0);
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_ipv4(self, ) -> crate::veilid_capnp::address_i_p_v4::Builder<'a> {
@@ -2023,7 +2037,7 @@ pub mod address {
     #[inline]
     pub fn set_ipv6(&mut self, value: crate::veilid_capnp::address_i_p_v6::Reader<'_>) -> ::capnp::Result<()> {
       self.builder.set_data_field::<u16>(0, 1);
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_ipv6(self, ) -> crate::veilid_capnp::address_i_p_v6::Builder<'a> {
@@ -2126,9 +2140,11 @@ pub mod address {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[0,1];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0,1];
     pub const TYPE_ID: u64 = 0x8127_06e9_e57d_108b;
   }
   pub enum Which<A0,A1> {
@@ -2248,7 +2264,7 @@ pub mod socket_address {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -2272,7 +2288,7 @@ pub mod socket_address {
     }
     #[inline]
     pub fn set_address(&mut self, value: crate::veilid_capnp::address::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_address(self, ) -> crate::veilid_capnp::address::Builder<'a> {
@@ -2369,9 +2385,11 @@ pub mod socket_address {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0,1];
     pub const TYPE_ID: u64 = 0x82df_4272_f4dd_3a62;
   }
 }
@@ -2557,7 +2575,7 @@ pub mod dial_info_u_d_p {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -2581,7 +2599,7 @@ pub mod dial_info_u_d_p {
     }
     #[inline]
     pub fn set_socket_address(&mut self, value: crate::veilid_capnp::socket_address::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_socket_address(self, ) -> crate::veilid_capnp::socket_address::Builder<'a> {
@@ -2654,9 +2672,11 @@ pub mod dial_info_u_d_p {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0];
     pub const TYPE_ID: u64 = 0xbb38_a8b8_b702_4a7c;
   }
 }
@@ -2766,7 +2786,7 @@ pub mod dial_info_t_c_p {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -2790,7 +2810,7 @@ pub mod dial_info_t_c_p {
     }
     #[inline]
     pub fn set_socket_address(&mut self, value: crate::veilid_capnp::socket_address::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_socket_address(self, ) -> crate::veilid_capnp::socket_address::Builder<'a> {
@@ -2863,9 +2883,11 @@ pub mod dial_info_t_c_p {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0];
     pub const TYPE_ID: u64 = 0x9e0a_9371_b9a9_f7fc;
   }
 }
@@ -2983,7 +3005,7 @@ pub mod dial_info_w_s {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -3007,7 +3029,7 @@ pub mod dial_info_w_s {
     }
     #[inline]
     pub fn set_socket_address(&mut self, value: crate::veilid_capnp::socket_address::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_socket_address(self, ) -> crate::veilid_capnp::socket_address::Builder<'a> {
@@ -3022,8 +3044,8 @@ pub mod dial_info_w_s {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(1), ::core::option::Option::None)
     }
     #[inline]
-    pub fn set_request(&mut self, value: ::capnp::text::Reader<'_>)  {
-      self.builder.reborrow().get_pointer_field(1).set_text(value);
+    pub fn set_request(&mut self, value: impl ::capnp::traits::SetterInput<::capnp::text::Owned>)  {
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false).unwrap()
     }
     #[inline]
     pub fn init_request(self, size: u32) -> ::capnp::text::Builder<'a> {
@@ -3112,9 +3134,11 @@ pub mod dial_info_w_s {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[1,0];
     pub const TYPE_ID: u64 = 0xd779_5f7a_92ab_15b0;
   }
 }
@@ -3232,7 +3256,7 @@ pub mod dial_info_w_s_s {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -3256,7 +3280,7 @@ pub mod dial_info_w_s_s {
     }
     #[inline]
     pub fn set_socket_address(&mut self, value: crate::veilid_capnp::socket_address::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_socket_address(self, ) -> crate::veilid_capnp::socket_address::Builder<'a> {
@@ -3271,8 +3295,8 @@ pub mod dial_info_w_s_s {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(1), ::core::option::Option::None)
     }
     #[inline]
-    pub fn set_request(&mut self, value: ::capnp::text::Reader<'_>)  {
-      self.builder.reborrow().get_pointer_field(1).set_text(value);
+    pub fn set_request(&mut self, value: impl ::capnp::traits::SetterInput<::capnp::text::Owned>)  {
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false).unwrap()
     }
     #[inline]
     pub fn init_request(self, size: u32) -> ::capnp::text::Builder<'a> {
@@ -3361,9 +3385,11 @@ pub mod dial_info_w_s_s {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[1,0];
     pub const TYPE_ID: u64 = 0xe639_faa4_1b7d_7b04;
   }
 }
@@ -3513,7 +3539,7 @@ pub mod dial_info {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -3534,7 +3560,7 @@ pub mod dial_info {
     #[inline]
     pub fn set_udp(&mut self, value: crate::veilid_capnp::dial_info_u_d_p::Reader<'_>) -> ::capnp::Result<()> {
       self.builder.set_data_field::<u16>(0, 0);
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_udp(self, ) -> crate::veilid_capnp::dial_info_u_d_p::Builder<'a> {
@@ -3549,7 +3575,7 @@ pub mod dial_info {
     #[inline]
     pub fn set_tcp(&mut self, value: crate::veilid_capnp::dial_info_t_c_p::Reader<'_>) -> ::capnp::Result<()> {
       self.builder.set_data_field::<u16>(0, 1);
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_tcp(self, ) -> crate::veilid_capnp::dial_info_t_c_p::Builder<'a> {
@@ -3564,7 +3590,7 @@ pub mod dial_info {
     #[inline]
     pub fn set_ws(&mut self, value: crate::veilid_capnp::dial_info_w_s::Reader<'_>) -> ::capnp::Result<()> {
       self.builder.set_data_field::<u16>(0, 2);
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_ws(self, ) -> crate::veilid_capnp::dial_info_w_s::Builder<'a> {
@@ -3579,7 +3605,7 @@ pub mod dial_info {
     #[inline]
     pub fn set_wss(&mut self, value: crate::veilid_capnp::dial_info_w_s_s::Reader<'_>) -> ::capnp::Result<()> {
       self.builder.set_data_field::<u16>(0, 3);
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_wss(self, ) -> crate::veilid_capnp::dial_info_w_s_s::Builder<'a> {
@@ -3724,9 +3750,11 @@ pub mod dial_info {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[0,1,2,3];
+    pub static MEMBERS_BY_NAME : &[u16] = &[1,0,2,3];
     pub const TYPE_ID: u64 = 0xe1cd_1c39_fc2d_efdf;
   }
   pub enum Which<A0,A1,A2,A3> {
@@ -3852,7 +3880,7 @@ pub mod signal_info_hole_punch {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -3892,7 +3920,7 @@ pub mod signal_info_hole_punch {
     }
     #[inline]
     pub fn set_peer_info(&mut self, value: crate::veilid_capnp::peer_info::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
     }
     #[inline]
     pub fn init_peer_info(self, ) -> crate::veilid_capnp::peer_info::Builder<'a> {
@@ -3982,9 +4010,11 @@ pub mod signal_info_hole_punch {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[1,0];
     pub const TYPE_ID: u64 = 0xeeb9_ab68_6189_0c9a;
   }
 }
@@ -4102,7 +4132,7 @@ pub mod signal_info_reverse_connect {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -4142,7 +4172,7 @@ pub mod signal_info_reverse_connect {
     }
     #[inline]
     pub fn set_peer_info(&mut self, value: crate::veilid_capnp::peer_info::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
     }
     #[inline]
     pub fn init_peer_info(self, ) -> crate::veilid_capnp::peer_info::Builder<'a> {
@@ -4233,9 +4263,11 @@ pub mod signal_info_reverse_connect {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[1,0];
     pub const TYPE_ID: u64 = 0xd9eb_d3bd_0d46_e013;
   }
 }
@@ -4353,7 +4385,7 @@ pub mod route_hop_data {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -4377,7 +4409,7 @@ pub mod route_hop_data {
     }
     #[inline]
     pub fn set_nonce(&mut self, value: crate::veilid_capnp::nonce24::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_nonce(self, ) -> crate::veilid_capnp::nonce24::Builder<'a> {
@@ -4481,9 +4513,11 @@ pub mod route_hop_data {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[1,0];
     pub const TYPE_ID: u64 = 0x8ce2_31f9_d1b7_adf2;
   }
 }
@@ -4597,7 +4631,7 @@ pub mod route_hop {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -4631,7 +4665,7 @@ pub mod route_hop {
     }
     #[inline]
     pub fn set_next_hop(&mut self, value: crate::veilid_capnp::route_hop_data::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
     }
     #[inline]
     pub fn init_next_hop(self, ) -> crate::veilid_capnp::route_hop_data::Builder<'a> {
@@ -4715,9 +4749,11 @@ pub mod route_hop {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[1,0];
     pub const TYPE_ID: u64 = 0xf8f6_72d7_5cce_0c3b;
   }
 
@@ -4846,7 +4882,7 @@ pub mod route_hop {
       }
     }
 
-    impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+    impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
       fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
     }
 
@@ -4867,7 +4903,7 @@ pub mod route_hop {
       #[inline]
       pub fn set_node_id(&mut self, value: crate::veilid_capnp::key256::Reader<'_>) -> ::capnp::Result<()> {
         self.builder.set_data_field::<u16>(0, 0);
-        ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+        ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
       }
       #[inline]
       pub fn init_node_id(self, ) -> crate::veilid_capnp::key256::Builder<'a> {
@@ -4882,7 +4918,7 @@ pub mod route_hop {
       #[inline]
       pub fn set_peer_info(&mut self, value: crate::veilid_capnp::peer_info::Reader<'_>) -> ::capnp::Result<()> {
         self.builder.set_data_field::<u16>(0, 1);
-        ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+        ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
       }
       #[inline]
       pub fn init_peer_info(self, ) -> crate::veilid_capnp::peer_info::Builder<'a> {
@@ -4986,9 +5022,11 @@ pub mod route_hop {
         encoded_node: &ENCODED_NODE,
         nonunion_members: NONUNION_MEMBERS,
         members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+        members_by_name: MEMBERS_BY_NAME,
       };
       pub static NONUNION_MEMBERS : &[u16] = &[];
       pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[0,1];
+      pub static MEMBERS_BY_NAME : &[u16] = &[0,1];
       pub const TYPE_ID: u64 = 0xca21_d57d_70b7_e221;
     }
     pub enum Which<A0,A1> {
@@ -5113,7 +5151,7 @@ pub mod private_route {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -5137,7 +5175,7 @@ pub mod private_route {
     }
     #[inline]
     pub fn set_public_key(&mut self, value: crate::veilid_capnp::typed_key::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_public_key(self, ) -> crate::veilid_capnp::typed_key::Builder<'a> {
@@ -5257,9 +5295,11 @@ pub mod private_route {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1,2];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[1,2,0];
     pub const TYPE_ID: u64 = 0x8a83_fccb_0851_e776;
   }
 
@@ -5393,7 +5433,7 @@ pub mod private_route {
       }
     }
 
-    impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+    impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
       fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
     }
 
@@ -5414,7 +5454,7 @@ pub mod private_route {
       #[inline]
       pub fn set_first_hop(&mut self, value: crate::veilid_capnp::route_hop::Reader<'_>) -> ::capnp::Result<()> {
         self.builder.set_data_field::<u16>(1, 0);
-        ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+        ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
       }
       #[inline]
       pub fn init_first_hop(self, ) -> crate::veilid_capnp::route_hop::Builder<'a> {
@@ -5429,7 +5469,7 @@ pub mod private_route {
       #[inline]
       pub fn set_data(&mut self, value: crate::veilid_capnp::route_hop_data::Reader<'_>) -> ::capnp::Result<()> {
         self.builder.set_data_field::<u16>(1, 1);
-        ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+        ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
       }
       #[inline]
       pub fn init_data(self, ) -> crate::veilid_capnp::route_hop_data::Builder<'a> {
@@ -5558,9 +5598,11 @@ pub mod private_route {
         encoded_node: &ENCODED_NODE,
         nonunion_members: NONUNION_MEMBERS,
         members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+        members_by_name: MEMBERS_BY_NAME,
       };
       pub static NONUNION_MEMBERS : &[u16] = &[];
       pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[0,1,2];
+      pub static MEMBERS_BY_NAME : &[u16] = &[1,2,0];
       pub const TYPE_ID: u64 = 0x8bc0_ed25_5d5d_5338;
     }
     pub enum Which<A0,A1> {
@@ -5686,7 +5728,7 @@ pub mod safety_route {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -5710,7 +5752,7 @@ pub mod safety_route {
     }
     #[inline]
     pub fn set_public_key(&mut self, value: crate::veilid_capnp::typed_key::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_public_key(self, ) -> crate::veilid_capnp::typed_key::Builder<'a> {
@@ -5830,9 +5872,11 @@ pub mod safety_route {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1,2];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[1,2,0];
     pub const TYPE_ID: u64 = 0xf554_734d_07cb_5d59;
   }
 
@@ -5961,7 +6005,7 @@ pub mod safety_route {
       }
     }
 
-    impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+    impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
       fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
     }
 
@@ -5982,7 +6026,7 @@ pub mod safety_route {
       #[inline]
       pub fn set_data(&mut self, value: crate::veilid_capnp::route_hop_data::Reader<'_>) -> ::capnp::Result<()> {
         self.builder.set_data_field::<u16>(1, 0);
-        ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+        ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
       }
       #[inline]
       pub fn init_data(self, ) -> crate::veilid_capnp::route_hop_data::Builder<'a> {
@@ -5997,7 +6041,7 @@ pub mod safety_route {
       #[inline]
       pub fn set_private(&mut self, value: crate::veilid_capnp::private_route::Reader<'_>) -> ::capnp::Result<()> {
         self.builder.set_data_field::<u16>(1, 1);
-        ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+        ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
       }
       #[inline]
       pub fn init_private(self, ) -> crate::veilid_capnp::private_route::Builder<'a> {
@@ -6100,9 +6144,11 @@ pub mod safety_route {
         encoded_node: &ENCODED_NODE,
         nonunion_members: NONUNION_MEMBERS,
         members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+        members_by_name: MEMBERS_BY_NAME,
       };
       pub static NONUNION_MEMBERS : &[u16] = &[];
       pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[0,1];
+      pub static MEMBERS_BY_NAME : &[u16] = &[0,1];
       pub const TYPE_ID: u64 = 0xacc9_f7bb_61ad_6b1a;
     }
     pub enum Which<A0,A1> {
@@ -6468,7 +6514,7 @@ pub mod dial_info_detail {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -6492,7 +6538,7 @@ pub mod dial_info_detail {
     }
     #[inline]
     pub fn set_dial_info(&mut self, value: crate::veilid_capnp::dial_info::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_dial_info(self, ) -> crate::veilid_capnp::dial_info::Builder<'a> {
@@ -6590,9 +6636,11 @@ pub mod dial_info_detail {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[1,0];
     pub const TYPE_ID: u64 = 0x9642_3aa1_d67b_74d8;
   }
 }
@@ -6694,7 +6742,7 @@ pub mod node_status {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -6752,9 +6800,11 @@ pub mod node_status {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[];
     pub const TYPE_ID: u64 = 0xd36b_9e7a_3bf3_330d;
   }
 }
@@ -6872,7 +6922,7 @@ pub mod protocol_type_set {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -7030,9 +7080,11 @@ pub mod protocol_type_set {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1,2,3];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[1,0,2,3];
     pub const TYPE_ID: u64 = 0x82f1_2f55_a1b7_3326;
   }
 }
@@ -7142,7 +7194,7 @@ pub mod address_type_set {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -7252,9 +7304,11 @@ pub mod address_type_set {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0,1];
     pub const TYPE_ID: u64 = 0x9f52_d543_0d34_9e6b;
   }
 }
@@ -7364,7 +7418,7 @@ pub mod sender_info {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -7388,7 +7442,7 @@ pub mod sender_info {
     }
     #[inline]
     pub fn set_socket_address(&mut self, value: crate::veilid_capnp::socket_address::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_socket_address(self, ) -> crate::veilid_capnp::socket_address::Builder<'a> {
@@ -7461,9 +7515,11 @@ pub mod sender_info {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0];
     pub const TYPE_ID: u64 = 0x8a44_64fa_b4b1_d101;
   }
 }
@@ -7617,7 +7673,7 @@ pub mod node_info {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -7649,7 +7705,7 @@ pub mod node_info {
     }
     #[inline]
     pub fn set_outbound_protocols(&mut self, value: crate::veilid_capnp::protocol_type_set::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_outbound_protocols(self, ) -> crate::veilid_capnp::protocol_type_set::Builder<'a> {
@@ -7665,7 +7721,7 @@ pub mod node_info {
     }
     #[inline]
     pub fn set_address_types(&mut self, value: crate::veilid_capnp::address_type_set::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
     }
     #[inline]
     pub fn init_address_types(self, ) -> crate::veilid_capnp::address_type_set::Builder<'a> {
@@ -7680,8 +7736,8 @@ pub mod node_info {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(2), ::core::option::Option::None)
     }
     #[inline]
-    pub fn set_envelope_support(&mut self, value: ::capnp::primitive_list::Reader<'_,u8>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(2), value, false)
+    pub fn set_envelope_support(&mut self, value: impl ::capnp::traits::SetterInput<::capnp::primitive_list::Owned<u8>>) -> ::capnp::Result<()> {
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(2), value, false)
     }
     #[inline]
     pub fn init_envelope_support(self, size: u32) -> ::capnp::primitive_list::Builder<'a,u8> {
@@ -7696,8 +7752,8 @@ pub mod node_info {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(3), ::core::option::Option::None)
     }
     #[inline]
-    pub fn set_crypto_support(&mut self, value: ::capnp::primitive_list::Reader<'_,u32>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(3), value, false)
+    pub fn set_crypto_support(&mut self, value: impl ::capnp::traits::SetterInput<::capnp::primitive_list::Owned<u32>>) -> ::capnp::Result<()> {
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(3), value, false)
     }
     #[inline]
     pub fn init_crypto_support(self, size: u32) -> ::capnp::primitive_list::Builder<'a,u32> {
@@ -7712,8 +7768,8 @@ pub mod node_info {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(4), ::core::option::Option::None)
     }
     #[inline]
-    pub fn set_capabilities(&mut self, value: ::capnp::primitive_list::Reader<'_,u32>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(4), value, false)
+    pub fn set_capabilities(&mut self, value: impl ::capnp::traits::SetterInput<::capnp::primitive_list::Owned<u32>>) -> ::capnp::Result<()> {
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(4), value, false)
     }
     #[inline]
     pub fn init_capabilities(self, size: u32) -> ::capnp::primitive_list::Builder<'a,u32> {
@@ -7729,7 +7785,7 @@ pub mod node_info {
     }
     #[inline]
     pub fn set_dial_info_detail_list(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::dial_info_detail::Owned>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(5), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(5), value, false)
     }
     #[inline]
     pub fn init_dial_info_detail_list(self, size: u32) -> ::capnp::struct_list::Builder<'a,crate::veilid_capnp::dial_info_detail::Owned> {
@@ -7925,9 +7981,11 @@ pub mod node_info {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1,2,3,4,5,6];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[2,5,4,6,3,0,1];
     pub const TYPE_ID: u64 = 0xe125_d847_e3f9_f419;
   }
 }
@@ -8049,7 +8107,7 @@ pub mod signed_direct_node_info {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -8073,7 +8131,7 @@ pub mod signed_direct_node_info {
     }
     #[inline]
     pub fn set_node_info(&mut self, value: crate::veilid_capnp::node_info::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_node_info(self, ) -> crate::veilid_capnp::node_info::Builder<'a> {
@@ -8097,7 +8155,7 @@ pub mod signed_direct_node_info {
     }
     #[inline]
     pub fn set_signatures(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::typed_signature::Owned>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
     }
     #[inline]
     pub fn init_signatures(self, size: u32) -> ::capnp::struct_list::Builder<'a,crate::veilid_capnp::typed_signature::Owned> {
@@ -8209,9 +8267,11 @@ pub mod signed_direct_node_info {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1,2];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0,2,1];
     pub const TYPE_ID: u64 = 0xe0e7_ea3e_893a_3dd7;
   }
 }
@@ -8349,7 +8409,7 @@ pub mod signed_relayed_node_info {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -8373,7 +8433,7 @@ pub mod signed_relayed_node_info {
     }
     #[inline]
     pub fn set_node_info(&mut self, value: crate::veilid_capnp::node_info::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_node_info(self, ) -> crate::veilid_capnp::node_info::Builder<'a> {
@@ -8389,7 +8449,7 @@ pub mod signed_relayed_node_info {
     }
     #[inline]
     pub fn set_relay_ids(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::typed_key::Owned>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
     }
     #[inline]
     pub fn init_relay_ids(self, size: u32) -> ::capnp::struct_list::Builder<'a,crate::veilid_capnp::typed_key::Owned> {
@@ -8405,7 +8465,7 @@ pub mod signed_relayed_node_info {
     }
     #[inline]
     pub fn set_relay_info(&mut self, value: crate::veilid_capnp::signed_direct_node_info::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(2), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(2), value, false)
     }
     #[inline]
     pub fn init_relay_info(self, ) -> crate::veilid_capnp::signed_direct_node_info::Builder<'a> {
@@ -8429,7 +8489,7 @@ pub mod signed_relayed_node_info {
     }
     #[inline]
     pub fn set_signatures(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::typed_signature::Owned>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(3), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(3), value, false)
     }
     #[inline]
     pub fn init_signatures(self, size: u32) -> ::capnp::struct_list::Builder<'a,crate::veilid_capnp::typed_signature::Owned> {
@@ -8583,9 +8643,11 @@ pub mod signed_relayed_node_info {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1,2,3,4];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0,1,2,4,3];
     pub const TYPE_ID: u64 = 0xb39e_8428_ccd8_7cbb;
   }
 }
@@ -8715,7 +8777,7 @@ pub mod signed_node_info {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -8736,7 +8798,7 @@ pub mod signed_node_info {
     #[inline]
     pub fn set_direct(&mut self, value: crate::veilid_capnp::signed_direct_node_info::Reader<'_>) -> ::capnp::Result<()> {
       self.builder.set_data_field::<u16>(0, 0);
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_direct(self, ) -> crate::veilid_capnp::signed_direct_node_info::Builder<'a> {
@@ -8751,7 +8813,7 @@ pub mod signed_node_info {
     #[inline]
     pub fn set_relayed(&mut self, value: crate::veilid_capnp::signed_relayed_node_info::Reader<'_>) -> ::capnp::Result<()> {
       self.builder.set_data_field::<u16>(0, 1);
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_relayed(self, ) -> crate::veilid_capnp::signed_relayed_node_info::Builder<'a> {
@@ -8855,9 +8917,11 @@ pub mod signed_node_info {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[0,1];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0,1];
     pub const TYPE_ID: u64 = 0xd247_8ce5_f593_406a;
   }
   pub enum Which<A0,A1> {
@@ -8981,7 +9045,7 @@ pub mod peer_info {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -9005,7 +9069,7 @@ pub mod peer_info {
     }
     #[inline]
     pub fn set_node_ids(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::typed_key::Owned>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_node_ids(self, size: u32) -> ::capnp::struct_list::Builder<'a,crate::veilid_capnp::typed_key::Owned> {
@@ -9021,7 +9085,7 @@ pub mod peer_info {
     }
     #[inline]
     pub fn set_signed_node_info(&mut self, value: crate::veilid_capnp::signed_node_info::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
     }
     #[inline]
     pub fn init_signed_node_info(self, ) -> crate::veilid_capnp::signed_node_info::Builder<'a> {
@@ -9114,9 +9178,11 @@ pub mod peer_info {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0,1];
     pub const TYPE_ID: u64 = 0xfe2d_722d_5d3c_4bcb;
   }
 }
@@ -9246,7 +9312,7 @@ pub mod routed_operation {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -9278,7 +9344,7 @@ pub mod routed_operation {
     }
     #[inline]
     pub fn set_signatures(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::signature512::Owned>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_signatures(self, size: u32) -> ::capnp::struct_list::Builder<'a,crate::veilid_capnp::signature512::Owned> {
@@ -9294,7 +9360,7 @@ pub mod routed_operation {
     }
     #[inline]
     pub fn set_nonce(&mut self, value: crate::veilid_capnp::nonce24::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
     }
     #[inline]
     pub fn init_nonce(self, ) -> crate::veilid_capnp::nonce24::Builder<'a> {
@@ -9437,9 +9503,11 @@ pub mod routed_operation {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1,2,3];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[3,2,0,1];
     pub const TYPE_ID: u64 = 0xcbcb_8535_b839_e9dd;
   }
 }
@@ -9549,7 +9617,7 @@ pub mod operation_status_q {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -9573,7 +9641,7 @@ pub mod operation_status_q {
     }
     #[inline]
     pub fn set_node_status(&mut self, value: crate::veilid_capnp::node_status::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_node_status(self, ) -> crate::veilid_capnp::node_status::Builder<'a> {
@@ -9647,9 +9715,11 @@ pub mod operation_status_q {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0];
     pub const TYPE_ID: u64 = 0x865d_80ce_a70d_884a;
   }
 }
@@ -9767,7 +9837,7 @@ pub mod operation_status_a {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -9791,7 +9861,7 @@ pub mod operation_status_a {
     }
     #[inline]
     pub fn set_node_status(&mut self, value: crate::veilid_capnp::node_status::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_node_status(self, ) -> crate::veilid_capnp::node_status::Builder<'a> {
@@ -9807,7 +9877,7 @@ pub mod operation_status_a {
     }
     #[inline]
     pub fn set_sender_info(&mut self, value: crate::veilid_capnp::sender_info::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
     }
     #[inline]
     pub fn init_sender_info(self, ) -> crate::veilid_capnp::sender_info::Builder<'a> {
@@ -9901,9 +9971,11 @@ pub mod operation_status_a {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0,1];
     pub const TYPE_ID: u64 = 0xb306_f407_fa81_2a55;
   }
 }
@@ -10025,7 +10097,7 @@ pub mod operation_validate_dial_info {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -10049,7 +10121,7 @@ pub mod operation_validate_dial_info {
     }
     #[inline]
     pub fn set_dial_info(&mut self, value: crate::veilid_capnp::dial_info::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_dial_info(self, ) -> crate::veilid_capnp::dial_info::Builder<'a> {
@@ -10181,9 +10253,11 @@ pub mod operation_validate_dial_info {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1,2];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0,1,2];
     pub const TYPE_ID: u64 = 0xbc71_6ad7_d5d0_60c8;
   }
 }
@@ -10293,7 +10367,7 @@ pub mod operation_return_receipt {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -10388,9 +10462,11 @@ pub mod operation_return_receipt {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0];
     pub const TYPE_ID: u64 = 0xeb0f_b5b5_a916_0eeb;
   }
 }
@@ -10508,7 +10584,7 @@ pub mod operation_find_node_q {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -10532,7 +10608,7 @@ pub mod operation_find_node_q {
     }
     #[inline]
     pub fn set_node_id(&mut self, value: crate::veilid_capnp::typed_key::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_node_id(self, ) -> crate::veilid_capnp::typed_key::Builder<'a> {
@@ -10547,8 +10623,8 @@ pub mod operation_find_node_q {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(1), ::core::option::Option::None)
     }
     #[inline]
-    pub fn set_capabilities(&mut self, value: ::capnp::primitive_list::Reader<'_,u32>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+    pub fn set_capabilities(&mut self, value: impl ::capnp::traits::SetterInput<::capnp::primitive_list::Owned<u32>>) -> ::capnp::Result<()> {
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
     }
     #[inline]
     pub fn init_capabilities(self, size: u32) -> ::capnp::primitive_list::Builder<'a,u32> {
@@ -10642,9 +10718,11 @@ pub mod operation_find_node_q {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[1,0];
     pub const TYPE_ID: u64 = 0xfdef_788f_e962_3bcd;
   }
 }
@@ -10754,7 +10832,7 @@ pub mod operation_find_node_a {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -10778,7 +10856,7 @@ pub mod operation_find_node_a {
     }
     #[inline]
     pub fn set_peers(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::peer_info::Owned>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_peers(self, size: u32) -> ::capnp::struct_list::Builder<'a,crate::veilid_capnp::peer_info::Owned> {
@@ -10852,9 +10930,11 @@ pub mod operation_find_node_a {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0];
     pub const TYPE_ID: u64 = 0xa84c_f2fb_40c7_7089;
   }
 }
@@ -10972,7 +11052,7 @@ pub mod operation_route {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -10996,7 +11076,7 @@ pub mod operation_route {
     }
     #[inline]
     pub fn set_safety_route(&mut self, value: crate::veilid_capnp::safety_route::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_safety_route(self, ) -> crate::veilid_capnp::safety_route::Builder<'a> {
@@ -11012,7 +11092,7 @@ pub mod operation_route {
     }
     #[inline]
     pub fn set_operation(&mut self, value: crate::veilid_capnp::routed_operation::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
     }
     #[inline]
     pub fn init_operation(self, ) -> crate::veilid_capnp::routed_operation::Builder<'a> {
@@ -11106,9 +11186,11 @@ pub mod operation_route {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[1,0];
     pub const TYPE_ID: u64 = 0x9674_1859_ce6a_c7dd;
   }
 }
@@ -11218,7 +11300,7 @@ pub mod operation_app_call_q {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -11312,9 +11394,11 @@ pub mod operation_app_call_q {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0];
     pub const TYPE_ID: u64 = 0xade6_7b9f_0978_4507;
   }
 }
@@ -11424,7 +11508,7 @@ pub mod operation_app_call_a {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -11518,9 +11602,11 @@ pub mod operation_app_call_a {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0];
     pub const TYPE_ID: u64 = 0xf7c7_97ac_85f2_14b8;
   }
 }
@@ -11630,7 +11716,7 @@ pub mod operation_app_message {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -11724,9 +11810,11 @@ pub mod operation_app_message {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0];
     pub const TYPE_ID: u64 = 0x9baf_542d_81b4_11f5;
   }
 }
@@ -11836,7 +11924,7 @@ pub mod subkey_range {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -11945,9 +12033,11 @@ pub mod subkey_range {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[1,0];
     pub const TYPE_ID: u64 = 0xf592_dac0_a4d0_171c;
   }
 }
@@ -12077,7 +12167,7 @@ pub mod signed_value_data {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -12125,7 +12215,7 @@ pub mod signed_value_data {
     }
     #[inline]
     pub fn set_writer(&mut self, value: crate::veilid_capnp::key256::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
     }
     #[inline]
     pub fn init_writer(self, ) -> crate::veilid_capnp::key256::Builder<'a> {
@@ -12141,7 +12231,7 @@ pub mod signed_value_data {
     }
     #[inline]
     pub fn set_signature(&mut self, value: crate::veilid_capnp::signature512::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(2), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(2), value, false)
     }
     #[inline]
     pub fn init_signature(self, ) -> crate::veilid_capnp::signature512::Builder<'a> {
@@ -12266,9 +12356,11 @@ pub mod signed_value_data {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1,2,3];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[1,0,3,2];
     pub const TYPE_ID: u64 = 0xb4b7_416f_169f_2a3d;
   }
 }
@@ -12394,7 +12486,7 @@ pub mod signed_value_descriptor {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -12418,7 +12510,7 @@ pub mod signed_value_descriptor {
     }
     #[inline]
     pub fn set_owner(&mut self, value: crate::veilid_capnp::key256::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_owner(self, ) -> crate::veilid_capnp::key256::Builder<'a> {
@@ -12450,7 +12542,7 @@ pub mod signed_value_descriptor {
     }
     #[inline]
     pub fn set_signature(&mut self, value: crate::veilid_capnp::signature512::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(2), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(2), value, false)
     }
     #[inline]
     pub fn init_signature(self, ) -> crate::veilid_capnp::signature512::Builder<'a> {
@@ -12561,9 +12653,11 @@ pub mod signed_value_descriptor {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1,2];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0,1,2];
     pub const TYPE_ID: u64 = 0xe791_1cd3_f9e1_b0e7;
   }
 }
@@ -12681,7 +12775,7 @@ pub mod operation_get_value_q {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -12705,7 +12799,7 @@ pub mod operation_get_value_q {
     }
     #[inline]
     pub fn set_key(&mut self, value: crate::veilid_capnp::typed_key::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_key(self, ) -> crate::veilid_capnp::typed_key::Builder<'a> {
@@ -12827,9 +12921,11 @@ pub mod operation_get_value_q {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1,2];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0,1,2];
     pub const TYPE_ID: u64 = 0xf88a_5b6d_a5ed_a5d0;
   }
 }
@@ -12955,7 +13051,7 @@ pub mod operation_get_value_a {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -12979,7 +13075,7 @@ pub mod operation_get_value_a {
     }
     #[inline]
     pub fn set_value(&mut self, value: crate::veilid_capnp::signed_value_data::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_value(self, ) -> crate::veilid_capnp::signed_value_data::Builder<'a> {
@@ -12995,7 +13091,7 @@ pub mod operation_get_value_a {
     }
     #[inline]
     pub fn set_peers(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::peer_info::Owned>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
     }
     #[inline]
     pub fn init_peers(self, size: u32) -> ::capnp::struct_list::Builder<'a,crate::veilid_capnp::peer_info::Owned> {
@@ -13011,7 +13107,7 @@ pub mod operation_get_value_a {
     }
     #[inline]
     pub fn set_descriptor(&mut self, value: crate::veilid_capnp::signed_value_descriptor::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(2), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(2), value, false)
     }
     #[inline]
     pub fn init_descriptor(self, ) -> crate::veilid_capnp::signed_value_descriptor::Builder<'a> {
@@ -13124,9 +13220,11 @@ pub mod operation_get_value_a {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1,2];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[2,1,0];
     pub const TYPE_ID: u64 = 0xd896_bb46_f2e0_249f;
   }
 }
@@ -13256,7 +13354,7 @@ pub mod operation_set_value_q {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -13280,7 +13378,7 @@ pub mod operation_set_value_q {
     }
     #[inline]
     pub fn set_key(&mut self, value: crate::veilid_capnp::typed_key::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_key(self, ) -> crate::veilid_capnp::typed_key::Builder<'a> {
@@ -13304,7 +13402,7 @@ pub mod operation_set_value_q {
     }
     #[inline]
     pub fn set_value(&mut self, value: crate::veilid_capnp::signed_value_data::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
     }
     #[inline]
     pub fn init_value(self, ) -> crate::veilid_capnp::signed_value_data::Builder<'a> {
@@ -13320,7 +13418,7 @@ pub mod operation_set_value_q {
     }
     #[inline]
     pub fn set_descriptor(&mut self, value: crate::veilid_capnp::signed_value_descriptor::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(2), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(2), value, false)
     }
     #[inline]
     pub fn init_descriptor(self, ) -> crate::veilid_capnp::signed_value_descriptor::Builder<'a> {
@@ -13448,9 +13546,11 @@ pub mod operation_set_value_q {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1,2,3];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[3,0,1,2];
     pub const TYPE_ID: u64 = 0xbac0_6191_ff8b_dbc5;
   }
 }
@@ -13572,7 +13672,7 @@ pub mod operation_set_value_a {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -13604,7 +13704,7 @@ pub mod operation_set_value_a {
     }
     #[inline]
     pub fn set_value(&mut self, value: crate::veilid_capnp::signed_value_data::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_value(self, ) -> crate::veilid_capnp::signed_value_data::Builder<'a> {
@@ -13620,7 +13720,7 @@ pub mod operation_set_value_a {
     }
     #[inline]
     pub fn set_peers(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::peer_info::Owned>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
     }
     #[inline]
     pub fn init_peers(self, size: u32) -> ::capnp::struct_list::Builder<'a,crate::veilid_capnp::peer_info::Owned> {
@@ -13729,9 +13829,11 @@ pub mod operation_set_value_a {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1,2];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[2,0,1];
     pub const TYPE_ID: u64 = 0x9378_d073_2dc9_5be2;
   }
 }
@@ -13877,7 +13979,7 @@ pub mod operation_watch_value_q {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -13901,7 +14003,7 @@ pub mod operation_watch_value_q {
     }
     #[inline]
     pub fn set_key(&mut self, value: crate::veilid_capnp::typed_key::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_key(self, ) -> crate::veilid_capnp::typed_key::Builder<'a> {
@@ -13917,7 +14019,7 @@ pub mod operation_watch_value_q {
     }
     #[inline]
     pub fn set_subkeys(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::subkey_range::Owned>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
     }
     #[inline]
     pub fn init_subkeys(self, size: u32) -> ::capnp::struct_list::Builder<'a,crate::veilid_capnp::subkey_range::Owned> {
@@ -13957,7 +14059,7 @@ pub mod operation_watch_value_q {
     }
     #[inline]
     pub fn set_watcher(&mut self, value: crate::veilid_capnp::key256::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(2), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(2), value, false)
     }
     #[inline]
     pub fn init_watcher(self, ) -> crate::veilid_capnp::key256::Builder<'a> {
@@ -13973,7 +14075,7 @@ pub mod operation_watch_value_q {
     }
     #[inline]
     pub fn set_signature(&mut self, value: crate::veilid_capnp::signature512::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(3), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(3), value, false)
     }
     #[inline]
     pub fn init_signature(self, ) -> crate::veilid_capnp::signature512::Builder<'a> {
@@ -14154,9 +14256,11 @@ pub mod operation_watch_value_q {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1,2,3,4,5,6];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[3,2,0,6,1,4,5];
     pub const TYPE_ID: u64 = 0xf9a5_a6c5_47b9_b228;
   }
 }
@@ -14278,7 +14382,7 @@ pub mod operation_watch_value_a {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -14318,7 +14422,7 @@ pub mod operation_watch_value_a {
     }
     #[inline]
     pub fn set_peers(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::peer_info::Owned>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_peers(self, size: u32) -> ::capnp::struct_list::Builder<'a,crate::veilid_capnp::peer_info::Owned> {
@@ -14450,9 +14554,11 @@ pub mod operation_watch_value_a {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1,2,3];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0,1,2,3];
     pub const TYPE_ID: u64 = 0xa726_cab7_064b_a893;
   }
 }
@@ -14574,7 +14680,7 @@ pub mod operation_inspect_value_q {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -14598,7 +14704,7 @@ pub mod operation_inspect_value_q {
     }
     #[inline]
     pub fn set_key(&mut self, value: crate::veilid_capnp::typed_key::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_key(self, ) -> crate::veilid_capnp::typed_key::Builder<'a> {
@@ -14614,7 +14720,7 @@ pub mod operation_inspect_value_q {
     }
     #[inline]
     pub fn set_subkeys(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::subkey_range::Owned>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
     }
     #[inline]
     pub fn init_subkeys(self, size: u32) -> ::capnp::struct_list::Builder<'a,crate::veilid_capnp::subkey_range::Owned> {
@@ -14733,9 +14839,11 @@ pub mod operation_inspect_value_q {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1,2];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0,1,2];
     pub const TYPE_ID: u64 = 0xdef7_12d2_fd16_f55a;
   }
 }
@@ -14861,7 +14969,7 @@ pub mod operation_inspect_value_a {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -14884,8 +14992,8 @@ pub mod operation_inspect_value_a {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(0), ::core::option::Option::None)
     }
     #[inline]
-    pub fn set_seqs(&mut self, value: ::capnp::primitive_list::Reader<'_,u32>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+    pub fn set_seqs(&mut self, value: impl ::capnp::traits::SetterInput<::capnp::primitive_list::Owned<u32>>) -> ::capnp::Result<()> {
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_seqs(self, size: u32) -> ::capnp::primitive_list::Builder<'a,u32> {
@@ -14901,7 +15009,7 @@ pub mod operation_inspect_value_a {
     }
     #[inline]
     pub fn set_peers(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::peer_info::Owned>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
     }
     #[inline]
     pub fn init_peers(self, size: u32) -> ::capnp::struct_list::Builder<'a,crate::veilid_capnp::peer_info::Owned> {
@@ -14917,7 +15025,7 @@ pub mod operation_inspect_value_a {
     }
     #[inline]
     pub fn set_descriptor(&mut self, value: crate::veilid_capnp::signed_value_descriptor::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(2), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(2), value, false)
     }
     #[inline]
     pub fn init_descriptor(self, ) -> crate::veilid_capnp::signed_value_descriptor::Builder<'a> {
@@ -15032,9 +15140,11 @@ pub mod operation_inspect_value_a {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1,2];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[2,1,0];
     pub const TYPE_ID: u64 = 0xb8b5_7faf_960e_e102;
   }
 }
@@ -15168,7 +15278,7 @@ pub mod operation_value_changed {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -15192,7 +15302,7 @@ pub mod operation_value_changed {
     }
     #[inline]
     pub fn set_key(&mut self, value: crate::veilid_capnp::typed_key::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_key(self, ) -> crate::veilid_capnp::typed_key::Builder<'a> {
@@ -15208,7 +15318,7 @@ pub mod operation_value_changed {
     }
     #[inline]
     pub fn set_subkeys(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::subkey_range::Owned>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
     }
     #[inline]
     pub fn init_subkeys(self, size: u32) -> ::capnp::struct_list::Builder<'a,crate::veilid_capnp::subkey_range::Owned> {
@@ -15240,7 +15350,7 @@ pub mod operation_value_changed {
     }
     #[inline]
     pub fn set_value(&mut self, value: crate::veilid_capnp::signed_value_data::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(2), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(2), value, false)
     }
     #[inline]
     pub fn init_value(self, ) -> crate::veilid_capnp::signed_value_data::Builder<'a> {
@@ -15385,9 +15495,11 @@ pub mod operation_value_changed {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1,2,3,4];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[2,0,1,4,3];
     pub const TYPE_ID: u64 = 0xd1c5_9ebd_d8cc_1bf6;
   }
 }
@@ -15497,7 +15609,7 @@ pub mod operation_supply_block_q {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -15521,7 +15633,7 @@ pub mod operation_supply_block_q {
     }
     #[inline]
     pub fn set_block_id(&mut self, value: crate::veilid_capnp::typed_key::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_block_id(self, ) -> crate::veilid_capnp::typed_key::Builder<'a> {
@@ -15595,9 +15707,11 @@ pub mod operation_supply_block_q {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0];
     pub const TYPE_ID: u64 = 0xadbf_4c54_2d74_9971;
   }
 }
@@ -15711,7 +15825,7 @@ pub mod operation_supply_block_a {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -15743,7 +15857,7 @@ pub mod operation_supply_block_a {
     }
     #[inline]
     pub fn set_peers(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::peer_info::Owned>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_peers(self, size: u32) -> ::capnp::struct_list::Builder<'a,crate::veilid_capnp::peer_info::Owned> {
@@ -15835,9 +15949,11 @@ pub mod operation_supply_block_a {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0,1];
     pub const TYPE_ID: u64 = 0xf003_822e_83b5_c0d7;
   }
 }
@@ -15947,7 +16063,7 @@ pub mod operation_find_block_q {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -15971,7 +16087,7 @@ pub mod operation_find_block_q {
     }
     #[inline]
     pub fn set_block_id(&mut self, value: crate::veilid_capnp::typed_key::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_block_id(self, ) -> crate::veilid_capnp::typed_key::Builder<'a> {
@@ -16044,9 +16160,11 @@ pub mod operation_find_block_q {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0];
     pub const TYPE_ID: u64 = 0xaf43_53ff_004c_7156;
   }
 }
@@ -16172,7 +16290,7 @@ pub mod operation_find_block_a {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -16212,7 +16330,7 @@ pub mod operation_find_block_a {
     }
     #[inline]
     pub fn set_suppliers(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::peer_info::Owned>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
     }
     #[inline]
     pub fn init_suppliers(self, size: u32) -> ::capnp::struct_list::Builder<'a,crate::veilid_capnp::peer_info::Owned> {
@@ -16228,7 +16346,7 @@ pub mod operation_find_block_a {
     }
     #[inline]
     pub fn set_peers(&mut self, value: ::capnp::struct_list::Reader<'_,crate::veilid_capnp::peer_info::Owned>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(2), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(2), value, false)
     }
     #[inline]
     pub fn init_peers(self, size: u32) -> ::capnp::struct_list::Builder<'a,crate::veilid_capnp::peer_info::Owned> {
@@ -16339,9 +16457,11 @@ pub mod operation_find_block_a {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1,2];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0,2,1];
     pub const TYPE_ID: u64 = 0xc514_55bc_4915_465d;
   }
 }
@@ -16471,7 +16591,7 @@ pub mod operation_signal {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -16492,7 +16612,7 @@ pub mod operation_signal {
     #[inline]
     pub fn set_hole_punch(&mut self, value: crate::veilid_capnp::signal_info_hole_punch::Reader<'_>) -> ::capnp::Result<()> {
       self.builder.set_data_field::<u16>(0, 0);
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_hole_punch(self, ) -> crate::veilid_capnp::signal_info_hole_punch::Builder<'a> {
@@ -16507,7 +16627,7 @@ pub mod operation_signal {
     #[inline]
     pub fn set_reverse_connect(&mut self, value: crate::veilid_capnp::signal_info_reverse_connect::Reader<'_>) -> ::capnp::Result<()> {
       self.builder.set_data_field::<u16>(0, 1);
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_reverse_connect(self, ) -> crate::veilid_capnp::signal_info_reverse_connect::Builder<'a> {
@@ -16613,9 +16733,11 @@ pub mod operation_signal {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[0,1];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0,1];
     pub const TYPE_ID: u64 = 0xd4f9_4f2a_5d20_7e49;
   }
   pub enum Which<A0,A1> {
@@ -16879,7 +17001,7 @@ pub mod tunnel_endpoint {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -16910,8 +17032,8 @@ pub mod tunnel_endpoint {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(0), ::core::option::Option::None)
     }
     #[inline]
-    pub fn set_description(&mut self, value: ::capnp::text::Reader<'_>)  {
-      self.builder.reborrow().get_pointer_field(0).set_text(value);
+    pub fn set_description(&mut self, value: impl ::capnp::traits::SetterInput<::capnp::text::Owned>)  {
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false).unwrap()
     }
     #[inline]
     pub fn init_description(self, size: u32) -> ::capnp::text::Builder<'a> {
@@ -16998,9 +17120,11 @@ pub mod tunnel_endpoint {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[1,0];
     pub const TYPE_ID: u64 = 0xc260_2aa9_83cc_337d;
   }
 }
@@ -17126,7 +17250,7 @@ pub mod full_tunnel {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -17166,7 +17290,7 @@ pub mod full_tunnel {
     }
     #[inline]
     pub fn set_local(&mut self, value: crate::veilid_capnp::tunnel_endpoint::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_local(self, ) -> crate::veilid_capnp::tunnel_endpoint::Builder<'a> {
@@ -17182,7 +17306,7 @@ pub mod full_tunnel {
     }
     #[inline]
     pub fn set_remote(&mut self, value: crate::veilid_capnp::tunnel_endpoint::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
     }
     #[inline]
     pub fn init_remote(self, ) -> crate::veilid_capnp::tunnel_endpoint::Builder<'a> {
@@ -17305,9 +17429,11 @@ pub mod full_tunnel {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1,2,3];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0,2,3,1];
     pub const TYPE_ID: u64 = 0x9821_c3dc_7537_3f63;
   }
 }
@@ -17425,7 +17551,7 @@ pub mod partial_tunnel {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -17465,7 +17591,7 @@ pub mod partial_tunnel {
     }
     #[inline]
     pub fn set_local(&mut self, value: crate::veilid_capnp::tunnel_endpoint::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_local(self, ) -> crate::veilid_capnp::tunnel_endpoint::Builder<'a> {
@@ -17570,9 +17696,11 @@ pub mod partial_tunnel {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1,2];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0,2,1];
     pub const TYPE_ID: u64 = 0x827a_7ebc_02be_2fc8;
   }
 }
@@ -17686,7 +17814,7 @@ pub mod operation_start_tunnel_q {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -17822,9 +17950,11 @@ pub mod operation_start_tunnel_q {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1,2];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[2,0,1];
     pub const TYPE_ID: u64 = 0xa9c4_9afc_e441_87af;
   }
 }
@@ -17949,7 +18079,7 @@ pub mod operation_start_tunnel_a {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -17970,7 +18100,7 @@ pub mod operation_start_tunnel_a {
     #[inline]
     pub fn set_partial(&mut self, value: crate::veilid_capnp::partial_tunnel::Reader<'_>) -> ::capnp::Result<()> {
       self.builder.set_data_field::<u16>(0, 0);
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_partial(self, ) -> crate::veilid_capnp::partial_tunnel::Builder<'a> {
@@ -18080,9 +18210,11 @@ pub mod operation_start_tunnel_a {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[0,1];
+    pub static MEMBERS_BY_NAME : &[u16] = &[1,0];
     pub const TYPE_ID: u64 = 0x8181_62e4_cc61_bf1e;
   }
   pub enum Which<A0> {
@@ -18210,7 +18342,7 @@ pub mod operation_complete_tunnel_q {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -18258,7 +18390,7 @@ pub mod operation_complete_tunnel_q {
     }
     #[inline]
     pub fn set_endpoint(&mut self, value: crate::veilid_capnp::tunnel_endpoint::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_endpoint(self, ) -> crate::veilid_capnp::tunnel_endpoint::Builder<'a> {
@@ -18382,9 +18514,11 @@ pub mod operation_complete_tunnel_q {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1,2,3];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[2,3,0,1];
     pub const TYPE_ID: u64 = 0xe978_5945_88eb_950b;
   }
 }
@@ -18509,7 +18643,7 @@ pub mod operation_complete_tunnel_a {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -18530,7 +18664,7 @@ pub mod operation_complete_tunnel_a {
     #[inline]
     pub fn set_tunnel(&mut self, value: crate::veilid_capnp::full_tunnel::Reader<'_>) -> ::capnp::Result<()> {
       self.builder.set_data_field::<u16>(0, 0);
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_tunnel(self, ) -> crate::veilid_capnp::full_tunnel::Builder<'a> {
@@ -18640,9 +18774,11 @@ pub mod operation_complete_tunnel_a {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[0,1];
+    pub static MEMBERS_BY_NAME : &[u16] = &[1,0];
     pub const TYPE_ID: u64 = 0x8409_0791_bb76_5f2a;
   }
   pub enum Which<A0> {
@@ -18754,7 +18890,7 @@ pub mod operation_cancel_tunnel_q {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -18841,9 +18977,11 @@ pub mod operation_cancel_tunnel_q {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0];
     pub const TYPE_ID: u64 = 0xae28_11ae_0a00_3738;
   }
 }
@@ -18963,7 +19101,7 @@ pub mod operation_cancel_tunnel_a {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -19084,9 +19222,11 @@ pub mod operation_cancel_tunnel_a {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[0,1];
+    pub static MEMBERS_BY_NAME : &[u16] = &[1,0];
     pub const TYPE_ID: u64 = 0xbba2_3c99_2eff_97bc;
   }
   pub enum Which {
@@ -19202,7 +19342,7 @@ pub mod question {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -19308,9 +19448,11 @@ pub mod question {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[1,0];
     pub const TYPE_ID: u64 = 0xd851_0bc3_3492_ef70;
   }
 
@@ -19434,7 +19576,7 @@ pub mod question {
       }
     }
 
-    impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+    impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
       fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
     }
 
@@ -19459,7 +19601,7 @@ pub mod question {
       #[inline]
       pub fn set_private_route(&mut self, value: crate::veilid_capnp::private_route::Reader<'_>) -> ::capnp::Result<()> {
         self.builder.set_data_field::<u16>(0, 1);
-        ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+        ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
       }
       #[inline]
       pub fn init_private_route(self, ) -> crate::veilid_capnp::private_route::Builder<'a> {
@@ -19563,9 +19705,11 @@ pub mod question {
         encoded_node: &ENCODED_NODE,
         nonunion_members: NONUNION_MEMBERS,
         members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+        members_by_name: MEMBERS_BY_NAME,
       };
       pub static NONUNION_MEMBERS : &[u16] = &[];
       pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[0,1];
+      pub static MEMBERS_BY_NAME : &[u16] = &[1,0];
       pub const TYPE_ID: u64 = 0xa58b_8615_fd25_bc25;
     }
     pub enum Which<A0> {
@@ -19751,7 +19895,7 @@ pub mod question {
       }
     }
 
-    impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+    impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
       fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
     }
 
@@ -19772,7 +19916,7 @@ pub mod question {
       #[inline]
       pub fn set_status_q(&mut self, value: crate::veilid_capnp::operation_status_q::Reader<'_>) -> ::capnp::Result<()> {
         self.builder.set_data_field::<u16>(1, 0);
-        ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+        ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
       }
       #[inline]
       pub fn init_status_q(self, ) -> crate::veilid_capnp::operation_status_q::Builder<'a> {
@@ -19787,7 +19931,7 @@ pub mod question {
       #[inline]
       pub fn set_find_node_q(&mut self, value: crate::veilid_capnp::operation_find_node_q::Reader<'_>) -> ::capnp::Result<()> {
         self.builder.set_data_field::<u16>(1, 1);
-        ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+        ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
       }
       #[inline]
       pub fn init_find_node_q(self, ) -> crate::veilid_capnp::operation_find_node_q::Builder<'a> {
@@ -19802,7 +19946,7 @@ pub mod question {
       #[inline]
       pub fn set_app_call_q(&mut self, value: crate::veilid_capnp::operation_app_call_q::Reader<'_>) -> ::capnp::Result<()> {
         self.builder.set_data_field::<u16>(1, 2);
-        ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+        ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
       }
       #[inline]
       pub fn init_app_call_q(self, ) -> crate::veilid_capnp::operation_app_call_q::Builder<'a> {
@@ -19817,7 +19961,7 @@ pub mod question {
       #[inline]
       pub fn set_get_value_q(&mut self, value: crate::veilid_capnp::operation_get_value_q::Reader<'_>) -> ::capnp::Result<()> {
         self.builder.set_data_field::<u16>(1, 3);
-        ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+        ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
       }
       #[inline]
       pub fn init_get_value_q(self, ) -> crate::veilid_capnp::operation_get_value_q::Builder<'a> {
@@ -19832,7 +19976,7 @@ pub mod question {
       #[inline]
       pub fn set_set_value_q(&mut self, value: crate::veilid_capnp::operation_set_value_q::Reader<'_>) -> ::capnp::Result<()> {
         self.builder.set_data_field::<u16>(1, 4);
-        ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+        ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
       }
       #[inline]
       pub fn init_set_value_q(self, ) -> crate::veilid_capnp::operation_set_value_q::Builder<'a> {
@@ -19847,7 +19991,7 @@ pub mod question {
       #[inline]
       pub fn set_watch_value_q(&mut self, value: crate::veilid_capnp::operation_watch_value_q::Reader<'_>) -> ::capnp::Result<()> {
         self.builder.set_data_field::<u16>(1, 5);
-        ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+        ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
       }
       #[inline]
       pub fn init_watch_value_q(self, ) -> crate::veilid_capnp::operation_watch_value_q::Builder<'a> {
@@ -19862,7 +20006,7 @@ pub mod question {
       #[inline]
       pub fn set_inspect_value_q(&mut self, value: crate::veilid_capnp::operation_inspect_value_q::Reader<'_>) -> ::capnp::Result<()> {
         self.builder.set_data_field::<u16>(1, 6);
-        ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+        ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
       }
       #[inline]
       pub fn init_inspect_value_q(self, ) -> crate::veilid_capnp::operation_inspect_value_q::Builder<'a> {
@@ -20076,9 +20220,11 @@ pub mod question {
         encoded_node: &ENCODED_NODE,
         nonunion_members: NONUNION_MEMBERS,
         members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+        members_by_name: MEMBERS_BY_NAME,
       };
       pub static NONUNION_MEMBERS : &[u16] = &[];
       pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[0,1,2,3,4,5,6];
+      pub static MEMBERS_BY_NAME : &[u16] = &[2,1,3,6,4,0,5];
       pub const TYPE_ID: u64 = 0xdf83_6e15_2a91_83b2;
     }
     pub enum Which<A0,A1,A2,A3,A4,A5,A6> {
@@ -20196,7 +20342,7 @@ pub mod statement {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -20279,9 +20425,11 @@ pub mod statement {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0];
     pub const TYPE_ID: u64 = 0x990e_2082_8f40_4ae1;
   }
 
@@ -20450,7 +20598,7 @@ pub mod statement {
       }
     }
 
-    impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+    impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
       fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
     }
 
@@ -20471,7 +20619,7 @@ pub mod statement {
       #[inline]
       pub fn set_validate_dial_info(&mut self, value: crate::veilid_capnp::operation_validate_dial_info::Reader<'_>) -> ::capnp::Result<()> {
         self.builder.set_data_field::<u16>(0, 0);
-        ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+        ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
       }
       #[inline]
       pub fn init_validate_dial_info(self, ) -> crate::veilid_capnp::operation_validate_dial_info::Builder<'a> {
@@ -20486,7 +20634,7 @@ pub mod statement {
       #[inline]
       pub fn set_route(&mut self, value: crate::veilid_capnp::operation_route::Reader<'_>) -> ::capnp::Result<()> {
         self.builder.set_data_field::<u16>(0, 1);
-        ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+        ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
       }
       #[inline]
       pub fn init_route(self, ) -> crate::veilid_capnp::operation_route::Builder<'a> {
@@ -20501,7 +20649,7 @@ pub mod statement {
       #[inline]
       pub fn set_signal(&mut self, value: crate::veilid_capnp::operation_signal::Reader<'_>) -> ::capnp::Result<()> {
         self.builder.set_data_field::<u16>(0, 2);
-        ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+        ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
       }
       #[inline]
       pub fn init_signal(self, ) -> crate::veilid_capnp::operation_signal::Builder<'a> {
@@ -20516,7 +20664,7 @@ pub mod statement {
       #[inline]
       pub fn set_return_receipt(&mut self, value: crate::veilid_capnp::operation_return_receipt::Reader<'_>) -> ::capnp::Result<()> {
         self.builder.set_data_field::<u16>(0, 3);
-        ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+        ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
       }
       #[inline]
       pub fn init_return_receipt(self, ) -> crate::veilid_capnp::operation_return_receipt::Builder<'a> {
@@ -20531,7 +20679,7 @@ pub mod statement {
       #[inline]
       pub fn set_app_message(&mut self, value: crate::veilid_capnp::operation_app_message::Reader<'_>) -> ::capnp::Result<()> {
         self.builder.set_data_field::<u16>(0, 4);
-        ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+        ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
       }
       #[inline]
       pub fn init_app_message(self, ) -> crate::veilid_capnp::operation_app_message::Builder<'a> {
@@ -20546,7 +20694,7 @@ pub mod statement {
       #[inline]
       pub fn set_value_changed(&mut self, value: crate::veilid_capnp::operation_value_changed::Reader<'_>) -> ::capnp::Result<()> {
         self.builder.set_data_field::<u16>(0, 5);
-        ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+        ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
       }
       #[inline]
       pub fn init_value_changed(self, ) -> crate::veilid_capnp::operation_value_changed::Builder<'a> {
@@ -20738,9 +20886,11 @@ pub mod statement {
         encoded_node: &ENCODED_NODE,
         nonunion_members: NONUNION_MEMBERS,
         members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+        members_by_name: MEMBERS_BY_NAME,
       };
       pub static NONUNION_MEMBERS : &[u16] = &[];
       pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[0,1,2,3,4,5];
+      pub static MEMBERS_BY_NAME : &[u16] = &[4,3,1,2,0,5];
       pub const TYPE_ID: u64 = 0xccc0_72bc_dc13_7d3d;
     }
     pub enum Which<A0,A1,A2,A3,A4,A5> {
@@ -20857,7 +21007,7 @@ pub mod answer {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -20940,9 +21090,11 @@ pub mod answer {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[0];
     pub const TYPE_ID: u64 = 0xacac_b8b6_988c_1058;
   }
 
@@ -21121,7 +21273,7 @@ pub mod answer {
       }
     }
 
-    impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+    impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
       fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
     }
 
@@ -21142,7 +21294,7 @@ pub mod answer {
       #[inline]
       pub fn set_status_a(&mut self, value: crate::veilid_capnp::operation_status_a::Reader<'_>) -> ::capnp::Result<()> {
         self.builder.set_data_field::<u16>(0, 0);
-        ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+        ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
       }
       #[inline]
       pub fn init_status_a(self, ) -> crate::veilid_capnp::operation_status_a::Builder<'a> {
@@ -21157,7 +21309,7 @@ pub mod answer {
       #[inline]
       pub fn set_find_node_a(&mut self, value: crate::veilid_capnp::operation_find_node_a::Reader<'_>) -> ::capnp::Result<()> {
         self.builder.set_data_field::<u16>(0, 1);
-        ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+        ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
       }
       #[inline]
       pub fn init_find_node_a(self, ) -> crate::veilid_capnp::operation_find_node_a::Builder<'a> {
@@ -21172,7 +21324,7 @@ pub mod answer {
       #[inline]
       pub fn set_app_call_a(&mut self, value: crate::veilid_capnp::operation_app_call_a::Reader<'_>) -> ::capnp::Result<()> {
         self.builder.set_data_field::<u16>(0, 2);
-        ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+        ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
       }
       #[inline]
       pub fn init_app_call_a(self, ) -> crate::veilid_capnp::operation_app_call_a::Builder<'a> {
@@ -21187,7 +21339,7 @@ pub mod answer {
       #[inline]
       pub fn set_get_value_a(&mut self, value: crate::veilid_capnp::operation_get_value_a::Reader<'_>) -> ::capnp::Result<()> {
         self.builder.set_data_field::<u16>(0, 3);
-        ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+        ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
       }
       #[inline]
       pub fn init_get_value_a(self, ) -> crate::veilid_capnp::operation_get_value_a::Builder<'a> {
@@ -21202,7 +21354,7 @@ pub mod answer {
       #[inline]
       pub fn set_set_value_a(&mut self, value: crate::veilid_capnp::operation_set_value_a::Reader<'_>) -> ::capnp::Result<()> {
         self.builder.set_data_field::<u16>(0, 4);
-        ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+        ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
       }
       #[inline]
       pub fn init_set_value_a(self, ) -> crate::veilid_capnp::operation_set_value_a::Builder<'a> {
@@ -21217,7 +21369,7 @@ pub mod answer {
       #[inline]
       pub fn set_watch_value_a(&mut self, value: crate::veilid_capnp::operation_watch_value_a::Reader<'_>) -> ::capnp::Result<()> {
         self.builder.set_data_field::<u16>(0, 5);
-        ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+        ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
       }
       #[inline]
       pub fn init_watch_value_a(self, ) -> crate::veilid_capnp::operation_watch_value_a::Builder<'a> {
@@ -21232,7 +21384,7 @@ pub mod answer {
       #[inline]
       pub fn set_inspect_value_a(&mut self, value: crate::veilid_capnp::operation_inspect_value_a::Reader<'_>) -> ::capnp::Result<()> {
         self.builder.set_data_field::<u16>(0, 6);
-        ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+        ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
       }
       #[inline]
       pub fn init_inspect_value_a(self, ) -> crate::veilid_capnp::operation_inspect_value_a::Builder<'a> {
@@ -21446,9 +21598,11 @@ pub mod answer {
         encoded_node: &ENCODED_NODE,
         nonunion_members: NONUNION_MEMBERS,
         members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+        members_by_name: MEMBERS_BY_NAME,
       };
       pub static NONUNION_MEMBERS : &[u16] = &[];
       pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[0,1,2,3,4,5,6];
+      pub static MEMBERS_BY_NAME : &[u16] = &[2,1,3,6,4,0,5];
       pub const TYPE_ID: u64 = 0xf466_8d3d_289f_f2b5;
     }
     pub enum Which<A0,A1,A2,A3,A4,A5,A6> {
@@ -21582,7 +21736,7 @@ pub mod operation {
     }
   }
 
-  impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+  impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
     fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
   }
 
@@ -21614,7 +21768,7 @@ pub mod operation {
     }
     #[inline]
     pub fn set_sender_peer_info(&mut self, value: crate::veilid_capnp::peer_info::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
+      ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(0), value, false)
     }
     #[inline]
     pub fn init_sender_peer_info(self, ) -> crate::veilid_capnp::peer_info::Builder<'a> {
@@ -21751,9 +21905,11 @@ pub mod operation {
       encoded_node: &ENCODED_NODE,
       nonunion_members: NONUNION_MEMBERS,
       members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+      members_by_name: MEMBERS_BY_NAME,
     };
     pub static NONUNION_MEMBERS : &[u16] = &[0,1,2,3];
     pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[];
+    pub static MEMBERS_BY_NAME : &[u16] = &[3,0,1,2];
     pub const TYPE_ID: u64 = 0xbf28_11c4_3540_3c3b;
   }
 
@@ -21892,7 +22048,7 @@ pub mod operation {
       }
     }
 
-    impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+    impl <'a,> ::capnp::traits::SetterInput<Owned<>> for Reader<'a,>  {
       fn set_pointer_builder(mut pointer: ::capnp::private::layout::PointerBuilder<'_>, value: Self, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
     }
 
@@ -21913,7 +22069,7 @@ pub mod operation {
       #[inline]
       pub fn set_question(&mut self, value: crate::veilid_capnp::question::Reader<'_>) -> ::capnp::Result<()> {
         self.builder.set_data_field::<u16>(8, 0);
-        ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+        ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
       }
       #[inline]
       pub fn init_question(self, ) -> crate::veilid_capnp::question::Builder<'a> {
@@ -21928,7 +22084,7 @@ pub mod operation {
       #[inline]
       pub fn set_statement(&mut self, value: crate::veilid_capnp::statement::Reader<'_>) -> ::capnp::Result<()> {
         self.builder.set_data_field::<u16>(8, 1);
-        ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+        ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
       }
       #[inline]
       pub fn init_statement(self, ) -> crate::veilid_capnp::statement::Builder<'a> {
@@ -21943,7 +22099,7 @@ pub mod operation {
       #[inline]
       pub fn set_answer(&mut self, value: crate::veilid_capnp::answer::Reader<'_>) -> ::capnp::Result<()> {
         self.builder.set_data_field::<u16>(8, 2);
-        ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
+        ::capnp::traits::SetterInput::set_pointer_builder(self.builder.reborrow().get_pointer_field(1), value, false)
       }
       #[inline]
       pub fn init_answer(self, ) -> crate::veilid_capnp::answer::Builder<'a> {
@@ -22069,9 +22225,11 @@ pub mod operation {
         encoded_node: &ENCODED_NODE,
         nonunion_members: NONUNION_MEMBERS,
         members_by_discriminant: MEMBERS_BY_DISCRIMINANT,
+        members_by_name: MEMBERS_BY_NAME,
       };
       pub static NONUNION_MEMBERS : &[u16] = &[];
       pub static MEMBERS_BY_DISCRIMINANT : &[u16] = &[0,1,2];
+      pub static MEMBERS_BY_NAME : &[u16] = &[2,0,1];
       pub const TYPE_ID: u64 = 0xb356_925e_a062_6919;
     }
     pub enum Which<A0,A1,A2> {
@@ -22085,3 +22243,5 @@ pub mod operation {
 }
 
 //BUILDHASH:a28970f74fcf7989d47e1457e848e5de33d8b7a4003a0e439c95f442ecf69fd3
+
+//CAPNPDESIREDVERSIONHASH:bfec2e34583ada7e6af2cb73993fb75a3f7147a6c943e5ff5f5c4294fc577b90
