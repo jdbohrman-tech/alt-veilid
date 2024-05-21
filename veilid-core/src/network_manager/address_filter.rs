@@ -105,6 +105,8 @@ impl AddressFilter {
     // When the network restarts, some of the address filter can be cleared
     pub fn restart(&self) {
         let mut inner = self.inner.lock();
+        inner.conn_count_by_ip4.clear();
+        inner.conn_count_by_ip6_prefix.clear();
         inner.dial_info_failures.clear();
     }
 
