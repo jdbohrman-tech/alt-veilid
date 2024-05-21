@@ -910,6 +910,8 @@ impl Network {
     pub async fn shutdown(&self) {
         log_net!(debug "starting low level network shutdown");
 
+        self.inner.lock().network_started = None;
+
         let routing_table = self.routing_table();
 
         // Stop all tasks
