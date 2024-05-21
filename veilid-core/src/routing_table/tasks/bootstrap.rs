@@ -286,7 +286,7 @@ impl RoutingTable {
                     {
                         Ok(NodeContactMethod::Direct(v)) => v,
                         Ok(v) => {
-                            log_rtab!(warn "invalid contact method for bootstrap, ignoring peer: {:?}", v);
+                            log_rtab!(debug "invalid contact method for bootstrap, ignoring peer: {:?}", v);
                             // let _ = routing_table
                             //     .network_manager()
                             //     .get_node_contact_method(nr.clone());
