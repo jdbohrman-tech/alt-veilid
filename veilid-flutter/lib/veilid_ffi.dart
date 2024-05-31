@@ -1154,7 +1154,7 @@ class VeilidCryptoSystemFFI extends VeilidCryptoSystem {
   }
 
   @override
-  Future<void> verify(
+  Future<bool> verify(
       PublicKey key, Uint8List data, Signature signature) async {
     final nativeKey = jsonEncode(key).toNativeUtf8();
     final nativeEncodedData = base64UrlNoPadEncode(data).toNativeUtf8();
@@ -1164,7 +1164,7 @@ class VeilidCryptoSystemFFI extends VeilidCryptoSystem {
     final sendPort = recvPort.sendPort;
     _ffi._cryptoVerify(sendPort.nativePort, _kind, nativeKey, nativeEncodedData,
         nativeSignature);
-    return processFutureVoid(recvPort.first);
+    return processFuturePlain(recvPort.first);
   }
 
   @override
@@ -1742,7 +1742,7 @@ class VeilidFFI extends Veilid {
       VeilidCryptoSystemFFI._(this, _bestCryptoKind());
 
   @override
-  Future<List<TypedKey>> verifySignatures(List<TypedKey> nodeIds,
+  Future<List<TypedKey>?> verifySignatures(List<TypedKey> nodeIds,
       Uint8List data, List<TypedSignature> signatures) async {
     final nativeNodeIds = jsonEncode(nodeIds).toNativeUtf8();
     final nativeData = base64UrlNoPadEncode(data).toNativeUtf8();
@@ -1752,7 +1752,7 @@ class VeilidFFI extends Veilid {
     final sendPort = recvPort.sendPort;
     _verifySignatures(
         sendPort.nativePort, nativeNodeIds, nativeData, nativeSignatures);
-    return processFutureJson(
+    return processFutureOptJson(
         jsonListConstructor<TypedKey>(TypedKey.fromJson), recvPort.first);
   }
 

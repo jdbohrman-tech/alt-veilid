@@ -53,8 +53,11 @@ impl SignedRelayedNodeInfo {
             &self.relay_info,
             self.timestamp,
         )?;
-        let validated_node_ids =
+        let opt_validated_node_ids =
             crypto.verify_signatures(node_ids, &node_info_bytes, &self.signatures)?;
+        let Some(validated_node_ids) = opt_validated_node_ids else {
+            apibail_generic!("verification error in relayed node info");
+        };
         if validated_node_ids.is_empty() {
             apibail_generic!("no valid node ids in relayed node info");
         }

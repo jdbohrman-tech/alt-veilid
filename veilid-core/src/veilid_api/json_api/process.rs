@@ -28,6 +28,15 @@ pub fn to_json_api_result_with_vec_string<T: Clone + fmt::Debug>(
     }
 }
 
+pub fn to_json_api_result_with_opt_vec_string<T: Clone + fmt::Debug>(
+    r: VeilidAPIResult<T>,
+) -> json_api::ApiResultWithOptVecString<T> {
+    match r {
+        Err(e) => json_api::ApiResultWithOptVecString::Err { error: e },
+        Ok(v) => json_api::ApiResultWithOptVecString::Ok { value: v },
+    }
+}
+
 pub fn to_json_api_result_with_vec_u8(r: VeilidAPIResult<Vec<u8>>) -> json_api::ApiResultWithVecU8 {
     match r {
         Err(e) => json_api::ApiResultWithVecU8::Err { error: e },
@@ -462,6 +471,7 @@ impl JsonRequestProcessor {
                 self.release_crypto_system(csr.cs_id);
                 CryptoSystemResponseOp::Release {}
             }
+            CryptoSystemRequestOp::Kind => CryptoSystemResponseOp::Kind { value: csv.kind() },
             CryptoSystemRequestOp::CachedDh { key, secret } => CryptoSystemResponseOp::CachedDh {
                 result: to_json_api_result_with_string(csv.cached_dh(&key, &secret)),
             },
@@ -532,8 +542,12 @@ impl JsonRequestProcessor {
             CryptoSystemRequestOp::Sign { key, secret, data } => CryptoSystemResponseOp::Sign {
                 result: to_json_api_result_with_string(csv.sign(&key, &secret, &data)),
             },
-            CryptoSystemRequestOp::Verify { key, data, secret } => CryptoSystemResponseOp::Verify {
-                result: to_json_api_result(csv.verify(&key, &data, &secret)),
+            CryptoSystemRequestOp::Verify {
+                key,
+                data,
+                signature,
+            } => CryptoSystemResponseOp::Verify {
+                result: to_json_api_result(csv.verify(&key, &data, &signature)),
             },
             CryptoSystemRequestOp::AeadOverhead => CryptoSystemResponseOp::AeadOverhead {
                 value: csv.aead_overhead() as u32,
@@ -766,7 +780,7 @@ impl JsonRequestProcessor {
                     }
                 };
                 ResponseOp::VerifySignatures {
-                    result: to_json_api_result_with_vec_string(crypto.verify_signatures(
+                    result: to_json_api_result_with_opt_vec_string(crypto.verify_signatures(
                         &node_ids,
                         &data,
                         &signatures,

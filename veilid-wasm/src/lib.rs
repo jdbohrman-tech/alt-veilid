@@ -1353,14 +1353,14 @@ pub fn crypto_verify(kind: u32, key: String, data: String, signature: String) ->
         .unwrap();
     let signature: veilid_core::Signature = veilid_core::deserialize_json(&signature).unwrap();
 
-    wrap_api_future_void(async move {
+    wrap_api_future_plain(async move {
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
         let csv = crypto.get(kind).ok_or_else(|| {
             veilid_core::VeilidAPIError::invalid_argument("crypto_verify", "kind", kind.to_string())
         })?;
-        csv.verify(&key, &data, &signature)?;
-        APIRESULT_UNDEFINED
+        let out = csv.verify(&key, &data, &signature)?;
+        APIResult::Ok(out)
     })
 }
 

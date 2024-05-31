@@ -386,18 +386,21 @@ class _JsonVeilidAPI(VeilidAPI):
 
     async def verify_signatures(
         self, node_ids: list[TypedKey], data: bytes, signatures: list[TypedSignature]
-    ) -> list[TypedKey]:
+    ) -> Optional[list[TypedKey]]:
+        out = raise_api_result(
+                await self.send_ndjson_request(
+                    Operation.VERIFY_SIGNATURES,
+                    node_ids=node_ids,
+                    data=data,
+                    signatures=signatures,
+                )
+            )
+        if out is None:
+            return out
         return list(
             map(
                 lambda x: TypedKey(x),
-                raise_api_result(
-                    await self.send_ndjson_request(
-                        Operation.VERIFY_SIGNATURES,
-                        node_ids=node_ids,
-                        data=data,
-                        signatures=signatures,
-                    )
-                ),
+                out
             )
         )
 
@@ -938,6 +941,18 @@ class _JsonCryptoSystem(CryptoSystem):
 
             # complain
             raise AssertionError("Should have released crypto system before dropping object")
+    
+    async def kind(self) -> CryptoKind:
+        return CryptoKind(
+            raise_api_result(
+                await self.api.send_ndjson_request(
+                    Operation.CRYPTO_SYSTEM,
+                    validate=validate_cs_op,
+                    cs_id=self.cs_id,
+                    cs_op=CryptoSystemOperation.KIND,
+                )
+            )
+        )
 
     def is_done(self) -> bool:
         return self.done
@@ -1160,7 +1175,7 @@ class _JsonCryptoSystem(CryptoSystem):
         )
 
     async def verify(self, key: PublicKey, data: bytes, signature: Signature):
-        raise_api_result(
+        return raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.CRYPTO_SYSTEM,
                 validate=validate_cs_op,

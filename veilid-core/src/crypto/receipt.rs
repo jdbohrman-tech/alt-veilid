@@ -129,9 +129,12 @@ impl Receipt {
         );
 
         // Validate signature
-        vcrypto
+        if !vcrypto
             .verify(&sender_id, &data[0..(data.len() - 64)], &signature)
-            .map_err(VeilidAPIError::generic)?;
+            .map_err(VeilidAPIError::generic)?
+        {
+            apibail_parse_error!("signature failure in receipt", signature);
+        }
 
         // Get nonce
         let nonce: Nonce = Nonce::new(

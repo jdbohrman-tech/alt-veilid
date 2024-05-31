@@ -214,7 +214,7 @@ abstract class VeilidCryptoSystem {
   Future<Signature> signWithKeyPair(KeyPair keyPair, Uint8List data) =>
       sign(keyPair.key, keyPair.secret, data);
 
-  Future<void> verify(PublicKey key, Uint8List data, Signature signature);
+  Future<bool> verify(PublicKey key, Uint8List data, Signature signature);
   Future<int> aeadOverhead();
   Future<Uint8List> decryptAead(Uint8List body, Nonce nonce,
       SharedSecret sharedSecret, Uint8List? associatedData);

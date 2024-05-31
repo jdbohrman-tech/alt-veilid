@@ -201,8 +201,8 @@ pub enum ResponseOp {
     CryptoSystem(CryptoSystemResponse),
     VerifySignatures {
         #[serde(flatten)]
-        #[schemars(with = "ApiResult<Vec<String>>")]
-        result: ApiResultWithVecString<TypedKeyGroup>,
+        #[schemars(with = "ApiResult<Option<Vec<String>>>")]
+        result: ApiResultWithOptVecString<Option<TypedKeyGroup>>,
     },
     GenerateSignatures {
         #[serde(flatten)]
@@ -301,6 +301,21 @@ where
 {
     Ok {
         #[schemars(with = "Vec<String>")]
+        value: T,
+    },
+    Err {
+        error: VeilidAPIError,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(untagged)]
+pub enum ApiResultWithOptVecString<T>
+where
+    T: Clone + fmt::Debug,
+{
+    Ok {
+        #[schemars(with = "Option<Vec<String>>")]
         value: T,
     },
     Err {
