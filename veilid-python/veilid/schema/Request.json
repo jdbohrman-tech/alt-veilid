@@ -966,6 +966,20 @@
         {
           "type": "object",
           "required": [
+            "cs_op"
+          ],
+          "properties": {
+            "cs_op": {
+              "type": "string",
+              "enum": [
+                "Kind"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
             "cs_op",
             "key",
             "secret"
@@ -1291,7 +1305,7 @@
             "cs_op",
             "data",
             "key",
-            "secret"
+            "signature"
           ],
           "properties": {
             "cs_op": {
@@ -1306,7 +1320,7 @@
             "key": {
               "type": "string"
             },
-            "secret": {
+            "signature": {
               "type": "string"
             }
           }
@@ -1586,7 +1600,7 @@
   ],
   "properties": {
     "id": {
-      "description": "Operation Id (pairs with Response, or empty if unidirectional)",
+      "description": "Operation Id (pairs with Response, or empty if unidirectional).",
       "default": 0,
       "type": "integer",
       "format": "uint32",
@@ -1712,10 +1726,10 @@
       }
     },
     "SafetySelection": {
-      "description": "The choice of safety route to include in compiled routes",
+      "description": "The choice of safety route to include in compiled routes.",
       "oneOf": [
         {
-          "description": "Don't use a safety route, only specify the sequencing preference",
+          "description": "Don't use a safety route, only specify the sequencing preference.",
           "type": "object",
           "required": [
             "Unsafe"
@@ -1728,7 +1742,7 @@
           "additionalProperties": false
         },
         {
-          "description": "Use a safety route and parameters specified by a SafetySpec",
+          "description": "Use a safety route and parameters specified by a SafetySpec.",
           "type": "object",
           "required": [
             "Safe"
@@ -1743,7 +1757,7 @@
       ]
     },
     "SafetySpec": {
-      "description": "Options for safety routes (sender privacy)",
+      "description": "Options for safety routes (sender privacy).",
       "type": "object",
       "required": [
         "hop_count",
@@ -1752,20 +1766,20 @@
       ],
       "properties": {
         "hop_count": {
-          "description": "must be greater than 0",
+          "description": "Must be greater than 0.",
           "type": "integer",
           "format": "uint",
           "minimum": 0.0
         },
         "preferred_route": {
-          "description": "preferred safety route set id if it still exists",
+          "description": "Preferred safety route set id if it still exists.",
           "type": [
             "string",
             "null"
           ]
         },
         "sequencing": {
-          "description": "prefer connection-oriented sequenced protocols",
+          "description": "Prefer connection-oriented sequenced protocols.",
           "allOf": [
             {
               "$ref": "#/definitions/Sequencing"
@@ -1773,7 +1787,7 @@
           ]
         },
         "stability": {
-          "description": "prefer reliability over speed",
+          "description": "Prefer reliability over speed.",
           "allOf": [
             {
               "$ref": "#/definitions/Stability"

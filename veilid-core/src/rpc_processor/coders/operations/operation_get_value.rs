@@ -142,13 +142,16 @@ impl RPCOperationGetValueA {
             };
 
             // And the signed value data
-            value
+            if !value
                 .validate(
                     descriptor.owner(),
                     get_value_context.subkey,
                     get_value_context.vcrypto.clone(),
                 )
-                .map_err(RPCError::protocol)?;
+                .map_err(RPCError::protocol)?
+            {
+                return Err(RPCError::protocol("signed value data did not validate"));
+            }
         }
 
         PeerInfo::validate_vec(&mut self.peers, validate_context.crypto.clone());

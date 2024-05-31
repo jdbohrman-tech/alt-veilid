@@ -44,6 +44,10 @@ Object? veilidApiToEncodable(Object? value) {
 List<T> Function(dynamic) jsonListConstructor<T>(
         T Function(dynamic) jsonConstructor) =>
     (dynamic j) => (j as List<dynamic>).map(jsonConstructor).toList();
+List<T>? Function(dynamic) optJsonListConstructor<T>(
+        T Function(dynamic) jsonConstructor) =>
+    (dynamic j) =>
+        j == null ? null : (j as List<dynamic>).map(jsonConstructor).toList();
 
 //////////////////////////////////////
 /// VeilidVersion
@@ -152,8 +156,8 @@ abstract class Veilid {
   List<CryptoKind> validCryptoKinds();
   Future<VeilidCryptoSystem> getCryptoSystem(CryptoKind kind);
   Future<VeilidCryptoSystem> bestCryptoSystem();
-  Future<List<TypedKey>> verifySignatures(
-      List<TypedKey> nodeIds, Uint8List data, List<TypedSignature> signatures);
+  Future<List<TypedKey>?> verifySignatures(List<TypedKey> publicKeys,
+      Uint8List data, List<TypedSignature> signatures);
   Future<List<TypedSignature>> generateSignatures(
       Uint8List data, List<TypedKeyPair> keyPairs);
   Future<TypedKeyPair> generateKeyPair(CryptoKind kind);

@@ -64,49 +64,55 @@ pub async fn test_sign_and_verify(vcrypto: CryptoSystemVersion) {
 
     assert_eq!(
         vcrypto.verify(&dht_key, LOREM_IPSUM.as_bytes(), &a1),
-        Ok(())
+        Ok(true)
     );
     assert_eq!(
         vcrypto.verify(&dht_key2, LOREM_IPSUM.as_bytes(), &a2),
-        Ok(())
+        Ok(true)
     );
-    assert!(vcrypto
-        .verify(&dht_key, LOREM_IPSUM.as_bytes(), &a2)
-        .is_err());
-    assert!(vcrypto
-        .verify(&dht_key2, LOREM_IPSUM.as_bytes(), &a1)
-        .is_err());
+    assert_eq!(
+        vcrypto.verify(&dht_key, LOREM_IPSUM.as_bytes(), &a2),
+        Ok(false)
+    );
+    assert_eq!(
+        vcrypto.verify(&dht_key2, LOREM_IPSUM.as_bytes(), &a1),
+        Ok(false)
+    );
 
     // Try verifications that should work
     assert_eq!(
         vcrypto.verify(&dht_key, LOREM_IPSUM.as_bytes(), &dht_sig),
-        Ok(())
+        Ok(true)
     );
     assert_eq!(
         vcrypto.verify(&dht_key, LOREM_IPSUM.as_bytes(), &dht_sig_b),
-        Ok(())
+        Ok(true)
     );
     assert_eq!(
         vcrypto.verify(&dht_key2, LOREM_IPSUM.as_bytes(), &dht_sig2),
-        Ok(())
+        Ok(true)
     );
     assert_eq!(
         vcrypto.verify(&dht_key, CHEEZBURGER.as_bytes(), &dht_sig_c),
-        Ok(())
+        Ok(true)
     );
     // Try verifications that shouldn't work
-    assert!(vcrypto
-        .verify(&dht_key2, LOREM_IPSUM.as_bytes(), &dht_sig)
-        .is_err());
-    assert!(vcrypto
-        .verify(&dht_key, LOREM_IPSUM.as_bytes(), &dht_sig2)
-        .is_err());
-    assert!(vcrypto
-        .verify(&dht_key2, CHEEZBURGER.as_bytes(), &dht_sig_c)
-        .is_err());
-    assert!(vcrypto
-        .verify(&dht_key, CHEEZBURGER.as_bytes(), &dht_sig)
-        .is_err());
+    assert_eq!(
+        vcrypto.verify(&dht_key2, LOREM_IPSUM.as_bytes(), &dht_sig),
+        Ok(false)
+    );
+    assert_eq!(
+        vcrypto.verify(&dht_key, LOREM_IPSUM.as_bytes(), &dht_sig2),
+        Ok(false)
+    );
+    assert_eq!(
+        vcrypto.verify(&dht_key2, CHEEZBURGER.as_bytes(), &dht_sig_c),
+        Ok(false)
+    );
+    assert_eq!(
+        vcrypto.verify(&dht_key, CHEEZBURGER.as_bytes(), &dht_sig),
+        Ok(false)
+    );
 }
 
 pub async fn test_key_conversions(vcrypto: CryptoSystemVersion) {

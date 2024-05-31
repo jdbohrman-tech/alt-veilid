@@ -172,9 +172,12 @@ impl Envelope {
         );
 
         // Validate signature
-        vcrypto
+        if !vcrypto
             .verify(&sender_id, &data[0..(data.len() - 64)], &signature)
-            .map_err(VeilidAPIError::internal)?;
+            .map_err(VeilidAPIError::internal)?
+        {
+            apibail_parse_error!("signature verification of envelope failed", signature);
+        }
 
         // Return envelope
         Ok(Self {

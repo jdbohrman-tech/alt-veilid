@@ -32,6 +32,41 @@ Future<void> testHashAndVerifyPassword() async {
   expect(await cs.verifyPassword(utf8.encode('abc1235'), phash), isFalse);
 }
 
+Future<void> testSignAndVerifySignature() async {
+  final cs = await Veilid.instance.bestCryptoSystem();
+  final kp1 = await cs.generateKeyPair();
+  final kp2 = await cs.generateKeyPair();
+
+  // Signature match
+  final sig = await cs.sign(kp1.key, kp1.secret, utf8.encode('abc123'));
+  expect(await cs.verify(kp1.key, utf8.encode('abc123'), sig), isTrue);
+
+  // Signature mismatch
+  final sig2 = await cs.sign(kp1.key, kp1.secret, utf8.encode('abc1234'));
+  expect(await cs.verify(kp1.key, utf8.encode('abc1234'), sig2), isTrue);
+  expect(await cs.verify(kp1.key, utf8.encode('abc12345'), sig2), isFalse);
+  expect(await cs.verify(kp2.key, utf8.encode('abc1234'), sig2), isFalse);
+}
+
+Future<void> testSignAndVerifySignatures() async {
+  final cs = await Veilid.instance.bestCryptoSystem();
+  final kind = cs.kind();
+  final kp1 = await cs.generateKeyPair();
+
+  // Signature match
+  final sigs = await Veilid.instance.generateSignatures(
+      utf8.encode('abc123'), [TypedKeyPair.fromKeyPair(kind, kp1)]);
+  expect(
+      await Veilid.instance.verifySignatures(
+          [TypedKey(kind: kind, value: kp1.key)], utf8.encode('abc123'), sigs),
+      equals([TypedKey(kind: kind, value: kp1.key)]));
+  // Signature mismatch
+  expect(
+      await Veilid.instance.verifySignatures(
+          [TypedKey(kind: kind, value: kp1.key)], utf8.encode('abc1234'), sigs),
+      isNull);
+}
+
 Future<void> testGenerateSharedSecret() async {
   final cs = await Veilid.instance.bestCryptoSystem();
 

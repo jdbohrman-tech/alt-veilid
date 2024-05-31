@@ -73,6 +73,7 @@ class TableDbTransactionOperation(StrEnum):
 class CryptoSystemOperation(StrEnum):
     INVALID_ID = "InvalidId"
     RELEASE = "Release"
+    KIND = "Kind"
     CACHED_DH = "CachedDh"
     COMPUTE_DH = "ComputeDh"
     GENERATE_SHARED_SECRET = "GenerateSharedSecret"

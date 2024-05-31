@@ -359,7 +359,7 @@ class VeilidCryptoSystemJS extends VeilidCryptoSystem {
       ]))));
 
   @override
-  Future<void> verify(PublicKey key, Uint8List data, Signature signature) =>
+  Future<bool> verify(PublicKey key, Uint8List data, Signature signature) =>
       _wrapApiPromise(js_util.callMethod(wasm, 'crypto_verify', [
         _kind,
         jsonEncode(key),
@@ -655,10 +655,10 @@ class VeilidJS extends Veilid {
       this, js_util.callMethod(wasm, 'best_crypto_kind', []));
 
   @override
-  Future<List<TypedKey>> verifySignatures(List<TypedKey> nodeIds,
+  Future<List<TypedKey>?> verifySignatures(List<TypedKey> nodeIds,
           Uint8List data, List<TypedSignature> signatures) async =>
-      jsonListConstructor(TypedKey.fromJson)(jsonDecode(await _wrapApiPromise(
-          js_util.callMethod(wasm, 'verify_signatures', [
+      optJsonListConstructor(TypedKey.fromJson)(jsonDecode(
+          await _wrapApiPromise(js_util.callMethod(wasm, 'verify_signatures', [
         jsonEncode(nodeIds),
         base64UrlNoPadEncode(data),
         jsonEncode(signatures)

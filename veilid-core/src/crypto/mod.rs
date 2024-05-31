@@ -238,27 +238,28 @@ impl Crypto {
     }
 
     /// Signature set verification
-    /// Returns the set of signature cryptokinds that validate and are supported
-    /// If any cryptokinds are supported and do not validate, the whole operation
-    /// returns an error
+    /// Returns Some() the set of signature cryptokinds that validate and are supported
+    /// Returns None if any cryptokinds are supported and do not validate
     pub fn verify_signatures(
         &self,
-        node_ids: &[TypedKey],
+        public_keys: &[TypedKey],
         data: &[u8],
         typed_signatures: &[TypedSignature],
-    ) -> VeilidAPIResult<TypedKeyGroup> {
-        let mut out = TypedKeyGroup::with_capacity(node_ids.len());
+    ) -> VeilidAPIResult<Option<TypedKeyGroup>> {
+        let mut out = TypedKeyGroup::with_capacity(public_keys.len());
         for sig in typed_signatures {
-            for nid in node_ids {
+            for nid in public_keys {
                 if nid.kind == sig.kind {
                     if let Some(vcrypto) = self.get(sig.kind) {
-                        vcrypto.verify(&nid.value, data, &sig.value)?;
+                        if !vcrypto.verify(&nid.value, data, &sig.value)? {
+                            return Ok(None);
+                        }
                         out.add(*nid);
                     }
                 }
             }
         }
-        Ok(out)
+        Ok(Some(out))
     }
 
     /// Signature set generation

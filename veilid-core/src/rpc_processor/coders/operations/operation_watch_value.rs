@@ -88,9 +88,12 @@ impl RPCOperationWatchValueQ {
             self.count,
             self.watch_id,
         );
-        vcrypto
+        if !vcrypto
             .verify(&self.watcher, &sig_data, &self.signature)
-            .map_err(RPCError::protocol)?;
+            .map_err(RPCError::protocol)?
+        {
+            return Err(RPCError::protocol("failed to validate watcher signature"));
+        }
 
         // Count is zero means cancelling, so there should always be a watch id in this case
         if self.count == 0 && self.watch_id.is_none() {
