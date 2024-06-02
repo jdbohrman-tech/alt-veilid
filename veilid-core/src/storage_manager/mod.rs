@@ -332,7 +332,7 @@ impl StorageManager {
                 if let Some(rpc_processor) = opt_rpc_processor {
                     // Use the safety selection we opened the record with
                     // Use the writer we opened with as the 'watcher' as well
-                    let opt_owvresult = self
+                    let opt_owvresult = match self
                         .outbound_watch_value_cancel(
                             rpc_processor,
                             key,
@@ -342,7 +342,16 @@ impl StorageManager {
                             active_watch.id,
                             active_watch.watch_node,
                         )
-                        .await?;
+                        .await
+                    {
+                        Ok(v) => v,
+                        Err(e) => {
+                            log_stor!(debug
+                                "close record watch cancel failed: {}", e
+                            );
+                            None
+                        }
+                    };
                     if let Some(owvresult) = opt_owvresult {
                         if owvresult.expiration_ts.as_u64() != 0 {
                             log_stor!(debug
