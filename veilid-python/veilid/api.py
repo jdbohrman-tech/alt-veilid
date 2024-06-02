@@ -115,7 +115,7 @@ class TableDbTransaction(ABC):
     async def __aexit__(self, *excinfo):
         if not self.is_done():
             await self.rollback()
-
+    
     @abstractmethod
     def is_done(self) -> bool:
         pass
@@ -185,6 +185,10 @@ class CryptoSystem(ABC):
     async def __aexit__(self, *excinfo):
         if not self.is_done():
             await self.release()
+
+    @abstractmethod
+    def kind(self) -> types.CryptoKind:
+        pass
 
     @abstractmethod
     def is_done(self) -> bool:
@@ -267,7 +271,7 @@ class CryptoSystem(ABC):
         pass
 
     @abstractmethod
-    async def verify(self, key: types.PublicKey, data: bytes, signature: types.Signature):
+    async def verify(self, key: types.PublicKey, data: bytes, signature: types.Signature) -> bool:
         pass
 
     @abstractmethod
@@ -384,7 +388,7 @@ class VeilidAPI(ABC):
         node_ids: list[types.TypedKey],
         data: bytes,
         signatures: list[types.TypedSignature],
-    ) -> list[types.TypedKey]:
+    ) -> Optional[list[types.TypedKey]]:
         pass
 
     @abstractmethod

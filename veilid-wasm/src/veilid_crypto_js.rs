@@ -207,7 +207,7 @@ impl VeilidCrypto {
         node_ids: StringArray,
         data: Box<[u8]>,
         signatures: StringArray,
-    ) -> VeilidAPIResult<StringArray> {
+    ) -> VeilidAPIResult<Option<StringArray>> {
         let node_ids = into_unchecked_string_vec(node_ids);
         let node_ids: Vec<TypedKey> = node_ids
             .iter()
@@ -238,12 +238,15 @@ impl VeilidCrypto {
 
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
-        let out = crypto.verify_signatures(&node_ids, &data, &typed_signatures)?;
-        let out = out
-            .iter()
-            .map(|item| item.to_string())
-            .collect::<Vec<String>>();
-        let out = into_unchecked_string_array(out);
+        let out = crypto
+            .verify_signatures(&node_ids, &data, &typed_signatures)?
+            .map(|sigs| {
+                let out = sigs
+                    .iter()
+                    .map(|item| item.to_string())
+                    .collect::<Vec<String>>();
+                into_unchecked_string_array(out)
+            });
         APIResult::Ok(out)
     }
 
@@ -375,7 +378,12 @@ impl VeilidCrypto {
         APIResult::Ok(out.to_string())
     }
 
-    pub fn verify(kind: String, key: String, data: Box<[u8]>, signature: String) -> APIResult<()> {
+    pub fn verify(
+        kind: String,
+        key: String,
+        data: Box<[u8]>,
+        signature: String,
+    ) -> APIResult<bool> {
         let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
 
         let key: veilid_core::PublicKey = veilid_core::PublicKey::from_str(&key)?;
@@ -386,8 +394,8 @@ impl VeilidCrypto {
         let crypto_system = crypto.get(kind).ok_or_else(|| {
             veilid_core::VeilidAPIError::invalid_argument("crypto_verify", "kind", kind.to_string())
         })?;
-        crypto_system.verify(&key, &data, &signature)?;
-        APIRESULT_UNDEFINED
+        let out = crypto_system.verify(&key, &data, &signature)?;
+        APIResult::Ok(out)
     }
 
     pub fn aeadOverhead(kind: String) -> APIResult<usize> {

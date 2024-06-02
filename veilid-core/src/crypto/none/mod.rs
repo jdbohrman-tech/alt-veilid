@@ -143,13 +143,13 @@ impl CryptoSystem for CryptoSystemNONE {
     // Validation
     fn validate_keypair(&self, dht_key: &PublicKey, dht_key_secret: &SecretKey) -> bool {
         let data = vec![0u8; 512];
-        let sig = match self.sign(dht_key, dht_key_secret, &data) {
-            Ok(s) => s,
-            Err(_) => {
-                return false;
-            }
+        let Ok(sig) = self.sign(dht_key, dht_key_secret, &data) else {
+            return false;
         };
-        self.verify(dht_key, &data, &sig).is_ok()
+        let Ok(v) = self.verify(dht_key, &data, &sig) else {
+            return false;
+        };
+        v
     }
     fn validate_hash(&self, data: &[u8], dht_key: &PublicKey) -> bool {
         let bytes = *blake3::hash(data).as_bytes();
@@ -205,7 +205,7 @@ impl CryptoSystem for CryptoSystemNONE {
         dht_key: &PublicKey,
         data: &[u8],
         signature: &Signature,
-    ) -> VeilidAPIResult<()> {
+    ) -> VeilidAPIResult<bool> {
         let mut dig = Blake3Digest512::new();
         dig.update(data);
         let sig = dig.finalize();
@@ -217,19 +217,13 @@ impl CryptoSystem for CryptoSystemNONE {
             .copy_from_slice(&do_xor_32(&in_sig_bytes[32..64], &signature.bytes[32..64]));
 
         if !is_bytes_eq_32(&verify_bytes[0..32], 0u8) {
-            return Err(VeilidAPIError::parse_error(
-                "Verification failed",
-                "signature 0..32 is invalid",
-            ));
+            return Ok(false);
         }
         if !is_bytes_eq_32(&do_xor_32(&verify_bytes[32..64], &dht_key.bytes), 0xFFu8) {
-            return Err(VeilidAPIError::parse_error(
-                "Verification failed",
-                "signature 32..64 is invalid",
-            ));
+            return Ok(false);
         }
 
-        Ok(())
+        return Ok(true);
     }
 
     // AEAD Encrypt/Decrypt

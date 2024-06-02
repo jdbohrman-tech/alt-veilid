@@ -1601,6 +1601,24 @@
             },
             {
               "type": "object",
+              "required": [
+                "cs_op",
+                "value"
+              ],
+              "properties": {
+                "cs_op": {
+                  "type": "string",
+                  "enum": [
+                    "Kind"
+                  ]
+                },
+                "value": {
+                  "type": "string"
+                }
+              }
+            },
+            {
+              "type": "object",
               "anyOf": [
                 {
                   "type": "object",
@@ -2039,7 +2057,7 @@
                   ],
                   "properties": {
                     "value": {
-                      "type": "null"
+                      "type": "boolean"
                     }
                   }
                 },
@@ -2205,12 +2223,12 @@
           "anyOf": [
             {
               "type": "object",
-              "required": [
-                "value"
-              ],
               "properties": {
                 "value": {
-                  "type": "array",
+                  "type": [
+                    "array",
+                    "null"
+                  ],
                   "items": {
                     "type": "string"
                   }
@@ -2450,7 +2468,7 @@
       ],
       "properties": {
         "id": {
-          "description": "Operation Id (pairs with Request, or empty if unidirectional)",
+          "description": "Operation Id (pairs with Request, or empty if unidirectional).",
           "default": 0,
           "type": "integer",
           "format": "uint32",
@@ -2465,10 +2483,11 @@
       }
     },
     {
+      "description": "An update from the veilid-core to the host application describing a change to the internal state of the Veilid node.",
       "type": "object",
       "oneOf": [
         {
-          "description": "A VeilidCore log message with optional backtrace",
+          "description": "A VeilidCore log message with optional backtrace.",
           "type": "object",
           "required": [
             "kind",
@@ -2497,7 +2516,7 @@
           }
         },
         {
-          "description": "Direct statement blob passed to hosting application for processing",
+          "description": "Direct statement blob passed to hosting application for processing.",
           "type": "object",
           "required": [
             "kind",
@@ -2528,7 +2547,7 @@
           }
         },
         {
-          "description": "Direct question blob passed to hosting application for processing to send an eventual AppReply",
+          "description": "Direct question blob passed to hosting application for processing to send an eventual AppReply.",
           "type": "object",
           "required": [
             "call_id",
@@ -2563,6 +2582,7 @@
           }
         },
         {
+          "description": "Describe the attachment state of the Veilid node",
           "type": "object",
           "required": [
             "kind",
@@ -2578,17 +2598,25 @@
               ]
             },
             "local_network_ready": {
+              "description": "If attached and there are enough eachable nodes in the routing table to perform all the actions of the LocalNetwork RoutingDomain.",
               "type": "boolean"
             },
             "public_internet_ready": {
+              "description": "If attached and there are enough eachable nodes in the routing table to perform all the actions of the PublicInternet RoutingDomain, including things like private/safety route allocation and DHT operations.",
               "type": "boolean"
             },
             "state": {
-              "$ref": "#/definitions/AttachmentState"
+              "description": "The overall quality of the routing table if attached, or the current state the attachment state machine.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/AttachmentState"
+                }
+              ]
             }
           }
         },
         {
+          "description": "Describe the current network state of the Veilid node",
           "type": "object",
           "required": [
             "bps_down",
@@ -2599,9 +2627,11 @@
           ],
           "properties": {
             "bps_down": {
+              "description": "The total number of bytes per second used by Veilid currently in the download direction.",
               "type": "string"
             },
             "bps_up": {
+              "description": "The total number of bytes per second used by Veilid currently in the upload direction.",
               "type": "string"
             },
             "kind": {
@@ -2611,17 +2641,20 @@
               ]
             },
             "peers": {
+              "description": "The list of most recently accessed peers. This is not an active connection table, nor is representative of the entire routing table.",
               "type": "array",
               "items": {
                 "$ref": "#/definitions/PeerTableData"
               }
             },
             "started": {
+              "description": "If the network has been started or not.",
               "type": "boolean"
             }
           }
         },
         {
+          "description": "Describe changes to the Veilid node configuration Currently this is only ever emitted once, however we reserve the right to add the ability to change the configuration or have it changed by the Veilid node itself during runtime.",
           "type": "object",
           "required": [
             "config",
@@ -2629,7 +2662,12 @@
           ],
           "properties": {
             "config": {
-              "$ref": "#/definitions/VeilidConfigInner"
+              "description": "If the Veilid node configuration has changed the full new config will be here.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/VeilidConfigInner"
+                }
+              ]
             },
             "kind": {
               "type": "string",
@@ -2640,6 +2678,7 @@
           }
         },
         {
+          "description": "Describe a private route change that has happened",
           "type": "object",
           "required": [
             "dead_remote_routes",
@@ -2648,12 +2687,14 @@
           ],
           "properties": {
             "dead_remote_routes": {
+              "description": "If a private route that was imported has died, it is listed here.",
               "type": "array",
               "items": {
                 "type": "string"
               }
             },
             "dead_routes": {
+              "description": "If a private route that was allocated has died, it is listed here.",
               "type": "array",
               "items": {
                 "type": "string"
@@ -2668,6 +2709,7 @@
           }
         },
         {
+          "description": "Describe when DHT records have subkey values changed",
           "type": "object",
           "required": [
             "count",
@@ -2677,11 +2719,13 @@
           ],
           "properties": {
             "count": {
+              "description": "The count remaining on the watch that triggered this value change If there is no watch and this is received, it will be set to u32::MAX If this value is zero, any watch present on the value has died.",
               "type": "integer",
               "format": "uint32",
               "minimum": 0.0
             },
             "key": {
+              "description": "The DHT Record key that changed",
               "type": "string"
             },
             "kind": {
@@ -2691,6 +2735,7 @@
               ]
             },
             "subkeys": {
+              "description": "The portion of the DHT Record's subkeys that have changed If the subkey range is empty, any watch present on the value has died.",
               "type": "array",
               "items": {
                 "type": "array",
@@ -2711,6 +2756,7 @@
               }
             },
             "value": {
+              "description": "The (optional) value data for the first subkey in the subkeys range If 'subkeys' is not a single value, other values than the first value must be retrieved with RoutingContext::get_dht_value().",
               "anyOf": [
                 {
                   "$ref": "#/definitions/ValueData"
@@ -2752,7 +2798,7 @@
   ],
   "definitions": {
     "AttachmentState": {
-      "description": "Attachment abstraction for network 'signal strength'",
+      "description": "Attachment abstraction for network 'signal strength'.",
       "type": "string",
       "enum": [
         "Detached",
@@ -2949,7 +2995,7 @@
       }
     },
     "FourCC": {
-      "description": "FOURCC code",
+      "description": "FOURCC code.",
       "type": "array",
       "items": {
         "type": "integer",
@@ -3023,6 +3069,7 @@
       }
     },
     "PeerTableData": {
+      "description": "Describe a recently accessed peer",
       "type": "object",
       "required": [
         "node_ids",
@@ -3031,16 +3078,23 @@
       ],
       "properties": {
         "node_ids": {
+          "description": "The node ids used by this peer",
           "type": "array",
           "items": {
             "type": "string"
           }
         },
         "peer_address": {
+          "description": "The peer's human readable address.",
           "type": "string"
         },
         "peer_stats": {
-          "$ref": "#/definitions/PeerStats"
+          "description": "Statistics we have collected on this peer.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/PeerStats"
+            }
+          ]
         }
       }
     },
@@ -3100,10 +3154,10 @@
       }
     },
     "SafetySelection": {
-      "description": "The choice of safety route to include in compiled routes",
+      "description": "The choice of safety route to include in compiled routes.",
       "oneOf": [
         {
-          "description": "Don't use a safety route, only specify the sequencing preference",
+          "description": "Don't use a safety route, only specify the sequencing preference.",
           "type": "object",
           "required": [
             "Unsafe"
@@ -3116,7 +3170,7 @@
           "additionalProperties": false
         },
         {
-          "description": "Use a safety route and parameters specified by a SafetySpec",
+          "description": "Use a safety route and parameters specified by a SafetySpec.",
           "type": "object",
           "required": [
             "Safe"
@@ -3131,7 +3185,7 @@
       ]
     },
     "SafetySpec": {
-      "description": "Options for safety routes (sender privacy)",
+      "description": "Options for safety routes (sender privacy).",
       "type": "object",
       "required": [
         "hop_count",
@@ -3140,20 +3194,20 @@
       ],
       "properties": {
         "hop_count": {
-          "description": "must be greater than 0",
+          "description": "Must be greater than 0.",
           "type": "integer",
           "format": "uint",
           "minimum": 0.0
         },
         "preferred_route": {
-          "description": "preferred safety route set id if it still exists",
+          "description": "Preferred safety route set id if it still exists.",
           "type": [
             "string",
             "null"
           ]
         },
         "sequencing": {
-          "description": "prefer connection-oriented sequenced protocols",
+          "description": "Prefer connection-oriented sequenced protocols.",
           "allOf": [
             {
               "$ref": "#/definitions/Sequencing"
@@ -3161,7 +3215,7 @@
           ]
         },
         "stability": {
-          "description": "prefer reliability over speed",
+          "description": "Prefer reliability over speed.",
           "allOf": [
             {
               "$ref": "#/definitions/Stability"
@@ -3504,7 +3558,7 @@
       ]
     },
     "VeilidConfigApplication": {
-      "description": "Application configuration\n\nConfigure web access to the Progressive Web App (PWA)\n\nTo be implemented...",
+      "description": "Application configuration.\n\nConfigure web access to the Progressive Web App (PWA).\n\nTo be implemented...",
       "type": "object",
       "required": [
         "http",
@@ -3549,7 +3603,7 @@
       }
     },
     "VeilidConfigDHT": {
-      "description": "Configure the Distributed Hash Table (DHT)",
+      "description": "Configure the Distributed Hash Table (DHT).",
       "type": "object",
       "required": [
         "get_value_count",
@@ -3689,7 +3743,7 @@
       }
     },
     "VeilidConfigHTTP": {
-      "description": "Enable and configure HTTP access to the Veilid node\n\n```yaml http: enabled: false listen_address: ':5150' path: 'app\" url: 'https://localhost:5150' ```",
+      "description": "Enable and configure HTTP access to the Veilid node.\n\n```yaml http: enabled: false listen_address: ':5150' path: 'app\" url: 'https://localhost:5150' ```",
       "type": "object",
       "required": [
         "enabled",
@@ -3715,7 +3769,7 @@
       }
     },
     "VeilidConfigHTTPS": {
-      "description": "Enable and configure HTTPS access to the Veilid node\n\n```yaml https: enabled: false listen_address: ':5150' path: 'app' url: 'https://localhost:5150' ```",
+      "description": "Enable and configure HTTPS access to the Veilid node.\n\n```yaml https: enabled: false listen_address: ':5150' path: 'app' url: 'https://localhost:5150' ```",
       "type": "object",
       "required": [
         "enabled",
@@ -3914,7 +3968,7 @@
       }
     },
     "VeilidConfigProtocol": {
-      "description": "Configure Network Protocols\n\nVeilid can communicate over UDP, TCP, and Web Sockets.\n\nAll protocols are available by default, and the Veilid node will sort out which protocol is used for each peer connection.",
+      "description": "Configure Network Protocols.\n\nVeilid can communicate over UDP, TCP, and Web Sockets.\n\nAll protocols are available by default, and the Veilid node will sort out which protocol is used for each peer connection.",
       "type": "object",
       "required": [
         "tcp",
@@ -3938,7 +3992,7 @@
       }
     },
     "VeilidConfigRPC": {
-      "description": "Configure RPC",
+      "description": "Configure RPC.",
       "type": "object",
       "required": [
         "concurrency",
@@ -3992,7 +4046,7 @@
       }
     },
     "VeilidConfigRoutingTable": {
-      "description": "Configure the network routing table",
+      "description": "Configure the network routing table.",
       "type": "object",
       "required": [
         "bootstrap",
@@ -4051,7 +4105,7 @@
       }
     },
     "VeilidConfigTCP": {
-      "description": "Enable and configure TCP\n\n```yaml tcp: connect: true listen: true max_connections: 32 listen_address: ':5150' public_address: ''",
+      "description": "Enable and configure TCP.\n\n```yaml tcp: connect: true listen: true max_connections: 32 listen_address: ':5150' public_address: ''",
       "type": "object",
       "required": [
         "connect",
@@ -4083,7 +4137,7 @@
       }
     },
     "VeilidConfigTLS": {
-      "description": "Configure TLS\n\n```yaml tls: certificate_path: /path/to/cert private_key_path: /path/to/private/key connection_initial_timeout_ms: 2000",
+      "description": "Configure TLS.\n\n```yaml tls: certificate_path: /path/to/cert private_key_path: /path/to/private/key connection_initial_timeout_ms: 2000",
       "type": "object",
       "required": [
         "certificate_path",
@@ -4120,7 +4174,7 @@
       }
     },
     "VeilidConfigUDP": {
-      "description": "Enable and configure UDP\n\n```yaml udp: enabled: true socket_pool_size: 0 listen_address: ':5150' public_address: '' ```",
+      "description": "Enable and configure UDP.\n\n```yaml udp: enabled: true socket_pool_size: 0 listen_address: ':5150' public_address: '' ```",
       "type": "object",
       "required": [
         "enabled",
@@ -4148,7 +4202,7 @@
       }
     },
     "VeilidConfigWS": {
-      "description": "Enable and configure Web Sockets\n\n```yaml ws: connect: true listen: true max_connections: 32 listen_address: ':5150' path: 'ws' url: 'ws://localhost:5150/ws'",
+      "description": "Enable and configure Web Sockets.\n\n```yaml ws: connect: true listen: true max_connections: 32 listen_address: ':5150' path: 'ws' url: 'ws://localhost:5150/ws'",
       "type": "object",
       "required": [
         "connect",
@@ -4184,7 +4238,7 @@
       }
     },
     "VeilidConfigWSS": {
-      "description": "Enable and configure Secure Web Sockets\n\n```yaml wss: connect: true listen: false max_connections: 32 listen_address: ':5150' path: 'ws' url: ''",
+      "description": "Enable and configure Secure Web Sockets.\n\n```yaml wss: connect: true listen: false max_connections: 32 listen_address: ':5150' path: 'ws' url: ''",
       "type": "object",
       "required": [
         "connect",
@@ -4220,7 +4274,7 @@
       }
     },
     "VeilidLogLevel": {
-      "description": "Log level for VeilidCore",
+      "description": "Log level for VeilidCore.",
       "type": "string",
       "enum": [
         "Error",
@@ -4231,6 +4285,7 @@
       ]
     },
     "VeilidState": {
+      "description": "A queriable state of the internals of veilid-core.",
       "type": "object",
       "required": [
         "attachment",
@@ -4250,6 +4305,7 @@
       }
     },
     "VeilidStateAttachment": {
+      "description": "Describe the attachment state of the Veilid node",
       "type": "object",
       "required": [
         "local_network_ready",
@@ -4258,28 +4314,42 @@
       ],
       "properties": {
         "local_network_ready": {
+          "description": "If attached and there are enough eachable nodes in the routing table to perform all the actions of the LocalNetwork RoutingDomain.",
           "type": "boolean"
         },
         "public_internet_ready": {
+          "description": "If attached and there are enough eachable nodes in the routing table to perform all the actions of the PublicInternet RoutingDomain, including things like private/safety route allocation and DHT operations.",
           "type": "boolean"
         },
         "state": {
-          "$ref": "#/definitions/AttachmentState"
+          "description": "The overall quality of the routing table if attached, or the current state the attachment state machine.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/AttachmentState"
+            }
+          ]
         }
       }
     },
     "VeilidStateConfig": {
+      "description": "Describe changes to the Veilid node configuration Currently this is only ever emitted once, however we reserve the right to add the ability to change the configuration or have it changed by the Veilid node itself during runtime.",
       "type": "object",
       "required": [
         "config"
       ],
       "properties": {
         "config": {
-          "$ref": "#/definitions/VeilidConfigInner"
+          "description": "If the Veilid node configuration has changed the full new config will be here.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/VeilidConfigInner"
+            }
+          ]
         }
       }
     },
     "VeilidStateNetwork": {
+      "description": "Describe the current network state of the Veilid node",
       "type": "object",
       "required": [
         "bps_down",
@@ -4289,18 +4359,22 @@
       ],
       "properties": {
         "bps_down": {
+          "description": "The total number of bytes per second used by Veilid currently in the download direction.",
           "type": "string"
         },
         "bps_up": {
+          "description": "The total number of bytes per second used by Veilid currently in the upload direction.",
           "type": "string"
         },
         "peers": {
+          "description": "The list of most recently accessed peers. This is not an active connection table, nor is representative of the entire routing table.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/PeerTableData"
           }
         },
         "started": {
+          "description": "If the network has been started or not.",
           "type": "boolean"
         }
       }

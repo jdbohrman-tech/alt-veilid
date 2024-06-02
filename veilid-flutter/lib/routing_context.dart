@@ -115,6 +115,13 @@ extension DHTRecordDescriptorExt on DHTRecordDescriptor {
     return KeyPair(key: owner, secret: ownerSecret!);
   }
 
+  TypedKey? ownerTypedSecret() {
+    if (ownerSecret == null) {
+      return null;
+    }
+    return TypedKey(kind: key.kind, value: ownerSecret!);
+  }
+
   TypedKeyPair? ownerTypedKeyPair() {
     if (ownerSecret == null) {
       return null;

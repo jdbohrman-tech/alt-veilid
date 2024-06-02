@@ -694,9 +694,16 @@ impl RouteSpecStore {
                 }
             } else {
                 // Verify a signature for a hop node along the route
-                if let Err(e) = vcrypto.verify(hop_public_key, data, &signatures[hop_n]) {
-                    log_rpc!(debug "failed to verify signature for hop {} at {} on private route {}: {}", hop_n, hop_public_key, public_key, e);
-                    return None;
+                match vcrypto.verify(hop_public_key, data, &signatures[hop_n]) {
+                    Ok(true) => {}
+                    Ok(false) => {
+                        log_rpc!(debug "invalid signature for hop {} at {} on private route {}", hop_n, hop_public_key, public_key);
+                        return None;
+                    }
+                    Err(e) => {
+                        log_rpc!(debug "errir verifying signature for hop {} at {} on private route {}: {}", hop_n, hop_public_key, public_key, e);
+                        return None;
+                    }
                 }
             }
         }

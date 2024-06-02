@@ -149,13 +149,16 @@ impl RPCOperationSetValueA {
 
         if let Some(value) = &self.value {
             // And the signed value data
-            value
+            if !value
                 .validate(
                     set_value_context.descriptor.owner(),
                     set_value_context.subkey,
                     set_value_context.vcrypto.clone(),
                 )
-                .map_err(RPCError::protocol)?;
+                .map_err(RPCError::protocol)?
+            {
+                return Err(RPCError::protocol("signed value data did not validate"));
+            }
         }
 
         PeerInfo::validate_vec(&mut self.peers, validate_context.crypto.clone());

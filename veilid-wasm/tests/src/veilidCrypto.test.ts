@@ -138,7 +138,7 @@ describe('veilidCrypto', () => {
 
     expect(() => {
       const res = veilidCrypto.verify(bestKind, publicKey, data, sig);
-      expect(res).toBeUndefined();
+      expect(res).toBe(true);
     }).not.toThrow();
   });
 

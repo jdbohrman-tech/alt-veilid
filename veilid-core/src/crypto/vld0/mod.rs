@@ -161,13 +161,13 @@ impl CryptoSystem for CryptoSystemVLD0 {
     // Validation
     fn validate_keypair(&self, dht_key: &PublicKey, dht_key_secret: &SecretKey) -> bool {
         let data = vec![0u8; 512];
-        let sig = match self.sign(dht_key, dht_key_secret, &data) {
-            Ok(s) => s,
-            Err(_) => {
-                return false;
-            }
+        let Ok(sig) = self.sign(dht_key, dht_key_secret, &data) else {
+            return false;
         };
-        self.verify(dht_key, &data, &sig).is_ok()
+        let Ok(v) = self.verify(dht_key, &data, &sig) else {
+            return false;
+        };
+        v
     }
     fn validate_hash(&self, data: &[u8], dht_key: &PublicKey) -> bool {
         let bytes = *blake3::hash(data).as_bytes();
@@ -219,7 +219,9 @@ impl CryptoSystem for CryptoSystemVLD0 {
 
         let sig = Signature::new(sig_bytes.to_bytes());
 
-        self.verify(dht_key, data, &sig)?;
+        if !self.verify(dht_key, data, &sig)? {
+            apibail_internal!("newly created signature does not verify");
+        }
 
         Ok(sig)
     }
@@ -228,7 +230,7 @@ impl CryptoSystem for CryptoSystemVLD0 {
         dht_key: &PublicKey,
         data: &[u8],
         signature: &Signature,
-    ) -> VeilidAPIResult<()> {
+    ) -> VeilidAPIResult<bool> {
         let pk = ed::VerifyingKey::from_bytes(&dht_key.bytes)
             .map_err(|e| VeilidAPIError::parse_error("Public key is invalid", e))?;
         let sig = ed::Signature::from_bytes(&signature.bytes);
@@ -236,9 +238,13 @@ impl CryptoSystem for CryptoSystemVLD0 {
         let mut dig: ed::Sha512 = ed::Sha512::default();
         dig.update(data);
 
-        pk.verify_prehashed_strict(dig, Some(VEILID_DOMAIN_SIGN), &sig)
-            .map_err(|e| VeilidAPIError::parse_error("Verification failed", e))?;
-        Ok(())
+        if pk
+            .verify_prehashed_strict(dig, Some(VEILID_DOMAIN_SIGN), &sig)
+            .is_err()
+        {
+            return Ok(false);
+        }
+        Ok(true)
     }
 
     // AEAD Encrypt/Decrypt

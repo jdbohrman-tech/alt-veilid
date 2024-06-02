@@ -46,7 +46,7 @@ pub trait CryptoSystem {
 
     // Authentication
     fn sign(&self, key: &PublicKey, secret: &SecretKey, data: &[u8]) -> VeilidAPIResult<Signature>;
-    fn verify(&self, key: &PublicKey, data: &[u8], signature: &Signature) -> VeilidAPIResult<()>;
+    fn verify(&self, key: &PublicKey, data: &[u8], signature: &Signature) -> VeilidAPIResult<bool>;
 
     // AEAD Encrypt/Decrypt
     fn aead_overhead(&self) -> usize;

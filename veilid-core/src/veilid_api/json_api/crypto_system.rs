@@ -18,6 +18,7 @@ pub struct CryptoSystemResponse {
 #[serde(tag = "cs_op")]
 pub enum CryptoSystemRequestOp {
     Release,
+    Kind,
     CachedDh {
         #[schemars(with = "String")]
         key: PublicKey,
@@ -108,7 +109,7 @@ pub enum CryptoSystemRequestOp {
         #[schemars(with = "String")]
         data: Vec<u8>,
         #[schemars(with = "String")]
-        secret: Signature,
+        signature: Signature,
     },
     AeadOverhead,
     DecryptAead {
@@ -150,6 +151,10 @@ pub enum CryptoSystemRequestOp {
 pub enum CryptoSystemResponseOp {
     InvalidId,
     Release,
+    Kind {
+        #[schemars(with = "String")]
+        value: CryptoKind,
+    },
     CachedDh {
         #[serde(flatten)]
         #[schemars(with = "ApiResult<String>")]
@@ -219,7 +224,7 @@ pub enum CryptoSystemResponseOp {
     },
     Verify {
         #[serde(flatten)]
-        result: ApiResult<()>,
+        result: ApiResult<bool>,
     },
     AeadOverhead {
         value: u32,

@@ -1525,8 +1525,8 @@ pub extern "C" fn crypto_verify(
         let csv = crypto.get(kind).ok_or_else(|| {
             veilid_core::VeilidAPIError::invalid_argument("crypto_verify", "kind", kind.to_string())
         })?;
-        csv.verify(&key, &data, &signature)?;
-        APIRESULT_VOID
+        let out = csv.verify(&key, &data, &signature)?;
+        APIResult::Ok(out)
     });
 }
 

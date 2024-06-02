@@ -30,6 +30,8 @@ void main() {
       test('get cryptosystem', testGetCryptoSystem);
       test('get cryptosystem invalid', testGetCryptoSystemInvalid);
       test('hash and verify password', testHashAndVerifyPassword);
+      test('sign and verify signature', testSignAndVerifySignature);
+      test('sign and verify signatures', testSignAndVerifySignatures);
     });
 
     group('Table DB Tests', () {
