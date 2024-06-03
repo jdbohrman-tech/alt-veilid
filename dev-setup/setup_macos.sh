@@ -118,7 +118,7 @@ fi
 
 # ensure Java 17 is the active version
 JAVA_VERSION=$(java -version 2>&1 | head -n 1 | cut -d\" -f2)
-if [ "$JAVA_VERSION" == "17" ]; then
+if [ ! -z $(echo $JAVA_VERSION | egrep "^17") ]; then
     echo '[X] Java 17 is available in the path'
 else
     echo 'Java 17 is not available in the path'
@@ -148,8 +148,21 @@ rustup target add aarch64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim x
 # install cargo packages
 cargo install wasm-bindgen-cli wasm-pack cargo-edit
 
-# install pip packages
-pip3 install --upgrade bumpversion
+# attempt to install pip packages - this may result in an error, which we will try to catch
+pip3 install --upgrade bumpversion || ( \
+if [ $? -gt 0 ]; then
+    # it was probably because of the Python installation being externally managed, so we'll try to get the package via Homebrew, but only if Python was installed from there
+    echo "Installation via pip3 failed. Checking if Python was installed via Homebrew..."
+    if [[ ! -z $(brew list | grep python) ]]; then
+        echo "Python was installed from Homebrew. Installing bumpversion..."
+        $BREW_COMMAND install bumpversion && \
+            echo "[X] Bumpversion Python package installed" || \
+            echo "Failed to install the bumpversion Python package. Please install manually."
+    else
+        echo "Python was not installed from Homebrew. Please install the "bumpversion" Python package manually."
+    fi
+fi
+)
 
 if command -v pod &>/dev/null; then
     echo '[X] CocoaPods is available in the path'
