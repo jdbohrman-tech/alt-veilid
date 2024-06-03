@@ -367,27 +367,6 @@ impl StorageManager {
         Ok(None)
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     /// Handle a received 'Set Value' query
     /// Returns a None if the value passed in was set
     /// Returns a Some(current value) if the value was older and the current value was kept
