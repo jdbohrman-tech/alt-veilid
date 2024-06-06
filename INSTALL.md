@@ -109,3 +109,11 @@ To start your headless Veilid node without systemd, run:
 ```shell
 sudo -u veilid veilid-server
 ```
+
+## Network Considerations
+
+> **note:** if you're interested in using a veilid-server node for local development, you're better off reading the [Developer Book](https://veilid.gitlab.io/developer-book/), though the implementation to enable local development using a veilid-server node is still forthcoming.
+
+Veilid nodes need to be internet facing or behind a firewall that allows inbound connections via port 5150 for both TCP and UDP. This will allow veilid-server to access other nodes in the wider network since 5150 is the port that the process uses by default. If the port is not available, veilid-server will wait for it to become available.
+
+In the event the listening port is not opened in the firewall, an application may still operate, though in a fairly degraded mode that relies on another node to relay incoming RPC messages to them.
