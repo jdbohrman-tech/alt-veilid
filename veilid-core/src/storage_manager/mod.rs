@@ -686,7 +686,6 @@ impl StorageManager {
                 opt_watch_node,
             )
             .await?;
-
         // If we did not get a valid response assume nothing changed
         let Some(owvresult) = opt_owvresult else {
             apibail_try_again!("did not get a valid response");

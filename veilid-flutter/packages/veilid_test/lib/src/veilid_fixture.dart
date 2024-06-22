@@ -163,10 +163,8 @@ class DefaultVeilidFixture implements VeilidFixture {
   Future<void> tearDown() async {
     assert(_fixtureMutex.isLocked, 'should not tearDown without setUp');
 
-    final cancelFut = _veilidUpdateSubscription?.cancel();
     await Veilid.instance.shutdownVeilidCore();
-    await cancelFut;
-
+    await _veilidUpdateSubscription?.cancel();
     await _updateStreamController.close();
 
     _veilidUpdateSubscription = null;
