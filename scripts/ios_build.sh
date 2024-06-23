@@ -45,9 +45,7 @@ do
         echo Unsupported ARCH: $arch
         continue
     fi
-
-
-
+    
     # Choose arm64 brew for unit tests by default if we are on M1
     if [ -f /opt/homebrew/bin/brew ]; then
         HOMEBREW_DIR=/opt/homebrew/bin

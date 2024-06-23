@@ -407,10 +407,8 @@ impl NetworkInterfaces {
         // Reduce interfaces to their best routable ip addresses
         let mut intf_addrs = Vec::new();
         for intf in inner.interfaces.values() {
-            if !intf.is_running()
-                || !intf.has_default_route()
-                || intf.is_loopback()
-                || intf.is_point_to_point()
+            if !intf.is_running() || !intf.has_default_route() || intf.is_loopback()
+            // || intf.is_point_to_point() // xxx: iOS cellular is 'point-to-point'
             {
                 continue;
             }
