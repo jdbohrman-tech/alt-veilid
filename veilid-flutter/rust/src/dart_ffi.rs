@@ -235,10 +235,12 @@ pub extern "C" fn initialize_veilid_core(platform_config: FfiStr) {
                 filters.insert("terminal", filter);
                 layers.push(layer.boxed());
             } else if #[cfg(target_os = "ios")] {
-                use tracing_oslog::OsLogger;
                 let filter =
                     veilid_core::VeilidLayerFilter::new(platform_config.logging.terminal.level, &platform_config.logging.terminal.ignore_log_targets);
-                let layer = OsLogger::new("com.veilid.veilid-flutter", "default")
+                let layer = tracing_subscriber::fmt::Layer::new()
+                    .compact()
+                    .with_ansi(false)
+                    .with_writer(std::io::stdout)
                     .with_filter(filter.clone());
                 filters.insert("terminal", filter);
                 layers.push(layer.boxed());
