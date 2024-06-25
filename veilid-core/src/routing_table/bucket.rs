@@ -115,7 +115,11 @@ impl Bucket {
         self.entries.iter()
     }
 
-    pub(super) fn kick(&mut self, bucket_depth: usize) -> Option<BTreeSet<PublicKey>> {
+    pub(super) fn kick(
+        &mut self,
+        bucket_depth: usize,
+        closest_nodes: &BTreeSet<PublicKey>,
+    ) -> Option<BTreeSet<PublicKey>> {
         // Get number of entries to attempt to purge from bucket
         let bucket_len = self.entries.len();
 
@@ -164,6 +168,11 @@ impl Bucket {
 
             // if this entry has references we can't drop it yet
             if entry.1.ref_count.load(Ordering::Acquire) > 0 {
+                continue;
+            }
+
+            // if this entry is one of our N closest entries, don't drop it
+            if closest_nodes.contains(&entry.0) {
                 continue;
             }
 
