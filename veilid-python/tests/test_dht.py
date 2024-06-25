@@ -374,7 +374,7 @@ async def test_dht_integration_writer_reader():
         rc1 = await api1.new_routing_context()
         async with rc0, rc1:
 
-            COUNT = 10
+            COUNT = 100
             TEST_DATA = b"test data"
 
             # write dht records on server 0
