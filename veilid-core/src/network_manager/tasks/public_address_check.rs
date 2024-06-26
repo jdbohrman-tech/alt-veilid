@@ -268,6 +268,11 @@ impl NetworkManager {
             if detect_address_changes {
                 // Reset the address check cache now so we can start detecting fresh
                 info!("Public address has changed, detecting public dial info");
+                log_net!(debug "report_global_socket_address\nsocket_address: {:#?}\nflow: {:#?}\nreporting_peer: {:#?}", socket_address, flow, reporting_peer);
+                log_net!(debug
+                    "public_address_check_cache: {:#?}",
+                    inner.public_address_check_cache
+                );
 
                 inner.public_address_check_cache.clear();
 

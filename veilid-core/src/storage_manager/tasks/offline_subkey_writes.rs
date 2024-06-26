@@ -10,17 +10,12 @@ impl StorageManager {
         _last_ts: Timestamp,
         _cur_ts: Timestamp,
     ) -> EyreResult<()> {
-        let (mut offline_subkey_writes, opt_update_callback) = {
+        let mut offline_subkey_writes = {
             let mut inner = self.lock().await?;
-            let out = (
-                inner.offline_subkey_writes.clone(),
-                inner.update_callback.clone(),
-            );
+            let out = inner.offline_subkey_writes.clone();
             inner.offline_subkey_writes.clear();
             out
         };
-
-        let mut fanout_results = vec![];
 
         for (key, osw) in offline_subkey_writes.iter_mut() {
             if poll!(stop_token.clone()).is_ready() {
@@ -31,6 +26,8 @@ impl StorageManager {
                 log_stor!(debug "Offline subkey writes stopped for network.");
                 break;
             };
+
+            let mut fanout_results = vec![];
 
             let mut written_subkeys = ValueSubkeyRangeSet::new();
             for subkey in osw.subkeys.iter() {
@@ -63,7 +60,7 @@ impl StorageManager {
                         *key,
                         subkey,
                         osw.safety_selection,
-                        value,
+                        value.clone(),
                         descriptor,
                     )
                     .await;
@@ -85,24 +82,23 @@ impl StorageManager {
                                         &result.fanout_result,
                                     );
                                     if !was_offline {
-                                        if let Some(update_callback) = opt_update_callback.clone() {
-                                            // Send valuechange with dead count and no subkeys
-                                            update_callback(VeilidUpdate::ValueChange(Box::new(
-                                                VeilidValueChange {
-                                                    key: *key,
-                                                    subkeys: ValueSubkeyRangeSet::single(subkey),
-                                                    count: u32::MAX,
-                                                    value: Some(
-                                                        result
-                                                            .signed_value_data
-                                                            .value_data()
-                                                            .clone(),
-                                                    ),
-                                                },
-                                            )));
-                                        }
                                         written_subkeys.insert(subkey);
-                                    };
+                                    }
+
+                                    // Set the new value if it differs from what was asked to set
+                                    if result.signed_value_data.value_data() != value.value_data() {
+                                        // Record the newer value and send and update since it is different than what we just set
+                                        let mut inner = self.lock().await?;
+                                        inner
+                                            .handle_set_local_value(
+                                                *key,
+                                                subkey,
+                                                result.signed_value_data.clone(),
+                                                WatchUpdateMode::UpdateAll,
+                                            )
+                                            .await?;
+                                    }
+
                                     fanout_results.push((subkey, result.fanout_result));
                                     break;
                                 }
