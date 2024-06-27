@@ -132,7 +132,7 @@ impl RoutingTable {
                     .entries()
                     .filter(|e| {
                         let cap_match = e.1.with(inner, |_rti, e| {
-                            e.has_capabilities(RoutingDomain::PublicInternet, &capabilities)
+                            e.has_all_capabilities(RoutingDomain::PublicInternet, &capabilities)
                         });
                         let state = e.1.with(inner, |_rti, e| e.state(cur_ts));
                         state >= min_state && cap_match

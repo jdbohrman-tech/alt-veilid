@@ -358,9 +358,10 @@ impl RoutingTableInner {
             "Starting routing table buckets purge. Table currently has {} nodes",
             self.bucket_entry_count()
         );
+        let closest_nodes = BTreeSet::new();
         for ck in VALID_CRYPTO_KINDS {
             for bucket in self.buckets.get_mut(&ck).unwrap().iter_mut() {
-                bucket.kick(0);
+                bucket.kick(0, &closest_nodes);
             }
         }
         self.all_entries.remove_expired();
@@ -396,11 +397,11 @@ impl RoutingTableInner {
 
     /// Attempt to settle buckets and remove entries down to the desired number
     /// which may not be possible due extant NodeRefs
-    pub fn kick_bucket(&mut self, bucket_index: BucketIndex) {
+    pub fn kick_bucket(&mut self, bucket_index: BucketIndex, exempt_peers: &BTreeSet<PublicKey>) {
         let bucket = self.get_bucket_mut(bucket_index);
         let bucket_depth = Self::bucket_depth(bucket_index);
 
-        if let Some(_dead_node_ids) = bucket.kick(bucket_depth) {
+        if let Some(_dead_node_ids) = bucket.kick(bucket_depth, exempt_peers) {
             // Remove expired entries
             self.all_entries.remove_expired();
 
@@ -1252,7 +1253,7 @@ impl RoutingTableInner {
     }
 }
 
-fn make_closest_noderef_sort(
+pub(crate) fn make_closest_noderef_sort(
     crypto: Crypto,
     node_id: TypedKey,
 ) -> impl Fn(&NodeRefLocked, &NodeRefLocked) -> core::cmp::Ordering {
@@ -1278,5 +1279,21 @@ fn make_closest_noderef_sort(
                 da.cmp(&db)
             })
         })
+    }
+}
+
+pub(crate) fn make_closest_node_id_sort(
+    crypto: Crypto,
+    node_id: TypedKey,
+) -> impl Fn(&CryptoKey, &CryptoKey) -> core::cmp::Ordering {
+    let kind = node_id.kind;
+    // Get cryptoversion to check distance with
+    let vcrypto = crypto.get(kind).unwrap();
+
+    move |a: &CryptoKey, b: &CryptoKey| -> core::cmp::Ordering {
+        // distance is the next metric, closer nodes first
+        let da = vcrypto.distance(a, &node_id.value);
+        let db = vcrypto.distance(b, &node_id.value);
+        da.cmp(&db)
     }
 }

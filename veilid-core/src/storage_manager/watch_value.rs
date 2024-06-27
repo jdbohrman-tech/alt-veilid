@@ -234,7 +234,7 @@ impl StorageManager {
                 .into_iter()
                 .filter(|x| {
                     x.node_info(RoutingDomain::PublicInternet)
-                        .map(|ni| ni.has_capabilities(&[CAP_DHT, CAP_DHT_WATCH]))
+                        .map(|ni| ni.has_all_capabilities(&[CAP_DHT, CAP_DHT_WATCH]))
                         .unwrap_or_default()
                 })
                 .collect()

@@ -215,17 +215,19 @@ impl Network {
                             did.dial_info.protocol_type().low_level_protocol_type(),
                             dr.local_port,
                         );
-                        for additional_pt in
-                            inbound_protocol_map.get(&ipmkey).unwrap().iter().skip(1)
-                        {
-                            // Make dialinfo for additional protocol type
-                            let additional_ddi = DetectedDialInfo::Detected(DialInfoDetail {
-                                dial_info: self
-                                    .make_dial_info(did.dial_info.socket_address(), *additional_pt),
-                                class: did.class,
-                            });
-                            // Add additional dialinfo
-                            self.update_with_detected_dial_info(additional_ddi).await?;
+                        if let Some(ipm) = inbound_protocol_map.get(&ipmkey) {
+                            for additional_pt in ipm.iter().skip(1) {
+                                // Make dialinfo for additional protocol type
+                                let additional_ddi = DetectedDialInfo::Detected(DialInfoDetail {
+                                    dial_info: self.make_dial_info(
+                                        did.dial_info.socket_address(),
+                                        *additional_pt,
+                                    ),
+                                    class: did.class,
+                                });
+                                // Add additional dialinfo
+                                self.update_with_detected_dial_info(additional_ddi).await?;
+                            }
                         }
                     }
                 }

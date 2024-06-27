@@ -66,7 +66,7 @@ pub(crate) fn empty_fanout_node_info_filter() -> FanoutNodeInfoFilter {
 }
 
 pub(crate) fn capability_fanout_node_info_filter(caps: Vec<Capability>) -> FanoutNodeInfoFilter {
-    Arc::new(move |_, ni| ni.has_capabilities(&caps))
+    Arc::new(move |_, ni| ni.has_all_capabilities(&caps))
 }
 
 /// Contains the logic for generically searching the Veilid routing table for a set of nodes and applying an

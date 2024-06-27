@@ -456,7 +456,7 @@ impl RPCProcessor {
     ) -> bool {
         let routing_table = self.routing_table();
         routing_table.signed_node_info_is_valid_in_routing_domain(routing_domain, signed_node_info)
-            && signed_node_info.node_info().has_capabilities(capabilities)
+            && signed_node_info.node_info().has_all_capabilities(capabilities)
     }
 
     //////////////////////////////////////////////////////////////////////

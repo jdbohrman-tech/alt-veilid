@@ -80,7 +80,7 @@ impl RoutingTable {
                 ord.push_back(
                     async move {
                         routing_table
-                            .reverse_find_node(crypto_kind, nr, false)
+                            .reverse_find_node(crypto_kind, nr, false, vec![])
                             .await
                     }
                     .instrument(Span::current()),

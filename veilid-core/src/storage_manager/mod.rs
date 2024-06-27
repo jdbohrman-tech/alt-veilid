@@ -139,14 +139,19 @@ impl StorageManager {
     pub async fn terminate(&self) {
         log_stor!(debug "starting storage manager shutdown");
 
-        let mut inner = self.inner.lock().await;
-        inner.terminate().await;
+        {
+            let mut inner = self.inner.lock().await;
+            inner.terminate().await;
+        }
 
         // Cancel all tasks
         self.cancel_tasks().await;
 
         // Release the storage manager
-        *inner = Self::new_inner(self.unlocked_inner.clone());
+        {
+            let mut inner = self.inner.lock().await;
+            *inner = Self::new_inner(self.unlocked_inner.clone());
+        }
 
         log_stor!(debug "finished storage manager shutdown");
     }

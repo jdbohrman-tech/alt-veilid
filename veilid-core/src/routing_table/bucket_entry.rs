@@ -166,12 +166,20 @@ impl BucketEntryInner {
         common_crypto_kinds(&self.validated_node_ids.kinds(), other)
     }
 
-    /// Capability check
-    pub fn has_capabilities(&self, routing_domain: RoutingDomain, capabilities: &[Capability]) -> bool {
+    /// All-of capability check
+    pub fn has_all_capabilities(&self, routing_domain: RoutingDomain, capabilities: &[Capability]) -> bool {
         let Some(ni) = self.node_info(routing_domain) else {
             return false;
         };
-        ni.has_capabilities(capabilities)
+        ni.has_all_capabilities(capabilities)
+    }
+
+    /// Any-of capability check
+    pub fn has_any_capabilities(&self, routing_domain: RoutingDomain, capabilities: &[Capability]) -> bool {
+        let Some(ni) = self.node_info(routing_domain) else {
+            return false;
+        };
+        ni.has_any_capabilities(capabilities)
     }
 
     // Less is faster

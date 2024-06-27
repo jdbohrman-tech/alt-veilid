@@ -1,4 +1,5 @@
 pub mod bootstrap;
+pub mod closest_peers_refresh;
 pub mod kick_buckets;
 pub mod peer_minimum_refresh;
 pub mod ping_validator;
@@ -67,6 +68,23 @@ impl RoutingTable {
                             .instrument(trace_span!(
                                 parent: None,
                                 "peer minimum refresh task routine"
+                            )),
+                    )
+                });
+        }
+
+        // Set closest peers refresh tick task
+        {
+            let this = self.clone();
+            self.unlocked_inner
+                .closest_peers_refresh_task
+                .set_routine(move |s, _l, _t| {
+                    Box::pin(
+                        this.clone()
+                            .closest_peers_refresh_task_routine(s)
+                            .instrument(trace_span!(
+                                parent: None,
+                                "closest peers refresh task routine"
                             )),
                     )
                 });
@@ -181,9 +199,23 @@ impl RoutingTable {
         // Run the relay management task
         self.unlocked_inner.relay_management_task.tick().await?;
 
-        // Run the private route management task
-        // If we don't know our network class then don't do this yet
-        if self.has_valid_network_class(RoutingDomain::PublicInternet) {
+        // Only perform these operations if we already have a valid network class
+        // and if we didn't need to bootstrap or perform a peer minimum refresh as these operations
+        // require having a suitably full routing table and guaranteed ability to contact other nodes
+        if !needs_bootstrap
+            && !needs_peer_minimum_refresh
+            && self.has_valid_network_class(RoutingDomain::PublicInternet)
+        {
+            // Run closest peers refresh task
+            // this will also inform other close nodes of -our- existence so we would
+            // much rather perform this action -after- we have a valid network class
+            // so our PeerInfo is valid when informing the other nodes of our existence.
+            self.unlocked_inner
+                .closest_peers_refresh_task
+                .tick()
+                .await?;
+
+            // Run the private route management task
             self.unlocked_inner
                 .private_route_management_task
                 .tick()
