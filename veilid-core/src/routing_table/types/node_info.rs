@@ -13,6 +13,8 @@ pub const CAP_APPMESSAGE: Capability = FourCC(*b"APPM");
 #[cfg(feature = "unstable-blockstore")]
 pub const CAP_BLOCKSTORE: Capability = FourCC(*b"BLOC");
 
+pub const DISTANCE_METRIC_CAPABILITIES: &[Capability] = &[CAP_DHT, CAP_DHT_WATCH];
+
 #[derive(Clone, Default, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct NodeInfo {
     network_class: NetworkClass,
@@ -152,13 +154,24 @@ impl NodeInfo {
     pub fn has_capability(&self, cap: Capability) -> bool {
         self.capabilities.contains(&cap)
     }
-    pub fn has_capabilities(&self, capabilities: &[Capability]) -> bool {
+    pub fn has_all_capabilities(&self, capabilities: &[Capability]) -> bool {
         for cap in capabilities {
             if !self.has_capability(*cap) {
                 return false;
             }
         }
         true
+    }
+    pub fn has_any_capabilities(&self, capabilities: &[Capability]) -> bool {
+        if capabilities.is_empty() {
+            return true;
+        }
+        for cap in capabilities {
+            if self.has_capability(*cap) {
+                return true;
+            }
+        }
+        false
     }
 
     /// Can direct connections be made

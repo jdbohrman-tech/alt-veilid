@@ -115,6 +115,8 @@ pub(crate) struct RoutingTableUnlockedInner {
     bootstrap_task: TickTask<EyreReport>,
     /// Background process to ensure we have enough nodes in our routing table
     peer_minimum_refresh_task: TickTask<EyreReport>,
+    /// Background process to ensure we have enough nodes close to our own in our routing table
+    closest_peers_refresh_task: TickTask<EyreReport>,
     /// Background process to check nodes to see if they are still alive and for reliability
     ping_validator_task: TickTask<EyreReport>,
     /// Background process to keep relays up
@@ -223,6 +225,7 @@ impl RoutingTable {
             kick_buckets_task: TickTask::new(1),
             bootstrap_task: TickTask::new(1),
             peer_minimum_refresh_task: TickTask::new(1),
+            closest_peers_refresh_task: TickTask::new_ms(c.network.dht.min_peer_refresh_time_ms),
             ping_validator_task: TickTask::new(1),
             relay_management_task: TickTask::new(RELAY_MANAGEMENT_INTERVAL_SECS),
             private_route_management_task: TickTask::new(PRIVATE_ROUTE_MANAGEMENT_INTERVAL_SECS),
@@ -1029,18 +1032,21 @@ impl RoutingTable {
         out
     }
 
+    /// Finds nodes near a particular node id
+    /// Ensures all returned nodes have a set of capabilities enabled
     #[instrument(level = "trace", skip(self), err)]
     pub async fn find_node(
         &self,
         node_ref: NodeRef,
         node_id: TypedKey,
+        capabilities: Vec<Capability>,
     ) -> EyreResult<NetworkResult<Vec<NodeRef>>> {
         let rpc_processor = self.rpc_processor();
 
         let res = network_result_try!(
             rpc_processor
                 .clone()
-                .rpc_call_find_node(Destination::direct(node_ref), node_id, vec![])
+                .rpc_call_find_node(Destination::direct(node_ref), node_id, capabilities)
                 .await?
         );
 
@@ -1051,36 +1057,45 @@ impl RoutingTable {
     }
 
     /// Ask a remote node to list the nodes it has around the current node
+    /// Ensures all returned nodes have a set of capabilities enabled
     #[instrument(level = "trace", skip(self), err)]
     pub async fn find_self(
         &self,
         crypto_kind: CryptoKind,
         node_ref: NodeRef,
+        capabilities: Vec<Capability>,
     ) -> EyreResult<NetworkResult<Vec<NodeRef>>> {
         let self_node_id = self.node_id(crypto_kind);
-        self.find_node(node_ref, self_node_id).await
+        self.find_node(node_ref, self_node_id, capabilities).await
     }
 
     /// Ask a remote node to list the nodes it has around itself
+    /// Ensures all returned nodes have a set of capabilities enabled
     #[instrument(level = "trace", skip(self), err)]
     pub async fn find_target(
         &self,
         crypto_kind: CryptoKind,
         node_ref: NodeRef,
+        capabilities: Vec<Capability>,
     ) -> EyreResult<NetworkResult<Vec<NodeRef>>> {
         let Some(target_node_id) = node_ref.node_ids().get(crypto_kind) else {
             bail!("no target node ids for this crypto kind");
         };
-        self.find_node(node_ref, target_node_id).await
+        self.find_node(node_ref, target_node_id, capabilities).await
     }
 
+    /// Ask node to 'find node' on own node so we can get some more nodes near ourselves
+    /// and then contact those nodes to inform -them- that we exist
     #[instrument(level = "trace", skip(self))]
-    pub async fn reverse_find_node(&self, crypto_kind: CryptoKind, node_ref: NodeRef, wide: bool) {
-        // Ask node to 'find node' on own node so we can get some more nodes near ourselves
-        // and then contact those nodes to inform -them- that we exist
-
+    pub async fn reverse_find_node(
+        &self,
+        crypto_kind: CryptoKind,
+        node_ref: NodeRef,
+        wide: bool,
+        capabilities: Vec<Capability>,
+    ) {
         // Ask node for nodes closest to our own node
-        let closest_nodes = network_result_value_or_log!(match self.find_self(crypto_kind, node_ref.clone()).await {
+        let closest_nodes = network_result_value_or_log!(match self.find_self(crypto_kind, node_ref.clone(), capabilities.clone()).await {
             Err(e) => {
                 log_rtab!(error
                     "find_self failed for {:?}: {:?}",
@@ -1096,7 +1111,7 @@ impl RoutingTable {
         // Ask each node near us to find us as well
         if wide {
             for closest_nr in closest_nodes {
-                network_result_value_or_log!(match self.find_self(crypto_kind, closest_nr.clone()).await {
+                network_result_value_or_log!(match self.find_self(crypto_kind, closest_nr.clone(), capabilities.clone()).await {
                     Err(e) => {
                         log_rtab!(error
                             "find_self failed for {:?}: {:?}",

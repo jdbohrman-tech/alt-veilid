@@ -118,7 +118,7 @@ impl Bucket {
     pub(super) fn kick(
         &mut self,
         bucket_depth: usize,
-        closest_nodes: &BTreeSet<PublicKey>,
+        exempt_peers: &BTreeSet<PublicKey>,
     ) -> Option<BTreeSet<PublicKey>> {
         // Get number of entries to attempt to purge from bucket
         let bucket_len = self.entries.len();
@@ -171,8 +171,8 @@ impl Bucket {
                 continue;
             }
 
-            // if this entry is one of our N closest entries, don't drop it
-            if closest_nodes.contains(&entry.0) {
+            // if this entry is one of our exempt entries, don't drop it
+            if exempt_peers.contains(&entry.0) {
                 continue;
             }
 

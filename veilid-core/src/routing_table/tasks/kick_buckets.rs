@@ -1,10 +1,10 @@
 use super::*;
 
 /// How many 'reliable' nodes closest to our own node id to keep
-const KEEP_N_CLOSEST_RELIABLE_ENTRIES_COUNT: usize = 16;
+const KEEP_N_CLOSEST_RELIABLE_PEERS_COUNT: usize = 16;
 
 /// How many 'unreliable' nodes closest to our own node id to keep
-const KEEP_N_CLOSEST_UNRELIABLE_ENTRIES_COUNT: usize = 8;
+const KEEP_N_CLOSEST_UNRELIABLE_PEERS_COUNT: usize = 8;
 
 impl RoutingTable {
     // Kick the queued buckets in the routing table to free dead nodes if necessary
@@ -22,8 +22,8 @@ impl RoutingTable {
                 .collect();
         let mut inner = self.inner.write();
 
-        // Get our closest nodes for each crypto kind
-        let mut closest_nodes_by_kind = BTreeMap::<CryptoKind, BTreeSet<PublicKey>>::new();
+        // Get our exempt nodes for each crypto kind
+        let mut exempt_peers_by_kind = BTreeMap::<CryptoKind, BTreeSet<PublicKey>>::new();
 
         for kind in VALID_CRYPTO_KINDS {
             let our_node_id = self.node_id(kind);
@@ -32,7 +32,7 @@ impl RoutingTable {
             };
             let sort = make_closest_node_id_sort(self.crypto(), our_node_id);
 
-            let mut closest_nodes = BTreeSet::<CryptoKey>::new();
+            let mut closest_peers = BTreeSet::<CryptoKey>::new();
             let mut closest_unreliable_count = 0usize;
             let mut closest_reliable_count = 0usize;
 
@@ -41,6 +41,17 @@ impl RoutingTable {
                 let mut entries = bucket.entries().collect::<Vec<_>>();
                 entries.sort_by(|a, b| sort(a.0, b.0));
                 for (key, entry) in entries {
+                    // See if this entry is a distance-metric capability node
+                    // If not, disqualify it from this closest_nodes list
+                    if !entry.with(&inner, |_rti, e| {
+                        e.has_any_capabilities(
+                            RoutingDomain::PublicInternet,
+                            DISTANCE_METRIC_CAPABILITIES,
+                        )
+                    }) {
+                        continue;
+                    }
+
                     let state = entry.with(&inner, |_rti, e| e.state(cur_ts));
                     match state {
                         BucketEntryState::Dead => {
@@ -48,32 +59,32 @@ impl RoutingTable {
                         }
                         BucketEntryState::Unreliable => {
                             // Add to closest unreliable nodes list
-                            if closest_unreliable_count < KEEP_N_CLOSEST_UNRELIABLE_ENTRIES_COUNT {
-                                closest_nodes.insert(*key);
+                            if closest_unreliable_count < KEEP_N_CLOSEST_UNRELIABLE_PEERS_COUNT {
+                                closest_peers.insert(*key);
                                 closest_unreliable_count += 1;
                             }
                         }
                         BucketEntryState::Reliable => {
                             // Add to closest reliable nodes list
-                            if closest_reliable_count < KEEP_N_CLOSEST_RELIABLE_ENTRIES_COUNT {
-                                closest_nodes.insert(*key);
+                            if closest_reliable_count < KEEP_N_CLOSEST_RELIABLE_PEERS_COUNT {
+                                closest_peers.insert(*key);
                                 closest_reliable_count += 1;
                             }
                         }
                     }
-                    if closest_unreliable_count == KEEP_N_CLOSEST_UNRELIABLE_ENTRIES_COUNT
-                        && closest_reliable_count == KEEP_N_CLOSEST_RELIABLE_ENTRIES_COUNT
+                    if closest_unreliable_count == KEEP_N_CLOSEST_UNRELIABLE_PEERS_COUNT
+                        && closest_reliable_count == KEEP_N_CLOSEST_RELIABLE_PEERS_COUNT
                     {
                         break 'outer;
                     }
                 }
             }
 
-            closest_nodes_by_kind.insert(kind, closest_nodes);
+            exempt_peers_by_kind.insert(kind, closest_peers);
         }
 
         for bucket_index in kick_queue {
-            inner.kick_bucket(bucket_index, &closest_nodes_by_kind[&bucket_index.0]);
+            inner.kick_bucket(bucket_index, &exempt_peers_by_kind[&bucket_index.0]);
         }
         Ok(())
     }

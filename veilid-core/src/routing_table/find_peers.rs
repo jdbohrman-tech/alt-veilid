@@ -34,12 +34,12 @@ impl RoutingTable {
                 // Ensure capabilities are met
                 match opt_entry {
                     Some(entry) => entry.with(rti, |_rti, e| {
-                        e.has_capabilities(RoutingDomain::PublicInternet, capabilities)
+                        e.has_all_capabilities(RoutingDomain::PublicInternet, capabilities)
                     }),
                     None => own_peer_info
                         .signed_node_info()
                         .node_info()
-                        .has_capabilities(capabilities),
+                        .has_all_capabilities(capabilities),
                 }
             },
         ) as RoutingTableEntryFilter;
@@ -98,7 +98,9 @@ impl RoutingTable {
                 };
                 // Ensure only things that have a minimum set of capabilities are returned
                 entry.with(rti, |rti, e| {
-                    if !e.has_capabilities(RoutingDomain::PublicInternet, &required_capabilities) {
+                    if !e
+                        .has_all_capabilities(RoutingDomain::PublicInternet, &required_capabilities)
+                    {
                         return false;
                     }
                     // Ensure only things that are valid/signed in the PublicInternet domain are returned

@@ -397,11 +397,11 @@ impl RoutingTableInner {
 
     /// Attempt to settle buckets and remove entries down to the desired number
     /// which may not be possible due extant NodeRefs
-    pub fn kick_bucket(&mut self, bucket_index: BucketIndex, closest_nodes: &BTreeSet<PublicKey>) {
+    pub fn kick_bucket(&mut self, bucket_index: BucketIndex, exempt_peers: &BTreeSet<PublicKey>) {
         let bucket = self.get_bucket_mut(bucket_index);
         let bucket_depth = Self::bucket_depth(bucket_index);
 
-        if let Some(_dead_node_ids) = bucket.kick(bucket_depth, closest_nodes) {
+        if let Some(_dead_node_ids) = bucket.kick(bucket_depth, exempt_peers) {
             // Remove expired entries
             self.all_entries.remove_expired();
 

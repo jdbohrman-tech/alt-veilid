@@ -300,7 +300,7 @@ impl RoutingTable {
 
                     // Need VALID signed peer info, so ask bootstrap to find_node of itself
                     // which will ensure it has the bootstrap's signed peer info as part of the response
-                    let _ = routing_table.find_target(crypto_kind, nr.clone()).await;
+                    let _ = routing_table.find_target(crypto_kind, nr.clone(), vec![]).await;
 
                     // Ensure we got the signed peer info
                     if !nr.signed_node_info_has_valid_signature(RoutingDomain::PublicInternet) {
@@ -311,7 +311,7 @@ impl RoutingTable {
                         routing_table.network_manager().address_filter().set_dial_info_failed(bsdi);
                     } else {
                         // otherwise this bootstrap is valid, lets ask it to find ourselves now
-                        routing_table.reverse_find_node(crypto_kind, nr, true).await
+                        routing_table.reverse_find_node(crypto_kind, nr, true, vec![]).await
                     }
                 }
                 .instrument(Span::current()),
