@@ -52,7 +52,7 @@ impl RoutingTable {
                         continue;
                     }
 
-                    let state = entry.with(&inner, |_rti, e| e.state(cur_ts));
+                    let state = entry.with(&inner, |_rti, e| e.state_reason(cur_ts));
                     match state {
                         BucketEntryState::Dead => {
                             // Do nothing with dead entries

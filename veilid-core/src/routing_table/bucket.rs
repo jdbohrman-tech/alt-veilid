@@ -142,8 +142,8 @@ impl Bucket {
             }
             a.1.with_inner(|ea| {
                 b.1.with_inner(|eb| {
-                    let astate = state_ordering(ea.state(cur_ts));
-                    let bstate = state_ordering(eb.state(cur_ts));
+                    let astate = state_ordering(ea.state_reason(cur_ts));
+                    let bstate = state_ordering(eb.state_reason(cur_ts));
                     // first kick dead nodes, then unreliable nodes
                     if astate < bstate {
                         return core::cmp::Ordering::Less;

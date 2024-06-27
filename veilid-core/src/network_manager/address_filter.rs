@@ -27,9 +27,9 @@ struct AddressFilterInner {
     conn_count_by_ip6_prefix: BTreeMap<Ipv6Addr, usize>,
     conn_timestamps_by_ip4: BTreeMap<Ipv4Addr, Vec<Timestamp>>,
     conn_timestamps_by_ip6_prefix: BTreeMap<Ipv6Addr, Vec<Timestamp>>,
-    punishments_by_ip4: BTreeMap<Ipv4Addr, Timestamp>,
-    punishments_by_ip6_prefix: BTreeMap<Ipv6Addr, Timestamp>,
-    punishments_by_node_id: BTreeMap<TypedKey, Timestamp>,
+    punishments_by_ip4: BTreeMap<Ipv4Addr, Punishment>,
+    punishments_by_ip6_prefix: BTreeMap<Ipv6Addr, Punishment>,
+    punishments_by_node_id: BTreeMap<TypedKey, Punishment>,
     dial_info_failures: BTreeMap<DialInfo, Timestamp>,
 }
 
@@ -194,7 +194,7 @@ impl AddressFilter {
                 inner.punishments_by_node_id.remove(&key);
                 // make the entry alive again if it's still here
                 if let Ok(Some(nr)) = self.unlocked_inner.routing_table.lookup_node_ref(key) {
-                    nr.operate_mut(|_rti, e| e.set_punished(false));
+                    nr.operate_mut(|_rti, e| e.set_punished(None));
                 }
             }
         }
@@ -314,10 +314,10 @@ impl AddressFilter {
         self.is_node_id_punished_inner(&inner, node_id)
     }
 
-    pub fn punish_node_id(&self, node_id: TypedKey) {
+    pub fn punish_node_id(&self, node_id: TypedKey, punishment_reason: PunishmentReason) {
         if let Ok(Some(nr)) = self.unlocked_inner.routing_table.lookup_node_ref(node_id) {
             // make the entry dead if it's punished
-            nr.operate_mut(|_rti, e| e.set_punished(true));
+            nr.operate_mut(|_rti, e| e.set_punished(Some(punishment_reason)));
         }
 
         let ts = get_aligned_timestamp();
@@ -327,7 +327,7 @@ impl AddressFilter {
             log_net!(debug ">>> PUNISHMENT TABLE FULL: {}", node_id);
             return;
         }
-        log_net!(debug ">>> PUNISHED: {}", node_id);
+        log_net!(debug ">>> PUNISHED: {} for {:?}", node_id, punishment_reason);
         inner
             .punishments_by_node_id
             .entry(node_id)

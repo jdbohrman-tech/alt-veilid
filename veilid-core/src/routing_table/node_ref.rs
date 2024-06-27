@@ -130,7 +130,7 @@ pub(crate) trait NodeRefBase: Sized {
         self.operate(|_rti, e| e.best_envelope_version())
     }
     fn state(&self, cur_ts: Timestamp) -> BucketEntryState {
-        self.operate(|_rti, e| e.state(cur_ts))
+        self.operate(|_rti, e| e.state_reason(cur_ts))
     }
     fn peer_stats(&self) -> PeerStats {
         self.operate(|_rti, e| e.peer_stats().clone())

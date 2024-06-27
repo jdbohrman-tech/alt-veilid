@@ -26,14 +26,55 @@ const UNRELIABLE_PING_INTERVAL_SECS: u32 = 5;
 /// How many times do we try to ping a never-reached node before we call it dead
 const NEVER_REACHED_PING_COUNT: u32 = 3;
 
-// Do not change order here, it will mess up other sorts
+// Bucket entry state reasons
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+enum BucketEntryPunishedReason {
+    Punished,
+}
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+enum BucketEntryDeadReason {
+    FailedToSend,
+    TooManyLostAnswers,
+    NoPingResponse,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+enum BucketEntryUnreliableReason {
+    FailedToSend,
+    LostAnswers,
+    NotSeenConsecutively,
+    InUnreliablePingSpan,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub(crate) enum BucketEntryStateReason {
+    Punished(BucketEntryPunishedReason),
+    Dead(BucketEntryDeadReason),
+    Unreliable(BucketEntryUnreliableReason),
+    Reliable,
+}
+
+// Do not change order here, it will mess up other sorts
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum BucketEntryState {
+    Punished,
     Dead,
     Unreliable,
     Reliable,
 }
+
+impl From<BucketEntryStateReason> for BucketEntryState {
+    fn from(value: BucketEntryStateReason) -> Self
+    {
+        match value {
+            BucketEntryStateReason::Dead(_) => BucketEntryState::Dead,
+            BucketEntryStateReason::Unreliable(_) => BucketEntryState::Unreliable,
+            BucketEntryStateReason::Reliable => BucketEntryState::Reliable,
+        }
+    }
+}
+
 
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub(crate) struct LastFlowKey(ProtocolType, AddressType);
@@ -92,7 +133,7 @@ pub(crate) struct BucketEntryInner {
     transfer_stats_accounting: TransferStatsAccounting,
     /// If the entry is being punished and should be considered dead
     #[serde(skip)]
-    is_punished: bool,
+    is_punished: Option<PunishmentReason>,
     /// Tracking identifier for NodeRef debugging
     #[cfg(feature = "tracking")]
     #[serde(skip)]
@@ -202,7 +243,7 @@ impl BucketEntryInner {
     // Less is more reliable then faster
     pub fn cmp_fastest_reliable(cur_ts: Timestamp, e1: &Self, e2: &Self) -> std::cmp::Ordering {
         // Reverse compare so most reliable is at front
-        let ret = e2.state(cur_ts).cmp(&e1.state(cur_ts));
+        let ret = e2.state_reason(cur_ts).cmp(&e1.state_reason(cur_ts));
         if ret != std::cmp::Ordering::Equal {
             return ret;
         }
@@ -224,7 +265,7 @@ impl BucketEntryInner {
     // Less is more reliable then older
     pub fn cmp_oldest_reliable(cur_ts: Timestamp, e1: &Self, e2: &Self) -> std::cmp::Ordering {
         // Reverse compare so most reliable is at front
-        let ret = e2.state(cur_ts).cmp(&e1.state(cur_ts));
+        let ret = e2.state_reason(cur_ts).cmp(&e1.state_reason(cur_ts));
         if ret != std::cmp::Ordering::Equal {
             return ret;
         }
@@ -558,19 +599,17 @@ impl BucketEntryInner {
         self.envelope_support.iter().rev().find(|x| VALID_ENVELOPE_VERSIONS.contains(x)).copied()
     }
 
-    pub fn state(&self, cur_ts: Timestamp) -> BucketEntryState {
-        if self.is_punished {
-            return BucketEntryState::Dead;
-        }
-        if self.check_reliable(cur_ts) {
-            BucketEntryState::Reliable
-        } else if self.check_dead(cur_ts) {
-            BucketEntryState::Dead
+    pub fn state_reason(&self, cur_ts: Timestamp) -> BucketEntryStateReason {
+
+        if Some(dead_reason) = self.check_dead(cur_ts) {
+            BucketEntryStateReason::Dead(dead_reason)
+        } else if Some(unreliable_reason) = self.check_unreliable(cur_ts) {
+            BucketEntryStateReason::Unreliable(unreliable_reason)
         } else {
-            BucketEntryState::Unreliable
+            BucketEntryStateReason::Reliable
         }
     }
-    pub fn set_punished(&mut self, punished: bool) {
+    pub fn set_punished(&mut self, punished: Option<PunishmentReason>) {
         self.is_punished = punished;
         if punished {
             self.clear_last_flows();
@@ -650,40 +689,58 @@ impl BucketEntryInner {
     }
 
     ///// state machine handling
-    pub(super) fn check_reliable(&self, cur_ts: Timestamp) -> bool {
+    pub(super) fn check_unreliable(&self, cur_ts: Timestamp) -> Option<BucketEntryUnreliableReason> {
         // If we have had any failures to send, this is not reliable
         if self.peer_stats.rpc_stats.failed_to_send > 0 {
-            return false;
+            return Some(BucketEntryUnreliableReason::FailedToSend);
         }
 
         // If we have had any lost answers recently, this is not reliable
         if self.peer_stats.rpc_stats.recent_lost_answers > 0 {
-            return false;
+            return Some(BucketEntryUnreliableReason::LostAnswers);
         }
 
         match self.peer_stats.rpc_stats.first_consecutive_seen_ts {
             // If we have not seen seen a node consecutively, it can't be reliable
-            None => false,
+            None => Some(BucketEntryUnreliableReason::NotSeenConsecutively),
             // If we have seen the node consistently for longer than UNRELIABLE_PING_SPAN_SECS then it is reliable
             Some(ts) => {
-                cur_ts.saturating_sub(ts) >= TimestampDuration::new(UNRELIABLE_PING_SPAN_SECS as u64 * 1000000u64)
+                let is_reliable = cur_ts.saturating_sub(ts) >= TimestampDuration::new(UNRELIABLE_PING_SPAN_SECS as u64 * 1000000u64);
+                if is_reliable {
+                    None
+                } else {
+                    Some(BucketEntryUnreliableReason::InUnreliablePingSpan)
+                }
             }
         }
     }
-    pub(super) fn check_dead(&self, cur_ts: Timestamp) -> bool {
+    pub(super) fn check_dead(&self, cur_ts: Timestamp) -> Option<BucketEntryDeadReason> {
+        
         // If we have failed to send NEVER_REACHED_PING_COUNT times in a row, the node is dead
         if self.peer_stats.rpc_stats.failed_to_send >= NEVER_REACHED_PING_COUNT {
-            return true;
+            return Some(BucketEntryDeadReason::FailedToSend);
         }
 
         match self.peer_stats.rpc_stats.last_seen_ts {
             // a node is not dead if we haven't heard from it yet,
             // but we give it NEVER_REACHED_PING_COUNT chances to ping before we say it's dead
-            None => self.peer_stats.rpc_stats.recent_lost_answers >= NEVER_REACHED_PING_COUNT,
+            None => {
+                let is_dead = self.peer_stats.rpc_stats.recent_lost_answers >= NEVER_REACHED_PING_COUNT;
+                if is_dead {
+                    Some(BucketEntryDeadReason::TooManyLostAnswers)
+                } else {
+                    None
+                }
+            }
             
             // return dead if we have not heard from the node at all for the duration of the unreliable ping span
             Some(ts) => {
-                cur_ts.saturating_sub(ts) >= TimestampDuration::new(UNRELIABLE_PING_SPAN_SECS as u64 * 1000000u64)
+                let is_dead = cur_ts.saturating_sub(ts) >= TimestampDuration::new(UNRELIABLE_PING_SPAN_SECS as u64 * 1000000u64);
+                if is_dead {
+                    Some(BucketEntryDeadReason::NoPingResponse)
+                } else {
+                    None
+                }
             }
         }
     }
@@ -712,7 +769,7 @@ impl BucketEntryInner {
     // Check if this node needs a ping right now to validate it is still reachable
     pub(super) fn needs_ping(&self, cur_ts: Timestamp) -> bool {
         // See which ping pattern we are to use
-        let state = self.state(cur_ts);
+        let state = self.state_reason(cur_ts);
     
         match state {
             BucketEntryState::Reliable => {
@@ -798,7 +855,7 @@ impl BucketEntryInner {
 
         format!(
             "state: {:?}, first_consecutive_seen_ts: {}, last_seen_ts: {}",
-            self.state(cur_ts),
+            self.state_reason(cur_ts),
             first_consecutive_seen_ts,
             last_seen_ts_str
         )

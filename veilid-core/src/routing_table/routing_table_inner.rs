@@ -479,7 +479,7 @@ impl RoutingTableInner {
         mut f: F,
     ) -> Option<T> {
         for entry in &self.all_entries {
-            if entry.with_inner(|e| e.state(cur_ts) >= min_state) {
+            if entry.with_inner(|e| e.state_reason(cur_ts) >= min_state) {
                 if let Some(out) = f(self, entry) {
                     return Some(out);
                 }
@@ -498,7 +498,7 @@ impl RoutingTableInner {
     ) -> Option<T> {
         let mut entries = Vec::with_capacity(self.all_entries.len());
         for entry in self.all_entries.iter() {
-            if entry.with_inner(|e| e.state(cur_ts) >= min_state) {
+            if entry.with_inner(|e| e.state_reason(cur_ts) >= min_state) {
                 entries.push(entry);
             }
         }
@@ -879,7 +879,7 @@ impl RoutingTableInner {
 
         let cur_ts = get_aligned_timestamp();
         for entry in self.all_entries.iter() {
-            match entry.with_inner(|e| e.state(cur_ts)) {
+            match entry.with_inner(|e| e.state_reason(cur_ts)) {
                 BucketEntryState::Reliable => {
                     reliable_entry_count += 1;
                 }
@@ -1070,7 +1070,7 @@ impl RoutingTableInner {
             move |_rti: &RoutingTableInner, v: Option<Arc<BucketEntry>>| {
                 if let Some(entry) = &v {
                     // always filter out dead nodes
-                    !entry.with_inner(|e| e.state(cur_ts) == BucketEntryState::Dead)
+                    !entry.with_inner(|e| e.state_reason(cur_ts) == BucketEntryState::Dead)
                 } else {
                     // always filter out self peer, as it is irrelevant to the 'fastest nodes' search
                     false
@@ -1106,8 +1106,8 @@ impl RoutingTableInner {
             let be = b_entry.as_ref().unwrap();
             ae.with_inner(|ae| {
                 be.with_inner(|be| {
-                    let ra = ae.check_reliable(cur_ts);
-                    let rb = be.check_reliable(cur_ts);
+                    let ra = ae.check_unreliable(cur_ts);
+                    let rb = be.check_unreliable(cur_ts);
                     if ra != rb {
                         if ra {
                             return core::cmp::Ordering::Less;
@@ -1189,10 +1189,10 @@ impl RoutingTableInner {
             // reliable nodes come first, pessimistically treating our own node as unreliable
             let ra = a_entry
                 .as_ref()
-                .map_or(false, |x| x.with_inner(|x| x.check_reliable(cur_ts)));
+                .map_or(false, |x| x.with_inner(|x| x.check_unreliable(cur_ts)));
             let rb = b_entry
                 .as_ref()
-                .map_or(false, |x| x.with_inner(|x| x.check_reliable(cur_ts)));
+                .map_or(false, |x| x.with_inner(|x| x.check_unreliable(cur_ts)));
             if ra != rb {
                 if ra {
                     return core::cmp::Ordering::Less;

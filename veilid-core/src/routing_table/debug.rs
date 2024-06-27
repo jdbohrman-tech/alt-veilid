@@ -134,7 +134,7 @@ impl RoutingTable {
                         let cap_match = e.1.with(inner, |_rti, e| {
                             e.has_all_capabilities(RoutingDomain::PublicInternet, &capabilities)
                         });
-                        let state = e.1.with(inner, |_rti, e| e.state(cur_ts));
+                        let state = e.1.with(inner, |_rti, e| e.state_reason(cur_ts));
                         state >= min_state && cap_match
                     })
                     .collect();
@@ -142,7 +142,7 @@ impl RoutingTable {
                 if !filtered_entries.is_empty() {
                     out += &format!("{} Bucket #{}:\n", ck, b);
                     for e in filtered_entries {
-                        let state = e.1.with(inner, |_rti, e| e.state(cur_ts));
+                        let state = e.1.with(inner, |_rti, e| e.state_reason(cur_ts));
                         out += &format!(
                             "    {} [{}] {} [{}]\n",
                             e.0.encode(),
@@ -210,7 +210,9 @@ impl RoutingTable {
                 while c < COLS {
                     let mut cnt = 0;
                     for e in inner.buckets[ck][b].entries() {
-                        if e.1.with(inner, |_rti, e| e.state(cur_ts) >= min_state) {
+                        if e.1
+                            .with(inner, |_rti, e| e.state_reason(cur_ts) >= min_state)
+                        {
                             cnt += 1;
                         }
                     }
