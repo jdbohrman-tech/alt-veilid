@@ -723,20 +723,19 @@ impl BucketEntryInner {
 
         match self.peer_stats.rpc_stats.first_consecutive_seen_ts {
             // If we have not seen seen a node consecutively, it can't be reliable
-            None => Some(BucketEntryUnreliableReason::NotSeenConsecutively),
-            // If we have seen the node consistently for longer than UNRELIABLE_PING_SPAN_SECS then it is reliable
+            None => return Some(BucketEntryUnreliableReason::NotSeenConsecutively),
+            // If not have seen the node consistently for longer than UNRELIABLE_PING_SPAN_SECS then it is unreliable
             Some(ts) => {
-                let seen_consecutively = cur_ts.saturating_sub(ts) >= TimestampDuration::new(UNRELIABLE_PING_SPAN_SECS as u64 * 1000000u64);
-                if seen_consecutively {
-                    None
-                } else {
-                    Some(BucketEntryUnreliableReason::InUnreliablePingSpan)
+                let seen_consecutively = cur_ts.saturating_sub(ts) >= TimestampDuration::new(UNRELIABLE_PING_SPAN_SECS as u64 * 1_000_000u64);
+                if !seen_consecutively {
+                    return Some(BucketEntryUnreliableReason::InUnreliablePingSpan);
                 }
             }
         }
+
+        None
     }
     pub(super) fn check_dead(&self, cur_ts: Timestamp) -> Option<BucketEntryDeadReason> {
-        
         // If we have failed to send NEVER_REACHED_PING_COUNT times in a row, the node is dead
         if self.peer_stats.rpc_stats.failed_to_send >= NEVER_SEEN_PING_COUNT {
             return Some(BucketEntryDeadReason::FailedToSend);
@@ -748,24 +747,22 @@ impl BucketEntryInner {
             None => {
                 let no_answers = self.peer_stats.rpc_stats.recent_lost_answers >= NEVER_SEEN_PING_COUNT;
                 if no_answers {
-                    Some(BucketEntryDeadReason::TooManyLostAnswers)
-                } else {
-                    None
+                    return Some(BucketEntryDeadReason::TooManyLostAnswers)
                 }
             }
             
             // return dead if we have not heard from the node at all for the duration of the unreliable ping span
             // and we have tried to reach it and failed the entire time of unreliable ping span
             Some(ts) => {
-                let not_seen = cur_ts.saturating_sub(ts) >= TimestampDuration::new(UNRELIABLE_PING_SPAN_SECS as u64 * 1000000u64);
+                let not_seen = cur_ts.saturating_sub(ts) >= TimestampDuration::new(UNRELIABLE_PING_SPAN_SECS as u64 * 1_000_000u64);
                 let no_answers = self.peer_stats.rpc_stats.recent_lost_answers >= (UNRELIABLE_PING_SPAN_SECS / UNRELIABLE_PING_INTERVAL_SECS);
                 if not_seen && no_answers {
-                    Some(BucketEntryDeadReason::NoPingResponse)
-                } else {
-                    None
-                }
+                    return Some(BucketEntryDeadReason::NoPingResponse)
+                } 
             }
         }
+
+        None
     }
 
     /// Return the last time we either saw a node, or asked it a question
