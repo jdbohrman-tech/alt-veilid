@@ -26,21 +26,15 @@ const UNRELIABLE_PING_INTERVAL_SECS: u32 = 5;
 /// How many times do we try to ping a never-reached node before we call it dead
 const NEVER_REACHED_PING_COUNT: u32 = 3;
 
-// Bucket entry state reasons
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-enum BucketEntryPunishedReason {
-    Punished,
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-enum BucketEntryDeadReason {
+pub(crate) enum BucketEntryDeadReason {
     FailedToSend,
     TooManyLostAnswers,
     NoPingResponse,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-enum BucketEntryUnreliableReason {
+pub(crate) enum BucketEntryUnreliableReason {
     FailedToSend,
     LostAnswers,
     NotSeenConsecutively,
@@ -49,7 +43,7 @@ enum BucketEntryUnreliableReason {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(crate) enum BucketEntryStateReason {
-    Punished(BucketEntryPunishedReason),
+    Punished(PunishmentReason),
     Dead(BucketEntryDeadReason),
     Unreliable(BucketEntryUnreliableReason),
     Reliable,
@@ -64,10 +58,31 @@ pub(crate) enum BucketEntryState {
     Reliable,
 }
 
+impl BucketEntryState {
+    pub fn is_alive(&self) -> bool {
+        match self {
+            BucketEntryState::Punished => false,
+            BucketEntryState::Dead => false,
+            BucketEntryState::Unreliable => true,
+            BucketEntryState::Reliable => true,
+        }
+    }
+    pub fn ordering(&self) -> usize {
+        match self {
+            BucketEntryState::Punished => 0,
+            BucketEntryState::Dead => 1,
+            BucketEntryState::Unreliable => 2,
+            BucketEntryState::Reliable => 3,
+        }
+    }
+    
+}
+
 impl From<BucketEntryStateReason> for BucketEntryState {
     fn from(value: BucketEntryStateReason) -> Self
     {
         match value {
+            BucketEntryStateReason::Punished(_) => BucketEntryState::Punished,
             BucketEntryStateReason::Dead(_) => BucketEntryState::Dead,
             BucketEntryStateReason::Unreliable(_) => BucketEntryState::Unreliable,
             BucketEntryStateReason::Reliable => BucketEntryState::Reliable,
@@ -133,7 +148,7 @@ pub(crate) struct BucketEntryInner {
     transfer_stats_accounting: TransferStatsAccounting,
     /// If the entry is being punished and should be considered dead
     #[serde(skip)]
-    is_punished: Option<PunishmentReason>,
+    punishment: Option<PunishmentReason>,
     /// Tracking identifier for NodeRef debugging
     #[cfg(feature = "tracking")]
     #[serde(skip)]
@@ -243,7 +258,7 @@ impl BucketEntryInner {
     // Less is more reliable then faster
     pub fn cmp_fastest_reliable(cur_ts: Timestamp, e1: &Self, e2: &Self) -> std::cmp::Ordering {
         // Reverse compare so most reliable is at front
-        let ret = e2.state_reason(cur_ts).cmp(&e1.state_reason(cur_ts));
+        let ret = e2.state(cur_ts).cmp(&e1.state(cur_ts));
         if ret != std::cmp::Ordering::Equal {
             return ret;
         }
@@ -265,7 +280,7 @@ impl BucketEntryInner {
     // Less is more reliable then older
     pub fn cmp_oldest_reliable(cur_ts: Timestamp, e1: &Self, e2: &Self) -> std::cmp::Ordering {
         // Reverse compare so most reliable is at front
-        let ret = e2.state_reason(cur_ts).cmp(&e1.state_reason(cur_ts));
+        let ret = e2.state(cur_ts).cmp(&e1.state(cur_ts));
         if ret != std::cmp::Ordering::Equal {
             return ret;
         }
@@ -467,7 +482,7 @@ impl BucketEntryInner {
 
     // Stores a flow in this entry's table of last flows
     pub fn set_last_flow(&mut self, last_flow: Flow, timestamp: Timestamp) {
-        if self.is_punished {
+        if self.punishment.is_some() {
             // Don't record connection if this entry is currently punished
             return;
         }
@@ -600,18 +615,24 @@ impl BucketEntryInner {
     }
 
     pub fn state_reason(&self, cur_ts: Timestamp) -> BucketEntryStateReason {
-
-        if Some(dead_reason) = self.check_dead(cur_ts) {
+        if let Some(punished_reason) = self.punishment {
+            BucketEntryStateReason::Punished(punished_reason)
+        } else if let Some(dead_reason) = self.check_dead(cur_ts) {
             BucketEntryStateReason::Dead(dead_reason)
-        } else if Some(unreliable_reason) = self.check_unreliable(cur_ts) {
+        } else if let Some(unreliable_reason) = self.check_unreliable(cur_ts) {
             BucketEntryStateReason::Unreliable(unreliable_reason)
         } else {
             BucketEntryStateReason::Reliable
         }
     }
+
+    pub fn state(&self, cur_ts: Timestamp) -> BucketEntryState {
+        self.state_reason(cur_ts).into()
+    }
+
     pub fn set_punished(&mut self, punished: Option<PunishmentReason>) {
-        self.is_punished = punished;
-        if punished {
+        self.punishment = punished;
+        if punished.is_some() {
             self.clear_last_flows();
         }
     }
@@ -769,7 +790,7 @@ impl BucketEntryInner {
     // Check if this node needs a ping right now to validate it is still reachable
     pub(super) fn needs_ping(&self, cur_ts: Timestamp) -> bool {
         // See which ping pattern we are to use
-        let state = self.state_reason(cur_ts);
+        let state = self.state(cur_ts);
     
         match state {
             BucketEntryState::Reliable => {
@@ -809,6 +830,11 @@ impl BucketEntryInner {
                 error!("Should not be asking this for dead nodes");
                 false
             }
+            BucketEntryState::Punished => {
+                error!("Should not be asking this for punished nodes");
+                false
+            }
+
         }
     }
 
@@ -830,7 +856,7 @@ impl BucketEntryInner {
         self.peer_stats.rpc_stats.last_seen_ts = None;
         self.peer_stats.rpc_stats.failed_to_send = 0;
         self.peer_stats.rpc_stats.recent_lost_answers = 0;
-        assert!(!self.check_dead(cur_ts));
+        assert!(self.check_dead(cur_ts).is_none());
     }
 
     pub(super) fn _state_debug_info(&self, cur_ts: Timestamp) -> String {
@@ -942,7 +968,7 @@ impl BucketEntry {
             },
             latency_stats_accounting: LatencyStatsAccounting::new(),
             transfer_stats_accounting: TransferStatsAccounting::new(),
-            is_punished: false,
+            punishment: None,
             #[cfg(feature = "tracking")]
             next_track_id: 0,
             #[cfg(feature = "tracking")]

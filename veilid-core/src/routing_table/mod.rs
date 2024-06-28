@@ -750,8 +750,8 @@ impl RoutingTable {
         let cur_ts = get_aligned_timestamp();
         self.inner
             .write()
-            .with_entries_mut(cur_ts, BucketEntryState::Dead, |rti, e| {
-                e.with_mut(rti, |_rti, ei| ei.set_punished(false));
+            .with_entries_mut(cur_ts, BucketEntryState::Punished, |rti, e| {
+                e.with_mut(rti, |_rti, ei| ei.set_punished(None));
                 Option::<()>::None
             });
     }

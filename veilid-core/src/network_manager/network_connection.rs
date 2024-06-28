@@ -362,7 +362,7 @@ impl NetworkConnection {
 
                                     // Punish invalid framing (tcp framing or websocket framing)
                                     if v.is_invalid_message() {
-                                        address_filter.punish_ip_addr(peer_address.socket_addr().ip());
+                                        address_filter.punish_ip_addr(peer_address.socket_addr().ip(), PunishmentReason::InvalidFraming);
                                         return RecvLoopAction::Finish;
                                     }
 

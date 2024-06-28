@@ -104,6 +104,35 @@ impl RoutingTable {
         out
     }
 
+    fn format_state_reason(state_reason: BucketEntryStateReason) -> &'static str {
+        match state_reason {
+            BucketEntryStateReason::Punished(p) => match p {
+                PunishmentReason::FailedToDecryptEnvelopeBody => "PCRYPT",
+                PunishmentReason::FailedToDecodeEnvelope => "PDECEN",
+                PunishmentReason::ShortPacket => "PSHORT",
+                PunishmentReason::InvalidFraming => "PFRAME",
+                PunishmentReason::FailedToDecodeOperation => "PDECOP",
+                PunishmentReason::WrongSenderPeerInfo => "PSPBAD",
+                PunishmentReason::FailedToVerifySenderPeerInfo => "PSPVER",
+                PunishmentReason::FailedToRegisterSenderPeerInfo => "PSPREG",
+                //
+            },
+            BucketEntryStateReason::Dead(d) => match d {
+                BucketEntryDeadReason::FailedToSend => "DFSEND",
+                BucketEntryDeadReason::TooManyLostAnswers => "DALOST",
+                BucketEntryDeadReason::NoPingResponse => "DNOPNG",
+            },
+            BucketEntryStateReason::Unreliable(u) => match u {
+                BucketEntryUnreliableReason::FailedToSend => "UFSEND",
+                BucketEntryUnreliableReason::LostAnswers => "UALOST",
+                BucketEntryUnreliableReason::NotSeenConsecutively => "UNSEEN",
+                BucketEntryUnreliableReason::InUnreliablePingSpan => "UUPING",
+                //
+            },
+            BucketEntryStateReason::Reliable => "RELIBL",
+        }
+    }
+
     pub(crate) fn debug_info_entries(
         &self,
         min_state: BucketEntryState,
@@ -134,7 +163,7 @@ impl RoutingTable {
                         let cap_match = e.1.with(inner, |_rti, e| {
                             e.has_all_capabilities(RoutingDomain::PublicInternet, &capabilities)
                         });
-                        let state = e.1.with(inner, |_rti, e| e.state_reason(cur_ts));
+                        let state = e.1.with(inner, |_rti, e| e.state(cur_ts));
                         state >= min_state && cap_match
                     })
                     .collect();
@@ -142,15 +171,11 @@ impl RoutingTable {
                 if !filtered_entries.is_empty() {
                     out += &format!("{} Bucket #{}:\n", ck, b);
                     for e in filtered_entries {
-                        let state = e.1.with(inner, |_rti, e| e.state_reason(cur_ts));
+                        let state_reason = e.1.with(inner, |_rti, e| e.state_reason(cur_ts));
                         out += &format!(
                             "    {} [{}] {} [{}]\n",
                             e.0.encode(),
-                            match state {
-                                BucketEntryState::Reliable => "R",
-                                BucketEntryState::Unreliable => "U",
-                                BucketEntryState::Dead => "D",
-                            },
+                            Self::format_state_reason(state_reason),
                             e.1.with(inner, |_rti, e| {
                                 e.peer_stats()
                                     .latency
@@ -210,9 +235,7 @@ impl RoutingTable {
                 while c < COLS {
                     let mut cnt = 0;
                     for e in inner.buckets[ck][b].entries() {
-                        if e.1
-                            .with(inner, |_rti, e| e.state_reason(cur_ts) >= min_state)
-                        {
+                        if e.1.with(inner, |_rti, e| e.state(cur_ts) >= min_state) {
                             cnt += 1;
                         }
                     }

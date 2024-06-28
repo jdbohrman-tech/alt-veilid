@@ -479,7 +479,7 @@ impl RoutingTableInner {
         mut f: F,
     ) -> Option<T> {
         for entry in &self.all_entries {
-            if entry.with_inner(|e| e.state_reason(cur_ts) >= min_state) {
+            if entry.with_inner(|e| e.state(cur_ts) >= min_state) {
                 if let Some(out) = f(self, entry) {
                     return Some(out);
                 }
@@ -498,7 +498,7 @@ impl RoutingTableInner {
     ) -> Option<T> {
         let mut entries = Vec::with_capacity(self.all_entries.len());
         for entry in self.all_entries.iter() {
-            if entry.with_inner(|e| e.state_reason(cur_ts) >= min_state) {
+            if entry.with_inner(|e| e.state(cur_ts) >= min_state) {
                 entries.push(entry);
             }
         }
@@ -559,7 +559,7 @@ impl RoutingTableInner {
     }
 
     #[allow(dead_code)]
-    pub fn get_all_nodes(&self, outer_self: RoutingTable, cur_ts: Timestamp) -> Vec<NodeRef> {
+    pub fn get_all_alive_nodes(&self, outer_self: RoutingTable, cur_ts: Timestamp) -> Vec<NodeRef> {
         let mut node_refs = Vec::<NodeRef>::with_capacity(self.bucket_entry_count());
         self.with_entries(cur_ts, BucketEntryState::Unreliable, |_rti, entry| {
             node_refs.push(NodeRef::new(outer_self.clone(), entry, None));
@@ -873,13 +873,14 @@ impl RoutingTableInner {
     // Routing Table Health Metrics
 
     pub fn get_routing_table_health(&self) -> RoutingTableHealth {
+        let mut _punished_entry_count: usize = 0;
         let mut reliable_entry_count: usize = 0;
         let mut unreliable_entry_count: usize = 0;
         let mut dead_entry_count: usize = 0;
 
         let cur_ts = get_aligned_timestamp();
         for entry in self.all_entries.iter() {
-            match entry.with_inner(|e| e.state_reason(cur_ts)) {
+            match entry.with_inner(|e| e.state(cur_ts)) {
                 BucketEntryState::Reliable => {
                     reliable_entry_count += 1;
                 }
@@ -888,6 +889,9 @@ impl RoutingTableInner {
                 }
                 BucketEntryState::Dead => {
                     dead_entry_count += 1;
+                }
+                BucketEntryState::Punished => {
+                    _punished_entry_count += 1;
                 }
             }
         }
@@ -1065,19 +1069,11 @@ impl RoutingTableInner {
     {
         let cur_ts = get_aligned_timestamp();
 
-        // Add filter to remove dead nodes always
-        let filter_dead = Box::new(
-            move |_rti: &RoutingTableInner, v: Option<Arc<BucketEntry>>| {
-                if let Some(entry) = &v {
-                    // always filter out dead nodes
-                    !entry.with_inner(|e| e.state_reason(cur_ts) == BucketEntryState::Dead)
-                } else {
-                    // always filter out self peer, as it is irrelevant to the 'fastest nodes' search
-                    false
-                }
-            },
-        ) as RoutingTableEntryFilter;
-        filters.push_front(filter_dead);
+        // always filter out self peer, as it is irrelevant to the 'fastest nodes' search
+        let filter_self =
+            Box::new(move |_rti: &RoutingTableInner, v: Option<Arc<BucketEntry>>| v.is_some())
+                as RoutingTableEntryFilter;
+        filters.push_front(filter_self);
 
         // Fastest sort
         let sort = |_rti: &RoutingTableInner,
@@ -1106,8 +1102,8 @@ impl RoutingTableInner {
             let be = b_entry.as_ref().unwrap();
             ae.with_inner(|ae| {
                 be.with_inner(|be| {
-                    let ra = ae.check_unreliable(cur_ts);
-                    let rb = be.check_unreliable(cur_ts);
+                    let ra = ae.check_unreliable(cur_ts).is_none();
+                    let rb = be.check_unreliable(cur_ts).is_none();
                     if ra != rb {
                         if ra {
                             return core::cmp::Ordering::Less;
@@ -1159,6 +1155,7 @@ impl RoutingTableInner {
         };
 
         // Filter to ensure entries support the crypto kind in use
+        // always filter out dead and punished nodes
         let filter = Box::new(
             move |_rti: &RoutingTableInner, opt_entry: Option<Arc<BucketEntry>>| {
                 if let Some(entry) = opt_entry {
@@ -1187,12 +1184,12 @@ impl RoutingTableInner {
             }
 
             // reliable nodes come first, pessimistically treating our own node as unreliable
-            let ra = a_entry
-                .as_ref()
-                .map_or(false, |x| x.with_inner(|x| x.check_unreliable(cur_ts)));
-            let rb = b_entry
-                .as_ref()
-                .map_or(false, |x| x.with_inner(|x| x.check_unreliable(cur_ts)));
+            let ra = a_entry.as_ref().map_or(false, |x| {
+                x.with_inner(|x| x.check_unreliable(cur_ts).is_none())
+            });
+            let rb = b_entry.as_ref().map_or(false, |x| {
+                x.with_inner(|x| x.check_unreliable(cur_ts).is_none())
+            });
             if ra != rb {
                 if ra {
                     return core::cmp::Ordering::Less;

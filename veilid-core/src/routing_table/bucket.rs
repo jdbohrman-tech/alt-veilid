@@ -26,14 +26,6 @@ struct SerializedBucketData {
     entries: Vec<SerializedBucketEntryData>,
 }
 
-fn state_ordering(state: BucketEntryState) -> usize {
-    match state {
-        BucketEntryState::Dead => 0,
-        BucketEntryState::Unreliable => 1,
-        BucketEntryState::Reliable => 2,
-    }
-}
-
 impl Bucket {
     pub fn new(kind: CryptoKind) -> Self {
         Self {
@@ -142,9 +134,9 @@ impl Bucket {
             }
             a.1.with_inner(|ea| {
                 b.1.with_inner(|eb| {
-                    let astate = state_ordering(ea.state_reason(cur_ts));
-                    let bstate = state_ordering(eb.state_reason(cur_ts));
-                    // first kick dead nodes, then unreliable nodes
+                    let astate = ea.state(cur_ts).ordering();
+                    let bstate = eb.state(cur_ts).ordering();
+                    // first kick punished nodes, then dead nodes, then unreliable nodes
                     if astate < bstate {
                         return core::cmp::Ordering::Less;
                     }

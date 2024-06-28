@@ -504,7 +504,7 @@ impl RPCProcessor {
             // ensure we have some dial info for the entry already,
             // and that the node is still alive
             // if not, we should keep looking for better info
-            if !matches!(nr.state(get_aligned_timestamp()),BucketEntryState::Dead) &&
+            if nr.state(get_aligned_timestamp()).is_alive() &&
                 nr.has_any_dial_info() {
                 return Some(nr);
             }
@@ -546,7 +546,7 @@ impl RPCProcessor {
                 // ensure we have some dial info for the entry already,
                 // and that the node is still alive
                 // if not, we should do the find_node anyway
-                if !matches!(nr.state(get_aligned_timestamp()),BucketEntryState::Dead) &&
+                if nr.state(get_aligned_timestamp()).is_alive() &&
                     nr.has_any_dial_info() {
                     return Ok(Some(nr));
                 }
@@ -1496,7 +1496,7 @@ impl RPCProcessor {
                                 log_rpc!(debug "Invalid RPC Operation: {}", e);
 
                                 // Punish nodes that send direct undecodable crap
-                                address_filter.punish_node_id(sender_node_id);
+                                address_filter.punish_node_id(sender_node_id, PunishmentReason::FailedToDecodeOperation);
                             },
                             // Ignored messages that should be dropped
                             RPCError::Ignore(_) | RPCError::Network(_) | RPCError::TryAgain(_) => {
@@ -1520,7 +1520,7 @@ impl RPCProcessor {
                     // Ensure the sender peer info is for the actual sender specified in the envelope
                     if !sender_peer_info.node_ids().contains(&sender_node_id) {
                         // Attempted to update peer info for the wrong node id
-                        address_filter.punish_node_id(sender_node_id);
+                        address_filter.punish_node_id(sender_node_id, PunishmentReason::WrongSenderPeerInfo);
                         return Ok(NetworkResult::invalid_message(
                             "attempt to update peer info for non-sender node id",
                         ));
@@ -1532,7 +1532,7 @@ impl RPCProcessor {
                         sender_peer_info.signed_node_info(),
                         &[],
                     ) {
-                        address_filter.punish_node_id(sender_node_id);
+                        address_filter.punish_node_id(sender_node_id, PunishmentReason::FailedToVerifySenderPeerInfo);
                         return Ok(NetworkResult::invalid_message(
                             format!("sender peerinfo has invalid peer scope: {:?}",sender_peer_info.signed_node_info())
                         ));
@@ -1544,7 +1544,7 @@ impl RPCProcessor {
                     ) {
                         Ok(v) => Some(v),
                         Err(e) => {
-                            address_filter.punish_node_id(sender_node_id);
+                            address_filter.punish_node_id(sender_node_id, PunishmentReason::FailedToRegisterSenderPeerInfo);
                             return Ok(NetworkResult::invalid_message(e));
                         } 
                     }
@@ -1555,8 +1555,9 @@ impl RPCProcessor {
                     opt_sender_nr = match self.routing_table().lookup_node_ref(sender_node_id) {
                         Ok(v) => v,
                         Err(e) => {
-                            address_filter.punish_node_id(sender_node_id);
-                            return Ok(NetworkResult::invalid_message(e));
+                            // If this fails it's not the other node's fault. We should be able to look up a 
+                            // node ref for a registered sender node id that just sent a message to us
+                            return Ok(NetworkResult::no_connection_other(e));
                         }
                     }
                 }
@@ -1584,7 +1585,7 @@ impl RPCProcessor {
                         log_rpc!(debug "Dropping RPC operation: {}", e);
 
                         // XXX: Punish routes that send routed undecodable crap
-                        // address_filter.punish_route_id(xxx);
+                        // address_filter.punish_route_id(xxx, PunishmentReason::FailedToDecodeRoutedMessage);
                         return Ok(NetworkResult::invalid_message(e));
                     }
                 };

@@ -49,7 +49,9 @@ pub fn format_opt_bps(bps: Option<ByteCount>) -> String {
 }
 
 fn get_bucket_entry_state(text: &str) -> Option<BucketEntryState> {
-    if text == "dead" {
+    if text == "punished" {
+        Some(BucketEntryState::Punished)
+    } else if text == "dead" {
         Some(BucketEntryState::Dead)
     } else if text == "reliable" {
         Some(BucketEntryState::Reliable)

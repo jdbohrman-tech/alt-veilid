@@ -930,7 +930,8 @@ impl NetworkManager {
         // Ensure we can read the magic number
         if data.len() < 4 {
             log_net!(debug "short packet");
-            self.address_filter().punish_ip_addr(remote_addr);
+            self.address_filter()
+                .punish_ip_addr(remote_addr, PunishmentReason::ShortPacket);
             return Ok(false);
         }
 
@@ -966,7 +967,8 @@ impl NetworkManager {
                 Err(e) => {
                     log_net!(debug "envelope failed to decode: {}", e);
                     // safe to punish here because relays also check here to ensure they arent forwarding things that don't decode
-                    self.address_filter().punish_ip_addr(remote_addr);
+                    self.address_filter()
+                        .punish_ip_addr(remote_addr, PunishmentReason::FailedToDecodeEnvelope);
                     return Ok(false);
                 }
             };
@@ -1099,7 +1101,8 @@ impl NetworkManager {
                 // Can't punish by ip address here because relaying can't decrypt envelope bodies to check
                 // But because the envelope was properly signed by the time it gets here, it is safe to
                 // punish by node id
-                self.address_filter().punish_node_id(sender_id);
+                self.address_filter()
+                    .punish_node_id(sender_id, PunishmentReason::FailedToDecryptEnvelopeBody);
                 return Ok(false);
             }
         };

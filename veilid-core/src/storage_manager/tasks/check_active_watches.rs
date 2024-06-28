@@ -27,10 +27,7 @@ impl StorageManager {
 
                 // See if the active watch's node is dead
                 let mut is_dead = false;
-                if matches!(
-                    active_watch.watch_node.state(cur_ts),
-                    BucketEntryState::Dead
-                ) {
+                if !active_watch.watch_node.state(cur_ts).is_alive() {
                     // Watched node is dead
                     is_dead = true;
                 }

@@ -63,10 +63,13 @@ impl RoutingTable {
         // If we already have a relay, see if it is dead, or if we don't need it any more
         let has_relay = {
             if let Some(relay_node) = self.relay_node(RoutingDomain::PublicInternet) {
-                let state = relay_node.state(cur_ts);
+                let state_reason = relay_node.state_reason(cur_ts);
                 // Relay node is dead or no longer needed
-                if matches!(state, BucketEntryState::Dead) {
-                    log_rtab!(debug "Relay node died, dropping relay {}", relay_node);
+                if matches!(
+                    state_reason,
+                    BucketEntryStateReason::Dead(_) | BucketEntryStateReason::Punished(_)
+                ) {
+                    log_rtab!(debug "Relay node is now {:?}, dropping relay {}", state_reason, relay_node);
                     editor.clear_relay_node();
                     false
                 }
