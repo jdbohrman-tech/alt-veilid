@@ -4,6 +4,7 @@ import veilid
 import pytest
 import asyncio
 import json
+import time
 import os
 from . import *
 from .api import VeilidTestConnectionError, api_connector
@@ -386,10 +387,18 @@ async def test_dht_integration_writer_reader():
                 records.append(desc)
 
                 await rc0.set_dht_value(desc.key, 0, TEST_DATA)
-                await rc0.close_dht_record(desc.key)
-                
+
                 print(f'  {n}')
             
+            print(f'syncing records to the network')
+            for desc0 in records:
+                while True:
+                    rr = await rc0.inspect_dht_record(desc0.key, [])
+                    if len(rr.offline_subkeys) == 0:
+                        await rc0.close_dht_record(desc0.key)
+                        break
+                    time.sleep(0.1)
+
             # read dht records on server 1
             print(f'reading {COUNT} records')
             n=0

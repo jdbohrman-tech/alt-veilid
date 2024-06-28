@@ -394,7 +394,7 @@ class DHTRecordReport:
         network_seqs: list[ValueSeqNum],
     ):
         self.subkeys = subkeys
-        self.offline_subkey = offline_subkeys
+        self.offline_subkeys = offline_subkeys
         self.local_seqs = local_seqs
         self.network_seqs = network_seqs
 
