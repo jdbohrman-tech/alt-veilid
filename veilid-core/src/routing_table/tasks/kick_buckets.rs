@@ -54,8 +54,8 @@ impl RoutingTable {
 
                     let state = entry.with(&inner, |_rti, e| e.state(cur_ts));
                     match state {
-                        BucketEntryState::Dead => {
-                            // Do nothing with dead entries
+                        BucketEntryState::Dead | BucketEntryState::Punished => {
+                            // Do nothing with dead  or punished entries
                         }
                         BucketEntryState::Unreliable => {
                             // Add to closest unreliable nodes list

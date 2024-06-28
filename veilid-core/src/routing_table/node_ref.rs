@@ -129,6 +129,9 @@ pub(crate) trait NodeRefBase: Sized {
     fn best_envelope_version(&self) -> Option<u8> {
         self.operate(|_rti, e| e.best_envelope_version())
     }
+    fn state_reason(&self, cur_ts: Timestamp) -> BucketEntryStateReason {
+        self.operate(|_rti, e| e.state_reason(cur_ts))
+    }
     fn state(&self, cur_ts: Timestamp) -> BucketEntryState {
         self.operate(|_rti, e| e.state(cur_ts))
     }

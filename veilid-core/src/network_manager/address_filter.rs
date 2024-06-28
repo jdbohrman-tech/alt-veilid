@@ -27,9 +27,9 @@ struct AddressFilterInner {
     conn_count_by_ip6_prefix: BTreeMap<Ipv6Addr, usize>,
     conn_timestamps_by_ip4: BTreeMap<Ipv4Addr, Vec<Timestamp>>,
     conn_timestamps_by_ip6_prefix: BTreeMap<Ipv6Addr, Vec<Timestamp>>,
-    punishments_by_ip4: BTreeMap<Ipv4Addr, Timestamp>,
-    punishments_by_ip6_prefix: BTreeMap<Ipv6Addr, Timestamp>,
-    punishments_by_node_id: BTreeMap<TypedKey, Timestamp>,
+    punishments_by_ip4: BTreeMap<Ipv4Addr, Punishment>,
+    punishments_by_ip6_prefix: BTreeMap<Ipv6Addr, Punishment>,
+    punishments_by_node_id: BTreeMap<TypedKey, Punishment>,
     dial_info_failures: BTreeMap<DialInfo, Timestamp>,
 }
 
@@ -151,7 +151,7 @@ impl AddressFilter {
             let mut dead_keys = Vec::<Ipv4Addr>::new();
             for (key, value) in &mut inner.punishments_by_ip4 {
                 // Drop punishments older than the punishment duration
-                if cur_ts.as_u64().saturating_sub(value.as_u64())
+                if cur_ts.as_u64().saturating_sub(value.timestamp.as_u64())
                     > self.unlocked_inner.punishment_duration_min as u64 * 60_000_000u64
                 {
                     dead_keys.push(*key);
@@ -167,7 +167,7 @@ impl AddressFilter {
             let mut dead_keys = Vec::<Ipv6Addr>::new();
             for (key, value) in &mut inner.punishments_by_ip6_prefix {
                 // Drop punishments older than the punishment duration
-                if cur_ts.as_u64().saturating_sub(value.as_u64())
+                if cur_ts.as_u64().saturating_sub(value.timestamp.as_u64())
                     > self.unlocked_inner.punishment_duration_min as u64 * 60_000_000u64
                 {
                     dead_keys.push(*key);
@@ -183,7 +183,7 @@ impl AddressFilter {
             let mut dead_keys = Vec::<TypedKey>::new();
             for (key, value) in &mut inner.punishments_by_node_id {
                 // Drop punishments older than the punishment duration
-                if cur_ts.as_u64().saturating_sub(value.as_u64())
+                if cur_ts.as_u64().saturating_sub(value.timestamp.as_u64())
                     > self.unlocked_inner.punishment_duration_min as u64 * 60_000_000u64
                 {
                     dead_keys.push(*key);
@@ -194,7 +194,7 @@ impl AddressFilter {
                 inner.punishments_by_node_id.remove(&key);
                 // make the entry alive again if it's still here
                 if let Ok(Some(nr)) = self.unlocked_inner.routing_table.lookup_node_ref(key) {
-                    nr.operate_mut(|_rti, e| e.set_punished(false));
+                    nr.operate_mut(|_rti, e| e.set_punished(None));
                 }
             }
         }
@@ -278,9 +278,10 @@ impl AddressFilter {
         inner.punishments_by_node_id.clear();
     }
 
-    pub fn punish_ip_addr(&self, addr: IpAddr) {
-        log_net!(debug ">>> PUNISHED: {}", addr);
-        let ts = get_aligned_timestamp();
+    pub fn punish_ip_addr(&self, addr: IpAddr, reason: PunishmentReason) {
+        log_net!(debug ">>> PUNISHED: {} for {:?}", addr, reason);
+        let timestamp = get_aligned_timestamp();
+        let punishment = Punishment { reason, timestamp };
 
         let ipblock = ip_to_ipblock(
             self.unlocked_inner.max_connections_per_ip6_prefix_size,
@@ -292,13 +293,13 @@ impl AddressFilter {
             IpAddr::V4(v4) => inner
                 .punishments_by_ip4
                 .entry(v4)
-                .and_modify(|v| *v = ts)
-                .or_insert(ts),
+                .and_modify(|v| *v = punishment)
+                .or_insert(punishment),
             IpAddr::V6(v6) => inner
                 .punishments_by_ip6_prefix
                 .entry(v6)
-                .and_modify(|v| *v = ts)
-                .or_insert(ts),
+                .and_modify(|v| *v = punishment)
+                .or_insert(punishment),
         };
     }
 
@@ -314,25 +315,26 @@ impl AddressFilter {
         self.is_node_id_punished_inner(&inner, node_id)
     }
 
-    pub fn punish_node_id(&self, node_id: TypedKey) {
+    pub fn punish_node_id(&self, node_id: TypedKey, reason: PunishmentReason) {
         if let Ok(Some(nr)) = self.unlocked_inner.routing_table.lookup_node_ref(node_id) {
             // make the entry dead if it's punished
-            nr.operate_mut(|_rti, e| e.set_punished(true));
+            nr.operate_mut(|_rti, e| e.set_punished(Some(reason)));
         }
 
-        let ts = get_aligned_timestamp();
+        let timestamp = get_aligned_timestamp();
+        let punishment = Punishment { reason, timestamp };
 
         let mut inner = self.inner.lock();
         if inner.punishments_by_node_id.len() >= MAX_PUNISHMENTS_BY_NODE_ID {
             log_net!(debug ">>> PUNISHMENT TABLE FULL: {}", node_id);
             return;
         }
-        log_net!(debug ">>> PUNISHED: {}", node_id);
+        log_net!(debug ">>> PUNISHED: {} for {:?}", node_id, reason);
         inner
             .punishments_by_node_id
             .entry(node_id)
-            .and_modify(|v| *v = ts)
-            .or_insert(ts);
+            .and_modify(|v| *v = punishment)
+            .or_insert(punishment);
     }
 
     pub async fn address_filter_task_routine(
