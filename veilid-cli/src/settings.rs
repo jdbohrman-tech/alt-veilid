@@ -120,7 +120,7 @@ pub fn convert_loglevel(log_level: LogLevel) -> log::LevelFilter {
 
 #[derive(Debug, Clone)]
 pub struct NamedSocketAddrs {
-    pub name: String,
+    pub _name: String,
     pub addrs: Vec<SocketAddr>,
 }
 
@@ -130,7 +130,7 @@ impl TryFrom<String> for NamedSocketAddrs {
     fn try_from(value: String) -> Result<Self, Self::Error> {
         let addrs = value.to_socket_addrs()?.collect();
         let name = value;
-        Ok(NamedSocketAddrs { name, addrs })
+        Ok(NamedSocketAddrs { _name: name, addrs })
     }
 }
 
@@ -142,7 +142,7 @@ impl<'de> serde::Deserialize<'de> for NamedSocketAddrs {
         let s = String::deserialize(deserializer)?;
         let addr_iter = s.to_socket_addrs().map_err(serde::de::Error::custom)?;
         Ok(NamedSocketAddrs {
-            name: s,
+            _name: s,
             addrs: addr_iter.collect(),
         })
     }

@@ -216,6 +216,7 @@ fn main() -> Result<(), String> {
                                 .suppress_timestamp(),
                             uisender.as_logwriter().unwrap(),
                         )
+                        .o_append(settings.logging.file.append)
                         .start()
                         .expect("failed to initialize logger!");
                 } else {
@@ -233,6 +234,7 @@ fn main() -> Result<(), String> {
                             .directory(settings.logging.file.directory.clone())
                             .suppress_timestamp(),
                     )
+                    .o_append(settings.logging.file.append)
                     .start()
                     .expect("failed to initialize logger!");
             }

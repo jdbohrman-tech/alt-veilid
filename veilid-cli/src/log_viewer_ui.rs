@@ -205,7 +205,7 @@ impl UISender for LogViewerUISender {
 
     fn display_string_dialog(&self, title: &str, text: &str, close_cb: UICallback) {
         println!("{}: {}", title, text);
-        if let UICallback::Interactive(mut close_cb) = close_cb {
+        if let UICallback::LogViewer(mut close_cb) = close_cb {
             close_cb()
         }
     }
@@ -215,7 +215,7 @@ impl UISender for LogViewerUISender {
     }
 
     fn send_callback(&self, callback: UICallback) {
-        if let UICallback::Interactive(mut callback) = callback {
+        if let UICallback::LogViewer(mut callback) = callback {
             callback();
         }
     }
