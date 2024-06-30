@@ -169,6 +169,7 @@ pub async fn ptr_lookup(ip_addr: IpAddr) -> EyreResult<String> {
                         let c_str: &CStr = CStr::from_ptr(p_name_host.0 as *const i8);
                         if let Ok(str_slice) = c_str.to_str() {
                             let str_buf: String = str_slice.to_owned();
+                            DnsFree(Some(p_query_results as *const c_void), DnsFreeRecordList);
                             return Ok(str_buf);
                         }
                     }
