@@ -326,7 +326,7 @@ impl ReceiptManager {
         callback: impl ReceiptCallback,
     ) {
         let receipt_nonce = receipt.get_nonce();
-        log_rpc!(debug "== New Multiple Receipt ({}) {} ", expected_returns, receipt_nonce.encode());
+        event!(target: "receipt", Level::DEBUG, "== New Multiple Receipt ({}) {} ", expected_returns, receipt_nonce.encode());
         let record = Arc::new(Mutex::new(ReceiptRecord::new(
             receipt,
             expiration,
@@ -346,7 +346,7 @@ impl ReceiptManager {
         eventual: ReceiptSingleShotType,
     ) {
         let receipt_nonce = receipt.get_nonce();
-        log_rpc!(debug "== New SingleShot Receipt {}", receipt_nonce.encode());
+        event!(target: "receipt", Level::DEBUG, "== New SingleShot Receipt {}", receipt_nonce.encode());
 
         let record = Arc::new(Mutex::new(ReceiptRecord::new_single_shot(
             receipt, expiration, eventual,
@@ -375,7 +375,7 @@ impl ReceiptManager {
 
     #[allow(dead_code)]
     pub async fn cancel_receipt(&self, nonce: &Nonce) -> EyreResult<()> {
-        log_rpc!(debug "== Cancel Receipt {}", nonce.encode());
+        event!(target: "receipt", Level::DEBUG, "== Cancel Receipt {}", nonce.encode());
 
         // Remove the record
         let record = {
@@ -412,7 +412,7 @@ impl ReceiptManager {
         let receipt_nonce = receipt.get_nonce();
         let extra_data = receipt.get_extra_data();
 
-        log_rpc!(debug "<<== RECEIPT {} <- {}{}",
+        event!(target: "receipt", Level::DEBUG, "<<== RECEIPT {} <- {}{}",
             receipt_nonce.encode(),
             match receipt_returned {
                 ReceiptReturned::OutOfBand => "OutOfBand".to_owned(),

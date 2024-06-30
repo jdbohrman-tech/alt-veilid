@@ -1,4 +1,4 @@
-pub static DEFAULT_LOG_FACILITIES_IGNORE_LIST: [&str; 27] = [
+pub static DEFAULT_LOG_FACILITIES_IGNORE_LIST: [&str; 28] = [
     "mio",
     "h2",
     "hyper",
@@ -26,6 +26,7 @@ pub static DEFAULT_LOG_FACILITIES_IGNORE_LIST: [&str; 27] = [
     "network_result",
     "dht",
     "fanout",
+    "receipt",
 ];
 
 pub static DEFAULT_LOG_FACILITIES_ENABLED_LIST: [&str; 8] = [
