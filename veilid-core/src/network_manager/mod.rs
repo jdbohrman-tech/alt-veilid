@@ -753,9 +753,13 @@ impl NetworkManager {
                     .get_outbound_node_ref_filter(RoutingDomain::PublicInternet)
                     .with_protocol_type(ProtocolType::UDP);
                 peer_nr.set_filter(Some(outbound_nrf));
-                let hole_punch_dial_info_detail = peer_nr
-                    .first_filtered_dial_info_detail()
-                    .ok_or_else(|| eyre!("No hole punch capable dialinfo found for node"))?;
+                let Some(hole_punch_dial_info_detail) = peer_nr.first_filtered_dial_info_detail()
+                else {
+                    return Ok(NetworkResult::no_connection_other(format!(
+                        "No hole punch capable dialinfo found for node: {}",
+                        peer_nr
+                    )));
+                };
 
                 // Now that we picked a specific dialinfo, further restrict the noderef to the specific address type
                 let filter = peer_nr.take_filter().unwrap();

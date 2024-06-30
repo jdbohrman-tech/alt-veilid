@@ -22,7 +22,7 @@ impl RoutingTable {
         // find N nodes closest to the target node in our routing table
         let own_peer_info = self.get_own_peer_info(RoutingDomain::PublicInternet);
         let filter = Box::new(
-            move |rti: &RoutingTableInner, opt_entry: Option<Arc<BucketEntry>>| {
+            |rti: &RoutingTableInner, opt_entry: Option<Arc<BucketEntry>>| {
                 // Ensure only things that are valid/signed in the PublicInternet domain are returned
                 if !rti.filter_has_valid_signed_node_info(
                     RoutingDomain::PublicInternet,
@@ -50,7 +50,6 @@ impl RoutingTable {
             c.network.dht.max_find_node_count as usize
         };
 
-        let own_peer_info = self.get_own_peer_info(RoutingDomain::PublicInternet);
         let closest_nodes = match self.find_preferred_closest_nodes(
             node_count,
             key,
