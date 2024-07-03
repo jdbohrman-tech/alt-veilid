@@ -3,10 +3,7 @@ use super::*;
 impl RPCProcessor {
     // Sends a dht value change notification
     // Can be sent via all methods including relays and routes but never over a safety route
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", skip(self, value), err)
-    )]
+    #[instrument(level = "trace", target = "rpc", skip(self, value), err)]
     pub async fn rpc_call_value_changed(
         self,
         dest: Destination,
@@ -32,6 +29,7 @@ impl RPCProcessor {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
 
+    #[instrument(level = "trace", target = "rpc", skip_all)]
     pub(crate) async fn process_value_changed(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
         // Get the statement
         let (_, _, _, kind) = msg.operation.destructure();

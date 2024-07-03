@@ -448,6 +448,7 @@ impl RPCProcessor {
     }
 
     /// Determine if a SignedNodeInfo can be placed into the specified routing domain
+    #[instrument(level="trace", target="rpc", skip_all)]
     fn verify_node_info(
         &self,
         routing_domain: RoutingDomain,
@@ -463,6 +464,7 @@ impl RPCProcessor {
 
     /// Search the network for a single node and add it to the routing table and return the node reference
     /// If no node was found in the timeout, this returns None
+    #[instrument(level="trace", target="rpc", skip_all)]
     async fn search_for_node_id(
         &self,
         node_id: TypedKey,
@@ -529,6 +531,7 @@ impl RPCProcessor {
 
     /// Search the DHT for a specific node corresponding to a key unless we have that node in our routing table already, and return the node reference
     /// Note: This routine can possibly be recursive, hence the SendPinBoxFuture async form
+    #[instrument(level="trace", target="rpc", skip_all)]
     pub fn resolve_node(
         &self,
         node_id: TypedKey,
@@ -579,10 +582,7 @@ impl RPCProcessor {
         })
     }
 
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", skip(self, waitable_reply), err)
-    )]
+    #[instrument(level="trace", target="rpc", skip_all)]
     async fn wait_for_reply(
         &self,
         waitable_reply: WaitableReply,
@@ -654,6 +654,7 @@ impl RPCProcessor {
     }
 
     /// Wrap an operation with a private route inside a safety route
+    #[instrument(level="trace", target="rpc", skip_all)]
     fn wrap_with_route(
         &self,
         safety_selection: SafetySelection,
@@ -728,10 +729,7 @@ impl RPCProcessor {
     /// Produce a byte buffer that represents the wire encoding of the entire
     /// unencrypted envelope body for a RPC message. This incorporates
     /// wrapping a private and/or safety route if they are specified.
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "debug", skip(self, operation), err)
-    )]
+    #[instrument(level="trace", target="rpc", skip_all)]
     fn render_operation(
         &self,
         dest: Destination,
@@ -863,10 +861,7 @@ impl RPCProcessor {
     /// routing table caching when it is okay to do so
     /// Also check target's timestamp of our own node info, to see if we should send that
     /// And send our timestamp of the target's node info so they can determine if they should update us on their next rpc
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", skip(self), ret)
-    )]
+    #[instrument(level="trace", target="rpc", skip_all)]
     fn get_sender_peer_info(&self, dest: &Destination) -> SenderPeerInfo {
         // Don't do this if the sender is to remain private
         // Otherwise we would be attaching the original sender's identity to the final destination,
@@ -908,6 +903,7 @@ impl RPCProcessor {
     }
 
     /// Record failure to send to node or route
+    #[instrument(level="trace", target="rpc", skip_all)]
     fn record_send_failure(
         &self,
         rpc_kind: RPCKind,
@@ -942,6 +938,7 @@ impl RPCProcessor {
     }
 
     /// Record question lost to node or route
+    #[instrument(level="trace", target="rpc", skip_all)]
     fn record_question_lost(
         &self,
         send_ts: Timestamp,
@@ -984,6 +981,7 @@ impl RPCProcessor {
     }
 
     /// Record success sending to node or route
+    #[instrument(level="trace", target="rpc", skip_all)]
     fn record_send_success(
         &self,
         rpc_kind: RPCKind,
@@ -1027,6 +1025,7 @@ impl RPCProcessor {
 
     /// Record answer received from node or route
     #[allow(clippy::too_many_arguments)]
+    #[instrument(level="trace", target="rpc", skip_all)]
     fn record_answer_received(
         &self,
         send_ts: Timestamp,
@@ -1112,6 +1111,7 @@ impl RPCProcessor {
     }
 
     /// Record question or statement received from node or route
+    #[instrument(level="trace", target="rpc", skip_all)]
     fn record_question_received(&self, msg: &RPCMessage) {
         let recv_ts = msg.header.timestamp;
         let bytes = msg.header.body_len;
@@ -1156,10 +1156,7 @@ impl RPCProcessor {
 
     /// Issue a question over the network, possibly using an anonymized route
     /// Optionally keeps a context to be passed to the answer processor when an answer is received
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "debug", skip(self, question), err)
-    )]
+    #[instrument(level="trace", target="rpc", skip_all)]
     async fn question(
         &self,
         dest: Destination,
@@ -1261,10 +1258,7 @@ impl RPCProcessor {
     }
 
     /// Issue a statement over the network, possibly using an anonymized route
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "debug", skip(self, statement), err)
-    )]
+    #[instrument(level="trace", target="rpc", skip_all)]
     async fn statement(
         &self,
         dest: Destination,
@@ -1336,10 +1330,7 @@ impl RPCProcessor {
     }
     /// Issue a reply over the network, possibly using an anonymized route
     /// The request must want a response, or this routine fails
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "debug", skip(self, request, answer), err)
-    )]
+    #[instrument(level="trace", target="rpc", skip_all)]
     async fn answer(
         &self,
         request: RPCMessage,
@@ -1417,7 +1408,7 @@ impl RPCProcessor {
     /// Decoding RPC from the wire
     /// This performs a capnp decode on the data, and if it passes the capnp schema
     /// it performs the cryptographic validation required to pass the operation up for processing
-    #[instrument(skip_all)]
+    #[instrument(level="trace", target="rpc", skip_all)]
     fn decode_rpc_operation(
         &self,
         encoded_msg: &RPCMessageEncoded,
@@ -1445,6 +1436,7 @@ impl RPCProcessor {
     /// caller or receiver. This does not mean the operation is 'semantically correct'. For
     /// complex operations that require stateful validation and a more robust context than
     /// 'signatures', the caller must still perform whatever validation is necessary
+    #[instrument(level="trace", target="rpc", skip_all)]
     fn validate_rpc_operation(&self, operation: &mut RPCOperation) -> Result<(), RPCError> {
         // If this is an answer, get the question context for this answer
         // If we received an answer for a question we did not ask, this will return an error
@@ -1469,10 +1461,7 @@ impl RPCProcessor {
     }
 
     //////////////////////////////////////////////////////////////////////
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", skip(self, encoded_msg), err)
-    )]
+    #[instrument(level="trace", target="rpc", skip_all)]
     async fn process_rpc_message(
         &self,
         encoded_msg: RPCMessageEncoded,
@@ -1671,6 +1660,7 @@ impl RPCProcessor {
         }
     }
 
+    #[instrument(level="trace", target="rpc", skip_all)]
     async fn rpc_worker(
         self,
         stop_token: StopToken,
@@ -1700,10 +1690,7 @@ impl RPCProcessor {
         }
     }
 
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", skip(self, body), err)
-    )]
+    #[instrument(level="trace", target="rpc", skip_all)]
     pub fn enqueue_direct_message(
         &self,
         envelope: Envelope,
@@ -1742,10 +1729,7 @@ impl RPCProcessor {
         Ok(())
     }
 
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", skip(self, body), err)
-    )]
+    #[instrument(level="trace", target="rpc", skip_all)]
     fn enqueue_safety_routed_message(
         &self,
         direct: RPCMessageHeaderDetailDirect,
@@ -1781,10 +1765,7 @@ impl RPCProcessor {
         Ok(())
     }
 
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", skip(self, body), err)
-    )]
+    #[instrument(level="trace", target="rpc", skip_all)]
     fn enqueue_private_routed_message(
         &self,
         direct: RPCMessageHeaderDetailDirect,

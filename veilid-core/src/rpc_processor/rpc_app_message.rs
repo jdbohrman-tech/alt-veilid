@@ -3,10 +3,7 @@ use super::*;
 impl RPCProcessor {
     // Sends a high level app message
     // Can be sent via all methods including relays and routes
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", skip(self, message), fields(message.len = message.len()), err)
-    )]
+    #[instrument(level = "trace", target = "rpc", skip(self, message), fields(message.len = message.len()), err)]
     pub async fn rpc_call_app_message(
         self,
         dest: Destination,
@@ -21,7 +18,7 @@ impl RPCProcessor {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
 
-    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]
+    #[instrument(level = "trace", target = "rpc", skip(self, msg), fields(msg.operation.op_id), ret, err)]
     pub(crate) async fn process_app_message(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
         // Ignore if disabled
         let routing_table = self.routing_table();

@@ -217,6 +217,7 @@ impl StorageManager {
     }
 
     /// Create a local record from scratch with a new owner key, open it, and return the opened descriptor
+    #[instrument(level = "trace", target = "stor", skip_all)]
     pub async fn create_record(
         &self,
         kind: CryptoKind,
@@ -240,6 +241,7 @@ impl StorageManager {
     }
 
     /// Open an existing local record if it exists, and if it doesnt exist locally, try to pull it from the network and open it and return the opened descriptor
+    #[instrument(level = "trace", target = "stor", skip_all)]
     pub async fn open_record(
         &self,
         key: TypedKey,
@@ -325,6 +327,7 @@ impl StorageManager {
     }
 
     /// Close an opened local record
+    #[instrument(level = "trace", target = "stor", skip_all)]
     pub async fn close_record(&self, key: TypedKey) -> VeilidAPIResult<()> {
         let (opt_opened_record, opt_rpc_processor) = {
             let mut inner = self.lock().await?;
@@ -376,6 +379,7 @@ impl StorageManager {
     }
 
     /// Delete a local record
+    #[instrument(level = "trace", target = "stor", skip_all)]
     pub async fn delete_record(&self, key: TypedKey) -> VeilidAPIResult<()> {
         // Ensure the record is closed
         self.close_record(key).await?;
@@ -391,6 +395,7 @@ impl StorageManager {
     }
 
     /// Get the value of a subkey from an opened local record
+    #[instrument(level = "trace", target = "stor", skip_all)]
     pub async fn get_value(
         &self,
         key: TypedKey,
@@ -475,6 +480,7 @@ impl StorageManager {
     }
 
     /// Set the value of a subkey on an opened local record
+    #[instrument(level = "trace", target = "stor", skip_all)]
     pub async fn set_value(
         &self,
         key: TypedKey,
@@ -627,6 +633,7 @@ impl StorageManager {
     }
 
     /// Create,update or cancel an outbound watch to a DHT value
+    #[instrument(level = "trace", target = "stor", skip_all)]
     pub async fn watch_values(
         &self,
         key: TypedKey,
@@ -752,6 +759,7 @@ impl StorageManager {
         Ok(owvresult.expiration_ts)
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all)]
     pub async fn cancel_watch_values(
         &self,
         key: TypedKey,
@@ -807,6 +815,7 @@ impl StorageManager {
     }
 
     /// Inspect an opened DHT record for its subkey sequence numbers
+    #[instrument(level = "trace", target = "stor", skip_all)]
     pub async fn inspect_record(
         &self,
         key: TypedKey,
@@ -929,7 +938,7 @@ impl StorageManager {
     }
 
     // Send single value change out to the network
-    #[instrument(level = "trace", skip(self), err)]
+    #[instrument(level = "trace", target = "stor", skip(self), err)]
     async fn send_value_change(&self, vc: ValueChangedInfo) -> VeilidAPIResult<()> {
         let rpc_processor = {
             let inner = self.inner.lock().await;
@@ -957,7 +966,7 @@ impl StorageManager {
     }
 
     // Send a value change up through the callback
-    #[instrument(level = "trace", skip(self), err)]
+    #[instrument(level = "trace", target = "stor", skip(self, value), err)]
     async fn update_callback_value_change(
         &self,
         key: TypedKey,
@@ -981,6 +990,7 @@ impl StorageManager {
         Ok(())
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all)]
     fn check_fanout_set_offline(
         &self,
         key: TypedKey,

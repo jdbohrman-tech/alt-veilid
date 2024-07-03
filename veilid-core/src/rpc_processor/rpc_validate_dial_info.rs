@@ -2,10 +2,7 @@ use super::*;
 
 impl RPCProcessor {
     // Can only be sent directly, not via relays or routes
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", skip(self), ret, err)
-    )]
+    #[instrument(level = "trace", target = "rpc", skip(self), ret, err)]
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub async fn rpc_call_validate_dial_info(
         self,
@@ -58,7 +55,7 @@ impl RPCProcessor {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
 
-    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]
+    #[instrument(level = "trace", target = "rpc", skip(self, msg), fields(msg.operation.op_id), ret, err)]
     pub(crate) async fn process_validate_dial_info(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
         let routing_table = self.routing_table();
         if !routing_table.has_valid_network_class(msg.header.routing_domain()) {

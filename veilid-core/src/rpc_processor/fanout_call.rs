@@ -140,6 +140,7 @@ where
         })
     }
 
+    #[instrument(level = "trace", target = "fanout", skip_all)]
     fn evaluate_done(self: Arc<Self>, ctx: &mut FanoutContext<R>) -> bool {
         // If we have a result, then we're done
         if ctx.result.is_some() {
@@ -151,6 +152,7 @@ where
         ctx.result.is_some()
     }
 
+    #[instrument(level = "trace", target = "fanout", skip_all)]
     fn add_to_fanout_queue(self: Arc<Self>, new_nodes: &[NodeRef]) {
         event!(target: "fanout", Level::DEBUG,
             "FanoutCall::add_to_fanout_queue:\n  new_nodes={{\n{}}}\n",
@@ -172,6 +174,7 @@ where
         });
     }
 
+    #[instrument(level = "trace", target = "fanout", skip_all)]
     async fn fanout_processor(self: Arc<Self>) -> bool {
         // Loop until we have a result or are done
         loop {
@@ -229,6 +232,7 @@ where
         }
     }
 
+    #[instrument(level = "trace", target = "fanout", skip_all)]
     fn init_closest_nodes(self: Arc<Self>) -> Result<(), RPCError> {
         // Get the 'node_count' closest nodes to the key out of our routing table
         let closest_nodes = {
@@ -278,6 +282,7 @@ where
         Ok(())
     }
 
+    #[instrument(level = "trace", target = "fanout", skip_all)]
     pub async fn run(
         self: Arc<Self>,
         init_fanout_queue: Vec<NodeRef>,

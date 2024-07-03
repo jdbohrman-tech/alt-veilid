@@ -25,6 +25,7 @@ pub(super) struct OutboundGetValueResult {
 
 impl StorageManager {
     /// Perform a 'get value' query on the network
+    #[instrument(level = "trace", target = "dht", skip_all, err)]
     pub(super) async fn outbound_get_value(
         &self,
         rpc_processor: RPCProcessor,
@@ -276,6 +277,7 @@ impl StorageManager {
         Ok(out_rx)
     }
 
+    #[instrument(level = "trace", target = "dht", skip_all)]
     pub(super) fn process_deferred_outbound_get_value_result_inner(&self, inner: &mut StorageManagerInner, res_rx: flume::Receiver<Result<get_value::OutboundGetValueResult, VeilidAPIError>>, key: TypedKey, subkey: ValueSubkey, last_seq: ValueSeqNum) {
         let this = self.clone();
         inner.process_deferred_results(
@@ -323,6 +325,7 @@ impl StorageManager {
         );
     }
 
+    #[instrument(level = "trace", target = "dht", skip_all)]
     pub(super) async fn process_outbound_get_value_result(&self, key: TypedKey, subkey: ValueSubkey, opt_last_seq: Option<u32>, result: get_value::OutboundGetValueResult) -> Result<Option<ValueData>, VeilidAPIError> {
         // See if we got a value back
         let Some(get_result_value) = result.get_result.opt_value else {
@@ -354,6 +357,7 @@ impl StorageManager {
     }
 
     /// Handle a received 'Get Value' query
+    #[instrument(level = "trace", target = "dht", skip_all)]
     pub async fn inbound_get_value(
         &self,
         key: TypedKey,

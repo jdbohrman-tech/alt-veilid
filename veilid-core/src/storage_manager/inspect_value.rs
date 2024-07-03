@@ -49,6 +49,7 @@ pub(super) struct OutboundInspectValueResult {
 
 impl StorageManager {
     /// Perform a 'inspect value' query on the network
+    #[instrument(level = "trace", target = "dht", skip_all, err)]
     pub(super) async fn outbound_inspect_value(
         &self,
         rpc_processor: RPCProcessor,
@@ -309,6 +310,7 @@ impl StorageManager {
     }
 
     /// Handle a received 'Inspect Value' query
+    #[instrument(level = "trace", target = "dht", skip_all)]
     pub async fn inbound_inspect_value(
         &self,
         key: TypedKey,

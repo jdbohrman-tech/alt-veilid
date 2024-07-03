@@ -22,7 +22,7 @@ pub(super) struct OutboundWatchValueResult {
 impl StorageManager {
     /// Perform a 'watch value cancel' on the network without fanout
     #[allow(clippy::too_many_arguments)]
-    #[instrument(target = "dht", level = "debug", skip_all, err)]
+    #[instrument(level = "trace", target = "dht", skip_all, err)]
     pub(super) async fn outbound_watch_value_cancel(
         &self,
         rpc_processor: RPCProcessor,
@@ -140,7 +140,7 @@ impl StorageManager {
 
     /// Perform a 'watch value' query on the network using fanout
     #[allow(clippy::too_many_arguments)]
-    #[instrument(target = "dht", level = "debug", skip_all, err)]
+    #[instrument(level = "trace", target = "dht", skip_all, err)]
     pub(super) async fn outbound_watch_value(
         &self,
         rpc_processor: RPCProcessor,
@@ -367,6 +367,7 @@ impl StorageManager {
 
     /// Handle a received 'Watch Value' query
     #[allow(clippy::too_many_arguments)]
+    #[instrument(level = "trace", target = "dht", skip_all)]
     pub async fn inbound_watch_value(
         &self,
         key: TypedKey,

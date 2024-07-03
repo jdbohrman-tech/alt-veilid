@@ -2,10 +2,10 @@ use super::*;
 
 impl StorageManager {
     // Flush records stores to disk and remove dead records
-    #[instrument(level = "trace", skip(self), err)]
+    #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub(crate) async fn flush_record_stores_task_routine(
         self,
-        stop_token: StopToken,
+        _stop_token: StopToken,
         _last_ts: Timestamp,
         _cur_ts: Timestamp,
     ) -> EyreResult<()> {

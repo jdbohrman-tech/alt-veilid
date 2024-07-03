@@ -411,4 +411,67 @@ async def test_dht_integration_writer_reader():
                 print(f'  {n}')
                 n+=1
                 
+@pytest.mark.asyncio
+async def test_dht_write_read_local():
+    
+    async def null_update_callback(update: veilid.VeilidUpdate):
+        pass    
+
+    try:
+        api0 = await api_connector(null_update_callback, 0)
+    except VeilidTestConnectionError:
+        pytest.skip("Unable to connect to veilid-server 0.")
+        return
+
+    async with api0:
+        # purge local and remote record stores to ensure we start fresh
+        await api0.debug("record purge local")
+        await api0.debug("record purge remote")
+        
+        # make routing contexts
+        rc0 = await api0.new_routing_context()
+        async with rc0:
+
+            COUNT = 500
+            TEST_DATA = b"ABCD"*1024
+            TEST_DATA2 = b"ABCD"*4096
+
+            # write dht records on server 0
+            records = []
+            schema = veilid.DHTSchema.dflt(2)
+            print(f'writing {COUNT} records')
+            for n in range(COUNT):
+                desc = await rc0.create_dht_record(schema)
+                records.append(desc)
+
+                await rc0.set_dht_value(desc.key, 0, TEST_DATA)
+                await rc0.set_dht_value(desc.key, 1, TEST_DATA2)
+
+                print(f'  {n}')
+            
+            print(f'syncing records to the network')
+            for desc0 in records:
+                while True:
+                    rr = await rc0.inspect_dht_record(desc0.key, [])
+                    if len(rr.offline_subkeys) == 0:
+                        await rc0.close_dht_record(desc0.key)
+                        break
+                    time.sleep(0.1)
+
+            # read dht records on server 0
+            print(f'reading {COUNT} records')
+            n=0
+            for desc0 in records:
+                desc1 = await rc0.open_dht_record(desc0.key)
+                
+                vd0 = await rc0.get_dht_value(desc1.key, 0)
+                assert vd0.data == TEST_DATA
+                
+                vd1 = await rc0.get_dht_value(desc1.key, 1)
+                assert vd1.data == TEST_DATA2
+                await rc0.close_dht_record(desc1.key)
+                
+                print(f'  {n}')
+                n+=1
+                
             

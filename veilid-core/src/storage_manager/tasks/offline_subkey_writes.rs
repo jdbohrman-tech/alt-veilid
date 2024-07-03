@@ -3,7 +3,7 @@ use futures_util::*;
 
 impl StorageManager {
     // Best-effort write subkeys to the network that were written offline
-    #[instrument(level = "trace", skip(self), err)]
+    #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub(crate) async fn offline_subkey_writes_task_routine(
         self,
         stop_token: StopToken,

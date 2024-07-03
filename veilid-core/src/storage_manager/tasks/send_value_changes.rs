@@ -4,7 +4,7 @@ use stop_token::future::FutureExt;
 
 impl StorageManager {
     // Send value change notifications across the network
-    #[instrument(level = "trace", skip(self), err)]
+    #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub(super) async fn send_value_changes_task_routine(
         self,
         stop_token: StopToken,

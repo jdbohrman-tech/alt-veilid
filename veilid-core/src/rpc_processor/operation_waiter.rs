@@ -128,10 +128,7 @@ where
     }
 
     /// Complete the app call
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", skip(self, message), err)
-    )]
+    #[instrument(level = "trace", target = "rpc", skip_all)]
     pub async fn complete_op_waiter(&self, op_id: OperationId, message: T) -> Result<(), RPCError> {
         let waiting_op = {
             let mut inner = self.inner.lock();
@@ -151,6 +148,7 @@ where
     }
 
     /// Wait for operation to complete
+    #[instrument(level = "trace", target = "rpc", skip_all)]
     pub async fn wait_for_op(
         &self,
         mut handle: OperationWaitHandle<T, C>,

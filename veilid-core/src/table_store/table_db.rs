@@ -62,8 +62,14 @@ impl TableDB {
         let encrypt_info = encryption_key.map(|ek| CryptInfo::new(crypto.clone(), ek));
         let decrypt_info = decryption_key.map(|dk| CryptInfo::new(crypto.clone(), dk));
 
+        let total_columns = database.num_columns().unwrap();
+
         Self {
-            opened_column_count,
+            opened_column_count: if opened_column_count == 0 {
+                total_columns
+            } else {
+                opened_column_count
+            },
             unlocked_inner: Arc::new(TableDBUnlockedInner {
                 table,
                 table_store,
@@ -78,18 +84,38 @@ impl TableDB {
         weak_inner: Weak<TableDBUnlockedInner>,
         opened_column_count: u32,
     ) -> Option<Self> {
-        weak_inner.upgrade().map(|table_db_unlocked_inner| Self {
-            opened_column_count,
-            unlocked_inner: table_db_unlocked_inner,
+        weak_inner.upgrade().map(|table_db_unlocked_inner| {
+            let db = &table_db_unlocked_inner.database;
+            let total_columns = db.num_columns().unwrap();
+            Self {
+                opened_column_count: if opened_column_count == 0 {
+                    total_columns
+                } else {
+                    opened_column_count
+                },
+                unlocked_inner: table_db_unlocked_inner,
+            }
         })
     }
 
-    pub(super) fn weak_inner(&self) -> Weak<TableDBUnlockedInner> {
+    pub(super) fn weak_unlocked_inner(&self) -> Weak<TableDBUnlockedInner> {
         Arc::downgrade(&self.unlocked_inner)
+    }
+
+    /// Get the internal name of the table
+    pub fn table_name(&self) -> String {
+        self.unlocked_inner.table.clone()
+    }
+
+    /// Get the io stats for the table
+    #[instrument(level = "trace", target = "tstore", skip_all)]
+    pub fn io_stats(&self, kind: IoStatsKind) -> IoStats {
+        self.unlocked_inner.database.io_stats(kind)
     }
 
     /// Get the total number of columns in the TableDB.
     /// Not the number of columns that were opened, rather the total number that could be opened.
+    #[instrument(level = "trace", target = "tstore", skip_all)]
     pub fn get_column_count(&self) -> VeilidAPIResult<u32> {
         let db = &self.unlocked_inner.database;
         db.num_columns().map_err(VeilidAPIError::from)
@@ -101,6 +127,7 @@ impl TableDB {
     /// requirement is that they are different for each encryption
     /// but if the contents are guaranteed to be unique, then a nonce
     /// can be generated from the hash of the contents and the encryption key itself.
+    #[instrument(level = "trace", target = "tstore", skip_all)]
     fn maybe_encrypt(&self, data: &[u8], keyed_nonce: bool) -> Vec<u8> {
         let data = compress_prepend_size(data);
         if let Some(ei) = &self.unlocked_inner.encrypt_info {
@@ -132,6 +159,7 @@ impl TableDB {
     }
 
     /// Decrypt buffer using decrypt key with nonce prepended to input
+    #[instrument(level = "trace", target = "tstore", skip_all)]
     fn maybe_decrypt(&self, data: &[u8]) -> std::io::Result<Vec<u8>> {
         if let Some(di) = &self.unlocked_inner.decrypt_info {
             assert!(data.len() >= NONCE_LENGTH);
@@ -156,6 +184,7 @@ impl TableDB {
     }
 
     /// Get the list of keys in a column of the TableDB
+    #[instrument(level = "trace", target = "tstore", skip_all)]
     pub async fn get_keys(&self, col: u32) -> VeilidAPIResult<Vec<Vec<u8>>> {
         if col >= self.opened_column_count {
             apibail_generic!(format!(
@@ -175,13 +204,29 @@ impl TableDB {
         Ok(out)
     }
 
+    /// Get the number of keys in a column of the TableDB
+    #[instrument(level = "trace", target = "tstore", skip_all)]
+    pub async fn get_key_count(&self, col: u32) -> VeilidAPIResult<u64> {
+        if col >= self.opened_column_count {
+            apibail_generic!(format!(
+                "Column exceeds opened column count {} >= {}",
+                col, self.opened_column_count
+            ));
+        }
+        let db = self.unlocked_inner.database.clone();
+        let key_count = db.num_keys(col).await.map_err(VeilidAPIError::from)?;
+        Ok(key_count)
+    }
+
     /// Start a TableDB write transaction. The transaction object must be committed or rolled back before dropping.
+    #[instrument(level = "trace", target = "tstore", skip_all)]
     pub fn transact(&self) -> TableDBTransaction {
         let dbt = self.unlocked_inner.database.transaction();
         TableDBTransaction::new(self.clone(), dbt)
     }
 
     /// Store a key with a value in a column in the TableDB. Performs a single transaction immediately.
+    #[instrument(level = "trace", target = "tstore", skip_all)]
     pub async fn store(&self, col: u32, key: &[u8], value: &[u8]) -> VeilidAPIResult<()> {
         if col >= self.opened_column_count {
             apibail_generic!(format!(
@@ -200,6 +245,7 @@ impl TableDB {
     }
 
     /// Store a key in json format with a value in a column in the TableDB. Performs a single transaction immediately.
+    #[instrument(level = "trace", target = "tstore", skip_all)]
     pub async fn store_json<T>(&self, col: u32, key: &[u8], value: &T) -> VeilidAPIResult<()>
     where
         T: serde::Serialize,
@@ -209,6 +255,7 @@ impl TableDB {
     }
 
     /// Read a key from a column in the TableDB immediately.
+    #[instrument(level = "trace", target = "tstore", skip_all)]
     pub async fn load(&self, col: u32, key: &[u8]) -> VeilidAPIResult<Option<Vec<u8>>> {
         if col >= self.opened_column_count {
             apibail_generic!(format!(
@@ -225,6 +272,7 @@ impl TableDB {
     }
 
     /// Read an serde-json key from a column in the TableDB immediately
+    #[instrument(level = "trace", target = "tstore", skip_all)]
     pub async fn load_json<T>(&self, col: u32, key: &[u8]) -> VeilidAPIResult<Option<T>>
     where
         T: for<'de> serde::Deserialize<'de>,
@@ -237,6 +285,7 @@ impl TableDB {
     }
 
     /// Delete key with from a column in the TableDB
+    #[instrument(level = "trace", target = "tstore", skip_all)]
     pub async fn delete(&self, col: u32, key: &[u8]) -> VeilidAPIResult<Option<Vec<u8>>> {
         if col >= self.opened_column_count {
             apibail_generic!(format!(
@@ -255,6 +304,7 @@ impl TableDB {
     }
 
     /// Delete serde-json key with from a column in the TableDB
+    #[instrument(level = "trace", target = "tstore", skip_all)]
     pub async fn delete_json<T>(&self, col: u32, key: &[u8]) -> VeilidAPIResult<Option<T>>
     where
         T: for<'de> serde::Deserialize<'de>,
@@ -303,6 +353,7 @@ impl TableDBTransaction {
     }
 
     /// Commit the transaction. Performs all actions atomically.
+    #[instrument(level = "trace", target = "tstore", skip_all)]
     pub async fn commit(self) -> VeilidAPIResult<()> {
         let dbt = {
             let mut inner = self.inner.lock();
@@ -319,12 +370,14 @@ impl TableDBTransaction {
     }
 
     /// Rollback the transaction. Does nothing to the TableDB.
+    #[instrument(level = "trace", target = "tstore", skip_all)]
     pub fn rollback(self) {
         let mut inner = self.inner.lock();
         inner.dbt = None;
     }
 
     /// Store a key with a value in a column in the TableDB
+    #[instrument(level = "trace", target = "tstore", skip_all)]
     pub fn store(&self, col: u32, key: &[u8], value: &[u8]) -> VeilidAPIResult<()> {
         if col >= self.db.opened_column_count {
             apibail_generic!(format!(
@@ -341,6 +394,7 @@ impl TableDBTransaction {
     }
 
     /// Store a key in json format with a value in a column in the TableDB
+    #[instrument(level = "trace", target = "tstore", skip_all)]
     pub fn store_json<T>(&self, col: u32, key: &[u8], value: &T) -> VeilidAPIResult<()>
     where
         T: serde::Serialize,
@@ -350,6 +404,7 @@ impl TableDBTransaction {
     }
 
     /// Delete key with from a column in the TableDB
+    #[instrument(level = "trace", target = "tstore", skip_all)]
     pub fn delete(&self, col: u32, key: &[u8]) -> VeilidAPIResult<()> {
         if col >= self.db.opened_column_count {
             apibail_generic!(format!(

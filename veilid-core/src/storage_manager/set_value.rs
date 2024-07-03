@@ -25,6 +25,7 @@ pub(super) struct OutboundSetValueResult {
 
 impl StorageManager {
     /// Perform a 'set value' query on the network
+    #[instrument(level = "trace", target = "dht", skip_all, err)]
     pub(super) async fn outbound_set_value(
         &self,
         rpc_processor: RPCProcessor,
@@ -272,6 +273,7 @@ impl StorageManager {
         Ok(out_rx)
     }
 
+    #[instrument(level = "trace", target = "dht", skip_all)]
     pub(super) fn process_deferred_outbound_set_value_result_inner(&self, inner: &mut StorageManagerInner, 
         res_rx: flume::Receiver<Result<set_value::OutboundSetValueResult, VeilidAPIError>>, 
         key: TypedKey, subkey: ValueSubkey, last_value_data: ValueData, safety_selection: SafetySelection, ) {
@@ -333,6 +335,7 @@ impl StorageManager {
         );
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub(super) async fn process_outbound_set_value_result(&self, key: TypedKey, subkey: ValueSubkey, last_value_data: ValueData, safety_selection: SafetySelection, result: set_value::OutboundSetValueResult) -> Result<Option<ValueData>, VeilidAPIError> {
 
         // Regain the lock after network access
@@ -370,6 +373,7 @@ impl StorageManager {
     /// Handle a received 'Set Value' query
     /// Returns a None if the value passed in was set
     /// Returns a Some(current value) if the value was older and the current value was kept
+    #[instrument(level = "trace", target = "dht", skip_all)]
     pub async fn inbound_set_value(
         &self,
         key: TypedKey,

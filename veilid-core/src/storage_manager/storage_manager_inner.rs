@@ -210,6 +210,7 @@ impl StorageManagerInner {
         Ok(())
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub async fn create_new_owned_local_record(
         &mut self,
         kind: CryptoKind,
@@ -266,6 +267,7 @@ impl StorageManagerInner {
         Ok((dht_key, owner))
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all, err)]
     async fn move_remote_record_to_local(
         &mut self,
         key: TypedKey,
@@ -326,6 +328,7 @@ impl StorageManagerInner {
         Ok(Some((*remote_record.owner(), remote_record.schema())))
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub async fn open_existing_record(
         &mut self,
         key: TypedKey,
@@ -390,6 +393,7 @@ impl StorageManagerInner {
         Ok(Some(descriptor))
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub async fn open_new_record(
         &mut self,
         key: TypedKey,
@@ -454,6 +458,7 @@ impl StorageManagerInner {
         Ok(descriptor)
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub fn get_value_nodes(&self, key: TypedKey) -> VeilidAPIResult<Option<Vec<NodeRef>>> {
         // Get local record store
         let Some(local_record_store) = self.local_record_store.as_ref() else {
@@ -482,6 +487,7 @@ impl StorageManagerInner {
         Ok(opt_value_nodes)
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all)]
     pub(super) fn process_fanout_results<
         'a,
         I: IntoIterator<Item = (ValueSubkey, &'a FanoutResult)>,
@@ -538,6 +544,7 @@ impl StorageManagerInner {
         Ok(self.opened_records.remove(&key))
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub(super) async fn handle_get_local_value(
         &mut self,
         key: TypedKey,
@@ -561,6 +568,7 @@ impl StorageManagerInner {
         })
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub(super) async fn handle_set_local_value(
         &mut self,
         key: TypedKey,
@@ -581,6 +589,7 @@ impl StorageManagerInner {
         Ok(())
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub(super) async fn handle_inspect_local_value(
         &mut self,
         key: TypedKey,
@@ -605,6 +614,7 @@ impl StorageManagerInner {
         })
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub(super) async fn handle_get_remote_value(
         &mut self,
         key: TypedKey,
@@ -628,6 +638,7 @@ impl StorageManagerInner {
         })
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub(super) async fn handle_set_remote_value(
         &mut self,
         key: TypedKey,
@@ -662,6 +673,7 @@ impl StorageManagerInner {
         Ok(())
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub(super) async fn handle_inspect_remote_value(
         &mut self,
         key: TypedKey,
@@ -687,6 +699,7 @@ impl StorageManagerInner {
     }
 
     /// # DHT Key = Hash(ownerKeyKind) of: [ ownerKeyValue, schema ]
+    #[instrument(level = "trace", target = "stor", skip_all)]
     fn get_key<D>(vcrypto: CryptoSystemVersion, record: &Record<D>) -> TypedKey
     where
         D: fmt::Debug + Clone + Serialize,
@@ -701,6 +714,7 @@ impl StorageManagerInner {
         TypedKey::new(vcrypto.kind(), hash)
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all)]
     pub(super) fn add_offline_subkey_write(
         &mut self,
         key: TypedKey,
@@ -718,6 +732,7 @@ impl StorageManagerInner {
             });
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all)]
     pub fn process_deferred_results<T: Send + 'static>(
         &mut self,
         receiver: flume::Receiver<T>,

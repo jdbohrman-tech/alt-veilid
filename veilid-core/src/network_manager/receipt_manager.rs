@@ -198,6 +198,7 @@ impl ReceiptManager {
         Ok(())
     }
 
+    #[instrument(level = "trace", target = "receipt", skip_all)]
     fn perform_callback(
         evt: ReceiptEvent,
         record_mut: &mut ReceiptRecord,
@@ -221,7 +222,7 @@ impl ReceiptManager {
         }
     }
 
-    #[instrument(level = "trace", skip(self))]
+    #[instrument(level = "trace", target = "receipt", skip_all)]
     pub async fn timeout_task_routine(self, now: Timestamp, stop_token: StopToken) {
         // Go through all receipts and build a list of expired nonces
         let mut new_next_oldest_ts: Option<Timestamp> = None;
@@ -270,6 +271,7 @@ impl ReceiptManager {
         }
     }
 
+    #[instrument(level = "trace", target = "receipt", skip_all, err)]
     pub async fn tick(&self) -> EyreResult<()> {
         let (next_oldest_ts, timeout_task, stop_token) = {
             let inner = self.inner.lock();
@@ -318,6 +320,7 @@ impl ReceiptManager {
     }
 
     #[allow(dead_code)]
+    #[instrument(level = "trace", target = "receipt", skip_all)]
     pub fn record_receipt(
         &self,
         receipt: Receipt,
@@ -339,6 +342,7 @@ impl ReceiptManager {
         Self::update_next_oldest_timestamp(&mut inner);
     }
 
+    #[instrument(level = "trace", target = "receipt", skip_all)]
     pub fn record_single_shot_receipt(
         &self,
         receipt: Receipt,

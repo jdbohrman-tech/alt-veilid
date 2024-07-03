@@ -15,10 +15,7 @@ impl RPCProcessor {
     // direct -> node status + sender info
     // safety -> node status
     // private -> nothing
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", skip(self), ret, err)
-    )]
+    #[instrument(level = "trace", target = "rpc", skip(self), ret, err)]
     pub async fn rpc_call_status(
         self,
         dest: Destination,
@@ -159,7 +156,7 @@ impl RPCProcessor {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
 
-    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]
+    #[instrument(level = "trace", target = "rpc", skip(self, msg), fields(msg.operation.op_id), ret, err)]
     pub(crate) async fn process_status_q(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
         // Get the question
         let kind = msg.operation.kind().clone();

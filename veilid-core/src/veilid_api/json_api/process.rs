@@ -234,6 +234,7 @@ impl JsonRequestProcessor {
 
     //////////////////////////////////////////////////////////////////////////////////////
 
+    #[instrument(level = "trace", target = "json_api", skip_all)]
     pub async fn process_routing_context_request(
         &self,
         routing_context: RoutingContext,
@@ -382,6 +383,7 @@ impl JsonRequestProcessor {
         }
     }
 
+    #[instrument(level = "trace", target = "json_api", skip_all)]
     pub async fn process_table_db_request(
         &self,
         table_db: TableDB,
@@ -427,6 +429,7 @@ impl JsonRequestProcessor {
         }
     }
 
+    #[instrument(level = "trace", target = "json_api", skip_all)]
     pub async fn process_table_db_transaction_request(
         &self,
         table_db_transaction: TableDBTransaction,
@@ -461,6 +464,7 @@ impl JsonRequestProcessor {
         }
     }
 
+    #[instrument(level = "trace", target = "json_api", skip_all)]
     pub async fn process_crypto_system_request(
         &self,
         csv: CryptoSystemVersion,
@@ -592,6 +596,7 @@ impl JsonRequestProcessor {
         }
     }
 
+    #[instrument(level = "trace", target = "json_api", skip_all)]
     pub async fn process_request(self, request: Request) -> Response {
         let id = request.id;
 

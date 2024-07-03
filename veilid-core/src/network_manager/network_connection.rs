@@ -220,7 +220,7 @@ impl NetworkConnection {
         }
     }
 
-    #[cfg_attr(feature="verbose-tracing", instrument(level="trace", skip(message, stats), fields(message.len = message.len()), ret))]
+    #[instrument(level="trace", target="net", skip_all)]
     async fn send_internal(
         protocol_connection: &ProtocolNetworkConnection,
         stats: Arc<Mutex<NetworkConnectionStats>>,
@@ -235,7 +235,7 @@ impl NetworkConnection {
         Ok(NetworkResult::Value(()))
     }
 
-    #[cfg_attr(feature="verbose-tracing", instrument(level="trace", skip(stats), fields(ret.len)))]
+    #[instrument(level="trace", target="net", skip_all)]
     async fn recv_internal(
         protocol_connection: &ProtocolNetworkConnection,
         stats: Arc<Mutex<NetworkConnectionStats>>,
@@ -265,6 +265,7 @@ impl NetworkConnection {
 
     // Connection receiver loop
     #[allow(clippy::too_many_arguments)]
+    #[instrument(level="trace", target="net", skip_all)]
     fn process_connection(
         connection_manager: ConnectionManager,
         local_stop_token: StopToken,

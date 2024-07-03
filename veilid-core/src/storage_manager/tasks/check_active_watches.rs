@@ -2,10 +2,10 @@ use super::*;
 
 impl StorageManager {
     // Check if client-side watches on opened records either have dead nodes or if the watch has expired
-    #[instrument(level = "trace", skip(self), err)]
+    #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub(super) async fn check_active_watches_task_routine(
         self,
-        stop_token: StopToken,
+        _stop_token: StopToken,
         _last_ts: Timestamp,
         _cur_ts: Timestamp,
     ) -> EyreResult<()> {

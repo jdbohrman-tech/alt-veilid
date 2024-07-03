@@ -66,6 +66,9 @@ logging:
         level: 'trace'
         grpc_endpoint: 'localhost:4317'
         ignore_log_targets: []
+    flame:
+        enabled: false
+        path: ''
     console:
         enabled: false
 testing:
@@ -443,6 +446,12 @@ pub struct Terminal {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+pub struct Flame {
+    pub enabled: bool,
+    pub path: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Console {
     pub enabled: bool,
 }
@@ -493,6 +502,7 @@ pub struct Logging {
     pub file: File,
     pub api: Api,
     pub otlp: Otlp,
+    pub flame: Flame,
     pub console: Console,
 }
 
@@ -854,6 +864,15 @@ impl Settings {
             .unwrap_or_else(|| PathBuf::from("./veilid-server.conf"))
     }
 
+    /// Determine default flamegraph output path
+    pub fn get_default_flame_path(subnode_index: u16) -> PathBuf {
+        std::env::temp_dir().join(if subnode_index == 0 {
+            "veilid-server.folded".to_owned()
+        } else {
+            format!("veilid-server-{}.folded", subnode_index)
+        })
+    }
+
     #[allow(dead_code)]
     fn get_or_create_private_directory<P: AsRef<Path>>(path: P, group_read: bool) -> bool {
         let path = path.as_ref();
@@ -975,6 +994,8 @@ impl Settings {
         set_config_value!(inner.logging.otlp.level, value);
         set_config_value!(inner.logging.otlp.grpc_endpoint, value);
         set_config_value!(inner.logging.otlp.ignore_log_targets, value);
+        set_config_value!(inner.logging.flame.enabled, value);
+        set_config_value!(inner.logging.flame.path, value);
         set_config_value!(inner.logging.console.enabled, value);
         set_config_value!(inner.testing.subnode_index, value);
         set_config_value!(inner.core.capabilities.disable, value);
@@ -1542,6 +1563,8 @@ mod tests {
             s.logging.otlp.grpc_endpoint,
             NamedSocketAddrs::from_str("localhost:4317").unwrap()
         );
+        assert!(!s.logging.flame.enabled);
+        assert_eq!(s.logging.flame.path, "");
         assert!(!s.logging.console.enabled);
         assert_eq!(s.testing.subnode_index, 0);
 

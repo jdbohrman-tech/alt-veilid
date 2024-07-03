@@ -16,16 +16,13 @@ impl RPCProcessor {
     /// replying to this request received over a private route will leak
     /// the identity of the node and defeat the private route.
     
-    #[cfg_attr(
-        feature = "verbose-tracing",        
-        instrument(level = "trace", skip(self, last_descriptor), 
+    #[instrument(level = "trace", target = "rpc", skip(self, last_descriptor), 
             fields(ret.value.data.len, 
                 ret.value.data.seq, 
                 ret.value.data.writer, 
                 ret.peers.len,
                 ret.latency
-            ),err)
-    )]
+            ),err)]
     pub async fn rpc_call_get_value(
         self,
         dest: Destination,
@@ -168,7 +165,7 @@ impl RPCProcessor {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
 
-    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]
+    #[instrument(level = "trace", target = "rpc", skip(self, msg), fields(msg.operation.op_id), ret, err)]
     pub(crate) async fn process_get_value_q(
         &self,
         msg: RPCMessage,

@@ -208,6 +208,7 @@ where
         Ok(())
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all)]
     fn add_dead_record(&mut self, key: RecordTableKey, record: Record<D>) {
         self.dead_records.push(DeadRecord {
             key,
@@ -216,6 +217,7 @@ where
         });
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all)]
     fn add_to_subkey_cache(&mut self, key: SubkeyTableKey, record_data: RecordData) {
         let record_data_total_size = record_data.total_size();
         // Write to subkey cache
@@ -251,6 +253,7 @@ where
         }
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all)]
     fn remove_from_subkey_cache(&mut self, key: SubkeyTableKey) {
         if let Some(dead_record_data) = self.subkey_cache.remove(&key) {
             self.subkey_cache_total_size
@@ -259,6 +262,7 @@ where
         }
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all)]
     async fn purge_dead_records(&mut self, lazy: bool) {
         let purge_dead_records_mutex = self.purge_dead_records_mutex.clone();
         let _lock = if lazy {
@@ -339,6 +343,7 @@ where
         }
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all)]
     async fn flush_changed_records(&mut self) {
         if self.changed_records.is_empty() {
             return;
@@ -361,12 +366,14 @@ where
         }
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all)]
     pub async fn flush(&mut self) -> EyreResult<()> {
         self.flush_changed_records().await;
         self.purge_dead_records(true).await;
         Ok(())
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub async fn new_record(&mut self, key: TypedKey, record: Record<D>) -> VeilidAPIResult<()> {
         let rtk = RecordTableKey { key };
         if self.record_index.contains_key(&rtk) {
@@ -412,6 +419,7 @@ where
         Ok(())
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub async fn delete_record(&mut self, key: TypedKey) -> VeilidAPIResult<()> {
         // Get the record table key
         let rtk = RecordTableKey { key };
@@ -437,11 +445,13 @@ where
         Ok(())
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all)]
     pub(super) fn contains_record(&mut self, key: TypedKey) -> bool {
         let rtk = RecordTableKey { key };
         self.record_index.contains_key(&rtk)
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all)]
     pub(super) fn with_record<R, F>(&mut self, key: TypedKey, f: F) -> Option<R>
     where
         F: FnOnce(&Record<D>) -> R,
@@ -465,6 +475,7 @@ where
         out
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all)]
     pub(super) fn peek_record<R, F>(&self, key: TypedKey, f: F) -> Option<R>
     where
         F: FnOnce(&Record<D>) -> R,
@@ -479,6 +490,7 @@ where
         out
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all)]
     pub(super) fn with_record_mut<R, F>(&mut self, key: TypedKey, f: F) -> Option<R>
     where
         F: FnOnce(&mut Record<D>) -> R,
@@ -502,6 +514,7 @@ where
         out
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub async fn get_subkey(
         &mut self,
         key: TypedKey,
@@ -573,6 +586,7 @@ where
         }))
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub(crate) async fn peek_subkey(
         &self,
         key: TypedKey,
@@ -641,6 +655,7 @@ where
         }))
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all)]
     async fn update_watched_value(
         &mut self,
         key: TypedKey,
@@ -679,6 +694,7 @@ where
         }
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub async fn set_subkey(
         &mut self,
         key: TypedKey,
@@ -786,6 +802,7 @@ where
         Ok(())
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub async fn inspect_record(
         &mut self,
         key: TypedKey,
@@ -869,6 +886,7 @@ where
         }))
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub async fn _change_existing_watch(
         &mut self,
         key: TypedKey,
@@ -905,6 +923,7 @@ where
         Ok(WatchResult::Rejected)
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub async fn _create_new_watch(
         &mut self,
         key: TypedKey,
@@ -995,7 +1014,7 @@ where
     }
 
     /// Add or update an inbound record watch for changes
-    #[allow(clippy::too_many_arguments)]
+    #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub async fn watch_record(
         &mut self,
         key: TypedKey,
@@ -1053,6 +1072,7 @@ where
 
     /// Clear a specific watch for a record
     /// returns true if the watch was found and cancelled
+    #[instrument(level = "trace", target = "stor", skip_all, err)]
     async fn cancel_watch(
         &mut self,
         key: TypedKey,
@@ -1092,6 +1112,7 @@ where
     }
 
     /// Move watches from one store to another
+    #[instrument(level = "trace", target = "stor", skip_all)]
     pub fn move_watches(
         &mut self,
         key: TypedKey,
@@ -1110,6 +1131,7 @@ where
     }
 
     /// See if any watched records have expired and clear them out
+    #[instrument(level = "trace", target = "stor", skip_all)]
     pub fn check_watched_records(&mut self) {
         let now = get_aligned_timestamp();
         self.watched_records.retain(|key, watch_list| {
@@ -1126,6 +1148,7 @@ where
         });
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all)]
     pub async fn take_value_changes(&mut self, changes: &mut Vec<ValueChangedInfo>) {
         // ValueChangedInfo but without the subkey data that requires a double mutable borrow to get
         struct EarlyValueChangedInfo {
@@ -1220,6 +1243,7 @@ where
     /// This will force a garbage collection of the space immediately
     /// If zero is passed in here, a garbage collection will be performed of dead records
     /// without removing any live records
+    #[instrument(level = "trace", target = "stor", skip_all)]
     pub async fn reclaim_space(&mut self, space: usize) -> usize {
         let mut reclaimed = 0usize;
         while reclaimed < space {

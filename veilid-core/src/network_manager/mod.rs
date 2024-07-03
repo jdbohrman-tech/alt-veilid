@@ -611,7 +611,7 @@ impl NetworkManager {
     }
 
     /// Process a received out-of-band receipt
-    #[instrument(level = "trace", skip(self, receipt_data), ret)]
+    #[instrument(level = "trace", target = "receipt", skip_all)]
     pub async fn handle_out_of_band_receipt<R: AsRef<[u8]>>(
         &self,
         receipt_data: R,
@@ -631,7 +631,7 @@ impl NetworkManager {
     }
 
     /// Process a received in-band receipt
-    #[instrument(level = "trace", skip(self, receipt_data), ret)]
+    #[instrument(level = "trace", target = "receipt", skip_all)]
     pub async fn handle_in_band_receipt<R: AsRef<[u8]>>(
         &self,
         receipt_data: R,
@@ -652,7 +652,7 @@ impl NetworkManager {
     }
 
     /// Process a received safety receipt
-    #[instrument(level = "trace", skip(self, receipt_data), ret)]
+    #[instrument(level = "trace", target = "receipt", skip_all)]
     pub async fn handle_safety_receipt<R: AsRef<[u8]>>(
         &self,
         receipt_data: R,
@@ -672,7 +672,7 @@ impl NetworkManager {
     }
 
     /// Process a received private receipt
-    #[instrument(level = "trace", skip(self, receipt_data), ret)]
+    #[instrument(level = "trace", target = "receipt", skip_all)]
     pub async fn handle_private_receipt<R: AsRef<[u8]>>(
         &self,
         receipt_data: R,
@@ -693,7 +693,7 @@ impl NetworkManager {
     }
 
     // Process a received signal
-    #[instrument(level = "trace", skip(self), err)]
+    #[instrument(level = "trace", target = "receipt", skip_all)]
     pub async fn handle_signal(
         &self,
         signal_flow: Flow,
@@ -792,10 +792,7 @@ impl NetworkManager {
     }
 
     /// Builds an envelope for sending over the network
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", skip(self, body), err)
-    )]
+    #[instrument(level = "trace", target = "receipt", skip_all)]
     fn build_envelope<B: AsRef<[u8]>>(
         &self,
         dest_node_id: TypedKey,
@@ -838,10 +835,7 @@ impl NetworkManager {
     /// node_ref is the direct destination to which the envelope will be sent
     /// If 'destination_node_ref' is specified, it can be different than the node_ref being sent to
     /// which will cause the envelope to be relayed
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", skip(self, body), ret, err)
-    )]
+    #[instrument(level = "trace", target = "receipt", skip_all)]
     pub async fn send_envelope<B: AsRef<[u8]>>(
         &self,
         node_ref: NodeRef,
@@ -879,7 +873,7 @@ impl NetworkManager {
     }
 
     /// Called by the RPC handler when we want to issue an direct receipt
-    #[instrument(level = "debug", skip(self, rcpt_data), err)]
+    #[instrument(level = "trace", target = "receipt", skip_all)]
     pub async fn send_out_of_band_receipt(
         &self,
         dial_info: DialInfo,
@@ -905,7 +899,7 @@ impl NetworkManager {
     // Called when a packet potentially containing an RPC envelope is received by a low-level
     // network protocol handler. Processes the envelope, authenticates and decrypts the RPC message
     // and passes it to the RPC handler
-    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", ret, err, skip(self, data), fields(data.len = data.len())))]
+    #[instrument(level = "trace", target = "receipt", skip_all)]
     async fn on_recv_envelope(&self, data: &mut [u8], flow: Flow) -> EyreResult<bool> {
         #[cfg(feature = "verbose-tracing")]
         let root = span!(

@@ -17,11 +17,13 @@ use std::collections::BTreeMap;
 use std::path::*;
 use std::sync::Arc;
 use tracing_appender::*;
+use tracing_flame::FlameLayer;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::*;
 
 struct VeilidLogsInner {
-    _guard: Option<non_blocking::WorkerGuard>,
+    _file_guard: Option<non_blocking::WorkerGuard>,
+    _flame_guard: Option<tracing_flame::FlushGuard<std::io::BufWriter<std::fs::File>>>,
     filters: BTreeMap<&'static str, veilid_core::VeilidLayerFilter>,
 }
 
@@ -69,6 +71,25 @@ impl VeilidLogs {
                 .with_filter(filter.clone());
             filters.insert("terminal", filter);
             layers.push(layer.boxed());
+        }
+
+        // Flamegraph logger
+        let mut flame_guard = None;
+        if settingsr.logging.flame.enabled {
+            let filter = veilid_core::VeilidLayerFilter::new(
+                convert_loglevel(LogLevel::Trace),
+                &[], //&settingsr.logging.terminal.ignore_log_targets,
+            );
+            let (flame_layer, guard) = FlameLayer::with_file(&settingsr.logging.flame.path)?;
+            flame_guard = Some(guard);
+            filters.insert("flame", filter.clone());
+            layers.push(
+                flame_layer
+                    .with_threads_collapsed(true)
+                    .with_empty_samples(false)
+                    .with_filter(filter)
+                    .boxed(),
+            );
         }
 
         // OpenTelemetry logger
@@ -121,7 +142,7 @@ impl VeilidLogs {
         }
 
         // File logger
-        let mut guard = None;
+        let mut file_guard = None;
         if settingsr.logging.file.enabled {
             let log_path = Path::new(&settingsr.logging.file.path);
             let full_path = std::env::current_dir()
@@ -143,7 +164,7 @@ impl VeilidLogs {
             let appender = tracing_appender::rolling::never(log_parent, Path::new(log_filename));
             let (non_blocking_appender, non_blocking_guard) =
                 tracing_appender::non_blocking(appender);
-            guard = Some(non_blocking_guard);
+            file_guard = Some(non_blocking_guard);
 
             let filter = veilid_core::VeilidLayerFilter::new(
                 convert_loglevel(settingsr.logging.file.level),
@@ -192,7 +213,8 @@ impl VeilidLogs {
 
         Ok(VeilidLogs {
             inner: Arc::new(Mutex::new(VeilidLogsInner {
-                _guard: guard,
+                _file_guard: file_guard,
+                _flame_guard: flame_guard,
                 filters,
             })),
         })

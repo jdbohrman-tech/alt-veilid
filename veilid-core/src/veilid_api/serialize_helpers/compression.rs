@@ -1,10 +1,12 @@
 use super::*;
 use lz4_flex::block;
 
+#[instrument(level = "trace", target = "veilid_api", skip_all)]
 pub fn compress_prepend_size(input: &[u8]) -> Vec<u8> {
     block::compress_prepend_size(input)
 }
 
+#[instrument(level = "trace", target = "veilid_api", skip_all)]
 pub fn decompress_size_prepended(
     input: &[u8],
     max_size: Option<usize>,

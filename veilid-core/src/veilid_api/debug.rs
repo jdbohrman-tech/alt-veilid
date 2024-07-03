@@ -1910,6 +1910,73 @@ impl VeilidAPI {
         }
     }
 
+    async fn debug_table_list(&self, _args: Vec<String>) -> VeilidAPIResult<String> {
+        //
+        let table_store = self.table_store()?;
+        let table_names = table_store.list_all();
+        let out = format!(
+            "TableStore tables:\n{}",
+            table_names
+                .iter()
+                .map(|(k, v)| format!("{} ({})", k, v))
+                .collect::<Vec<String>>()
+                .join("\n")
+        );
+        Ok(out)
+    }
+
+    fn _format_columns(columns: &[table_store::ColumnInfo]) -> String {
+        let mut out = String::new();
+        for (n, col) in columns.iter().enumerate() {
+            //
+            out += &format!("Column {}:\n", n);
+            out += &format!("  Key Count: {}\n", col.key_count);
+        }
+        out
+    }
+
+    async fn debug_table_info(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+        //
+        let table_store = self.table_store()?;
+
+        let table_name = get_debug_argument_at(&args, 1, "debug_table_info", "name", get_string)?;
+
+        let Some(info) = table_store.info(&table_name).await? else {
+            return Ok(format!("Table '{}' does not exist", table_name));
+        };
+
+        let info_str = format!(
+            "Table Name: {}\n\
+            Column Count: {}\n\
+            IO Stats (since previous query):\n{}\n\
+            IO Stats (overall):\n{}\n\
+            Columns:\n{}\n",
+            info.table_name,
+            info.column_count,
+            indent::indent_all_by(4, format!("{:#?}", info.io_stats_since_previous)),
+            indent::indent_all_by(4, format!("{:#?}", info.io_stats_overall)),
+            Self::_format_columns(&info.columns),
+        );
+
+        let out = format!("Table info for '{}':\n{}", table_name, info_str);
+        Ok(out)
+    }
+
+    async fn debug_table(&self, args: String) -> VeilidAPIResult<String> {
+        let args: Vec<String> =
+            shell_words::split(&args).map_err(|e| VeilidAPIError::parse_error(e, args))?;
+
+        let command = get_debug_argument_at(&args, 0, "debug_table", "command", get_string)?;
+
+        if command == "list" {
+            self.debug_table_list(args).await
+        } else if command == "info" {
+            self.debug_table_info(args).await
+        } else {
+            Ok(">>> Unknown command\n".to_owned())
+        }
+    }
+
     async fn debug_punish_list(&self, _args: Vec<String>) -> VeilidAPIResult<String> {
         //
         let network_manager = self.network_manager()?;
@@ -1988,6 +2055,7 @@ record list <local|remote|opened|offline>
        watch [<key>] [<subkeys> [<expiration> [<count>]]]
        cancel [<key>] [<subkeys>]
        inspect [<key>] [<scope> [<subkeys>]]
+table list
 --------------------------------------------------------------------
 <key> is: VLD0:GsgXCRPrzSK6oBNgxhNpm-rTYFd02R0ySx6j9vbQBG4
     * also <node>, <relay>, <target>, <route>
@@ -2081,6 +2149,8 @@ record list <local|remote|opened|offline>
                 self.debug_record(rest).await
             } else if arg == "punish" {
                 self.debug_punish(rest).await
+            } else if arg == "table" {
+                self.debug_table(rest).await
             } else {
                 Err(VeilidAPIError::generic("Unknown server debug command"))
             }

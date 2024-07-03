@@ -11,6 +11,7 @@ impl NetworkManager {
     ///
     /// Sending to a node requires determining a NetworkClass compatible contact method 
     /// between the source and destination node
+    #[instrument(level="trace", target="net", skip_all, err)]
     pub(crate) async fn send_data(
         &self,
         destination_node_ref: NodeRef,
@@ -149,6 +150,7 @@ impl NetworkManager {
     }
 
     /// Send data using NodeContactMethod::Existing
+    #[instrument(level="trace", target="net", skip_all, err)]
     async fn send_data_ncm_existing(
         &self,
         target_node_ref: NodeRef,
@@ -185,6 +187,7 @@ impl NetworkManager {
     }
 
     /// Send data using NodeContactMethod::Unreachable
+    #[instrument(level="trace", target="net", skip_all, err)]
     async fn send_data_ncm_unreachable(
         &self,
         target_node_ref: NodeRef,
@@ -221,6 +224,7 @@ impl NetworkManager {
     }
 
     /// Send data using NodeContactMethod::SignalReverse
+    #[instrument(level="trace", target="net", skip_all, err)]
     async fn send_data_ncm_signal_reverse(
         &self,
         relay_nr: NodeRef,
@@ -268,6 +272,7 @@ impl NetworkManager {
     }
 
     /// Send data using NodeContactMethod::SignalHolePunch
+    #[instrument(level="trace", target="net", skip_all, err)]
     async fn send_data_ncm_signal_hole_punch(
         &self,
         relay_nr: NodeRef,
@@ -313,6 +318,7 @@ impl NetworkManager {
     }
 
     /// Send data using NodeContactMethod::Direct
+    #[instrument(level="trace", target="net", skip_all, err)]
     async fn send_data_ncm_direct(
         &self,
         node_ref: NodeRef,
@@ -372,6 +378,7 @@ impl NetworkManager {
     /// Figure out how to reach a node from our own node over the best routing domain and reference the nodes we want to access
     /// Uses NodeRefs to ensure nodes are referenced, this is not a part of 'RoutingTable' because RoutingTable is not
     /// allowed to use NodeRefs due to recursive locking
+    #[instrument(level="trace", target="net", skip_all, err)]
     pub(crate) fn get_node_contact_method(
         &self,
         target_node_ref: NodeRef,
@@ -544,10 +551,7 @@ impl NetworkManager {
     /// Send a reverse connection signal and wait for the return receipt over it
     /// Then send the data across the new connection
     /// Only usable for PublicInternet routing domain
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", skip(self, data), err)
-    )]
+    #[instrument(level="trace", target="net", skip_all, err)]
     async fn do_reverse_connect(
         &self,
         relay_nr: NodeRef,
@@ -636,10 +640,7 @@ impl NetworkManager {
     /// Send a hole punch signal and do a negotiating ping and wait for the return receipt
     /// Then send the data across the new connection
     /// Only usable for PublicInternet routing domain
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", skip(self, data), err)
-    )]
+    #[instrument(level="trace", target="net", skip_all, err)]
     async fn do_hole_punch(
         &self,
         relay_nr: NodeRef,

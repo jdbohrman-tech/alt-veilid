@@ -18,6 +18,53 @@ use keyvaluedb::*;
 
 const ALL_TABLE_NAMES: &[u8] = b"all_table_names";
 
+/// Description of column
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+pub struct ColumnInfo {
+    pub key_count: AlignedU64,
+}
+
+/// IO Stats for table
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+pub struct IOStatsInfo {
+    /// Number of transaction.
+    pub transactions: AlignedU64,
+    /// Number of read operations.
+    pub reads: AlignedU64,
+    /// Number of reads resulted in a read from cache.
+    pub cache_reads: AlignedU64,
+    /// Number of write operations.
+    pub writes: AlignedU64,
+    /// Number of bytes read
+    pub bytes_read: AlignedU64,
+    /// Number of bytes read from cache
+    pub cache_read_bytes: AlignedU64,
+    /// Number of bytes write
+    pub bytes_written: AlignedU64,
+    /// Start of the statistic period.
+    pub started: Timestamp,
+    /// Total duration of the statistic period.
+    pub span: TimestampDuration,
+}
+
+/// Description of table
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+pub struct TableInfo {
+    /// Internal table name
+    pub table_name: String,
+    /// IO statistics since previous query
+    pub io_stats_since_previous: IOStatsInfo,
+    /// IO statistics since database open
+    pub io_stats_overall: IOStatsInfo,
+    /// Total number of columns in the table
+    pub column_count: u32,
+    /// Column descriptions
+    pub columns: Vec<ColumnInfo>,
+}
+
 struct TableStoreInner {
     opened: BTreeMap<String, Weak<TableDBUnlockedInner>>,
     encryption_key: Option<TypedSharedSecret>,
@@ -123,6 +170,7 @@ impl TableStore {
         Ok(real_name)
     }
 
+    #[instrument(level = "trace", target = "tstore", skip_all)]
     async fn name_delete(&self, table: &str) -> VeilidAPIResult<Option<String>> {
         let name = self.namespaced_name(table)?;
         let mut inner = self.inner.lock();
@@ -130,6 +178,7 @@ impl TableStore {
         Ok(real_name)
     }
 
+    #[instrument(level = "trace", target = "tstore", skip_all)]
     async fn name_get(&self, table: &str) -> VeilidAPIResult<Option<String>> {
         let name = self.namespaced_name(table)?;
         let inner = self.inner.lock();
@@ -137,6 +186,7 @@ impl TableStore {
         Ok(real_name)
     }
 
+    #[instrument(level = "trace", target = "tstore", skip_all)]
     async fn name_rename(&self, old_table: &str, new_table: &str) -> VeilidAPIResult<()> {
         let old_name = self.namespaced_name(old_table)?;
         let new_name = self.namespaced_name(new_table)?;
@@ -156,8 +206,20 @@ impl TableStore {
         Ok(())
     }
 
+    /// List all known tables
+    #[instrument(level = "trace", target = "tstore", skip_all)]
+    pub fn list_all(&self) -> Vec<(String, String)> {
+        let inner = self.inner.lock();
+        inner
+            .all_table_names
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect::<Vec<(String, String)>>()
+    }
+
     /// Delete all known tables
-    async fn delete_all(&self) {
+    #[instrument(level = "trace", target = "tstore", skip_all)]
+    pub async fn delete_all(&self) {
         // Get all tables
         let real_names = {
             let mut inner = self.inner.lock();
@@ -179,6 +241,7 @@ impl TableStore {
         self.flush().await;
     }
 
+    #[instrument(level = "trace", target = "tstore", skip_all)]
     pub(crate) fn maybe_unprotect_device_encryption_key(
         &self,
         dek_bytes: &[u8],
@@ -230,6 +293,7 @@ impl TableStore {
         ))
     }
 
+    #[instrument(level = "trace", target = "tstore", skip_all)]
     pub(crate) fn maybe_protect_device_encryption_key(
         &self,
         dek: TypedSharedSecret,
@@ -267,6 +331,7 @@ impl TableStore {
         Ok(out)
     }
 
+    #[instrument(level = "trace", target = "tstore", skip_all)]
     async fn load_device_encryption_key(&self) -> EyreResult<Option<TypedSharedSecret>> {
         let dek_bytes: Option<Vec<u8>> = self
             .protected_store
@@ -288,6 +353,8 @@ impl TableStore {
             &device_encryption_key_password,
         )?))
     }
+
+    #[instrument(level = "trace", target = "tstore", skip_all)]
     async fn save_device_encryption_key(
         &self,
         device_encryption_key: Option<TypedSharedSecret>,
@@ -313,7 +380,9 @@ impl TableStore {
                 log_tstore!(debug "changing dek password");
                 self.config
                     .with_mut(|c| {
-                        c.protected_store.device_encryption_key_password.clone_from(&new_device_encryption_key_password);
+                        c.protected_store
+                            .device_encryption_key_password
+                            .clone_from(&new_device_encryption_key_password);
                         Ok(new_device_encryption_key_password)
                     })
                     .unwrap()
@@ -338,6 +407,7 @@ impl TableStore {
         Ok(())
     }
 
+    #[instrument(level = "trace", target = "tstore", skip_all)]
     pub(crate) async fn init(&self) -> EyreResult<()> {
         let _async_guard = self.async_lock.lock().await;
 
@@ -417,6 +487,7 @@ impl TableStore {
         Ok(())
     }
 
+    #[instrument(level = "trace", target = "tstore", skip_all)]
     pub(crate) async fn terminate(&self) {
         let _async_guard = self.async_lock.lock().await;
 
@@ -434,6 +505,7 @@ impl TableStore {
         inner.encryption_key = None;
     }
 
+    #[instrument(level = "trace", target = "tstore", skip_all)]
     pub(crate) fn on_table_db_drop(&self, table: String) {
         log_rtab!("dropping table db: {}", table);
         let mut inner = self.inner.lock();
@@ -444,6 +516,7 @@ impl TableStore {
 
     /// Get or create a TableDB database table. If the column count is greater than an
     /// existing TableDB's column count, the database will be upgraded to add the missing columns.
+    #[instrument(level = "trace", target = "tstore", skip_all)]
     pub async fn open(&self, name: &str, column_count: u32) -> VeilidAPIResult<TableDB> {
         let _async_guard = self.async_lock.lock().await;
 
@@ -531,12 +604,13 @@ impl TableStore {
         // Keep track of opened DBs
         inner
             .opened
-            .insert(table_name.clone(), table_db.weak_inner());
+            .insert(table_name.clone(), table_db.weak_unlocked_inner());
 
         Ok(table_db)
     }
 
     /// Delete a TableDB table by name
+    #[instrument(level = "trace", target = "tstore", skip_all)]
     pub async fn delete(&self, name: &str) -> VeilidAPIResult<bool> {
         let _async_guard = self.async_lock.lock().await;
         // If we aren't initialized yet, bail
@@ -575,7 +649,65 @@ impl TableStore {
         Ok(true)
     }
 
+    /// Get the description of a TableDB table
+    #[instrument(level = "trace", target = "tstore", skip_all)]
+    pub async fn info(&self, name: &str) -> VeilidAPIResult<Option<TableInfo>> {
+        // Open with the default number of columns
+        let tdb = self.open(name, 0).await?;
+        let internal_name = tdb.table_name();
+        let io_stats_since_previous = tdb.io_stats(IoStatsKind::SincePrevious);
+        let io_stats_overall = tdb.io_stats(IoStatsKind::Overall);
+        let column_count = tdb.get_column_count()?;
+        let mut columns = Vec::<ColumnInfo>::with_capacity(column_count as usize);
+        for col in 0..column_count {
+            let key_count = tdb.get_key_count(col).await?;
+            columns.push(ColumnInfo {
+                key_count: AlignedU64::new(key_count),
+            })
+        }
+        Ok(Some(TableInfo {
+            table_name: internal_name,
+            io_stats_since_previous: IOStatsInfo {
+                transactions: AlignedU64::new(io_stats_since_previous.transactions),
+                reads: AlignedU64::new(io_stats_since_previous.reads),
+                cache_reads: AlignedU64::new(io_stats_since_previous.cache_reads),
+                writes: AlignedU64::new(io_stats_since_previous.writes),
+                bytes_read: AlignedU64::new(io_stats_since_previous.bytes_read),
+                cache_read_bytes: AlignedU64::new(io_stats_since_previous.cache_read_bytes),
+                bytes_written: AlignedU64::new(io_stats_since_previous.bytes_written),
+                started: Timestamp::new(
+                    io_stats_since_previous
+                        .started
+                        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_micros() as u64,
+                ),
+                span: TimestampDuration::new(io_stats_since_previous.span.as_micros() as u64),
+            },
+            io_stats_overall: IOStatsInfo {
+                transactions: AlignedU64::new(io_stats_overall.transactions),
+                reads: AlignedU64::new(io_stats_overall.reads),
+                cache_reads: AlignedU64::new(io_stats_overall.cache_reads),
+                writes: AlignedU64::new(io_stats_overall.writes),
+                bytes_read: AlignedU64::new(io_stats_overall.bytes_read),
+                cache_read_bytes: AlignedU64::new(io_stats_overall.cache_read_bytes),
+                bytes_written: AlignedU64::new(io_stats_overall.bytes_written),
+                started: Timestamp::new(
+                    io_stats_overall
+                        .started
+                        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_micros() as u64,
+                ),
+                span: TimestampDuration::new(io_stats_overall.span.as_micros() as u64),
+            },
+            column_count,
+            columns,
+        }))
+    }
+
     /// Rename a TableDB table
+    #[instrument(level = "trace", target = "tstore", skip_all)]
     pub async fn rename(&self, old_name: &str, new_name: &str) -> VeilidAPIResult<()> {
         let _async_guard = self.async_lock.lock().await;
         // If we aren't initialized yet, bail

@@ -66,6 +66,7 @@ impl Envelope {
         }
     }
 
+    #[instrument(level = "trace", target = "envelope", skip_all, err)]
     pub fn from_signed_data(
         crypto: Crypto,
         data: &[u8],
@@ -190,6 +191,7 @@ impl Envelope {
         })
     }
 
+    #[instrument(level = "trace", target = "envelope", skip_all, err)]
     pub fn decrypt_body(
         &self,
         crypto: Crypto,
@@ -222,6 +224,7 @@ impl Envelope {
         Ok(body)
     }
 
+    #[instrument(level = "trace", target = "envelope", skip_all, err)]
     pub fn to_encrypted_data(
         &self,
         crypto: Crypto,

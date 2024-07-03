@@ -19,13 +19,12 @@ impl RPCProcessor {
     ///  * the amount requested
     ///  * an amount truncated to MAX_INSPECT_VALUE_A_SEQS_LEN subkeys
     ///  * zero if nothing was found
-    #[cfg_attr(
-        feature = "verbose-tracing",        
-        instrument(level = "trace", skip(self, last_descriptor), 
+    #[  
+        instrument(level = "trace", target = "rpc", skip(self, last_descriptor), 
             fields(ret.peers.len,
                 ret.latency
             ),err)
-    )]
+    ]
     pub async fn rpc_call_inspect_value(
         self,
         dest: Destination,
@@ -153,7 +152,7 @@ impl RPCProcessor {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
 
-    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]
+    #[instrument(level = "trace", target = "rpc", skip(self, msg), fields(msg.operation.op_id), ret, err)]
     pub(crate) async fn process_inspect_value_q(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
         // Ensure this never came over a private route, safety route is okay though
         match &msg.header.detail {

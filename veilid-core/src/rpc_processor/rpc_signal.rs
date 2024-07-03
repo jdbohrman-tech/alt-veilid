@@ -3,10 +3,7 @@ use super::*;
 impl RPCProcessor {
     // Sends a unidirectional signal to a node
     // Can be sent via relays but not routes. For routed 'signal' like capabilities, use AppMessage.
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", skip(self), ret, err)
-    )]
+    #[instrument(level = "trace", target = "rpc", skip(self), ret, err)]
     pub async fn rpc_call_signal(
         self,
         dest: Destination,
@@ -34,7 +31,7 @@ impl RPCProcessor {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
 
-    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", skip(self, msg), fields(msg.operation.op_id), ret, err))]
+    #[instrument(level = "trace", target = "rpc", skip(self, msg), fields(msg.operation.op_id), ret, err)]
     pub(crate) async fn process_signal(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
         // Ignore if disabled
         let routing_table = self.routing_table();
