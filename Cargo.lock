@@ -5992,6 +5992,7 @@ dependencies = [
  "tokio-stream",
  "tokio-util",
  "tracing",
+ "tracing-flame",
  "tracing-opentelemetry",
  "tracing-subscriber",
  "veilid-core",

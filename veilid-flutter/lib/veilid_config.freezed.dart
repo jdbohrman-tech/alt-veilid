@@ -692,6 +692,182 @@ abstract class _VeilidFFIConfigLoggingApi implements VeilidFFIConfigLoggingApi {
       get copyWith => throw _privateConstructorUsedError;
 }
 
+VeilidFFIConfigLoggingFlame _$VeilidFFIConfigLoggingFlameFromJson(
+    Map<String, dynamic> json) {
+  return _VeilidFFIConfigLoggingFlame.fromJson(json);
+}
+
+/// @nodoc
+mixin _$VeilidFFIConfigLoggingFlame {
+  bool get enabled => throw _privateConstructorUsedError;
+  String get path => throw _privateConstructorUsedError;
+
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+  @JsonKey(ignore: true)
+  $VeilidFFIConfigLoggingFlameCopyWith<VeilidFFIConfigLoggingFlame>
+      get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $VeilidFFIConfigLoggingFlameCopyWith<$Res> {
+  factory $VeilidFFIConfigLoggingFlameCopyWith(
+          VeilidFFIConfigLoggingFlame value,
+          $Res Function(VeilidFFIConfigLoggingFlame) then) =
+      _$VeilidFFIConfigLoggingFlameCopyWithImpl<$Res,
+          VeilidFFIConfigLoggingFlame>;
+  @useResult
+  $Res call({bool enabled, String path});
+}
+
+/// @nodoc
+class _$VeilidFFIConfigLoggingFlameCopyWithImpl<$Res,
+        $Val extends VeilidFFIConfigLoggingFlame>
+    implements $VeilidFFIConfigLoggingFlameCopyWith<$Res> {
+  _$VeilidFFIConfigLoggingFlameCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? enabled = null,
+    Object? path = null,
+  }) {
+    return _then(_value.copyWith(
+      enabled: null == enabled
+          ? _value.enabled
+          : enabled // ignore: cast_nullable_to_non_nullable
+              as bool,
+      path: null == path
+          ? _value.path
+          : path // ignore: cast_nullable_to_non_nullable
+              as String,
+    ) as $Val);
+  }
+}
+
+/// @nodoc
+abstract class _$$VeilidFFIConfigLoggingFlameImplCopyWith<$Res>
+    implements $VeilidFFIConfigLoggingFlameCopyWith<$Res> {
+  factory _$$VeilidFFIConfigLoggingFlameImplCopyWith(
+          _$VeilidFFIConfigLoggingFlameImpl value,
+          $Res Function(_$VeilidFFIConfigLoggingFlameImpl) then) =
+      __$$VeilidFFIConfigLoggingFlameImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({bool enabled, String path});
+}
+
+/// @nodoc
+class __$$VeilidFFIConfigLoggingFlameImplCopyWithImpl<$Res>
+    extends _$VeilidFFIConfigLoggingFlameCopyWithImpl<$Res,
+        _$VeilidFFIConfigLoggingFlameImpl>
+    implements _$$VeilidFFIConfigLoggingFlameImplCopyWith<$Res> {
+  __$$VeilidFFIConfigLoggingFlameImplCopyWithImpl(
+      _$VeilidFFIConfigLoggingFlameImpl _value,
+      $Res Function(_$VeilidFFIConfigLoggingFlameImpl) _then)
+      : super(_value, _then);
+
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? enabled = null,
+    Object? path = null,
+  }) {
+    return _then(_$VeilidFFIConfigLoggingFlameImpl(
+      enabled: null == enabled
+          ? _value.enabled
+          : enabled // ignore: cast_nullable_to_non_nullable
+              as bool,
+      path: null == path
+          ? _value.path
+          : path // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$VeilidFFIConfigLoggingFlameImpl
+    with DiagnosticableTreeMixin
+    implements _VeilidFFIConfigLoggingFlame {
+  const _$VeilidFFIConfigLoggingFlameImpl(
+      {required this.enabled, required this.path});
+
+  factory _$VeilidFFIConfigLoggingFlameImpl.fromJson(
+          Map<String, dynamic> json) =>
+      _$$VeilidFFIConfigLoggingFlameImplFromJson(json);
+
+  @override
+  final bool enabled;
+  @override
+  final String path;
+
+  @override
+  String toString({DiagnosticLevel minLevel = DiagnosticLevel.info}) {
+    return 'VeilidFFIConfigLoggingFlame(enabled: $enabled, path: $path)';
+  }
+
+  @override
+  void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+    super.debugFillProperties(properties);
+    properties
+      ..add(DiagnosticsProperty('type', 'VeilidFFIConfigLoggingFlame'))
+      ..add(DiagnosticsProperty('enabled', enabled))
+      ..add(DiagnosticsProperty('path', path));
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$VeilidFFIConfigLoggingFlameImpl &&
+            (identical(other.enabled, enabled) || other.enabled == enabled) &&
+            (identical(other.path, path) || other.path == path));
+  }
+
+  @JsonKey(ignore: true)
+  @override
+  int get hashCode => Object.hash(runtimeType, enabled, path);
+
+  @JsonKey(ignore: true)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$VeilidFFIConfigLoggingFlameImplCopyWith<_$VeilidFFIConfigLoggingFlameImpl>
+      get copyWith => __$$VeilidFFIConfigLoggingFlameImplCopyWithImpl<
+          _$VeilidFFIConfigLoggingFlameImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$VeilidFFIConfigLoggingFlameImplToJson(
+      this,
+    );
+  }
+}
+
+abstract class _VeilidFFIConfigLoggingFlame
+    implements VeilidFFIConfigLoggingFlame {
+  const factory _VeilidFFIConfigLoggingFlame(
+      {required final bool enabled,
+      required final String path}) = _$VeilidFFIConfigLoggingFlameImpl;
+
+  factory _VeilidFFIConfigLoggingFlame.fromJson(Map<String, dynamic> json) =
+      _$VeilidFFIConfigLoggingFlameImpl.fromJson;
+
+  @override
+  bool get enabled;
+  @override
+  String get path;
+  @override
+  @JsonKey(ignore: true)
+  _$$VeilidFFIConfigLoggingFlameImplCopyWith<_$VeilidFFIConfigLoggingFlameImpl>
+      get copyWith => throw _privateConstructorUsedError;
+}
+
 VeilidFFIConfigLogging _$VeilidFFIConfigLoggingFromJson(
     Map<String, dynamic> json) {
   return _VeilidFFIConfigLogging.fromJson(json);
@@ -703,6 +879,7 @@ mixin _$VeilidFFIConfigLogging {
       throw _privateConstructorUsedError;
   VeilidFFIConfigLoggingOtlp get otlp => throw _privateConstructorUsedError;
   VeilidFFIConfigLoggingApi get api => throw _privateConstructorUsedError;
+  VeilidFFIConfigLoggingFlame get flame => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
@@ -719,11 +896,13 @@ abstract class $VeilidFFIConfigLoggingCopyWith<$Res> {
   $Res call(
       {VeilidFFIConfigLoggingTerminal terminal,
       VeilidFFIConfigLoggingOtlp otlp,
-      VeilidFFIConfigLoggingApi api});
+      VeilidFFIConfigLoggingApi api,
+      VeilidFFIConfigLoggingFlame flame});
 
   $VeilidFFIConfigLoggingTerminalCopyWith<$Res> get terminal;
   $VeilidFFIConfigLoggingOtlpCopyWith<$Res> get otlp;
   $VeilidFFIConfigLoggingApiCopyWith<$Res> get api;
+  $VeilidFFIConfigLoggingFlameCopyWith<$Res> get flame;
 }
 
 /// @nodoc
@@ -743,6 +922,7 @@ class _$VeilidFFIConfigLoggingCopyWithImpl<$Res,
     Object? terminal = null,
     Object? otlp = null,
     Object? api = null,
+    Object? flame = null,
   }) {
     return _then(_value.copyWith(
       terminal: null == terminal
@@ -757,6 +937,10 @@ class _$VeilidFFIConfigLoggingCopyWithImpl<$Res,
           ? _value.api
           : api // ignore: cast_nullable_to_non_nullable
               as VeilidFFIConfigLoggingApi,
+      flame: null == flame
+          ? _value.flame
+          : flame // ignore: cast_nullable_to_non_nullable
+              as VeilidFFIConfigLoggingFlame,
     ) as $Val);
   }
 
@@ -784,6 +968,14 @@ class _$VeilidFFIConfigLoggingCopyWithImpl<$Res,
       return _then(_value.copyWith(api: value) as $Val);
     });
   }
+
+  @override
+  @pragma('vm:prefer-inline')
+  $VeilidFFIConfigLoggingFlameCopyWith<$Res> get flame {
+    return $VeilidFFIConfigLoggingFlameCopyWith<$Res>(_value.flame, (value) {
+      return _then(_value.copyWith(flame: value) as $Val);
+    });
+  }
 }
 
 /// @nodoc
@@ -798,7 +990,8 @@ abstract class _$$VeilidFFIConfigLoggingImplCopyWith<$Res>
   $Res call(
       {VeilidFFIConfigLoggingTerminal terminal,
       VeilidFFIConfigLoggingOtlp otlp,
-      VeilidFFIConfigLoggingApi api});
+      VeilidFFIConfigLoggingApi api,
+      VeilidFFIConfigLoggingFlame flame});
 
   @override
   $VeilidFFIConfigLoggingTerminalCopyWith<$Res> get terminal;
@@ -806,6 +999,8 @@ abstract class _$$VeilidFFIConfigLoggingImplCopyWith<$Res>
   $VeilidFFIConfigLoggingOtlpCopyWith<$Res> get otlp;
   @override
   $VeilidFFIConfigLoggingApiCopyWith<$Res> get api;
+  @override
+  $VeilidFFIConfigLoggingFlameCopyWith<$Res> get flame;
 }
 
 /// @nodoc
@@ -824,6 +1019,7 @@ class __$$VeilidFFIConfigLoggingImplCopyWithImpl<$Res>
     Object? terminal = null,
     Object? otlp = null,
     Object? api = null,
+    Object? flame = null,
   }) {
     return _then(_$VeilidFFIConfigLoggingImpl(
       terminal: null == terminal
@@ -838,6 +1034,10 @@ class __$$VeilidFFIConfigLoggingImplCopyWithImpl<$Res>
           ? _value.api
           : api // ignore: cast_nullable_to_non_nullable
               as VeilidFFIConfigLoggingApi,
+      flame: null == flame
+          ? _value.flame
+          : flame // ignore: cast_nullable_to_non_nullable
+              as VeilidFFIConfigLoggingFlame,
     ));
   }
 }
@@ -848,7 +1048,10 @@ class _$VeilidFFIConfigLoggingImpl
     with DiagnosticableTreeMixin
     implements _VeilidFFIConfigLogging {
   const _$VeilidFFIConfigLoggingImpl(
-      {required this.terminal, required this.otlp, required this.api});
+      {required this.terminal,
+      required this.otlp,
+      required this.api,
+      required this.flame});
 
   factory _$VeilidFFIConfigLoggingImpl.fromJson(Map<String, dynamic> json) =>
       _$$VeilidFFIConfigLoggingImplFromJson(json);
@@ -859,10 +1062,12 @@ class _$VeilidFFIConfigLoggingImpl
   final VeilidFFIConfigLoggingOtlp otlp;
   @override
   final VeilidFFIConfigLoggingApi api;
+  @override
+  final VeilidFFIConfigLoggingFlame flame;
 
   @override
   String toString({DiagnosticLevel minLevel = DiagnosticLevel.info}) {
-    return 'VeilidFFIConfigLogging(terminal: $terminal, otlp: $otlp, api: $api)';
+    return 'VeilidFFIConfigLogging(terminal: $terminal, otlp: $otlp, api: $api, flame: $flame)';
   }
 
   @override
@@ -872,7 +1077,8 @@ class _$VeilidFFIConfigLoggingImpl
       ..add(DiagnosticsProperty('type', 'VeilidFFIConfigLogging'))
       ..add(DiagnosticsProperty('terminal', terminal))
       ..add(DiagnosticsProperty('otlp', otlp))
-      ..add(DiagnosticsProperty('api', api));
+      ..add(DiagnosticsProperty('api', api))
+      ..add(DiagnosticsProperty('flame', flame));
   }
 
   @override
@@ -883,12 +1089,13 @@ class _$VeilidFFIConfigLoggingImpl
             (identical(other.terminal, terminal) ||
                 other.terminal == terminal) &&
             (identical(other.otlp, otlp) || other.otlp == otlp) &&
-            (identical(other.api, api) || other.api == api));
+            (identical(other.api, api) || other.api == api) &&
+            (identical(other.flame, flame) || other.flame == flame));
   }
 
   @JsonKey(ignore: true)
   @override
-  int get hashCode => Object.hash(runtimeType, terminal, otlp, api);
+  int get hashCode => Object.hash(runtimeType, terminal, otlp, api, flame);
 
   @JsonKey(ignore: true)
   @override
@@ -909,7 +1116,8 @@ abstract class _VeilidFFIConfigLogging implements VeilidFFIConfigLogging {
   const factory _VeilidFFIConfigLogging(
           {required final VeilidFFIConfigLoggingTerminal terminal,
           required final VeilidFFIConfigLoggingOtlp otlp,
-          required final VeilidFFIConfigLoggingApi api}) =
+          required final VeilidFFIConfigLoggingApi api,
+          required final VeilidFFIConfigLoggingFlame flame}) =
       _$VeilidFFIConfigLoggingImpl;
 
   factory _VeilidFFIConfigLogging.fromJson(Map<String, dynamic> json) =
@@ -921,6 +1129,8 @@ abstract class _VeilidFFIConfigLogging implements VeilidFFIConfigLogging {
   VeilidFFIConfigLoggingOtlp get otlp;
   @override
   VeilidFFIConfigLoggingApi get api;
+  @override
+  VeilidFFIConfigLoggingFlame get flame;
   @override
   @JsonKey(ignore: true)
   _$$VeilidFFIConfigLoggingImplCopyWith<_$VeilidFFIConfigLoggingImpl>

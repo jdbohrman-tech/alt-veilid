@@ -67,12 +67,27 @@ Map<String, dynamic> _$$VeilidFFIConfigLoggingApiImplToJson(
       'ignore_log_targets': instance.ignoreLogTargets,
     };
 
+_$VeilidFFIConfigLoggingFlameImpl _$$VeilidFFIConfigLoggingFlameImplFromJson(
+        Map<String, dynamic> json) =>
+    _$VeilidFFIConfigLoggingFlameImpl(
+      enabled: json['enabled'] as bool,
+      path: json['path'] as String,
+    );
+
+Map<String, dynamic> _$$VeilidFFIConfigLoggingFlameImplToJson(
+        _$VeilidFFIConfigLoggingFlameImpl instance) =>
+    <String, dynamic>{
+      'enabled': instance.enabled,
+      'path': instance.path,
+    };
+
 _$VeilidFFIConfigLoggingImpl _$$VeilidFFIConfigLoggingImplFromJson(
         Map<String, dynamic> json) =>
     _$VeilidFFIConfigLoggingImpl(
       terminal: VeilidFFIConfigLoggingTerminal.fromJson(json['terminal']),
       otlp: VeilidFFIConfigLoggingOtlp.fromJson(json['otlp']),
       api: VeilidFFIConfigLoggingApi.fromJson(json['api']),
+      flame: VeilidFFIConfigLoggingFlame.fromJson(json['flame']),
     );
 
 Map<String, dynamic> _$$VeilidFFIConfigLoggingImplToJson(
@@ -81,6 +96,7 @@ Map<String, dynamic> _$$VeilidFFIConfigLoggingImplToJson(
       'terminal': instance.terminal.toJson(),
       'otlp': instance.otlp.toJson(),
       'api': instance.api.toJson(),
+      'flame': instance.flame.toJson(),
     };
 
 _$VeilidFFIConfigImpl _$$VeilidFFIConfigImplFromJson(
@@ -219,7 +235,7 @@ _$VeilidConfigUDPImpl _$$VeilidConfigUDPImplFromJson(
         Map<String, dynamic> json) =>
     _$VeilidConfigUDPImpl(
       enabled: json['enabled'] as bool,
-      socketPoolSize: json['socket_pool_size'] as int,
+      socketPoolSize: (json['socket_pool_size'] as num).toInt(),
       listenAddress: json['listen_address'] as String,
       publicAddress: json['public_address'] as String?,
     );
@@ -238,7 +254,7 @@ _$VeilidConfigTCPImpl _$$VeilidConfigTCPImplFromJson(
     _$VeilidConfigTCPImpl(
       connect: json['connect'] as bool,
       listen: json['listen'] as bool,
-      maxConnections: json['max_connections'] as int,
+      maxConnections: (json['max_connections'] as num).toInt(),
       listenAddress: json['listen_address'] as String,
       publicAddress: json['public_address'] as String?,
     );
@@ -257,7 +273,7 @@ _$VeilidConfigWSImpl _$$VeilidConfigWSImplFromJson(Map<String, dynamic> json) =>
     _$VeilidConfigWSImpl(
       connect: json['connect'] as bool,
       listen: json['listen'] as bool,
-      maxConnections: json['max_connections'] as int,
+      maxConnections: (json['max_connections'] as num).toInt(),
       listenAddress: json['listen_address'] as String,
       path: json['path'] as String,
       url: json['url'] as String?,
@@ -279,7 +295,7 @@ _$VeilidConfigWSSImpl _$$VeilidConfigWSSImplFromJson(
     _$VeilidConfigWSSImpl(
       connect: json['connect'] as bool,
       listen: json['listen'] as bool,
-      maxConnections: json['max_connections'] as int,
+      maxConnections: (json['max_connections'] as num).toInt(),
       listenAddress: json['listen_address'] as String,
       path: json['path'] as String,
       url: json['url'] as String?,
@@ -319,7 +335,8 @@ _$VeilidConfigTLSImpl _$$VeilidConfigTLSImplFromJson(
     _$VeilidConfigTLSImpl(
       certificatePath: json['certificate_path'] as String,
       privateKeyPath: json['private_key_path'] as String,
-      connectionInitialTimeoutMs: json['connection_initial_timeout_ms'] as int,
+      connectionInitialTimeoutMs:
+          (json['connection_initial_timeout_ms'] as num).toInt(),
     );
 
 Map<String, dynamic> _$$VeilidConfigTLSImplToJson(
@@ -333,31 +350,32 @@ Map<String, dynamic> _$$VeilidConfigTLSImplToJson(
 _$VeilidConfigDHTImpl _$$VeilidConfigDHTImplFromJson(
         Map<String, dynamic> json) =>
     _$VeilidConfigDHTImpl(
-      resolveNodeTimeoutMs: json['resolve_node_timeout_ms'] as int,
-      resolveNodeCount: json['resolve_node_count'] as int,
-      resolveNodeFanout: json['resolve_node_fanout'] as int,
-      maxFindNodeCount: json['max_find_node_count'] as int,
-      getValueTimeoutMs: json['get_value_timeout_ms'] as int,
-      getValueCount: json['get_value_count'] as int,
-      getValueFanout: json['get_value_fanout'] as int,
-      setValueTimeoutMs: json['set_value_timeout_ms'] as int,
-      setValueCount: json['set_value_count'] as int,
-      setValueFanout: json['set_value_fanout'] as int,
-      minPeerCount: json['min_peer_count'] as int,
-      minPeerRefreshTimeMs: json['min_peer_refresh_time_ms'] as int,
+      resolveNodeTimeoutMs: (json['resolve_node_timeout_ms'] as num).toInt(),
+      resolveNodeCount: (json['resolve_node_count'] as num).toInt(),
+      resolveNodeFanout: (json['resolve_node_fanout'] as num).toInt(),
+      maxFindNodeCount: (json['max_find_node_count'] as num).toInt(),
+      getValueTimeoutMs: (json['get_value_timeout_ms'] as num).toInt(),
+      getValueCount: (json['get_value_count'] as num).toInt(),
+      getValueFanout: (json['get_value_fanout'] as num).toInt(),
+      setValueTimeoutMs: (json['set_value_timeout_ms'] as num).toInt(),
+      setValueCount: (json['set_value_count'] as num).toInt(),
+      setValueFanout: (json['set_value_fanout'] as num).toInt(),
+      minPeerCount: (json['min_peer_count'] as num).toInt(),
+      minPeerRefreshTimeMs: (json['min_peer_refresh_time_ms'] as num).toInt(),
       validateDialInfoReceiptTimeMs:
-          json['validate_dial_info_receipt_time_ms'] as int,
-      localSubkeyCacheSize: json['local_subkey_cache_size'] as int,
+          (json['validate_dial_info_receipt_time_ms'] as num).toInt(),
+      localSubkeyCacheSize: (json['local_subkey_cache_size'] as num).toInt(),
       localMaxSubkeyCacheMemoryMb:
-          json['local_max_subkey_cache_memory_mb'] as int,
-      remoteSubkeyCacheSize: json['remote_subkey_cache_size'] as int,
-      remoteMaxRecords: json['remote_max_records'] as int,
+          (json['local_max_subkey_cache_memory_mb'] as num).toInt(),
+      remoteSubkeyCacheSize: (json['remote_subkey_cache_size'] as num).toInt(),
+      remoteMaxRecords: (json['remote_max_records'] as num).toInt(),
       remoteMaxSubkeyCacheMemoryMb:
-          json['remote_max_subkey_cache_memory_mb'] as int,
-      remoteMaxStorageSpaceMb: json['remote_max_storage_space_mb'] as int,
-      publicWatchLimit: json['public_watch_limit'] as int,
-      memberWatchLimit: json['member_watch_limit'] as int,
-      maxWatchExpirationMs: json['max_watch_expiration_ms'] as int,
+          (json['remote_max_subkey_cache_memory_mb'] as num).toInt(),
+      remoteMaxStorageSpaceMb:
+          (json['remote_max_storage_space_mb'] as num).toInt(),
+      publicWatchLimit: (json['public_watch_limit'] as num).toInt(),
+      memberWatchLimit: (json['member_watch_limit'] as num).toInt(),
+      maxWatchExpirationMs: (json['max_watch_expiration_ms'] as num).toInt(),
     );
 
 Map<String, dynamic> _$$VeilidConfigDHTImplToJson(
@@ -392,13 +410,13 @@ Map<String, dynamic> _$$VeilidConfigDHTImplToJson(
 _$VeilidConfigRPCImpl _$$VeilidConfigRPCImplFromJson(
         Map<String, dynamic> json) =>
     _$VeilidConfigRPCImpl(
-      concurrency: json['concurrency'] as int,
-      queueSize: json['queue_size'] as int,
-      timeoutMs: json['timeout_ms'] as int,
-      maxRouteHopCount: json['max_route_hop_count'] as int,
-      defaultRouteHopCount: json['default_route_hop_count'] as int,
-      maxTimestampBehindMs: json['max_timestamp_behind_ms'] as int?,
-      maxTimestampAheadMs: json['max_timestamp_ahead_ms'] as int?,
+      concurrency: (json['concurrency'] as num).toInt(),
+      queueSize: (json['queue_size'] as num).toInt(),
+      timeoutMs: (json['timeout_ms'] as num).toInt(),
+      maxRouteHopCount: (json['max_route_hop_count'] as num).toInt(),
+      defaultRouteHopCount: (json['default_route_hop_count'] as num).toInt(),
+      maxTimestampBehindMs: (json['max_timestamp_behind_ms'] as num?)?.toInt(),
+      maxTimestampAheadMs: (json['max_timestamp_ahead_ms'] as num?)?.toInt(),
     );
 
 Map<String, dynamic> _$$VeilidConfigRPCImplToJson(
@@ -424,11 +442,11 @@ _$VeilidConfigRoutingTableImpl _$$VeilidConfigRoutingTableImplFromJson(
           .toList(),
       bootstrap:
           (json['bootstrap'] as List<dynamic>).map((e) => e as String).toList(),
-      limitOverAttached: json['limit_over_attached'] as int,
-      limitFullyAttached: json['limit_fully_attached'] as int,
-      limitAttachedStrong: json['limit_attached_strong'] as int,
-      limitAttachedGood: json['limit_attached_good'] as int,
-      limitAttachedWeak: json['limit_attached_weak'] as int,
+      limitOverAttached: (json['limit_over_attached'] as num).toInt(),
+      limitFullyAttached: (json['limit_fully_attached'] as num).toInt(),
+      limitAttachedStrong: (json['limit_attached_strong'] as num).toInt(),
+      limitAttachedGood: (json['limit_attached_good'] as num).toInt(),
+      limitAttachedWeak: (json['limit_attached_weak'] as num).toInt(),
     );
 
 Map<String, dynamic> _$$VeilidConfigRoutingTableImplToJson(
@@ -447,25 +465,29 @@ Map<String, dynamic> _$$VeilidConfigRoutingTableImplToJson(
 _$VeilidConfigNetworkImpl _$$VeilidConfigNetworkImplFromJson(
         Map<String, dynamic> json) =>
     _$VeilidConfigNetworkImpl(
-      connectionInitialTimeoutMs: json['connection_initial_timeout_ms'] as int,
+      connectionInitialTimeoutMs:
+          (json['connection_initial_timeout_ms'] as num).toInt(),
       connectionInactivityTimeoutMs:
-          json['connection_inactivity_timeout_ms'] as int,
-      maxConnectionsPerIp4: json['max_connections_per_ip4'] as int,
-      maxConnectionsPerIp6Prefix: json['max_connections_per_ip6_prefix'] as int,
+          (json['connection_inactivity_timeout_ms'] as num).toInt(),
+      maxConnectionsPerIp4: (json['max_connections_per_ip4'] as num).toInt(),
+      maxConnectionsPerIp6Prefix:
+          (json['max_connections_per_ip6_prefix'] as num).toInt(),
       maxConnectionsPerIp6PrefixSize:
-          json['max_connections_per_ip6_prefix_size'] as int,
+          (json['max_connections_per_ip6_prefix_size'] as num).toInt(),
       maxConnectionFrequencyPerMin:
-          json['max_connection_frequency_per_min'] as int,
-      clientAllowlistTimeoutMs: json['client_allowlist_timeout_ms'] as int,
+          (json['max_connection_frequency_per_min'] as num).toInt(),
+      clientAllowlistTimeoutMs:
+          (json['client_allowlist_timeout_ms'] as num).toInt(),
       reverseConnectionReceiptTimeMs:
-          json['reverse_connection_receipt_time_ms'] as int,
-      holePunchReceiptTimeMs: json['hole_punch_receipt_time_ms'] as int,
+          (json['reverse_connection_receipt_time_ms'] as num).toInt(),
+      holePunchReceiptTimeMs:
+          (json['hole_punch_receipt_time_ms'] as num).toInt(),
       routingTable: VeilidConfigRoutingTable.fromJson(json['routing_table']),
       rpc: VeilidConfigRPC.fromJson(json['rpc']),
       dht: VeilidConfigDHT.fromJson(json['dht']),
       upnp: json['upnp'] as bool,
       detectAddressChanges: json['detect_address_changes'] as bool,
-      restrictedNatRetries: json['restricted_nat_retries'] as int,
+      restrictedNatRetries: (json['restricted_nat_retries'] as num).toInt(),
       tls: VeilidConfigTLS.fromJson(json['tls']),
       application: VeilidConfigApplication.fromJson(json['application']),
       protocol: VeilidConfigProtocol.fromJson(json['protocol']),

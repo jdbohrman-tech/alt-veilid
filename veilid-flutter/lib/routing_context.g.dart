@@ -8,7 +8,7 @@ part of 'routing_context.dart';
 
 _$DHTSchemaDFLTImpl _$$DHTSchemaDFLTImplFromJson(Map<String, dynamic> json) =>
     _$DHTSchemaDFLTImpl(
-      oCnt: json['o_cnt'] as int,
+      oCnt: (json['o_cnt'] as num).toInt(),
       $type: json['kind'] as String?,
     );
 
@@ -20,7 +20,7 @@ Map<String, dynamic> _$$DHTSchemaDFLTImplToJson(_$DHTSchemaDFLTImpl instance) =>
 
 _$DHTSchemaSMPLImpl _$$DHTSchemaSMPLImplFromJson(Map<String, dynamic> json) =>
     _$DHTSchemaSMPLImpl(
-      oCnt: json['o_cnt'] as int,
+      oCnt: (json['o_cnt'] as num).toInt(),
       members: (json['members'] as List<dynamic>)
           .map(DHTSchemaMember.fromJson)
           .toList(),
@@ -38,7 +38,7 @@ _$DHTSchemaMemberImpl _$$DHTSchemaMemberImplFromJson(
         Map<String, dynamic> json) =>
     _$DHTSchemaMemberImpl(
       mKey: FixedEncodedString43.fromJson(json['m_key']),
-      mCnt: json['m_cnt'] as int,
+      mCnt: (json['m_cnt'] as num).toInt(),
     );
 
 Map<String, dynamic> _$$DHTSchemaMemberImplToJson(
@@ -70,7 +70,7 @@ Map<String, dynamic> _$$DHTRecordDescriptorImplToJson(
 
 _$ValueDataImpl _$$ValueDataImplFromJson(Map<String, dynamic> json) =>
     _$ValueDataImpl(
-      seq: json['seq'] as int,
+      seq: (json['seq'] as num).toInt(),
       data: const Uint8ListJsonConverter.jsIsArray().fromJson(json['data']),
       writer: FixedEncodedString43.fromJson(json['writer']),
     );
@@ -84,7 +84,7 @@ Map<String, dynamic> _$$ValueDataImplToJson(_$ValueDataImpl instance) =>
 
 _$SafetySpecImpl _$$SafetySpecImplFromJson(Map<String, dynamic> json) =>
     _$SafetySpecImpl(
-      hopCount: json['hop_count'] as int,
+      hopCount: (json['hop_count'] as num).toInt(),
       stability: Stability.fromJson(json['stability']),
       sequencing: Sequencing.fromJson(json['sequencing']),
       preferredRoute: json['preferred_route'] as String?,
@@ -119,10 +119,12 @@ _$DHTRecordReportImpl _$$DHTRecordReportImplFromJson(
       offlineSubkeys: (json['offline_subkeys'] as List<dynamic>)
           .map(ValueSubkeyRange.fromJson)
           .toList(),
-      localSeqs:
-          (json['local_seqs'] as List<dynamic>).map((e) => e as int).toList(),
-      networkSeqs:
-          (json['network_seqs'] as List<dynamic>).map((e) => e as int).toList(),
+      localSeqs: (json['local_seqs'] as List<dynamic>)
+          .map((e) => (e as num).toInt())
+          .toList(),
+      networkSeqs: (json['network_seqs'] as List<dynamic>)
+          .map((e) => (e as num).toInt())
+          .toList(),
     );
 
 Map<String, dynamic> _$$DHTRecordReportImplToJson(

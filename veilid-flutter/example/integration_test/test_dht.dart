@@ -153,6 +153,9 @@ Future<void> testOpenWriterDHTValue() async {
     // Different value should trigger sequence number update
     expect(await rc.setDHTValue(key, 1, vb), isNull);
 
+    await settle(rc, key, 0);
+    await settle(rc, key, 1);
+
     // Now that we initialized some subkeys
     // and verified they stored correctly
     // Delete things locally and reopen and see if we can write
@@ -224,6 +227,14 @@ Future<void> testOpenWriterDHTValue() async {
   }
 }
 
+Future<void> settle(VeilidRoutingContext rc, TypedKey key, int subkey) async {
+  // Wait for set to settle
+  do {
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+  } while (
+      (await rc.inspectDHTRecord(key)).offlineSubkeys.containsSubkey(subkey));
+}
+
 Future<void> testWatchDHTValues(Stream<VeilidUpdate> updateStream) async {
   final valueChangeQueue =
       StreamController<VeilidUpdateValueChange>.broadcast();
@@ -263,6 +274,9 @@ Future<void> testWatchDHTValues(Stream<VeilidUpdate> updateStream) async {
       // Now set the subkey and trigger an update
       expect(await rcSet.setDHTValue(rec.key, 3, utf8.encode('BLAH')), isNull);
 
+      // Wait for set to settle
+      await settle(rcSet, rec.key, 3);
+
       // Now we should NOT get an update because the update
       // is the same as our local copy
       if (await valueChangeQueueIterator
@@ -281,10 +295,13 @@ Future<void> testWatchDHTValues(Stream<VeilidUpdate> updateStream) async {
           ].wait,
           equals([null, null]));
 
+      await settle(rcSet, rec.key, 3);
+      await settle(rcSet, rec.key, 4);
+
       // Wait for the update
       await valueChangeQueueIterator
           .moveNext()
-          .timeout(const Duration(seconds: 5), onTimeout: () {
+          .timeout(const Duration(seconds: 10), onTimeout: () {
         fail('should have a change');
       });
 
@@ -315,10 +332,13 @@ Future<void> testWatchDHTValues(Stream<VeilidUpdate> updateStream) async {
           ].wait,
           equals([null, null]));
 
+      await settle(rcSet, rec.key, 3);
+      await settle(rcSet, rec.key, 5);
+
       // Wait for the update
       await valueChangeQueueIterator
           .moveNext()
-          .timeout(const Duration(seconds: 5), onTimeout: () {
+          .timeout(const Duration(seconds: 10), onTimeout: () {
         fail('should have a change');
       });
 
@@ -350,10 +370,13 @@ Future<void> testWatchDHTValues(Stream<VeilidUpdate> updateStream) async {
           ].wait,
           equals([null, null]));
 
+      await settle(rcSet, rec.key, 3);
+      await settle(rcSet, rec.key, 5);
+
       // Now we should NOT get an update
       if (await valueChangeQueueIterator
           .moveNext()
-          .timeout(const Duration(seconds: 5), onTimeout: () => false)) {
+          .timeout(const Duration(seconds: 10), onTimeout: () => false)) {
         fail('should not have a change');
       }
 

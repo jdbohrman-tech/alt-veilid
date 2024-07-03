@@ -52,9 +52,9 @@ Map<String, dynamic> _$$TransferStatsDownUpImplToJson(
 
 _$RPCStatsImpl _$$RPCStatsImplFromJson(Map<String, dynamic> json) =>
     _$RPCStatsImpl(
-      messagesSent: json['messages_sent'] as int,
-      messagesRcvd: json['messages_rcvd'] as int,
-      questionsInFlight: json['questions_in_flight'] as int,
+      messagesSent: (json['messages_sent'] as num).toInt(),
+      messagesRcvd: (json['messages_rcvd'] as num).toInt(),
+      questionsInFlight: (json['questions_in_flight'] as num).toInt(),
       lastQuestion: json['last_question'] == null
           ? null
           : Timestamp.fromJson(json['last_question']),
@@ -64,8 +64,8 @@ _$RPCStatsImpl _$$RPCStatsImplFromJson(Map<String, dynamic> json) =>
       firstConsecutiveSeenTs: json['first_consecutive_seen_ts'] == null
           ? null
           : Timestamp.fromJson(json['first_consecutive_seen_ts']),
-      recentLostAnswers: json['recent_lost_answers'] as int,
-      failedToSend: json['failed_to_send'] as int,
+      recentLostAnswers: (json['recent_lost_answers'] as num).toInt(),
+      failedToSend: (json['failed_to_send'] as num).toInt(),
     );
 
 Map<String, dynamic> _$$RPCStatsImplToJson(_$RPCStatsImpl instance) =>
@@ -254,7 +254,7 @@ _$VeilidUpdateValueChangeImpl _$$VeilidUpdateValueChangeImplFromJson(
       subkeys: (json['subkeys'] as List<dynamic>)
           .map(ValueSubkeyRange.fromJson)
           .toList(),
-      count: json['count'] as int,
+      count: (json['count'] as num).toInt(),
       value: json['value'] == null ? null : ValueData.fromJson(json['value']),
       $type: json['kind'] as String?,
     );

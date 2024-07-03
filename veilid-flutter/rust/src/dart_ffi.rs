@@ -13,6 +13,7 @@ use std::io::Write;
 use std::os::raw::c_char;
 use std::sync::Arc;
 use tracing::*;
+use tracing_flame::FlameLayer;
 use tracing_subscriber::prelude::*;
 use veilid_core::{tools::*, Encodable};
 
@@ -65,6 +66,8 @@ lazy_static! {
     static ref TABLE_DBS: Mutex<BTreeMap<u32, veilid_core::TableDB>> = Mutex::new(BTreeMap::new());
     static ref TABLE_DB_TRANSACTIONS: Mutex<BTreeMap<u32, veilid_core::TableDBTransaction>> =
         Mutex::new(BTreeMap::new());
+    static ref FLAME_GUARD: Mutex<Option<tracing_flame::FlushGuard<std::io::BufWriter<std::fs::File>>>> =
+        Mutex::new(None);
 }
 
 async fn get_veilid_api() -> veilid_core::VeilidAPIResult<veilid_core::VeilidAPI> {
@@ -119,10 +122,17 @@ pub struct VeilidFFIConfigLoggingApi {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+pub struct VeilidFFIConfigLoggingFlame {
+    pub enabled: bool,
+    pub path: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct VeilidFFIConfigLogging {
     pub terminal: VeilidFFIConfigLoggingTerminal,
     pub otlp: VeilidFFIConfigLoggingOtlp,
     pub api: VeilidFFIConfigLoggingApi,
+    pub flame: VeilidFFIConfigLoggingFlame,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -305,6 +315,23 @@ pub extern "C" fn initialize_veilid_core(platform_config: FfiStr) {
             .with_filter(filter.clone());
         filters.insert("otlp", filter);
         layers.push(layer.boxed());
+    }
+
+    // Flamegraph logger
+    if platform_config.logging.flame.enabled {
+        let filter =
+            veilid_core::VeilidLayerFilter::new(veilid_core::VeilidConfigLogLevel::Trace, &[]);
+        let (flame_layer, guard) =
+            FlameLayer::with_file(&platform_config.logging.flame.path).unwrap();
+        *FLAME_GUARD.lock() = Some(guard);
+        filters.insert("flame", filter.clone());
+        layers.push(
+            flame_layer
+                .with_threads_collapsed(true)
+                .with_empty_samples(false)
+                .with_filter(filter)
+                .boxed(),
+        );
     }
 
     // API logger

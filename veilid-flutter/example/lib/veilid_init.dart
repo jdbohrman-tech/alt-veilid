@@ -28,7 +28,8 @@ void veilidInit() {
                 grpcEndpoint: 'localhost:4317',
                 serviceName: 'VeilidExample'),
             api: VeilidFFIConfigLoggingApi(
-                enabled: true, level: VeilidConfigLogLevel.info)));
+                enabled: true, level: VeilidConfigLogLevel.info),
+            flame: VeilidFFIConfigLoggingFlame(enabled: false, path: '')));
     Veilid.instance.initializeVeilidCore(platformConfig.toJson());
   }
 }

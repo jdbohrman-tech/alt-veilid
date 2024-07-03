@@ -48,11 +48,23 @@ class VeilidFFIConfigLoggingApi with _$VeilidFFIConfigLoggingApi {
 }
 
 @freezed
+class VeilidFFIConfigLoggingFlame with _$VeilidFFIConfigLoggingFlame {
+  const factory VeilidFFIConfigLoggingFlame({
+    required bool enabled,
+    required String path,
+  }) = _VeilidFFIConfigLoggingFlame;
+
+  factory VeilidFFIConfigLoggingFlame.fromJson(dynamic json) =>
+      _$VeilidFFIConfigLoggingFlameFromJson(json as Map<String, dynamic>);
+}
+
+@freezed
 class VeilidFFIConfigLogging with _$VeilidFFIConfigLogging {
   const factory VeilidFFIConfigLogging(
       {required VeilidFFIConfigLoggingTerminal terminal,
       required VeilidFFIConfigLoggingOtlp otlp,
-      required VeilidFFIConfigLoggingApi api}) = _VeilidFFIConfigLogging;
+      required VeilidFFIConfigLoggingApi api,
+      required VeilidFFIConfigLoggingFlame flame}) = _VeilidFFIConfigLogging;
 
   factory VeilidFFIConfigLogging.fromJson(dynamic json) =>
       _$VeilidFFIConfigLoggingFromJson(json as Map<String, dynamic>);

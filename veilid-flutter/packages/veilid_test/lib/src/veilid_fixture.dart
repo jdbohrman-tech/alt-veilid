@@ -42,6 +42,9 @@ class DefaultVeilidFixture implements VeilidFixture {
         // ignore: do_not_use_environment
         const String.fromEnvironment('LOG_LEVEL', defaultValue: 'info'));
 
+    // ignore: do_not_use_environment
+    final flamePathStr = const String.fromEnvironment('FLAME').trim();
+
     final Map<String, dynamic> platformConfigJson;
     if (kIsWeb) {
       final platformConfig = VeilidWASMConfig(
@@ -78,7 +81,9 @@ class DefaultVeilidFixture implements VeilidFixture {
                 enabled: true,
                 level: logLevel,
                 ignoreLogTargets: ignoreLogTargets,
-              )));
+              ),
+              flame: VeilidFFIConfigLoggingFlame(
+                  enabled: flamePathStr.isNotEmpty, path: flamePathStr)));
       platformConfigJson = platformConfig.toJson();
     }
     Veilid.instance.initializeVeilidCore(platformConfigJson);
