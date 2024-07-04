@@ -265,7 +265,7 @@ impl NetworkConnection {
 
     // Connection receiver loop
     #[allow(clippy::too_many_arguments)]
-    #[instrument(level="trace", target="net", skip_all)]
+    //#[instrument(level="trace", target="net", skip_all)]
     fn process_connection(
         connection_manager: ConnectionManager,
         local_stop_token: StopToken,
@@ -307,10 +307,11 @@ impl NetworkConnection {
                     need_sender = false;
                     let sender_fut = receiver.recv_async().then(|res| async {
                         match res {
-                            Ok((span_id, message)) => {
+                            Ok((_span_id, message)) => {
                                 
-                                let span = span!(parent: span_id, Level::TRACE, "process_connection send");
-                                let _enter = span.enter();         
+                                // let span = span!(Level::TRACE, "process_connection send");
+                                // span.follows_from(span_id);
+                                // let _enter = span.enter();         
 
                                 // Touch the LRU for this connection
                                 connection_manager.touch_connection_by_id(connection_id);

@@ -77,7 +77,7 @@ impl RouteSpecStore {
         }
     }
 
-    #[instrument(level = "trace", skip(routing_table), err)]
+    #[instrument(level = "trace", target = "route", skip(routing_table), err)]
     pub async fn load(routing_table: RoutingTable) -> EyreResult<RouteSpecStore> {
         let (max_route_hop_count, default_route_hop_count) = {
             let config = routing_table.network_manager().config();
@@ -115,7 +115,7 @@ impl RouteSpecStore {
         Ok(rss)
     }
 
-    #[instrument(level = "trace", skip(self), err)]
+    #[instrument(level = "trace", target = "route", skip(self), err)]
     pub async fn save(&self) -> EyreResult<()> {
         let content = {
             let inner = self.inner.lock();
@@ -130,7 +130,7 @@ impl RouteSpecStore {
         Ok(())
     }
 
-    #[instrument(level = "trace", skip(self))]
+    #[instrument(level = "trace", target = "route", skip(self))]
     pub fn send_route_update(&self) {
         let (dead_routes, dead_remote_routes) = {
             let mut inner = self.inner.lock();
@@ -170,7 +170,7 @@ impl RouteSpecStore {
     /// Returns Err(VeilidAPIError::TryAgain) if no route could be allocated at this time
     /// Returns other errors on failure
     /// Returns Ok(route id string) on success
-    #[instrument(level = "trace", skip(self), ret, err(level=Level::TRACE))]
+    #[instrument(level = "trace", target="route", skip(self), ret, err(level=Level::TRACE))]
     #[allow(clippy::too_many_arguments)]
     pub fn allocate_route(
         &self,
@@ -199,7 +199,7 @@ impl RouteSpecStore {
         )
     }
 
-    #[instrument(level = "trace", skip(self, inner, rti), ret, err(level=Level::TRACE))]
+    #[instrument(level = "trace", target="route", skip(self, inner, rti), ret, err(level=Level::TRACE))]
     #[allow(clippy::too_many_arguments)]
     fn allocate_route_inner(
         &self,
@@ -640,10 +640,7 @@ impl RouteSpecStore {
     }
 
     /// validate data using a private route's key and signature chain
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", skip(self, data, callback), ret)
-    )]
+    #[instrument(level = "trace", target = "route", skip(self, data, callback), ret)]
     pub fn with_signature_validated_route<F, R>(
         &self,
         public_key: &TypedKey,
@@ -711,10 +708,7 @@ impl RouteSpecStore {
         Some(callback(rssd, rsd))
     }
 
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", skip(self), ret, err)
-    )]
+    #[instrument(level = "trace", target = "route", skip(self), ret, err)]
     async fn test_allocated_route(&self, private_route_id: RouteId) -> VeilidAPIResult<bool> {
         // Make loopback route to test with
         let (dest, hops) = {
@@ -781,7 +775,7 @@ impl RouteSpecStore {
         Ok(true)
     }
 
-    #[instrument(level = "trace", skip(self), ret, err)]
+    #[instrument(level = "trace", target = "route", skip(self), ret, err)]
     async fn test_remote_route(&self, private_route_id: RouteId) -> VeilidAPIResult<bool> {
         // Make private route test
         let dest = {
@@ -825,7 +819,7 @@ impl RouteSpecStore {
     }
 
     /// Release an allocated route that is no longer in use
-    #[instrument(level = "trace", skip(self), ret)]
+    #[instrument(level = "trace", target = "route", skip(self), ret)]
     fn release_allocated_route(&self, id: RouteId) -> bool {
         let mut inner = self.inner.lock();
         let Some(rssd) = inner.content.remove_detail(&id) else {
@@ -852,10 +846,7 @@ impl RouteSpecStore {
     }
 
     /// Test an allocated route for continuity
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", skip(self), ret, err)
-    )]
+    #[instrument(level = "trace", target = "route", skip(self), ret, err)]
     pub async fn test_route(&self, id: RouteId) -> VeilidAPIResult<bool> {
         let is_remote = self.is_route_id_remote(&id);
         if is_remote {
@@ -866,7 +857,7 @@ impl RouteSpecStore {
     }
 
     /// Release an allocated or remote route that is no longer in use
-    #[instrument(level = "trace", skip(self), ret)]
+    #[instrument(level = "trace", target = "route", skip(self), ret)]
     pub fn release_route(&self, id: RouteId) -> bool {
         let is_remote = self.is_route_id_remote(&id);
         if is_remote {
@@ -879,6 +870,7 @@ impl RouteSpecStore {
     /// Find first matching unpublished route that fits into the selection criteria
     /// Don't pick any routes that have failed and haven't been tested yet
     #[allow(clippy::too_many_arguments)]
+    #[instrument(level = "trace", target = "route", skip_all)]
     fn first_available_route_inner(
         inner: &RouteSpecStoreInner,
         crypto_kind: CryptoKind,
@@ -1002,6 +994,8 @@ impl RouteSpecStore {
     /// Returns Err(VeilidAPIError::TryAgain) if no allocation could happen at this time (not an error)
     /// Returns other Err() if the parameters are wrong
     /// Returns Ok(compiled route) on success
+
+    #[instrument(level = "trace", target = "route", skip_all)]
     pub fn compile_safety_route(
         &self,
         safety_selection: SafetySelection,
@@ -1269,10 +1263,7 @@ impl RouteSpecStore {
     }
 
     /// Get an allocated route that matches a particular safety spec
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", skip(self, inner, rti), ret, err)
-    )]
+    #[instrument(level = "trace", target = "route", skip_all)]
     fn get_route_for_safety_spec_inner(
         &self,
         inner: &mut RouteSpecStoreInner,
@@ -1353,10 +1344,7 @@ impl RouteSpecStore {
     }
 
     /// Get a private route to use for the answer to question
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", skip(self), ret, err)
-    )]
+    #[instrument(level = "trace", target = "route", skip_all)]
     pub fn get_private_route_for_safety_spec(
         &self,
         crypto_kind: CryptoKind,
@@ -1477,10 +1465,7 @@ impl RouteSpecStore {
 
     /// Assemble a single private route for publication
     /// Returns a PrivateRoute object for an allocated private route key
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", skip(self), err)
-    )]
+    #[instrument(level = "trace", target = "route", skip_all)]
     pub fn assemble_private_route(
         &self,
         key: &PublicKey,
@@ -1510,10 +1495,7 @@ impl RouteSpecStore {
 
     /// Assemble private route set for publication
     /// Returns a vec of PrivateRoute objects for an allocated private route
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", skip(self), err)
-    )]
+    #[instrument(level = "trace", target = "route", skip_all)]
     pub fn assemble_private_routes(
         &self,
         id: &RouteId,
@@ -1541,10 +1523,7 @@ impl RouteSpecStore {
     /// Import a remote private route set blob for compilation
     /// It is safe to import the same route more than once and it will return the same route id
     /// Returns a route set id
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", skip(self, blob), ret, err)
-    )]
+    #[instrument(level = "trace", target = "route", skip_all)]
     pub fn import_remote_private_route_blob(&self, blob: Vec<u8>) -> VeilidAPIResult<RouteId> {
         let cur_ts = get_aligned_timestamp();
 
@@ -1581,10 +1560,7 @@ impl RouteSpecStore {
     /// Add a single remote private route for compilation
     /// It is safe to add the same route more than once and it will return the same route id
     /// Returns a route set id
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", skip(self), ret, err)
-    )]
+    #[instrument(level = "trace", target = "route", skip_all)]
     pub fn add_remote_private_route(
         &self,
         private_route: PrivateRoute,
@@ -1619,10 +1595,7 @@ impl RouteSpecStore {
     }
 
     /// Release a remote private route that is no longer in use
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", skip(self), ret)
-    )]
+    #[instrument(level = "trace", target = "route", skip_all)]
     pub fn release_remote_private_route(&self, id: RouteId) -> bool {
         let inner = &mut *self.inner.lock();
         inner.cache.remove_remote_private_route(id)
@@ -1739,7 +1712,7 @@ impl RouteSpecStore {
     }
 
     /// Clear caches when local our local node info changes
-    #[instrument(level = "trace", skip(self))]
+    #[instrument(level = "trace", target = "route", skip(self))]
     pub fn reset(&self) {
         log_rtab!(debug "flushing route spec store");
 

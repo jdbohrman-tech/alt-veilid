@@ -69,7 +69,7 @@ impl WebsocketNetworkConnection {
         Ok(NetworkResult::value(()))
     }
 
-    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", err, skip(self, message), fields(network_result, message.len = message.len())))]
+    #[instrument(level = "trace", target="protocol", err, skip(self, message), fields(network_result, message.len = message.len()))]
     pub async fn send(&self, message: Vec<u8>) -> io::Result<NetworkResult<()>> {
         if message.len() > MAX_MESSAGE_SIZE {
             bail_io_error_other!("sending too large WS message");
@@ -89,7 +89,7 @@ impl WebsocketNetworkConnection {
         Ok(out)
     }
 
-    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", err, skip(self), fields(network_result, ret.len)))]
+    #[instrument(level = "trace", target="protocol", err, skip(self), fields(network_result, ret.len))]
     pub async fn recv(&self) -> io::Result<NetworkResult<Vec<u8>>> {
         let out = match SendWrapper::new(self.inner.ws_stream.clone().next()).await {
             Some(WsMessage::Binary(v)) => {
@@ -121,7 +121,7 @@ impl WebsocketNetworkConnection {
 pub(in crate::network_manager) struct WebsocketProtocolHandler {}
 
 impl WebsocketProtocolHandler {
-    #[instrument(level = "trace", ret, err)]
+    #[instrument(level = "trace", target = "protocol", ret, err)]
     pub async fn connect(
         dial_info: &DialInfo,
         timeout_ms: u32,

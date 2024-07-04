@@ -395,67 +395,72 @@ impl Network {
     // This creates a short-lived connection in the case of connection-oriented protocols
     // for the purpose of sending this one message.
     // This bypasses the connection table as it is not a 'node to node' connection.
-    #[cfg_attr(feature="verbose-tracing", instrument(level="trace", err, skip(self, data), fields(data.len = data.len())))]
+    #[instrument(level="trace", target="net", err, skip(self, data), fields(data.len = data.len()))]
     pub async fn send_data_unbound_to_dial_info(
         &self,
         dial_info: DialInfo,
         data: Vec<u8>,
     ) -> EyreResult<NetworkResult<()>> {
-        self.record_dial_info_failure(dial_info.clone(), async move {
-            let data_len = data.len();
-            let connect_timeout_ms = {
-                let c = self.config.get();
-                c.network.connection_initial_timeout_ms
-            };
+        self.record_dial_info_failure(
+            dial_info.clone(),
+            async move {
+                let data_len = data.len();
+                let connect_timeout_ms = {
+                    let c = self.config.get();
+                    c.network.connection_initial_timeout_ms
+                };
 
-            if self
-                .network_manager()
-                .address_filter()
-                .is_ip_addr_punished(dial_info.address().ip_addr())
-            {
-                return Ok(NetworkResult::no_connection_other("punished"));
-            }
+                if self
+                    .network_manager()
+                    .address_filter()
+                    .is_ip_addr_punished(dial_info.address().ip_addr())
+                {
+                    return Ok(NetworkResult::no_connection_other("punished"));
+                }
 
-            match dial_info.protocol_type() {
-                ProtocolType::UDP => {
-                    let peer_socket_addr = dial_info.to_socket_addr();
-                    let h = RawUdpProtocolHandler::new_unspecified_bound_handler(&peer_socket_addr)
+                match dial_info.protocol_type() {
+                    ProtocolType::UDP => {
+                        let peer_socket_addr = dial_info.to_socket_addr();
+                        let h =
+                            RawUdpProtocolHandler::new_unspecified_bound_handler(&peer_socket_addr)
+                                .await
+                                .wrap_err("create socket failure")?;
+                        let _ = network_result_try!(h
+                            .send_message(data, peer_socket_addr)
+                            .await
+                            .map(NetworkResult::Value)
+                            .wrap_err("send message failure")?);
+                    }
+                    ProtocolType::TCP => {
+                        let peer_socket_addr = dial_info.to_socket_addr();
+                        let pnc = network_result_try!(RawTcpProtocolHandler::connect(
+                            None,
+                            peer_socket_addr,
+                            connect_timeout_ms
+                        )
                         .await
-                        .wrap_err("create socket failure")?;
-                    let _ = network_result_try!(h
-                        .send_message(data, peer_socket_addr)
+                        .wrap_err("connect failure")?);
+                        network_result_try!(pnc.send(data).await.wrap_err("send failure")?);
+                    }
+                    ProtocolType::WS | ProtocolType::WSS => {
+                        let pnc = network_result_try!(WebsocketProtocolHandler::connect(
+                            None,
+                            &dial_info,
+                            connect_timeout_ms
+                        )
                         .await
-                        .map(NetworkResult::Value)
-                        .wrap_err("send message failure")?);
+                        .wrap_err("connect failure")?);
+                        network_result_try!(pnc.send(data).await.wrap_err("send failure")?);
+                    }
                 }
-                ProtocolType::TCP => {
-                    let peer_socket_addr = dial_info.to_socket_addr();
-                    let pnc = network_result_try!(RawTcpProtocolHandler::connect(
-                        None,
-                        peer_socket_addr,
-                        connect_timeout_ms
-                    )
-                    .await
-                    .wrap_err("connect failure")?);
-                    network_result_try!(pnc.send(data).await.wrap_err("send failure")?);
-                }
-                ProtocolType::WS | ProtocolType::WSS => {
-                    let pnc = network_result_try!(WebsocketProtocolHandler::connect(
-                        None,
-                        &dial_info,
-                        connect_timeout_ms
-                    )
-                    .await
-                    .wrap_err("connect failure")?);
-                    network_result_try!(pnc.send(data).await.wrap_err("send failure")?);
-                }
-            }
-            // Network accounting
-            self.network_manager()
-                .stats_packet_sent(dial_info.ip_addr(), ByteCount::new(data_len as u64));
+                // Network accounting
+                self.network_manager()
+                    .stats_packet_sent(dial_info.ip_addr(), ByteCount::new(data_len as u64));
 
-            Ok(NetworkResult::Value(()))
-        })
+                Ok(NetworkResult::Value(()))
+            }
+            .in_current_span(),
+        )
         .await
     }
 
@@ -464,103 +469,122 @@ impl Network {
     // This creates a short-lived connection in the case of connection-oriented protocols
     // for the purpose of sending this one message.
     // This bypasses the connection table as it is not a 'node to node' connection.
-    #[cfg_attr(feature="verbose-tracing", instrument(level="trace", err, skip(self, data), fields(data.len = data.len())))]
+    #[instrument(level="trace", target="net", err, skip(self, data), fields(data.len = data.len()))]
     pub async fn send_recv_data_unbound_to_dial_info(
         &self,
         dial_info: DialInfo,
         data: Vec<u8>,
         timeout_ms: u32,
     ) -> EyreResult<NetworkResult<Vec<u8>>> {
-        self.record_dial_info_failure(dial_info.clone(), async move {
-            let data_len = data.len();
-            let connect_timeout_ms = {
-                let c = self.config.get();
-                c.network.connection_initial_timeout_ms
-            };
+        self.record_dial_info_failure(
+            dial_info.clone(),
+            async move {
+                let data_len = data.len();
+                let connect_timeout_ms = {
+                    let c = self.config.get();
+                    c.network.connection_initial_timeout_ms
+                };
 
-            if self
-                .network_manager()
-                .address_filter()
-                .is_ip_addr_punished(dial_info.address().ip_addr())
-            {
-                return Ok(NetworkResult::no_connection_other("punished"));
-            }
-
-            match dial_info.protocol_type() {
-                ProtocolType::UDP => {
-                    let peer_socket_addr = dial_info.to_socket_addr();
-                    let h = RawUdpProtocolHandler::new_unspecified_bound_handler(&peer_socket_addr)
-                        .await
-                        .wrap_err("create socket failure")?;
-                    network_result_try!(h
-                        .send_message(data, peer_socket_addr)
-                        .await
-                        .wrap_err("send message failure")?);
-                    self.network_manager()
-                        .stats_packet_sent(dial_info.ip_addr(), ByteCount::new(data_len as u64));
-
-                    // receive single response
-                    let mut out = vec![0u8; MAX_MESSAGE_SIZE];
-                    let (recv_len, recv_addr) = network_result_try!(timeout(
-                        timeout_ms,
-                        h.recv_message(&mut out).instrument(Span::current())
-                    )
-                    .await
-                    .into_network_result())
-                    .wrap_err("recv_message failure")?;
-
-                    let recv_socket_addr = recv_addr.remote_address().socket_addr();
-                    self.network_manager()
-                        .stats_packet_rcvd(recv_socket_addr.ip(), ByteCount::new(recv_len as u64));
-
-                    // if the from address is not the same as the one we sent to, then drop this
-                    if recv_socket_addr != peer_socket_addr {
-                        bail!("wrong address");
-                    }
-                    out.resize(recv_len, 0u8);
-                    Ok(NetworkResult::Value(out))
+                if self
+                    .network_manager()
+                    .address_filter()
+                    .is_ip_addr_punished(dial_info.address().ip_addr())
+                {
+                    return Ok(NetworkResult::no_connection_other("punished"));
                 }
-                ProtocolType::TCP | ProtocolType::WS | ProtocolType::WSS => {
-                    let pnc = network_result_try!(match dial_info.protocol_type() {
-                        ProtocolType::UDP => unreachable!(),
-                        ProtocolType::TCP => {
-                            let peer_socket_addr = dial_info.to_socket_addr();
-                            RawTcpProtocolHandler::connect(
-                                None,
-                                peer_socket_addr,
-                                connect_timeout_ms,
-                            )
+
+                match dial_info.protocol_type() {
+                    ProtocolType::UDP => {
+                        let peer_socket_addr = dial_info.to_socket_addr();
+                        let h =
+                            RawUdpProtocolHandler::new_unspecified_bound_handler(&peer_socket_addr)
+                                .await
+                                .wrap_err("create socket failure")?;
+                        network_result_try!(h
+                            .send_message(data, peer_socket_addr)
                             .await
-                            .wrap_err("connect failure")?
+                            .wrap_err("send message failure")?);
+                        self.network_manager().stats_packet_sent(
+                            dial_info.ip_addr(),
+                            ByteCount::new(data_len as u64),
+                        );
+
+                        // receive single response
+                        let mut out = vec![0u8; MAX_MESSAGE_SIZE];
+                        let (recv_len, recv_addr) = network_result_try!(timeout(
+                            timeout_ms,
+                            h.recv_message(&mut out).instrument(Span::current())
+                        )
+                        .await
+                        .into_network_result())
+                        .wrap_err("recv_message failure")?;
+
+                        let recv_socket_addr = recv_addr.remote_address().socket_addr();
+                        self.network_manager().stats_packet_rcvd(
+                            recv_socket_addr.ip(),
+                            ByteCount::new(recv_len as u64),
+                        );
+
+                        // if the from address is not the same as the one we sent to, then drop this
+                        if recv_socket_addr != peer_socket_addr {
+                            bail!("wrong address");
                         }
-                        ProtocolType::WS | ProtocolType::WSS => {
-                            WebsocketProtocolHandler::connect(None, &dial_info, connect_timeout_ms)
+                        out.resize(recv_len, 0u8);
+                        Ok(NetworkResult::Value(out))
+                    }
+                    ProtocolType::TCP | ProtocolType::WS | ProtocolType::WSS => {
+                        let pnc = network_result_try!(match dial_info.protocol_type() {
+                            ProtocolType::UDP => unreachable!(),
+                            ProtocolType::TCP => {
+                                let peer_socket_addr = dial_info.to_socket_addr();
+                                RawTcpProtocolHandler::connect(
+                                    None,
+                                    peer_socket_addr,
+                                    connect_timeout_ms,
+                                )
                                 .await
                                 .wrap_err("connect failure")?
-                        }
-                    });
+                            }
+                            ProtocolType::WS | ProtocolType::WSS => {
+                                WebsocketProtocolHandler::connect(
+                                    None,
+                                    &dial_info,
+                                    connect_timeout_ms,
+                                )
+                                .await
+                                .wrap_err("connect failure")?
+                            }
+                        });
 
-                    network_result_try!(pnc.send(data).await.wrap_err("send failure")?);
-                    self.network_manager()
-                        .stats_packet_sent(dial_info.ip_addr(), ByteCount::new(data_len as u64));
+                        network_result_try!(pnc.send(data).await.wrap_err("send failure")?);
+                        self.network_manager().stats_packet_sent(
+                            dial_info.ip_addr(),
+                            ByteCount::new(data_len as u64),
+                        );
 
-                    let out =
-                        network_result_try!(network_result_try!(timeout(timeout_ms, pnc.recv())
-                            .await
-                            .into_network_result())
+                        let out = network_result_try!(network_result_try!(timeout(
+                            timeout_ms,
+                            pnc.recv()
+                        )
+                        .await
+                        .into_network_result())
                         .wrap_err("recv failure")?);
 
-                    self.network_manager()
-                        .stats_packet_rcvd(dial_info.ip_addr(), ByteCount::new(out.len() as u64));
+                        self.network_manager().stats_packet_rcvd(
+                            dial_info.ip_addr(),
+                            ByteCount::new(out.len() as u64),
+                        );
 
-                    Ok(NetworkResult::Value(out))
+                        Ok(NetworkResult::Value(out))
+                    }
                 }
             }
-        })
+            .in_current_span(),
+        )
         .await
     }
 
-    #[cfg_attr(feature="verbose-tracing", instrument(level="trace", err, skip(self, data), fields(data.len = data.len())))]
+    #[instrument(level="trace", target="net", err, skip(self, data), fields(data.len = data.len()))]
     pub async fn send_data_to_existing_flow(
         &self,
         flow: Flow,
@@ -625,57 +649,61 @@ impl Network {
 
     // Send data directly to a dial info, possibly without knowing which node it is going to
     // Returns a flow for the connection used to send the data
-    #[cfg_attr(feature="verbose-tracing", instrument(level="trace", err, skip(self, data), fields(data.len = data.len())))]
+    #[instrument(level="trace", target="net", err, skip(self, data), fields(data.len = data.len()))]
     pub async fn send_data_to_dial_info(
         &self,
         dial_info: DialInfo,
         data: Vec<u8>,
     ) -> EyreResult<NetworkResult<UniqueFlow>> {
-        self.record_dial_info_failure(dial_info.clone(), async move {
-            let data_len = data.len();
-            let unique_flow;
-            if dial_info.protocol_type() == ProtocolType::UDP {
-                // Handle connectionless protocol
-                let peer_socket_addr = dial_info.to_socket_addr();
-                let ph = match self.find_best_udp_protocol_handler(&peer_socket_addr, &None) {
-                    Some(ph) => ph,
-                    None => {
-                        return Ok(NetworkResult::no_connection_other(
-                            "no appropriate UDP protocol handler for dial_info",
-                        ));
+        self.record_dial_info_failure(
+            dial_info.clone(),
+            async move {
+                let data_len = data.len();
+                let unique_flow;
+                if dial_info.protocol_type() == ProtocolType::UDP {
+                    // Handle connectionless protocol
+                    let peer_socket_addr = dial_info.to_socket_addr();
+                    let ph = match self.find_best_udp_protocol_handler(&peer_socket_addr, &None) {
+                        Some(ph) => ph,
+                        None => {
+                            return Ok(NetworkResult::no_connection_other(
+                                "no appropriate UDP protocol handler for dial_info",
+                            ));
+                        }
+                    };
+                    let flow = network_result_try!(ph
+                        .send_message(data, peer_socket_addr)
+                        .await
+                        .wrap_err("failed to send data to dial info")?);
+                    unique_flow = UniqueFlow {
+                        flow,
+                        connection_id: None,
+                    };
+                } else {
+                    // Handle connection-oriented protocols
+                    let conn = network_result_try!(
+                        self.connection_manager()
+                            .get_or_create_connection(dial_info.clone())
+                            .await?
+                    );
+
+                    if let ConnectionHandleSendResult::NotSent(_) = conn.send_async(data).await {
+                        return Ok(NetworkResult::NoConnection(io::Error::new(
+                            io::ErrorKind::ConnectionReset,
+                            "failed to send",
+                        )));
                     }
-                };
-                let flow = network_result_try!(ph
-                    .send_message(data, peer_socket_addr)
-                    .await
-                    .wrap_err("failed to send data to dial info")?);
-                unique_flow = UniqueFlow {
-                    flow,
-                    connection_id: None,
-                };
-            } else {
-                // Handle connection-oriented protocols
-                let conn = network_result_try!(
-                    self.connection_manager()
-                        .get_or_create_connection(dial_info.clone())
-                        .await?
-                );
-
-                if let ConnectionHandleSendResult::NotSent(_) = conn.send_async(data).await {
-                    return Ok(NetworkResult::NoConnection(io::Error::new(
-                        io::ErrorKind::ConnectionReset,
-                        "failed to send",
-                    )));
+                    unique_flow = conn.unique_flow();
                 }
-                unique_flow = conn.unique_flow();
+
+                // Network accounting
+                self.network_manager()
+                    .stats_packet_sent(dial_info.ip_addr(), ByteCount::new(data_len as u64));
+
+                Ok(NetworkResult::value(unique_flow))
             }
-
-            // Network accounting
-            self.network_manager()
-                .stats_packet_sent(dial_info.ip_addr(), ByteCount::new(data_len as u64));
-
-            Ok(NetworkResult::value(unique_flow))
-        })
+            .in_current_span(),
+        )
         .await
     }
 

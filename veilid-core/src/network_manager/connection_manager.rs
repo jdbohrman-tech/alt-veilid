@@ -283,7 +283,7 @@ impl ConnectionManager {
     /// This will kill off any connections that are in conflict with the new connection to be made
     /// in order to make room for the new connection in the system's connection table
     /// This routine needs to be atomic, or connections may exist in the table that are not established
-    #[instrument(level = "trace", skip(self), ret, err)]
+    //#[instrument(level = "trace", skip(self), ret, err)]
     pub async fn get_or_create_connection(
         &self,
         dial_info: DialInfo,

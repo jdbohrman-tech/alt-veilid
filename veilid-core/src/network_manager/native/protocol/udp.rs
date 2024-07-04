@@ -17,7 +17,7 @@ impl RawUdpProtocolHandler {
         }
     }
 
-    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", err, skip(self, data), fields(data.len = data.len(), ret.len, ret.flow)))]
+    #[instrument(level = "trace", target = "protocol", err, skip(self, data), fields(data.len = data.len(), ret.len, ret.flow))]
     pub async fn recv_message(&self, data: &mut [u8]) -> io::Result<(usize, Flow)> {
         let (message_len, flow) = loop {
             // Get a packet
@@ -80,7 +80,7 @@ impl RawUdpProtocolHandler {
         Ok((message_len, flow))
     }
 
-    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", err, skip(self, data), fields(data.len = data.len(), ret.flow)))]
+    #[instrument(level = "trace", target = "protocol", err, skip(self, data), fields(data.len = data.len(), ret.flow))]
     pub async fn send_message(
         &self,
         data: Vec<u8>,
@@ -135,7 +135,7 @@ impl RawUdpProtocolHandler {
         Ok(NetworkResult::value(flow))
     }
 
-    #[instrument(level = "trace", err)]
+    #[instrument(level = "trace", target = "protocol", err)]
     pub async fn new_unspecified_bound_handler(
         socket_addr: &SocketAddr,
     ) -> io::Result<RawUdpProtocolHandler> {

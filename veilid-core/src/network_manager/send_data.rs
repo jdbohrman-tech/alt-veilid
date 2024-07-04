@@ -54,6 +54,7 @@ impl NetworkManager {
         self.try_possibly_relayed_contact_method(possibly_relayed_contact_method, destination_node_ref, data).await
     }
 
+    #[instrument(level="trace", target="net", skip_all)]
     pub(crate) fn try_possibly_relayed_contact_method(&self, 
         possibly_relayed_contact_method: NodeContactMethod,
         destination_node_ref: NodeRef,

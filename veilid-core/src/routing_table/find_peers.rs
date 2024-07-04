@@ -4,6 +4,7 @@ impl RoutingTable {
     /// Utility to find the closest nodes to a particular key, preferring reliable nodes first,
     /// including possibly our own node and nodes further away from the key than our own,
     /// returning their peer info
+    #[instrument(level = "trace", target = "rtab", skip_all)]
     pub fn find_preferred_closest_peers(
         &self,
         key: TypedKey,
@@ -72,6 +73,7 @@ impl RoutingTable {
     /// Utility to find nodes that are closer to a key than our own node,
     /// preferring reliable nodes first, and returning their peer info
     /// Can filter based on a particular set of capabilities
+    #[instrument(level = "trace", target = "rtab", skip_all)]
     pub fn find_preferred_peers_closer_to_key(
         &self,
         key: TypedKey,
@@ -167,6 +169,7 @@ impl RoutingTable {
     }
 
     /// Determine if set of peers is closer to key_near than key_far is to key_near
+    #[instrument(level = "trace", target = "rtab", skip_all, err)]
     pub(crate) fn verify_peers_closer(
         vcrypto: CryptoSystemVersion,
         key_far: TypedKey,

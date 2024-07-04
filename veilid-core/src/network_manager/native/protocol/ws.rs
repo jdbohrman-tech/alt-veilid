@@ -82,10 +82,7 @@ where
         self.flow
     }
 
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", err, skip(self))
-    )]
+    #[instrument(level = "trace", target = "protocol", err, skip_all)]
     pub async fn close(&self) -> io::Result<NetworkResult<()>> {
         // Make an attempt to close the stream normally
         let mut stream = self.stream.clone();
@@ -127,7 +124,7 @@ where
         */
     }
 
-    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", err, skip(self, message), fields(network_result, message.len = message.len())))]
+    #[instrument(level = "trace", target="protocol", err, skip(self, message), fields(network_result, message.len = message.len()))]
     pub async fn send(&self, message: Vec<u8>) -> io::Result<NetworkResult<()>> {
         if message.len() > MAX_MESSAGE_SIZE {
             bail_io_error_other!("sending too large WS message");
@@ -142,7 +139,7 @@ where
         Ok(out)
     }
 
-    #[cfg_attr(feature="verbose-tracing", instrument(level = "trace", err, skip(self), fields(network_result, ret.len)))]
+    #[instrument(level = "trace", target="protocol", err, skip(self), fields(network_result, ret.len))]
     pub async fn recv(&self) -> io::Result<NetworkResult<Vec<u8>>> {
         let out = match self.stream.clone().next().await {
             Some(Ok(Message::Binary(v))) => {
@@ -212,7 +209,7 @@ impl WebsocketProtocolHandler {
         }
     }
 
-    #[instrument(level = "trace", err, skip(self, ps))]
+    #[instrument(level = "trace", target = "protocol", err, skip(self, ps))]
     pub async fn on_accept_async(
         self,
         ps: AsyncPeekStream,
@@ -294,7 +291,7 @@ impl WebsocketProtocolHandler {
         Ok(Some(conn))
     }
 
-    #[instrument(level = "trace", ret, err)]
+    #[instrument(level = "trace", target = "protocol", ret, err)]
     pub async fn connect(
         local_address: Option<SocketAddr>,
         dial_info: &DialInfo,

@@ -22,6 +22,7 @@ pub type PermFunc<'t> = Box<dyn FnMut(&[usize]) -> Option<PermReturnType> + Send
 /// for a set of 'hop_count' nodes. the first node is always fixed, and the maximum
 /// number of permutations is given by get_route_permutation_count()
 
+#[instrument(level = "trace", target = "route", skip_all)]
 pub fn with_route_permutations(
     hop_count: usize,
     start: usize,

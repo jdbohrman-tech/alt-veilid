@@ -22,10 +22,7 @@ impl RawTcpNetworkConnection {
         self.flow
     }
 
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", err, skip(self))
-    )]
+    #[instrument(level = "trace", target = "protocol", err, skip_all)]
     pub async fn close(&self) -> io::Result<NetworkResult<()>> {
         let mut stream = self.stream.clone();
         let _ = stream.close().await;
@@ -47,6 +44,7 @@ impl RawTcpNetworkConnection {
         // }
     }
 
+    #[instrument(level = "trace", target = "protocol", err, skip_all)]
     async fn send_internal(
         stream: &mut AsyncPeekStream,
         message: Vec<u8>,
@@ -63,7 +61,7 @@ impl RawTcpNetworkConnection {
         stream.flush().await.into_network_result()
     }
 
-    #[cfg_attr(feature="verbose-tracing", instrument(level="trace", err, skip(self, message), fields(network_result, message.len = message.len())))]
+    #[instrument(level="trace", target="protocol", err, skip(self, message), fields(network_result, message.len = message.len()))]
     pub async fn send(&self, message: Vec<u8>) -> io::Result<NetworkResult<()>> {
         let mut stream = self.stream.clone();
         let out = Self::send_internal(&mut stream, message).await?;
@@ -72,6 +70,7 @@ impl RawTcpNetworkConnection {
         Ok(out)
     }
 
+    #[instrument(level = "trace", target = "protocol", err, skip_all)]
     async fn recv_internal(stream: &mut AsyncPeekStream) -> io::Result<NetworkResult<Vec<u8>>> {
         let mut header = [0u8; 4];
 
@@ -95,10 +94,7 @@ impl RawTcpNetworkConnection {
         Ok(NetworkResult::Value(out))
     }
 
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", err, skip(self), fields(network_result))
-    )]
+    #[instrument(level = "trace", target = "protocol", err, skip_all)]
     pub async fn recv(&self) -> io::Result<NetworkResult<Vec<u8>>> {
         let mut stream = self.stream.clone();
         let out = Self::recv_internal(&mut stream).await?;
@@ -127,7 +123,7 @@ impl RawTcpProtocolHandler {
         }
     }
 
-    #[instrument(level = "trace", err, skip(self, ps))]
+    #[instrument(level = "trace", target = "protocol", err, skip_all)]
     async fn on_accept_async(
         self,
         ps: AsyncPeekStream,
@@ -160,7 +156,7 @@ impl RawTcpProtocolHandler {
         Ok(Some(conn))
     }
 
-    #[instrument(level = "trace", ret, err)]
+    #[instrument(level = "trace", target = "protocol", err, skip_all)]
     pub async fn connect(
         local_address: Option<SocketAddr>,
         socket_addr: SocketAddr,
