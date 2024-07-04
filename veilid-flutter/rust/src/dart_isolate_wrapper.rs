@@ -58,6 +58,7 @@ impl DartIsolateWrapper {
             Err(e) => self.err_json(e),
         }
     }
+
     pub fn result_json<T: Serialize + Debug, E: Serialize + Debug>(
         self,
         result: Result<T, E>,
@@ -67,6 +68,7 @@ impl DartIsolateWrapper {
             Err(e) => self.err_json(e),
         }
     }
+
     pub fn ok<T: IntoDart>(self, value: T) -> bool {
         self.isolate
             .post(vec![MESSAGE_OK.into_dart(), value.into_dart()])

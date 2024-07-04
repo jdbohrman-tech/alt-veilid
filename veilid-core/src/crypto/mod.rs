@@ -128,7 +128,7 @@ impl Crypto {
         self.unlocked_inner.config.clone()
     }
 
-    #[instrument(skip_all, err)]
+    #[instrument(level = "trace", target = "crypto", skip_all, err)]
     pub async fn init(&self) -> EyreResult<()> {
         let table_store = self.unlocked_inner.table_store.clone();
         // Init node id from config

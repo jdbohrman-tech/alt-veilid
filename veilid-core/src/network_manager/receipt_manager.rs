@@ -290,7 +290,11 @@ impl ReceiptManager {
             if now >= next_oldest_ts {
                 // Single-spawn the timeout task routine
                 let _ = timeout_task
-                    .single_spawn(self.clone().timeout_task_routine(now, stop_token))
+                    .single_spawn(
+                        self.clone()
+                            .timeout_task_routine(now, stop_token)
+                            .in_current_span(),
+                    )
                     .await;
             }
         }

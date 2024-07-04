@@ -211,7 +211,7 @@ impl AttachmentManager {
         }
     }
 
-    #[instrument(level = "debug", skip(self))]
+    #[instrument(level = "debug", skip_all)]
     async fn attachment_maintainer(self) {
         log_net!(debug "attachment starting");
         self.update_attaching_detaching_state(AttachmentState::Attaching);
@@ -286,7 +286,7 @@ impl AttachmentManager {
         Ok(())
     }
 
-    #[instrument(level = "debug", skip(self))]
+    #[instrument(level = "debug", skip_all)]
     pub async fn terminate(&self) {
         // Ensure we detached
         self.detach().await;
@@ -294,7 +294,7 @@ impl AttachmentManager {
         self.inner.lock().update_callback = None;
     }
 
-    #[instrument(level = "trace", skip(self))]
+    #[instrument(level = "trace", skip_all)]
     pub async fn attach(&self) -> bool {
         // Create long-running connection maintenance routine
         let mut inner = self.inner.lock();
@@ -307,7 +307,7 @@ impl AttachmentManager {
         true
     }
 
-    #[instrument(level = "trace", skip(self))]
+    #[instrument(level = "trace", skip_all)]
     pub async fn detach(&self) -> bool {
         let attachment_maintainer_jh = {
             let mut inner = self.inner.lock();

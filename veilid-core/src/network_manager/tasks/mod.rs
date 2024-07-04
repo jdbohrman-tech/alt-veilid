@@ -11,14 +11,11 @@ impl NetworkManager {
             self.unlocked_inner
                 .rolling_transfers_task
                 .set_routine(move |s, l, t| {
-                    Box::pin(
-                        this.clone()
-                            .rolling_transfers_task_routine(s, Timestamp::new(l), Timestamp::new(t))
-                            .instrument(trace_span!(
-                                parent: None,
-                                "NetworkManager rolling transfers task routine"
-                            )),
-                    )
+                    Box::pin(this.clone().rolling_transfers_task_routine(
+                        s,
+                        Timestamp::new(l),
+                        Timestamp::new(t),
+                    ))
                 });
         }
 
@@ -28,18 +25,11 @@ impl NetworkManager {
             self.unlocked_inner
                 .public_address_check_task
                 .set_routine(move |s, l, t| {
-                    Box::pin(
-                        this.clone()
-                            .public_address_check_task_routine(
-                                s,
-                                Timestamp::new(l),
-                                Timestamp::new(t),
-                            )
-                            .instrument(trace_span!(
-                                parent: None,
-                                "public address check task routine"
-                            )),
-                    )
+                    Box::pin(this.clone().public_address_check_task_routine(
+                        s,
+                        Timestamp::new(l),
+                        Timestamp::new(t),
+                    ))
                 });
         }
 
@@ -49,11 +39,11 @@ impl NetworkManager {
             self.unlocked_inner
                 .address_filter_task
                 .set_routine(move |s, l, t| {
-                    Box::pin(
-                        this.address_filter()
-                            .address_filter_task_routine(s, Timestamp::new(l), Timestamp::new(t))
-                            .instrument(trace_span!(parent: None, "address filter task routine")),
-                    )
+                    Box::pin(this.address_filter().address_filter_task_routine(
+                        s,
+                        Timestamp::new(l),
+                        Timestamp::new(t),
+                    ))
                 });
         }
     }

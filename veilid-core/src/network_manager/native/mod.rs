@@ -976,10 +976,10 @@ impl Network {
 
     //////////////////////////////////////////
 
-    #[instrument(level = "trace", skip(self), err)]
+    #[instrument(level = "trace", target = "net", skip_all, err)]
     pub async fn network_interfaces_task_routine(
         self,
-        stop_token: StopToken,
+        _stop_token: StopToken,
         _l: u64,
         _t: u64,
     ) -> EyreResult<()> {
@@ -988,10 +988,10 @@ impl Network {
         Ok(())
     }
 
-    #[instrument(level = "trace", skip(self), err)]
+    #[instrument(level = "trace", target = "net", skip_all, err)]
     pub async fn upnp_task_routine(
         self,
-        stop_token: StopToken,
+        _stop_token: StopToken,
         _l: u64,
         _t: u64,
     ) -> EyreResult<()> {
@@ -1004,6 +1004,7 @@ impl Network {
         Ok(())
     }
 
+    #[instrument(level = "trace", target = "net", skip_all, err)]
     pub async fn tick(&self) -> EyreResult<()> {
         let (detect_address_changes, upnp) = {
             let config = self.network_manager().config();

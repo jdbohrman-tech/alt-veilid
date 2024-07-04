@@ -15,18 +15,11 @@ impl StorageManager {
             self.unlocked_inner
                 .flush_record_stores_task
                 .set_routine(move |s, l, t| {
-                    Box::pin(
-                        this.clone()
-                            .flush_record_stores_task_routine(
-                                s,
-                                Timestamp::new(l),
-                                Timestamp::new(t),
-                            )
-                            .instrument(trace_span!(
-                                parent: None,
-                                "StorageManager flush record stores task routine"
-                            )),
-                    )
+                    Box::pin(this.clone().flush_record_stores_task_routine(
+                        s,
+                        Timestamp::new(l),
+                        Timestamp::new(t),
+                    ))
                 });
         }
         // Set offline subkey writes tick task
@@ -36,18 +29,11 @@ impl StorageManager {
             self.unlocked_inner
                 .offline_subkey_writes_task
                 .set_routine(move |s, l, t| {
-                    Box::pin(
-                        this.clone()
-                            .offline_subkey_writes_task_routine(
-                                s,
-                                Timestamp::new(l),
-                                Timestamp::new(t),
-                            )
-                            .instrument(trace_span!(
-                                parent: None,
-                                "StorageManager offline subkey writes task routine"
-                            )),
-                    )
+                    Box::pin(this.clone().offline_subkey_writes_task_routine(
+                        s,
+                        Timestamp::new(l),
+                        Timestamp::new(t),
+                    ))
                 });
         }
         // Set send value changes tick task
@@ -57,18 +43,11 @@ impl StorageManager {
             self.unlocked_inner
                 .send_value_changes_task
                 .set_routine(move |s, l, t| {
-                    Box::pin(
-                        this.clone()
-                            .send_value_changes_task_routine(
-                                s,
-                                Timestamp::new(l),
-                                Timestamp::new(t),
-                            )
-                            .instrument(trace_span!(
-                                parent: None,
-                                "StorageManager send value changes task routine"
-                            )),
-                    )
+                    Box::pin(this.clone().send_value_changes_task_routine(
+                        s,
+                        Timestamp::new(l),
+                        Timestamp::new(t),
+                    ))
                 });
         }
         // Set check active watches tick task
@@ -78,18 +57,11 @@ impl StorageManager {
             self.unlocked_inner
                 .check_active_watches_task
                 .set_routine(move |s, l, t| {
-                    Box::pin(
-                        this.clone()
-                            .check_active_watches_task_routine(
-                                s,
-                                Timestamp::new(l),
-                                Timestamp::new(t),
-                            )
-                            .instrument(trace_span!(
-                                parent: None,
-                                "StorageManager check active watches task routine"
-                            )),
-                    )
+                    Box::pin(this.clone().check_active_watches_task_routine(
+                        s,
+                        Timestamp::new(l),
+                        Timestamp::new(t),
+                    ))
                 });
         }
         // Set check watched records tick task
@@ -99,18 +71,11 @@ impl StorageManager {
             self.unlocked_inner
                 .check_watched_records_task
                 .set_routine(move |s, l, t| {
-                    Box::pin(
-                        this.clone()
-                            .check_watched_records_task_routine(
-                                s,
-                                Timestamp::new(l),
-                                Timestamp::new(t),
-                            )
-                            .instrument(trace_span!(
-                                parent: None,
-                                "StorageManager check watched records task routine"
-                            )),
-                    )
+                    Box::pin(this.clone().check_watched_records_task_routine(
+                        s,
+                        Timestamp::new(l),
+                        Timestamp::new(t),
+                    ))
                 });
         }
     }

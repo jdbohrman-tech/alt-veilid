@@ -186,7 +186,7 @@ impl ConnectionManager {
     // Internal routine to register new connection atomically.
     // Registers connection in the connection table for later access
     // and spawns a message processing loop for the connection
-    #[instrument(level = "trace", skip(self, inner), ret, err)]
+    //#[instrument(level = "trace", skip(self, inner), ret, err)]
     fn on_new_protocol_network_connection(
         &self,
         inner: &mut ConnectionManagerInner,
@@ -420,7 +420,7 @@ impl ConnectionManager {
         }
     }
 
-    #[instrument(level = "trace", skip_all)]
+    //#[instrument(level = "trace", skip_all)]
     async fn async_processor(
         self,
         stop_token: StopToken,
@@ -438,7 +438,7 @@ impl ConnectionManager {
 
     // Called by low-level network when any connection-oriented protocol connection appears
     // either from incoming connections.
-    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+    //#[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub(super) async fn on_accepted_protocol_network_connection(
         &self,
         protocol_connection: ProtocolNetworkConnection,

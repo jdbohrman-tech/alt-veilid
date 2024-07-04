@@ -16,16 +16,27 @@ pub struct VeilidLayerFilter {
 impl VeilidLayerFilter {
     pub fn new(
         max_level: VeilidConfigLogLevel,
-        ignore_log_targets: &[String],
+        ignore_change_list: &[String],
     ) -> VeilidLayerFilter {
         let mut ignore_list = DEFAULT_LOG_FACILITIES_IGNORE_LIST
             .map(|x| x.to_owned())
             .to_vec();
-        Self::apply_ignore_change_list(&mut ignore_list, ignore_log_targets);
+        Self::apply_ignore_change_list(&mut ignore_list, ignore_change_list);
         Self {
             inner: Arc::new(RwLock::new(VeilidLayerFilterInner {
                 max_level: max_level.to_tracing_level_filter(),
                 ignore_list,
+            })),
+        }
+    }
+    pub fn new_no_default(
+        max_level: VeilidConfigLogLevel,
+        ignore_list: &[String],
+    ) -> VeilidLayerFilter {
+        Self {
+            inner: Arc::new(RwLock::new(VeilidLayerFilterInner {
+                max_level: max_level.to_tracing_level_filter(),
+                ignore_list: ignore_list.to_vec(),
             })),
         }
     }
@@ -101,6 +112,9 @@ impl VeilidLayerFilter {
                 .into_iter()
                 .map(|x| x.to_owned())
                 .collect();
+                continue;
+            } else if change == "none" {
+                ignore_list.clear();
                 continue;
             } else if change == "default" {
                 *ignore_list = [DEFAULT_LOG_FACILITIES_IGNORE_LIST.to_vec()]

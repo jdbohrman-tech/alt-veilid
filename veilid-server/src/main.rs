@@ -151,7 +151,7 @@ pub struct CmdlineArgs {
     console: bool,
 }
 
-#[instrument(err)]
+#[instrument(level = "trace", skip_all, err)]
 fn main() -> EyreResult<()> {
     #[cfg(windows)]
     let _ = ansi_term::enable_ansi_support();

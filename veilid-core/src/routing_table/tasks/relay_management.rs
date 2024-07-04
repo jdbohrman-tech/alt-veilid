@@ -2,6 +2,7 @@ use super::*;
 
 impl RoutingTable {
     // Check if a relay is desired or not
+    #[instrument(level = "trace", skip_all)]
     fn public_internet_wants_relay(&self) -> Option<RelayKind> {
         let own_peer_info = self.get_own_peer_info(RoutingDomain::PublicInternet);
         let own_node_info = own_peer_info.signed_node_info().node_info();
@@ -47,7 +48,7 @@ impl RoutingTable {
     }
 
     // Keep relays assigned and accessible
-    #[instrument(level = "trace", skip(self), err)]
+    #[instrument(level = "trace", skip_all, err)]
     pub(crate) async fn relay_management_task_routine(
         self,
         _stop_token: StopToken,
@@ -145,6 +146,7 @@ impl RoutingTable {
         Ok(())
     }
 
+    #[instrument(level = "trace", skip_all)]
     pub fn make_public_internet_relay_node_filter(&self) -> impl Fn(&BucketEntryInner) -> bool {
         // Get all our outbound protocol/address types
         let outbound_dif = self.get_outbound_dial_info_filter(RoutingDomain::PublicInternet);

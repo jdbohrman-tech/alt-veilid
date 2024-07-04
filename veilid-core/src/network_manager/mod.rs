@@ -901,17 +901,6 @@ impl NetworkManager {
     // and passes it to the RPC handler
     #[instrument(level = "trace", target = "receipt", skip_all)]
     async fn on_recv_envelope(&self, data: &mut [u8], flow: Flow) -> EyreResult<bool> {
-        #[cfg(feature = "verbose-tracing")]
-        let root = span!(
-            parent: None,
-            Level::TRACE,
-            "on_recv_envelope",
-            "data.len" = data.len(),
-            "flow" = ?flow
-        );
-        #[cfg(feature = "verbose-tracing")]
-        let _root_enter = root.enter();
-
         log_net!("envelope of {} bytes received from {:?}", data.len(), flow);
         let remote_addr = flow.remote_address().ip_addr();
 

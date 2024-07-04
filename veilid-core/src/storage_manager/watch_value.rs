@@ -294,7 +294,7 @@ impl StorageManager {
                 log_network_result!(debug "WatchValue fanout call returned peers {} ({})", wva.answer.peers.len(), next_node);
 
                 Ok(NetworkResult::value(wva.answer.peers))
-            }
+            }.in_current_span()
         };
 
         // Routine to call to check if we're done at each step
@@ -408,6 +408,7 @@ impl StorageManager {
     }
 
     /// Handle a received 'Value Changed' statement
+    #[instrument(level = "trace", target = "dht", skip_all)]
     pub async fn inbound_value_changed(
         &self,
         key: TypedKey,

@@ -171,7 +171,7 @@ pub(crate) struct RPCMessage {
     opt_sender_nr: Option<NodeRef>,
 }
 
-#[instrument(skip_all, err)]
+#[instrument(level="trace", target="rpc", skip_all, err)]
 pub fn builder_to_vec<'a, T>(builder: capnp::message::Builder<T>) -> Result<Vec<u8>, RPCError>
 where
     T: capnp::message::Allocator + 'a,
@@ -1669,13 +1669,13 @@ impl RPCProcessor {
         while let Ok(Ok((_span_id, msg))) =
             receiver.recv_async().timeout_at(stop_token.clone()).await
         {
-            let rpc_worker_span = span!(parent: None, Level::TRACE, "rpc_worker recv");
+            //let rpc_worker_span = span!(parent: None, Level::TRACE, "rpc_worker recv");
             // xxx: causes crash (Missing otel data span extensions)
             // rpc_worker_span.follows_from(span_id);
                     
             network_result_value_or_log!(match self
-                .process_rpc_message(msg)
-                .instrument(rpc_worker_span)
+                .process_rpc_message(msg).in_current_span()
+                //.instrument(rpc_worker_span)
                 .await
             {
                 Err(e) => {

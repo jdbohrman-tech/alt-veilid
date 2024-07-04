@@ -17,14 +17,11 @@ impl RoutingTable {
             self.unlocked_inner
                 .rolling_transfers_task
                 .set_routine(move |s, l, t| {
-                    Box::pin(
-                        this.clone()
-                            .rolling_transfers_task_routine(s, Timestamp::new(l), Timestamp::new(t))
-                            .instrument(trace_span!(
-                                parent: None,
-                                "RoutingTable rolling transfers task routine"
-                            )),
-                    )
+                    Box::pin(this.clone().rolling_transfers_task_routine(
+                        s,
+                        Timestamp::new(l),
+                        Timestamp::new(t),
+                    ))
                 });
         }
 
@@ -34,11 +31,11 @@ impl RoutingTable {
             self.unlocked_inner
                 .kick_buckets_task
                 .set_routine(move |s, l, t| {
-                    Box::pin(
-                        this.clone()
-                            .kick_buckets_task_routine(s, Timestamp::new(l), Timestamp::new(t))
-                            .instrument(trace_span!(parent: None, "kick buckets task routine")),
-                    )
+                    Box::pin(this.clone().kick_buckets_task_routine(
+                        s,
+                        Timestamp::new(l),
+                        Timestamp::new(t),
+                    ))
                 });
         }
 
@@ -47,13 +44,7 @@ impl RoutingTable {
             let this = self.clone();
             self.unlocked_inner
                 .bootstrap_task
-                .set_routine(move |s, _l, _t| {
-                    Box::pin(
-                        this.clone()
-                            .bootstrap_task_routine(s)
-                            .instrument(trace_span!(parent: None, "bootstrap task routine")),
-                    )
-                });
+                .set_routine(move |s, _l, _t| Box::pin(this.clone().bootstrap_task_routine(s)));
         }
 
         // Set peer minimum refresh tick task
@@ -62,14 +53,7 @@ impl RoutingTable {
             self.unlocked_inner
                 .peer_minimum_refresh_task
                 .set_routine(move |s, _l, _t| {
-                    Box::pin(
-                        this.clone()
-                            .peer_minimum_refresh_task_routine(s)
-                            .instrument(trace_span!(
-                                parent: None,
-                                "peer minimum refresh task routine"
-                            )),
-                    )
+                    Box::pin(this.clone().peer_minimum_refresh_task_routine(s))
                 });
         }
 
@@ -79,14 +63,7 @@ impl RoutingTable {
             self.unlocked_inner
                 .closest_peers_refresh_task
                 .set_routine(move |s, _l, _t| {
-                    Box::pin(
-                        this.clone()
-                            .closest_peers_refresh_task_routine(s)
-                            .instrument(trace_span!(
-                                parent: None,
-                                "closest peers refresh task routine"
-                            )),
-                    )
+                    Box::pin(this.clone().closest_peers_refresh_task_routine(s))
                 });
         }
 
@@ -96,11 +73,11 @@ impl RoutingTable {
             self.unlocked_inner
                 .ping_validator_task
                 .set_routine(move |s, l, t| {
-                    Box::pin(
-                        this.clone()
-                            .ping_validator_task_routine(s, Timestamp::new(l), Timestamp::new(t))
-                            .instrument(trace_span!(parent: None, "ping validator task routine")),
-                    )
+                    Box::pin(this.clone().ping_validator_task_routine(
+                        s,
+                        Timestamp::new(l),
+                        Timestamp::new(t),
+                    ))
                 });
         }
 
@@ -110,11 +87,11 @@ impl RoutingTable {
             self.unlocked_inner
                 .relay_management_task
                 .set_routine(move |s, l, t| {
-                    Box::pin(
-                        this.clone()
-                            .relay_management_task_routine(s, Timestamp::new(l), Timestamp::new(t))
-                            .instrument(trace_span!(parent: None, "relay management task routine")),
-                    )
+                    Box::pin(this.clone().relay_management_task_routine(
+                        s,
+                        Timestamp::new(l),
+                        Timestamp::new(t),
+                    ))
                 });
         }
 
@@ -124,18 +101,11 @@ impl RoutingTable {
             self.unlocked_inner
                 .private_route_management_task
                 .set_routine(move |s, l, t| {
-                    Box::pin(
-                        this.clone()
-                            .private_route_management_task_routine(
-                                s,
-                                Timestamp::new(l),
-                                Timestamp::new(t),
-                            )
-                            .instrument(trace_span!(
-                                parent: None,
-                                "private route management task routine"
-                            )),
-                    )
+                    Box::pin(this.clone().private_route_management_task_routine(
+                        s,
+                        Timestamp::new(l),
+                        Timestamp::new(t),
+                    ))
                 });
         }
     }

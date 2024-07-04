@@ -627,6 +627,7 @@ impl RoutingTableInner {
     /// Create a node reference, possibly creating a bucket entry
     /// the 'update_func' closure is called on the node, and, if created,
     /// in a locked fashion as to ensure the bucket entry state is always valid
+    #[instrument(level = "trace", skip_all, err)]
     fn create_node_ref<F>(
         &mut self,
         outer_self: RoutingTable,
@@ -707,6 +708,7 @@ impl RoutingTableInner {
     }
 
     /// Resolve an existing routing table entry using any crypto kind and return a reference to it
+    #[instrument(level = "trace", skip_all, err)]
     pub fn lookup_any_node_ref(
         &self,
         outer_self: RoutingTable,
@@ -723,6 +725,7 @@ impl RoutingTableInner {
     }
 
     /// Resolve an existing routing table entry and return a reference to it
+    #[instrument(level = "trace", skip_all, err)]
     pub fn lookup_node_ref(
         &self,
         outer_self: RoutingTable,
@@ -743,6 +746,7 @@ impl RoutingTableInner {
     }
 
     /// Resolve an existing routing table entry and return a filtered reference to it
+    #[instrument(level = "trace", skip_all, err)]
     pub fn lookup_and_filter_noderef(
         &self,
         outer_self: RoutingTable,
@@ -781,6 +785,7 @@ impl RoutingTableInner {
     /// Shortcut function to add a node to our routing table if it doesn't exist
     /// and add the dial info we have for it. Returns a noderef filtered to
     /// the routing domain in which this node was registered for convenience.
+    #[instrument(level = "trace", skip_all, err)]
     pub fn register_node_with_peer_info(
         &mut self,
         outer_self: RoutingTable,
@@ -853,6 +858,7 @@ impl RoutingTableInner {
 
     /// Shortcut function to add a node to our routing table if it doesn't exist
     /// and add the last peer address we have for it, since that's pretty common
+    #[instrument(level = "trace", skip_all, err)]
     pub fn register_node_with_existing_connection(
         &mut self,
         outer_self: RoutingTable,
@@ -933,6 +939,7 @@ impl RoutingTableInner {
     // Find Nodes
 
     // Retrieve the fastest nodes in the routing table matching an entry filter
+    #[instrument(level = "trace", skip_all)]
     pub fn find_fast_public_nodes_filtered(
         &self,
         outer_self: RoutingTable,
@@ -965,6 +972,7 @@ impl RoutingTableInner {
         )
     }
 
+    #[instrument(level = "trace", skip_all)]
     pub fn filter_has_valid_signed_node_info(
         &self,
         routing_domain: RoutingDomain,
@@ -984,6 +992,7 @@ impl RoutingTableInner {
         }
     }
 
+    #[instrument(level = "trace", skip_all)]
     pub fn transform_to_peer_info(
         &self,
         routing_domain: RoutingDomain,
@@ -996,6 +1005,7 @@ impl RoutingTableInner {
         }
     }
 
+    #[instrument(level = "trace", skip_all)]
     pub fn find_peers_with_sort_and_filter<C, T, O>(
         &self,
         node_count: usize,
@@ -1058,6 +1068,7 @@ impl RoutingTableInner {
         out
     }
 
+    #[instrument(level = "trace", skip_all)]
     pub fn find_preferred_fastest_nodes<T, O>(
         &self,
         node_count: usize,
@@ -1136,6 +1147,7 @@ impl RoutingTableInner {
         self.find_peers_with_sort_and_filter(node_count, cur_ts, filters, sort, transform)
     }
 
+    #[instrument(level = "trace", skip_all)]
     pub fn find_preferred_closest_nodes<T, O>(
         &self,
         node_count: usize,
@@ -1222,6 +1234,7 @@ impl RoutingTableInner {
         Ok(out)
     }
 
+    #[instrument(level = "trace", skip_all)]
     pub fn sort_and_clean_closest_noderefs(
         &self,
         node_id: TypedKey,
@@ -1250,6 +1263,7 @@ impl RoutingTableInner {
     }
 }
 
+#[instrument(level = "trace", skip_all)]
 pub(crate) fn make_closest_noderef_sort(
     crypto: Crypto,
     node_id: TypedKey,

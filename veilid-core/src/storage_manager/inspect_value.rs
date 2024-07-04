@@ -228,7 +228,7 @@ impl StorageManager {
                 log_network_result!(debug "InspectValue fanout call returned peers {}", answer.peers.len());
 
                 Ok(NetworkResult::value(answer.peers))
-            }
+            }.in_current_span()
         };
 
         // Routine to call to check if we're done at each step

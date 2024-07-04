@@ -177,7 +177,7 @@ impl StorageManager {
                     ctx.send_partial_update = true;
 
                     Ok(NetworkResult::value(sva.answer.peers))
-                }
+                }.in_current_span()
             }
         };
 
@@ -267,7 +267,7 @@ impl StorageManager {
             })) {
                 log_dht!(debug "Sending SetValue result failed: {}", e);
             }
-        }))
+        }.in_current_span()))
         .detach();
 
         Ok(out_rx)
@@ -329,7 +329,7 @@ impl StorageManager {
 
                         // Return done
                         false
-                    })
+                    }.in_current_span())
                 },
             ),
         );

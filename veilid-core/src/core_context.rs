@@ -62,7 +62,7 @@ impl ServicesContext {
         }
     }
 
-    #[instrument(err, skip_all)]
+    #[instrument(level = "trace", target = "core_context", err, skip_all)]
     pub async fn startup(&mut self) -> EyreResult<()> {
         info!("Veilid API starting up");
 
@@ -151,7 +151,7 @@ impl ServicesContext {
         Ok(())
     }
 
-    #[instrument(skip_all)]
+    #[instrument(level = "trace", target = "core_context", skip_all)]
     pub async fn shutdown(&mut self) {
         info!("Veilid API shutting down");
 
@@ -200,7 +200,7 @@ pub(crate) struct VeilidCoreContext {
 }
 
 impl VeilidCoreContext {
-    #[instrument(err, skip_all)]
+    #[instrument(level = "trace", target = "core_context", err, skip_all)]
     async fn new_with_config_callback(
         update_callback: UpdateCallback,
         config_callback: ConfigCallback,
@@ -212,7 +212,7 @@ impl VeilidCoreContext {
         Self::new_common(update_callback, config).await
     }
 
-    #[instrument(err, skip_all)]
+    #[instrument(level = "trace", target = "core_context", err, skip_all)]
     async fn new_with_config_json(
         update_callback: UpdateCallback,
         config_json: String,
@@ -223,7 +223,7 @@ impl VeilidCoreContext {
         Self::new_common(update_callback, config).await
     }
 
-    #[instrument(err, skip_all)]
+    #[instrument(level = "trace", target = "core_context", err, skip_all)]
     async fn new_with_config(
         update_callback: UpdateCallback,
         config_inner: VeilidConfigInner,
@@ -234,7 +234,7 @@ impl VeilidCoreContext {
         Self::new_common(update_callback, config).await
     }
 
-    #[instrument(err, skip_all)]
+    #[instrument(level = "trace", target = "core_context", err, skip_all)]
     async fn new_common(
         update_callback: UpdateCallback,
         config: VeilidConfig,
@@ -263,7 +263,7 @@ impl VeilidCoreContext {
         })
     }
 
-    #[instrument(skip_all)]
+    #[instrument(level = "trace", target = "core_context", skip_all)]
     async fn shutdown(self) {
         let mut sc = ServicesContext::new_full(
             self.config.clone(),
@@ -294,7 +294,7 @@ lazy_static::lazy_static! {
 /// * `config_callback` - called at startup to supply a configuration object directly to Veilid.
 ///
 /// Returns a [VeilidAPI] object that can be used to operate the node.
-#[instrument(err, skip_all)]
+#[instrument(level = "trace", target = "core_context", err, skip_all)]
 pub async fn api_startup(
     update_callback: UpdateCallback,
     config_callback: ConfigCallback,
@@ -325,7 +325,7 @@ pub async fn api_startup(
 /// * `config_json` - called at startup to supply a JSON configuration object.
 ///
 /// Returns a [VeilidAPI] object that can be used to operate the node.
-#[instrument(err, skip_all)]
+#[instrument(level = "trace", target = "core_context", err, skip_all)]
 pub async fn api_startup_json(
     update_callback: UpdateCallback,
     config_json: String,
@@ -355,7 +355,7 @@ pub async fn api_startup_json(
 /// * `config` - called at startup to supply a configuration object.
 ///
 /// Returns a [VeilidAPI] object that can be used to operate the node.
-#[instrument(err, skip_all)]
+#[instrument(level = "trace", target = "core_context", err, skip_all)]
 pub async fn api_startup_config(
     update_callback: UpdateCallback,
     config: VeilidConfigInner,
@@ -377,7 +377,7 @@ pub async fn api_startup_config(
     Ok(veilid_api)
 }
 
-#[instrument(skip_all)]
+#[instrument(level = "trace", target = "core_context", skip_all)]
 pub(crate) async fn api_shutdown(context: VeilidCoreContext) {
     let mut initialized_lock = INITIALIZED.lock().await;
     context.shutdown().await;

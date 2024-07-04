@@ -8,7 +8,7 @@ use signal_hook::consts::signal::*;
 use signal_hook_async_std::Signals;
 use veilid_core::tools::*;
 
-#[instrument(skip(signals))]
+#[instrument(level = "trace", skip_all)]
 async fn handle_signals(mut signals: Signals) {
     while let Some(signal) = signals.next().await {
         match signal {
@@ -47,7 +47,7 @@ pub async fn run_veilid_server_with_signals(
 }
 
 #[warn(missing_docs)]
-#[instrument(err)]
+#[instrument(level = "trace", skip_all, err)]
 pub fn run_daemon(settings: Settings, _args: CmdlineArgs) -> EyreResult<()> {
     let daemon = {
         let mut daemon = daemonize::Daemonize::new();

@@ -299,7 +299,7 @@ impl NetworkConnection {
             };
             let timer = MutableFuture::new(new_timer());
 
-            unord.push(system_boxed(timer.clone().instrument(Span::current())));
+            unord.push(system_boxed(timer.clone().in_current_span()));
 
             loop {
                 // Add another message sender future if necessary
@@ -309,10 +309,6 @@ impl NetworkConnection {
                         match res {
                             Ok((_span_id, message)) => {
 
-                                let recv_span = span!(Level::TRACE, "process_connection recv");
-                                // xxx: causes crash (Missing otel data span extensions)
-                                // recv_span.follows_from(span_id);
-                    
                                 // Touch the LRU for this connection
                                 connection_manager.touch_connection_by_id(connection_id);
 
@@ -321,7 +317,7 @@ impl NetworkConnection {
                                     &protocol_connection,
                                     stats.clone(),
                                     message,
-                                ).instrument(recv_span)
+                                ).in_current_span()
                                 .await
                                 {
                                     // Sending the packet along can fail, if so, this connection is dead
@@ -338,7 +334,7 @@ impl NetworkConnection {
                             }
                         }
                     });
-                    unord.push(system_boxed(sender_fut.instrument(Span::current())));
+                    unord.push(system_boxed(sender_fut.in_current_span()));
                 }
 
                 // Add another message receiver future if necessary
@@ -393,9 +389,9 @@ impl NetworkConnection {
                                     RecvLoopAction::Finish
                                 }
                             }
-                        });
+                        }.in_current_span());
 
-                    unord.push(system_boxed(receiver_fut.instrument(Span::current())));
+                    unord.push(system_boxed(receiver_fut.in_current_span()));
                 }
 
                 // Process futures
@@ -445,7 +441,7 @@ impl NetworkConnection {
                 log_net!(debug "Protocol connection close error: {}", e);
             }
             
-        }.instrument(trace_span!("process_connection")))
+        }.in_current_span())
     }
 
     pub fn debug_print(&self, cur_ts: Timestamp) -> String {

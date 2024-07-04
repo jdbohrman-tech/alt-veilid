@@ -61,7 +61,7 @@ mod wasm_helpers;
 pub use self::core_context::{api_startup, api_startup_config, api_startup_json, UpdateCallback};
 pub use self::logging::{
     ApiTracingLayer, VeilidLayerFilter, DEFAULT_LOG_FACILITIES_ENABLED_LIST,
-    DEFAULT_LOG_FACILITIES_IGNORE_LIST, DURATION_LOG_FACILITIES,
+    DEFAULT_LOG_FACILITIES_IGNORE_LIST, DURATION_LOG_FACILITIES, FLAME_LOG_FACILITIES_IGNORE_LIST,
 };
 pub use self::veilid_api::*;
 pub use self::veilid_config::*;

@@ -182,7 +182,7 @@ impl StorageManager {
                     log_network_result!(debug "GetValue fanout call returned peers {}", gva.answer.peers.len());
 
                     Ok(NetworkResult::value(gva.answer.peers))
-                }
+                }.in_current_span()
             }
         };
 
@@ -271,7 +271,7 @@ impl StorageManager {
             })) {
                 log_dht!(debug "Sending GetValue result failed: {}", e);
             }
-        }))
+        }.in_current_span()))
         .detach();
 
         Ok(out_rx)
@@ -319,7 +319,7 @@ impl StorageManager {
 
                         // Return done
                         false
-                    })
+                    }.in_current_span())
                 },
             ),
         );

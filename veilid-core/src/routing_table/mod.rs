@@ -653,6 +653,7 @@ impl RoutingTable {
     }
 
     /// Resolve an existing routing table entry and return a filtered reference to it
+    #[instrument(level = "trace", skip_all)]
     pub fn lookup_and_filter_noderef(
         &self,
         node_id: TypedKey,
@@ -670,6 +671,7 @@ impl RoutingTable {
     /// Shortcut function to add a node to our routing table if it doesn't exist
     /// and add the dial info we have for it. Returns a noderef filtered to
     /// the routing domain in which this node was registered for convenience.
+    #[instrument(level = "trace", skip_all, err)]
     pub fn register_node_with_peer_info(
         &self,
         routing_domain: RoutingDomain,
@@ -686,6 +688,7 @@ impl RoutingTable {
 
     /// Shortcut function to add a node to our routing table if it doesn't exist
     /// and add the last peer address we have for it, since that's pretty common
+    #[instrument(level = "trace", skip_all, err)]
     pub fn register_node_with_existing_connection(
         &self,
         node_id: TypedKey,
@@ -707,6 +710,7 @@ impl RoutingTable {
         self.inner.read().get_routing_table_health()
     }
 
+    #[instrument(level = "trace", skip_all)]
     pub fn get_recent_peers(&self) -> Vec<(TypedKey, RecentPeersEntry)> {
         let mut recent_peers = Vec::new();
         let mut dead_peers = Vec::new();

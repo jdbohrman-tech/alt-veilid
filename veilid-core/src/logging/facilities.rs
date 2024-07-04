@@ -29,6 +29,31 @@ pub static DEFAULT_LOG_FACILITIES_IGNORE_LIST: [&str; 28] = [
     "receipt",
 ];
 
+pub static FLAME_LOG_FACILITIES_IGNORE_LIST: [&str; 22] = [
+    "mio",
+    "h2",
+    "hyper",
+    "tower",
+    "tonic",
+    "tokio",
+    "runtime",
+    "tokio_util",
+    "want",
+    "serial_test",
+    "async_std",
+    "async_io",
+    "polling",
+    "rustls",
+    "async_tungstenite",
+    "tungstenite",
+    "netlink_proto",
+    "netlink_sys",
+    "hickory_resolver",
+    "hickory_proto",
+    "attohttpc",
+    "ws_stream_wasm",
+];
+
 pub static DEFAULT_LOG_FACILITIES_ENABLED_LIST: [&str; 8] = [
     "net",
     "rpc",

@@ -59,6 +59,7 @@ impl IGDManager {
         }
     }
 
+    #[instrument(level = "trace", target = "net", skip_all)]
     fn get_routed_local_ip_address(address_type: AddressType) -> Option<IpAddr> {
         let socket = match UdpSocket::bind(match address_type {
             AddressType::IPV4 => SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0),
@@ -90,6 +91,7 @@ impl IGDManager {
         Some(socket.local_addr().ok()?.ip())
     }
 
+    #[instrument(level = "trace", target = "net", skip_all)]
     fn find_local_ip(inner: &mut IGDManagerInner,
         address_type: AddressType,
         ) -> Option<IpAddr> {
@@ -109,6 +111,7 @@ impl IGDManager {
         Some(ip)
     }
 
+    #[instrument(level = "trace", target = "net", skip_all)]
     fn get_local_ip(
         inner: &mut IGDManagerInner,
         address_type: AddressType,
@@ -119,6 +122,7 @@ impl IGDManager {
         None
     }
 
+    #[instrument(level = "trace", target = "net", skip_all)]
     fn find_gateway(
         inner: &mut IGDManagerInner,
         local_ip: IpAddr,
@@ -165,6 +169,7 @@ impl IGDManager {
         Some(gw)
     }
 
+    #[instrument(level = "trace", target = "net", skip_all)]
     fn get_gateway(
         inner: &mut IGDManagerInner,
         local_ip: IpAddr,
@@ -179,6 +184,7 @@ impl IGDManager {
         format!("{} map {} for port {}", self.config.get().program_name, convert_llpt(llpt), local_port )
     }
 
+    #[instrument(level = "trace", target = "net", skip_all)]
     pub async fn unmap_port(&self, 
         llpt: LowLevelProtocolType,
         at: AddressType,
@@ -220,6 +226,7 @@ impl IGDManager {
         .await
     }
 
+    #[instrument(level = "trace", target = "net", skip_all)]
     pub async fn map_any_port(
         &self,
         llpt: LowLevelProtocolType,
@@ -303,6 +310,7 @@ impl IGDManager {
         .await
     }
 
+    #[instrument(level = "trace", target = "net", skip_all, err)]
     pub async fn tick(&self) -> EyreResult<bool> {
         // Refresh mappings if we have them
         // If an error is received, then return false to restart the local network
@@ -426,6 +434,6 @@ impl IGDManager {
             
             // Normal exit, no restart
             Ok(true)
-        }, Err(eyre!("failed to process blocking task"))).await
+        }, Err(eyre!("failed to process blocking task"))).in_current_span().await
     }
 }

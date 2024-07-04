@@ -76,13 +76,14 @@ impl VeilidLogs {
         // Flamegraph logger
         let mut flame_guard = None;
         if settingsr.logging.flame.enabled {
-            let filter = veilid_core::VeilidLayerFilter::new(
-                convert_loglevel(LogLevel::Trace),
-                &[], //&settingsr.logging.terminal.ignore_log_targets,
+            let filter = veilid_core::VeilidLayerFilter::new_no_default(
+                veilid_core::VeilidConfigLogLevel::Trace,
+                &veilid_core::FLAME_LOG_FACILITIES_IGNORE_LIST.map(|x| x.to_string()),
             );
             let (flame_layer, guard) = FlameLayer::with_file(&settingsr.logging.flame.path)?;
             flame_guard = Some(guard);
-            filters.insert("flame", filter.clone());
+            // Do not include this in change_log_level changes, so we keep trace level
+            // filters.insert("flame", filter.clone());
             layers.push(
                 flame_layer
                     .with_threads_collapsed(true)
