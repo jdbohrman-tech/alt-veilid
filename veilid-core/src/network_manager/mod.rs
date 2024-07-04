@@ -69,8 +69,10 @@ pub struct ProtocolConfig {
     pub outbound: ProtocolTypeSet,
     pub inbound: ProtocolTypeSet,
     pub family_global: AddressTypeSet,
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub family_local: AddressTypeSet,
     pub public_internet_capabilities: Vec<FourCC>,
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub local_network_capabilities: Vec<FourCC>,
 }
 

@@ -9,6 +9,7 @@ use stop_token::future::FutureExt;
 
 #[derive(Debug)]
 enum ConnectionManagerEvent {
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     Accepted(ProtocolNetworkConnection),
     Dead(NetworkConnection),
 }
@@ -420,7 +421,6 @@ impl ConnectionManager {
         }
     }
 
-    //#[instrument(level = "trace", skip_all)]
     async fn async_processor(
         self,
         stop_token: StopToken,
@@ -438,7 +438,7 @@ impl ConnectionManager {
 
     // Called by low-level network when any connection-oriented protocol connection appears
     // either from incoming connections.
-    //#[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub(super) async fn on_accepted_protocol_network_connection(
         &self,
         protocol_connection: ProtocolNetworkConnection,
@@ -465,7 +465,6 @@ impl ConnectionManager {
 
     // Callback from network connection receive loop when it exits
     // cleans up the entry in the connection table
-    #[instrument(level = "trace", skip(self))]
     pub(super) async fn report_connection_finished(&self, connection_id: NetworkConnectionId) {
         // Get channel sender
         let sender = {

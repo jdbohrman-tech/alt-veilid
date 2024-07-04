@@ -307,7 +307,10 @@ impl NetworkConnection {
                     need_sender = false;
                     let sender_fut = receiver.recv_async().then(|res| async {
                         match res {
-                            Ok((_span_id, message)) => {
+                            Ok((span_id, message)) => {
+                                
+                                let span = span!(parent: span_id, Level::TRACE, "process_connection send");
+                                let _enter = span.enter();         
 
                                 // Touch the LRU for this connection
                                 connection_manager.touch_connection_by_id(connection_id);
@@ -317,7 +320,7 @@ impl NetworkConnection {
                                     &protocol_connection,
                                     stats.clone(),
                                     message,
-                                ).in_current_span()
+                                )
                                 .await
                                 {
                                     // Sending the packet along can fail, if so, this connection is dead
