@@ -1,3 +1,28 @@
+**Changed in Veilid 0.3.3**
+- Fix set_dht_value and watch_value
+  - Watching values incorrectly categorized 'owner' keys as anonymous watchers
+  - Setting a dht value with the same sequence number as what is on the network, but with a conflicting value, did not result in the current value being returned to the api caller as it should have been
+- DHT cleanup
+  - Proper application of DHT capabilities
+  - Fanout debugging log target
+  - Performance measurement / timing of veilid_api log target
+- Fix DHT Rust integration test
+- ValueChanged Optional
+  - Allow value changed data to be optional in rpc schema
+  - Make valuechanged update no longer happen when value hasn't changed or is older
+- Implement closest peers refresh
+  - Implement closest peers refresh. Closes issue #372.
+  - Find_self/find_target can use capability check
+  - Fix offline subkey write reporting to eliminate spurious notifications
+  - Add more detail to public address check
+- Improved punishment and state
+  - Create 'reasons' for dead and unreliable states
+  - Make 'punished' its own state
+  - Closes issue #281
+  - Fixes an issue with reliable nodes being marked as 'dead' unjustly
+- _Community Contributions_
+  - Fixed memory leak in Windows DNS resolver @kyanha
+
 **Changed in Veilid 0.3.2**
 - DHT optimization and bugfixes
   - Support for offline write status in DHTRecordReport

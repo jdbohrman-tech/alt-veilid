@@ -20,7 +20,7 @@ Releases happen via a CI/CD pipeline. The release process flows as follows:
 
     2.1 Update your local copy of `main` to mirror the newly merged upstream `main`
 
-    2.2 Ensure the [CHANGELOG](./CHANGELOG.md) is updated. Include `[ci skip]` in the commit message so that the testing pipeline is skipped.
+    2.2 Ensure the [CHANGELOG](./CHANGELOG.md) is updated.
 
     2.3 Activate your bumpversion Python venv (see bumpversion setup section for details)
 
