@@ -709,216 +709,238 @@ impl Network {
 
     /////////////////////////////////////////////////////////////////
 
-    #[instrument(level = "debug", err, skip_all)]
-    pub async fn startup(&self) -> EyreResult<()> {
-        self.inner.lock().network_started = None;
-        let startup_func = async {
-            // initialize interfaces
-            self.unlocked_inner.interfaces.refresh().await?;
+    pub async fn startup_internal(&self) -> EyreResult<StartupDisposition> {
+        // initialize interfaces
+        self.unlocked_inner.interfaces.refresh().await?;
 
-            // build the set of networks we should consider for the 'LocalNetwork' routing domain
-            let mut local_networks: HashSet<(IpAddr, IpAddr)> = HashSet::new();
-            self.unlocked_inner
-                .interfaces
-                .with_interfaces(|interfaces| {
-                    log_net!(debug "interfaces: {:#?}", interfaces);
+        // build the set of networks we should consider for the 'LocalNetwork' routing domain
+        let mut local_networks: HashSet<(IpAddr, IpAddr)> = HashSet::new();
+        self.unlocked_inner
+            .interfaces
+            .with_interfaces(|interfaces| {
+                log_net!(debug "interfaces: {:#?}", interfaces);
 
-                    for intf in interfaces.values() {
-                        // Skip networks that we should never encounter
-                        if intf.is_loopback() || !intf.is_running() {
-                            continue;
-                        }
-                        // Add network to local networks table
-                        for addr in &intf.addrs {
-                            let netmask = addr.if_addr().netmask();
-                            let network_ip = ipaddr_apply_netmask(addr.if_addr().ip(), netmask);
-                            local_networks.insert((network_ip, netmask));
-                        }
+                for intf in interfaces.values() {
+                    // Skip networks that we should never encounter
+                    if intf.is_loopback() || !intf.is_running() {
+                        continue;
                     }
-                });
-            let local_networks: Vec<(IpAddr, IpAddr)> = local_networks.into_iter().collect();
-            self.unlocked_inner
-                .routing_table
-                .configure_local_network_routing_domain(local_networks);
-
-            // determine if we have ipv4/ipv6 addresses
-            {
-                let mut inner = self.inner.lock();
-
-                let stable_interface_addresses = self.get_stable_interface_addresses();
-
-                inner.enable_ipv4 = false;
-                for addr in stable_interface_addresses.iter().copied() {
-                    if addr.is_ipv4() {
-                        log_net!(debug "enable address {:?} as ipv4", addr);
-                        inner.enable_ipv4 = true;
-                    } else if addr.is_ipv6() {
-                        let address = Address::from_ip_addr(addr);
-                        if address.is_global() {
-                            log_net!(debug "enable address {:?} as ipv6 global", address);
-                            inner.enable_ipv6_global = true;
-                        } else if address.is_local() {
-                            log_net!(debug "enable address {:?} as ipv6 local", address);
-                            inner.enable_ipv6_local = true;
-                        }
+                    // Add network to local networks table
+                    for addr in &intf.addrs {
+                        let netmask = addr.if_addr().netmask();
+                        let network_ip = ipaddr_apply_netmask(addr.if_addr().ip(), netmask);
+                        local_networks.insert((network_ip, netmask));
                     }
                 }
-                inner.stable_interface_addresses_at_startup = stable_interface_addresses;
-            }
+            });
+        let local_networks: Vec<(IpAddr, IpAddr)> = local_networks.into_iter().collect();
+        self.unlocked_inner
+            .routing_table
+            .configure_local_network_routing_domain(local_networks);
 
-            // Build our protocol config to share it with other nodes
-            let protocol_config = {
-                let mut inner = self.inner.lock();
+        // determine if we have ipv4/ipv6 addresses
+        {
+            let mut inner = self.inner.lock();
 
-                // Create stop source
-                inner.stop_source = Some(StopSource::new());
+            let stable_interface_addresses = self.get_stable_interface_addresses();
 
-                // get protocol config
-                let protocol_config = {
-                    let c = self.config.get();
-                    let mut inbound = ProtocolTypeSet::new();
-
-                    if c.network.protocol.udp.enabled {
-                        inbound.insert(ProtocolType::UDP);
+            inner.enable_ipv4 = false;
+            for addr in stable_interface_addresses.iter().copied() {
+                if addr.is_ipv4() {
+                    log_net!(debug "enable address {:?} as ipv4", addr);
+                    inner.enable_ipv4 = true;
+                } else if addr.is_ipv6() {
+                    let address = Address::from_ip_addr(addr);
+                    if address.is_global() {
+                        log_net!(debug "enable address {:?} as ipv6 global", address);
+                        inner.enable_ipv6_global = true;
+                    } else if address.is_local() {
+                        log_net!(debug "enable address {:?} as ipv6 local", address);
+                        inner.enable_ipv6_local = true;
                     }
-                    if c.network.protocol.tcp.listen {
-                        inbound.insert(ProtocolType::TCP);
-                    }
-                    if c.network.protocol.ws.listen {
-                        inbound.insert(ProtocolType::WS);
-                    }
-                    if c.network.protocol.wss.listen {
-                        inbound.insert(ProtocolType::WSS);
-                    }
-
-                    let mut outbound = ProtocolTypeSet::new();
-                    if c.network.protocol.udp.enabled {
-                        outbound.insert(ProtocolType::UDP);
-                    }
-                    if c.network.protocol.tcp.connect {
-                        outbound.insert(ProtocolType::TCP);
-                    }
-                    if c.network.protocol.ws.connect {
-                        outbound.insert(ProtocolType::WS);
-                    }
-                    if c.network.protocol.wss.connect {
-                        outbound.insert(ProtocolType::WSS);
-                    }
-
-                    let mut family_global = AddressTypeSet::new();
-                    let mut family_local = AddressTypeSet::new();
-                    if inner.enable_ipv4 {
-                        family_global.insert(AddressType::IPV4);
-                        family_local.insert(AddressType::IPV4);
-                    }
-                    if inner.enable_ipv6_global {
-                        family_global.insert(AddressType::IPV6);
-                    }
-                    if inner.enable_ipv6_local {
-                        family_local.insert(AddressType::IPV6);
-                    }
-
-                    // set up the routing table's network config
-                    // if we have static public dialinfo, upgrade our network class
-                    let public_internet_capabilities = {
-                        PUBLIC_INTERNET_CAPABILITIES
-                            .iter()
-                            .copied()
-                            .filter(|cap| !c.capabilities.disable.contains(cap))
-                            .collect::<Vec<Capability>>()
-                    };
-                    let local_network_capabilities = {
-                        LOCAL_NETWORK_CAPABILITIES
-                            .iter()
-                            .copied()
-                            .filter(|cap| !c.capabilities.disable.contains(cap))
-                            .collect::<Vec<Capability>>()
-                    };
-
-                    ProtocolConfig {
-                        outbound,
-                        inbound,
-                        family_global,
-                        family_local,
-                        public_internet_capabilities,
-                        local_network_capabilities,
-                    }
-                };
-                inner.protocol_config = protocol_config.clone();
-
-                protocol_config
-            };
-
-            // Start editing routing table
-            let mut editor_public_internet = self
-                .unlocked_inner
-                .routing_table
-                .edit_routing_domain(RoutingDomain::PublicInternet);
-            let mut editor_local_network = self
-                .unlocked_inner
-                .routing_table
-                .edit_routing_domain(RoutingDomain::LocalNetwork);
-
-            // start listeners
-            if protocol_config.inbound.contains(ProtocolType::UDP) {
-                self.bind_udp_protocol_handlers(
-                    &mut editor_public_internet,
-                    &mut editor_local_network,
-                )
-                .await?;
-            }
-            if protocol_config.inbound.contains(ProtocolType::WS) {
-                self.start_ws_listeners(&mut editor_public_internet, &mut editor_local_network)
-                    .await?;
-            }
-            if protocol_config.inbound.contains(ProtocolType::WSS) {
-                self.start_wss_listeners(&mut editor_public_internet, &mut editor_local_network)
-                    .await?;
-            }
-            if protocol_config.inbound.contains(ProtocolType::TCP) {
-                self.start_tcp_listeners(&mut editor_public_internet, &mut editor_local_network)
-                    .await?;
-            }
-
-            editor_public_internet.setup_network(
-                protocol_config.outbound,
-                protocol_config.inbound,
-                protocol_config.family_global,
-                protocol_config.public_internet_capabilities,
-            );
-            editor_local_network.setup_network(
-                protocol_config.outbound,
-                protocol_config.inbound,
-                protocol_config.family_local,
-                protocol_config.local_network_capabilities,
-            );
-            let detect_address_changes = {
-                let c = self.config.get();
-                c.network.detect_address_changes
-            };
-            if !detect_address_changes {
-                let inner = self.inner.lock();
-                if !inner.static_public_dialinfo.is_empty() {
-                    editor_public_internet.set_network_class(Some(NetworkClass::InboundCapable));
                 }
             }
-
-            // commit routing table edits
-            editor_public_internet.commit(true).await;
-            editor_local_network.commit(true).await;
-
-            Ok(())
-        };
-        let res = startup_func.await;
-        if res.is_err() {
-            info!("network failed to start");
-            self.inner.lock().network_started = Some(false);
-            return res;
+            inner.stable_interface_addresses_at_startup = stable_interface_addresses;
         }
 
-        info!("network started");
-        self.inner.lock().network_started = Some(true);
-        Ok(())
+        // Build our protocol config to share it with other nodes
+        let protocol_config = {
+            let mut inner = self.inner.lock();
+
+            // Create stop source
+            inner.stop_source = Some(StopSource::new());
+
+            // get protocol config
+            let protocol_config = {
+                let c = self.config.get();
+                let mut inbound = ProtocolTypeSet::new();
+
+                if c.network.protocol.udp.enabled {
+                    inbound.insert(ProtocolType::UDP);
+                }
+                if c.network.protocol.tcp.listen {
+                    inbound.insert(ProtocolType::TCP);
+                }
+                if c.network.protocol.ws.listen {
+                    inbound.insert(ProtocolType::WS);
+                }
+                if c.network.protocol.wss.listen {
+                    inbound.insert(ProtocolType::WSS);
+                }
+
+                let mut outbound = ProtocolTypeSet::new();
+                if c.network.protocol.udp.enabled {
+                    outbound.insert(ProtocolType::UDP);
+                }
+                if c.network.protocol.tcp.connect {
+                    outbound.insert(ProtocolType::TCP);
+                }
+                if c.network.protocol.ws.connect {
+                    outbound.insert(ProtocolType::WS);
+                }
+                if c.network.protocol.wss.connect {
+                    outbound.insert(ProtocolType::WSS);
+                }
+
+                let mut family_global = AddressTypeSet::new();
+                let mut family_local = AddressTypeSet::new();
+                if inner.enable_ipv4 {
+                    family_global.insert(AddressType::IPV4);
+                    family_local.insert(AddressType::IPV4);
+                }
+                if inner.enable_ipv6_global {
+                    family_global.insert(AddressType::IPV6);
+                }
+                if inner.enable_ipv6_local {
+                    family_local.insert(AddressType::IPV6);
+                }
+
+                // set up the routing table's network config
+                // if we have static public dialinfo, upgrade our network class
+                let public_internet_capabilities = {
+                    PUBLIC_INTERNET_CAPABILITIES
+                        .iter()
+                        .copied()
+                        .filter(|cap| !c.capabilities.disable.contains(cap))
+                        .collect::<Vec<Capability>>()
+                };
+                let local_network_capabilities = {
+                    LOCAL_NETWORK_CAPABILITIES
+                        .iter()
+                        .copied()
+                        .filter(|cap| !c.capabilities.disable.contains(cap))
+                        .collect::<Vec<Capability>>()
+                };
+
+                ProtocolConfig {
+                    outbound,
+                    inbound,
+                    family_global,
+                    family_local,
+                    public_internet_capabilities,
+                    local_network_capabilities,
+                }
+            };
+            inner.protocol_config = protocol_config.clone();
+
+            protocol_config
+        };
+
+        // Start editing routing table
+        let mut editor_public_internet = self
+            .unlocked_inner
+            .routing_table
+            .edit_routing_domain(RoutingDomain::PublicInternet);
+        let mut editor_local_network = self
+            .unlocked_inner
+            .routing_table
+            .edit_routing_domain(RoutingDomain::LocalNetwork);
+
+        // start listeners
+        if protocol_config.inbound.contains(ProtocolType::UDP) {
+            let res = self
+                .bind_udp_protocol_handlers(&mut editor_public_internet, &mut editor_local_network)
+                .await;
+            if !matches!(res, Ok(StartupDisposition::Success)) {
+                return res;
+            }
+        }
+        if protocol_config.inbound.contains(ProtocolType::WS) {
+            let res = self
+                .start_ws_listeners(&mut editor_public_internet, &mut editor_local_network)
+                .await;
+            if !matches!(res, Ok(StartupDisposition::Success)) {
+                return res;
+            }
+        }
+        if protocol_config.inbound.contains(ProtocolType::WSS) {
+            let res = self
+                .start_wss_listeners(&mut editor_public_internet, &mut editor_local_network)
+                .await;
+            if !matches!(res, Ok(StartupDisposition::Success)) {
+                return res;
+            }
+        }
+        if protocol_config.inbound.contains(ProtocolType::TCP) {
+            let res = self
+                .start_tcp_listeners(&mut editor_public_internet, &mut editor_local_network)
+                .await;
+            if !matches!(res, Ok(StartupDisposition::Success)) {
+                return res;
+            }
+        }
+
+        editor_public_internet.setup_network(
+            protocol_config.outbound,
+            protocol_config.inbound,
+            protocol_config.family_global,
+            protocol_config.public_internet_capabilities,
+        );
+        editor_local_network.setup_network(
+            protocol_config.outbound,
+            protocol_config.inbound,
+            protocol_config.family_local,
+            protocol_config.local_network_capabilities,
+        );
+        let detect_address_changes = {
+            let c = self.config.get();
+            c.network.detect_address_changes
+        };
+        if !detect_address_changes {
+            let inner = self.inner.lock();
+            if !inner.static_public_dialinfo.is_empty() {
+                editor_public_internet.set_network_class(Some(NetworkClass::InboundCapable));
+            }
+        }
+
+        // commit routing table edits
+        editor_public_internet.commit(true).await;
+        editor_local_network.commit(true).await;
+
+        Ok(StartupDisposition::Success)
+    }
+
+    #[instrument(level = "debug", err, skip_all)]
+    pub async fn startup(&self) -> EyreResult<StartupDisposition> {
+        self.inner.lock().network_started = None;
+
+        match self.startup_internal().await {
+            Ok(StartupDisposition::Success) => {
+                info!("network started");
+                self.inner.lock().network_started = Some(true);
+                Ok(StartupDisposition::Success)
+            }
+            Ok(StartupDisposition::BindRetry) => {
+                debug!("network bind retry");
+                self.inner.lock().network_started = Some(false);
+                Ok(StartupDisposition::BindRetry)
+            }
+            Err(e) => {
+                debug!("network failed to start");
+                self.inner.lock().network_started = Some(false);
+                Err(e)
+            }
+        }
     }
 
     pub fn needs_restart(&self) -> bool {

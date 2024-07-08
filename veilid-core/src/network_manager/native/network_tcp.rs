@@ -349,7 +349,7 @@ impl Network {
         bind_set: NetworkBindSet,
         is_tls: bool,
         new_protocol_accept_handler: Box<NewProtocolAcceptHandler>,
-    ) -> EyreResult<Vec<SocketAddress>> {
+    ) -> EyreResult<Option<Vec<SocketAddress>>> {
         let mut out = Vec::<SocketAddress>::new();
 
         for ip_addr in bind_set.addrs {
@@ -404,7 +404,8 @@ impl Network {
                 }
 
                 if !bind_set.search {
-                    bail!("unable to bind to tcp {}", addr);
+                    log_net!(debug "unable to bind to tcp {}", addr);
+                    return Ok(None);
                 }
 
                 if port == 65535u16 {
@@ -419,6 +420,6 @@ impl Network {
             }
         }
 
-        Ok(out)
+        Ok(Some(out))
     }
 }

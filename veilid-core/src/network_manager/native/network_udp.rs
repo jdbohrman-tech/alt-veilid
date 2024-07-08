@@ -151,7 +151,7 @@ impl Network {
     pub(super) async fn create_udp_protocol_handlers(
         &self,
         bind_set: NetworkBindSet,
-    ) -> EyreResult<Vec<DialInfo>> {
+    ) -> EyreResult<Option<Vec<DialInfo>>> {
         let mut out = Vec::<DialInfo>::new();
 
         for ip_addr in bind_set.addrs {
@@ -175,7 +175,8 @@ impl Network {
                 }
 
                 if !bind_set.search {
-                    bail!("unable to bind to udp {}", addr);
+                    log_net!(debug "unable to bind to udp {}", addr);
+                    return Ok(None);
                 }
 
                 if port == 65535u16 {
@@ -189,7 +190,7 @@ impl Network {
                 }
             }
         }
-        Ok(out)
+        Ok(Some(out))
     }
 
     /////////////////////////////////////////////////////////////////

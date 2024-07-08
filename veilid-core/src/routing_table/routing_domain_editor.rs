@@ -149,19 +149,21 @@ impl RoutingDomainEditor {
                             address_type,
                             protocol_type,
                         } => {
-                            if address_type.is_some() || protocol_type.is_some() {
-                                info!(
-                                    "[{:?}] cleared dial info: {}:{}",
-                                    self.routing_domain,
-                                    address_type
-                                        .map(|at| format!("{:?}", at))
-                                        .unwrap_or("---".to_string()),
-                                    protocol_type
-                                        .map(|at| format!("{:?}", at))
-                                        .unwrap_or("---".to_string()),
-                                );
-                            } else {
-                                info!("[{:?}] cleared all dial info", self.routing_domain);
+                            if !detail.common_mut().dial_info_details().is_empty() {
+                                if address_type.is_some() || protocol_type.is_some() {
+                                    info!(
+                                        "[{:?}] cleared dial info: {}:{}",
+                                        self.routing_domain,
+                                        address_type
+                                            .map(|at| format!("{:?}", at))
+                                            .unwrap_or("---".to_string()),
+                                        protocol_type
+                                            .map(|at| format!("{:?}", at))
+                                            .unwrap_or("---".to_string()),
+                                    );
+                                } else {
+                                    info!("[{:?}] cleared all dial info", self.routing_domain);
+                                }
                             }
                             detail
                                 .common_mut()
@@ -169,7 +171,9 @@ impl RoutingDomainEditor {
                             peer_info_changed = true;
                         }
                         RoutingDomainChange::ClearRelayNode => {
-                            info!("[{:?}] cleared relay node", self.routing_domain);
+                            if detail.common_mut().relay_node().is_some() {
+                                info!("[{:?}] cleared relay node", self.routing_domain);
+                            }
                             detail.common_mut().set_relay_node(None);
                             peer_info_changed = true;
                         }

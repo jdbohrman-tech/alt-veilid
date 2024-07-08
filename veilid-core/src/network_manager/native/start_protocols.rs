@@ -140,7 +140,7 @@ impl Network {
         &self,
         editor_public_internet: &mut RoutingDomainEditor,
         editor_local_network: &mut RoutingDomainEditor,
-    ) -> EyreResult<()> {
+    ) -> EyreResult<StartupDisposition> {
         log_net!("UDP: binding protocol handlers");
         let routing_table = self.routing_table();
         let (listen_address, public_address, detect_address_changes) = {
@@ -170,7 +170,10 @@ impl Network {
             );
         }
 
-        let mut local_dial_info_list = self.create_udp_protocol_handlers(bind_set).await?;
+        let Some(mut local_dial_info_list) = self.create_udp_protocol_handlers(bind_set).await?
+        else {
+            return Ok(StartupDisposition::BindRetry);
+        };
         local_dial_info_list.sort();
 
         let mut static_public = false;
@@ -241,14 +244,16 @@ impl Network {
         }
 
         // Now create tasks for udp listeners
-        self.create_udp_listener_tasks().await
+        self.create_udp_listener_tasks().await?;
+
+        Ok(StartupDisposition::Success)
     }
 
     pub(super) async fn start_ws_listeners(
         &self,
         editor_public_internet: &mut RoutingDomainEditor,
         editor_local_network: &mut RoutingDomainEditor,
-    ) -> EyreResult<()> {
+    ) -> EyreResult<StartupDisposition> {
         log_net!("WS: binding protocol handlers");
         let routing_table = self.routing_table();
         let (listen_address, url, path, detect_address_changes) = {
@@ -277,13 +282,16 @@ impl Network {
                 bind_set.port, bind_set.addrs
             );
         }
-        let socket_addresses = self
+        let Some(socket_addresses) = self
             .start_tcp_listener(
                 bind_set,
                 false,
                 Box::new(|c, t| Box::new(WebsocketProtocolHandler::new(c, t))),
             )
-            .await?;
+            .await?
+        else {
+            return Ok(StartupDisposition::BindRetry);
+        };
         log_net!("WS: protocol handlers started on {:#?}", socket_addresses);
 
         let mut static_public = false;
@@ -353,14 +361,14 @@ impl Network {
             Self::add_preferred_local_address(&mut inner, PeerAddress::new(sa, ProtocolType::WS));
         }
 
-        Ok(())
+        Ok(StartupDisposition::Success)
     }
 
     pub(super) async fn start_wss_listeners(
         &self,
         editor_public_internet: &mut RoutingDomainEditor,
         editor_local_network: &mut RoutingDomainEditor,
-    ) -> EyreResult<()> {
+    ) -> EyreResult<StartupDisposition> {
         log_net!("WSS: binding protocol handlers");
 
         let (listen_address, url, _detect_address_changes) = {
@@ -389,13 +397,17 @@ impl Network {
             );
         }
 
-        let socket_addresses = self
+        let Some(socket_addresses) = self
             .start_tcp_listener(
                 bind_set,
                 true,
                 Box::new(|c, t| Box::new(WebsocketProtocolHandler::new(c, t))),
             )
-            .await?;
+            .await?
+        else {
+            return Ok(StartupDisposition::BindRetry);
+        };
+
         log_net!("WSS: protocol handlers started on {:#?}", socket_addresses);
 
         // NOTE: No interface dial info for WSS, as there is no way to connect to a local dialinfo via TLS
@@ -448,14 +460,14 @@ impl Network {
             Self::add_preferred_local_address(&mut inner, PeerAddress::new(sa, ProtocolType::WSS));
         }
 
-        Ok(())
+        Ok(StartupDisposition::Success)
     }
 
     pub(super) async fn start_tcp_listeners(
         &self,
         editor_public_internet: &mut RoutingDomainEditor,
         editor_local_network: &mut RoutingDomainEditor,
-    ) -> EyreResult<()> {
+    ) -> EyreResult<StartupDisposition> {
         log_net!("TCP: binding protocol handlers");
 
         let routing_table = self.routing_table();
@@ -484,13 +496,17 @@ impl Network {
                 bind_set.port, bind_set.addrs
             );
         }
-        let socket_addresses = self
+        let Some(socket_addresses) = self
             .start_tcp_listener(
                 bind_set,
                 false,
                 Box::new(|c, _| Box::new(RawTcpProtocolHandler::new(c))),
             )
-            .await?;
+            .await?
+        else {
+            return Ok(StartupDisposition::BindRetry);
+        };
+
         log_net!("TCP: protocol handlers started on {:#?}", socket_addresses);
 
         let mut static_public = false;
@@ -546,6 +562,6 @@ impl Network {
             Self::add_preferred_local_address(&mut inner, PeerAddress::new(sa, ProtocolType::TCP));
         }
 
-        Ok(())
+        Ok(StartupDisposition::Success)
     }
 }

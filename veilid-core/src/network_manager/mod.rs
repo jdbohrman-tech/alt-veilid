@@ -136,6 +136,12 @@ enum SendDataToExistingFlowResult {
     NotSent(Vec<u8>),
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum StartupDisposition {
+    Success,
+    BindRetry,
+}
+
 // The mutable state of the network manager
 struct NetworkManagerInner {
     stats: NetworkManagerStats,
@@ -388,10 +394,10 @@ impl NetworkManager {
     }
 
     #[instrument(level = "debug", skip_all, err)]
-    pub async fn internal_startup(&self) -> EyreResult<()> {
+    pub async fn internal_startup(&self) -> EyreResult<StartupDisposition> {
         if self.unlocked_inner.components.read().is_some() {
             log_net!(debug "NetworkManager::internal_startup already started");
-            return Ok(());
+            return Ok(StartupDisposition::Success);
         }
 
         // Clean address filter for things that should not be persistent
@@ -423,26 +429,37 @@ impl NetworkManager {
 
         // Start network components
         connection_manager.startup().await;
-        net.startup().await?;
+        match net.startup().await? {
+            StartupDisposition::Success => {}
+            StartupDisposition::BindRetry => {
+                return Ok(StartupDisposition::BindRetry);
+            }
+        }
         rpc_processor.startup().await?;
         receipt_manager.startup().await?;
 
         log_net!("NetworkManager::internal_startup end");
 
-        Ok(())
+        Ok(StartupDisposition::Success)
     }
 
     #[instrument(level = "debug", skip_all, err)]
-    pub async fn startup(&self) -> EyreResult<()> {
-        if let Err(e) = self.internal_startup().await {
-            self.shutdown().await;
-            return Err(e);
+    pub async fn startup(&self) -> EyreResult<StartupDisposition> {
+        match self.internal_startup().await {
+            Ok(StartupDisposition::Success) => {
+                // Inform api clients that things have changed
+                self.send_network_update();
+                Ok(StartupDisposition::Success)
+            }
+            Ok(StartupDisposition::BindRetry) => {
+                self.shutdown().await;
+                Ok(StartupDisposition::BindRetry)
+            }
+            Err(e) => {
+                self.shutdown().await;
+                Err(e)
+            }
         }
-
-        // Inform api clients that things have changed
-        self.send_network_update();
-
-        Ok(())
     }
 
     #[instrument(level = "debug", skip_all)]

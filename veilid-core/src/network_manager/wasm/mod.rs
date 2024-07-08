@@ -333,83 +333,92 @@ impl Network {
 
     /////////////////////////////////////////////////////////////////
 
-    pub async fn startup(&self) -> EyreResult<()> {
-        self.inner.lock().network_started = None;
-        let startup_func = async {
-            log_net!(debug "starting network");
-            // get protocol config
-            let protocol_config = {
-                let c = self.config.get();
-                let inbound = ProtocolTypeSet::new();
-                let mut outbound = ProtocolTypeSet::new();
+    pub async fn startup_internal(&self) -> EyreResult<StartupDisposition> {
+        log_net!(debug "starting network");
+        // get protocol config
+        let protocol_config = {
+            let c = self.config.get();
+            let inbound = ProtocolTypeSet::new();
+            let mut outbound = ProtocolTypeSet::new();
 
-                if c.network.protocol.ws.connect {
-                    outbound.insert(ProtocolType::WS);
-                }
-                if c.network.protocol.wss.connect {
-                    outbound.insert(ProtocolType::WSS);
-                }
+            if c.network.protocol.ws.connect {
+                outbound.insert(ProtocolType::WS);
+            }
+            if c.network.protocol.wss.connect {
+                outbound.insert(ProtocolType::WSS);
+            }
 
-                let supported_address_types: AddressTypeSet = if is_ipv6_supported() {
-                    AddressType::IPV4 | AddressType::IPV6
-                } else {
-                    AddressType::IPV4.into()
-                };
-
-                let family_global = supported_address_types;
-                let family_local = supported_address_types;
-
-                let public_internet_capabilities = {
-                    PUBLIC_INTERNET_CAPABILITIES
-                        .iter()
-                        .copied()
-                        .filter(|cap| !c.capabilities.disable.contains(cap))
-                        .collect::<Vec<Capability>>()
-                };
-
-                ProtocolConfig {
-                    outbound,
-                    inbound,
-                    family_global,
-                    family_local,
-                    local_network_capabilities: vec![],
-                    public_internet_capabilities,
-                }
+            let supported_address_types: AddressTypeSet = if is_ipv6_supported() {
+                AddressType::IPV4 | AddressType::IPV6
+            } else {
+                AddressType::IPV4.into()
             };
-            self.inner.lock().protocol_config = protocol_config.clone();
 
-            // Start editing routing table
-            let mut editor_public_internet = self
-                .unlocked_inner
-                .routing_table
-                .edit_routing_domain(RoutingDomain::PublicInternet);
+            let family_global = supported_address_types;
+            let family_local = supported_address_types;
 
-            // set up the routing table's network config
-            // if we have static public dialinfo, upgrade our network class
+            let public_internet_capabilities = {
+                PUBLIC_INTERNET_CAPABILITIES
+                    .iter()
+                    .copied()
+                    .filter(|cap| !c.capabilities.disable.contains(cap))
+                    .collect::<Vec<Capability>>()
+            };
 
-            editor_public_internet.setup_network(
-                protocol_config.outbound,
-                protocol_config.inbound,
-                protocol_config.family_global,
-                protocol_config.public_internet_capabilities.clone(),
-            );
-            editor_public_internet.set_network_class(Some(NetworkClass::WebApp));
-
-            // commit routing table edits
-            editor_public_internet.commit(true).await;
-            Ok(())
+            ProtocolConfig {
+                outbound,
+                inbound,
+                family_global,
+                family_local,
+                local_network_capabilities: vec![],
+                public_internet_capabilities,
+            }
         };
+        self.inner.lock().protocol_config = protocol_config.clone();
 
-        let res = startup_func.await;
-        if res.is_err() {
-            info!("network failed to start");
-            self.inner.lock().network_started = Some(false);
-            return res;
+        // Start editing routing table
+        let mut editor_public_internet = self
+            .unlocked_inner
+            .routing_table
+            .edit_routing_domain(RoutingDomain::PublicInternet);
+
+        // set up the routing table's network config
+        // if we have static public dialinfo, upgrade our network class
+
+        editor_public_internet.setup_network(
+            protocol_config.outbound,
+            protocol_config.inbound,
+            protocol_config.family_global,
+            protocol_config.public_internet_capabilities.clone(),
+        );
+        editor_public_internet.set_network_class(Some(NetworkClass::WebApp));
+
+        // commit routing table edits
+        editor_public_internet.commit(true).await;
+
+        Ok(StartupDisposition::Success)
+    }
+
+    pub async fn startup(&self) -> EyreResult<StartupDisposition> {
+        self.inner.lock().network_started = None;
+
+        match self.startup_internal().await {
+            Ok(StartupDisposition::Success) => {
+                info!("network started");
+                self.inner.lock().network_started = Some(true);
+                Ok(StartupDisposition::Success)
+            }
+            Ok(StartupDisposition::BindRetry) => {
+                debug!("network bind retry");
+                self.inner.lock().network_started = Some(false);
+                Ok(StartupDisposition::BindRetry)
+            }
+            Err(e) => {
+                debug!("network failed to start");
+                self.inner.lock().network_started = Some(false);
+                Err(e)
+            }
         }
-
-        info!("network started");
-        self.inner.lock().network_started = Some(true);
-        Ok(())
     }
 
     pub fn needs_restart(&self) -> bool {

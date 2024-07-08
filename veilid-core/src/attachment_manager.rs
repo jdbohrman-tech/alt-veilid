@@ -219,46 +219,61 @@ impl AttachmentManager {
         let netman = self.network_manager();
 
         let mut restart;
-        loop {
+        let mut restart_delay;
+        while self.inner.lock().maintain_peers {
             restart = false;
-            if let Err(err) = netman.startup().await {
-                error!("network startup failed: {}", err);
-                netman.shutdown().await;
-                restart = true;
-            } else {
-                log_net!(debug "started maintaining peers");
-                while self.inner.lock().maintain_peers {
-                    // tick network manager
-                    if let Err(err) = netman.tick().await {
-                        error!("Error in network manager: {}", err);
-                        self.inner.lock().maintain_peers = false;
-                        restart = true;
-                        break;
+            restart_delay = 1;
+
+            match netman.startup().await {
+                Err(err) => {
+                    error!("network startup failed: {}", err);
+                    restart = true;
+                }
+                Ok(StartupDisposition::BindRetry) => {
+                    info!("waiting for network to bind...");
+                    restart = true;
+                    restart_delay = 10;
+                }
+                Ok(StartupDisposition::Success) => {
+                    log_net!(debug "started maintaining peers");
+
+                    while self.inner.lock().maintain_peers {
+                        // tick network manager
+                        let next_tick_ts = get_timestamp() + 1_000_000u64;
+                        if let Err(err) = netman.tick().await {
+                            error!("Error in network manager: {}", err);
+                            self.inner.lock().maintain_peers = false;
+                            restart = true;
+                            break;
+                        }
+
+                        // see if we need to restart the network
+                        if netman.network_needs_restart() {
+                            info!("Restarting network");
+                            restart = true;
+                            break;
+                        }
+
+                        // Update attachment and network readiness state
+                        // and possibly send a VeilidUpdate::Attachment
+                        self.update_attachment();
+
+                        // sleep should be at the end in case maintain_peers changes state
+                        let wait_duration = next_tick_ts
+                            .saturating_sub(get_timestamp())
+                            .clamp(0, 1_000_000u64);
+                        sleep((wait_duration / 1_000) as u32).await;
+                    }
+                    log_net!(debug "stopped maintaining peers");
+
+                    if !restart {
+                        self.update_attaching_detaching_state(AttachmentState::Detaching);
+                        log_net!(debug "attachment stopping");
                     }
 
-                    // see if we need to restart the network
-                    if netman.network_needs_restart() {
-                        info!("Restarting network");
-                        restart = true;
-                        break;
-                    }
-
-                    // Update attachment and network readiness state
-                    // and possibly send a VeilidUpdate::Attachment
-                    self.update_attachment();
-
-                    // sleep should be at the end in case maintain_peers changes state
-                    sleep(1000).await;
+                    log_net!(debug "stopping network");
+                    netman.shutdown().await;
                 }
-                log_net!(debug "stopped maintaining peers");
-
-                if !restart {
-                    self.update_attaching_detaching_state(AttachmentState::Detaching);
-                    log_net!(debug "attachment stopping");
-                }
-
-                log_net!(debug "stopping network");
-                netman.shutdown().await;
             }
 
             if !restart {
@@ -266,8 +281,14 @@ impl AttachmentManager {
             }
 
             log_net!(debug "completely restarting attachment");
+
             // chill out for a second first, give network stack time to settle out
-            sleep(1000).await;
+            for _ in 0..restart_delay {
+                if !self.inner.lock().maintain_peers {
+                    break;
+                }
+                sleep(1000).await;
+            }
         }
 
         self.update_attaching_detaching_state(AttachmentState::Detached);
