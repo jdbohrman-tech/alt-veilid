@@ -234,5 +234,9 @@ impl RoutingTable {
         {
             warn!("private_route_management_task not stopped: {}", e);
         }
+        log_rtab!(debug "stopping closest peers refresh task");
+        if let Err(e) = self.unlocked_inner.closest_peers_refresh_task.stop().await {
+            warn!("closest_peers_refresh_task not stopped: {}", e);
+        }
     }
 }
