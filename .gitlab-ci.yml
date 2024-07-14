@@ -54,6 +54,8 @@ build_cache:
   rules:
     - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
       when: never
+    - if: $IS_NIGHTLY == "true"
+      when: never
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_PIPELINE_SOURCE == "push"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
@@ -69,6 +71,8 @@ test_build:
   resource_group: test
   rules:
     - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
+      when: never
+    - if: $IS_NIGHTLY == "true"
       when: never
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_PIPELINE_SOURCE == "push"
