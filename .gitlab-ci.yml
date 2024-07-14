@@ -323,7 +323,7 @@ nightly_create_build_machines:
     - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh create arm64-deb
     - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh create amd64-rpm
   rules:
-    - if: '$IS_NIGHTLY == true'
+    - if: $IS_NIGHTLY == "true"
   
 nightly_package_amd64_deb:
   stage: build_packages
@@ -336,7 +336,7 @@ nightly_package_amd64_deb:
     - earthly +package-linux-amd64-deb --IS_NIGHTLY=$IS_NIGHTLY
     - bash scripts/cicd/build-machine/scp-amd64-debs-to-orchestrator.sh
   rules:
-    - if: '$IS_NIGHTLY == true'
+    - if: $IS_NIGHTLY == "true"
 
 nightly_package_arm64_deb:
   stage: build_packages
@@ -349,7 +349,7 @@ nightly_package_arm64_deb:
     - earthly +package-linux-arm64-deb --IS_NIGHTLY=$IS_NIGHTLY
     - bash scripts/cicd/build-machine/scp-arm64-debs-to-orchestrator.sh
   rules:
-    - if: '$IS_NIGHTLY == true'
+    - if: $IS_NIGHTLY == "true"
 
 nightly_package_amd64_rpm:
   stage: build_packages
@@ -362,7 +362,7 @@ nightly_package_amd64_rpm:
     - earthly +package-linux-amd64-rpm --IS_NIGHTLY=$IS_NIGHTLY
     - bash scripts/cicd/build-machine/scp-amd64-rpms-to-orchestrator.sh
   rules:
-    - if: '$IS_NIGHTLY == true'
+    - if: $IS_NIGHTLY == "true"
 
 nightly_build_repositories:
   stage: distribute
@@ -374,7 +374,7 @@ nightly_build_repositories:
     - cp scripts/cicd/build-orchestration/generate-nightly-release.sh ~
     - bash scripts/cicd/build-orchestration/distribute-packages.sh
   rules:
-    - if: '$IS_NIGHTLY == true'
+    - if: $IS_NIGHTLY == "true"
 
 nightly_delete_build_machines:
   stage: distribute
@@ -387,4 +387,4 @@ nightly_delete_build_machines:
     - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh delete arm64-deb
     - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh delete amd64-rpm
   rules:
-    - if: '$IS_NIGHTLY == true'
+    - if: $IS_NIGHTLY == "true"
