@@ -7,5 +7,5 @@ cd workspace
 cp ~/builds/t338Uo9fn/0/veilid/veilid/target/packages/*.deb .
 tar -cf amd64-debs.tar *.deb
 scp *.tar gitlab-runner@10.116.0.5:~
-cd ~
+cd ../
 rm -rf workspace

@@ -1,6 +1,6 @@
 Summary: Veilid Server Command Line Interface
 Name: veilid-cli
-Version: $CARGO_VERSION
+Version: $RELEASE_VERSION
 Release: 1
 URL: https://veilid.com
 Group: System

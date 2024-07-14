@@ -106,7 +106,7 @@ package_amd64_deb:
     - build-amd64-deb
   script:
     - earthly bootstrap
-    - earthly +package-linux-amd64-deb
+    - earthly +package-linux-amd64-deb --IS_NIGHTLY=$IS_NIGHTLY
     - bash scripts/cicd/build-machine/scp-amd64-debs-to-orchestrator.sh
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
@@ -119,7 +119,7 @@ package_arm64_deb:
     - build-arm64-deb
   script:
     - earthly bootstrap
-    - earthly +package-linux-arm64-deb
+    - earthly +package-linux-arm64-deb --IS_NIGHTLY=$IS_NIGHTLY
     - bash scripts/cicd/build-machine/scp-arm64-debs-to-orchestrator.sh
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
@@ -132,7 +132,7 @@ package_amd64_rpm:
     - build-amd64-rpm
   script:
     - earthly bootstrap
-    - earthly +package-linux-amd64-rpm
+    - earthly +package-linux-amd64-rpm --IS_NIGHTLY=$IS_NIGHTLY
     - bash scripts/cicd/build-machine/scp-amd64-rpms-to-orchestrator.sh
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
@@ -168,9 +168,9 @@ build_repositories:
   tags:
     - build-orchestration
   variables:
-    SECURE_FILES_DOWNLOAD_PATH: './'
+    SECURE_FILES_DOWNLOAD_PATH: '$HOME'
   script:
-    - cp scripts/cicd/build-orchestration/generate-release.sh ~
+    - cp scripts/cicd/build-orchestration/generate-stable-release.sh ~
     - bash scripts/cicd/build-orchestration/distribute-packages.sh
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
@@ -311,4 +311,80 @@ dryrun_delete_build_machines:
   rules:
     - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
 
-# Just a note so I can try dry run
+
+# Nightly build pipeline
+
+nightly_create_build_machines:
+  stage: build_packages
+  tags:
+    - build-orchestration
+  script:
+    - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh create amd64-deb
+    - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh create arm64-deb
+    - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh create amd64-rpm
+  rules:
+    - if: '$IS_NIGHTLY == true'
+  
+nightly_package_amd64_deb:
+  stage: build_packages
+  needs:
+    - nightly_create_build_machines
+  tags:
+    - build-amd64-deb
+  script:
+    - earthly bootstrap
+    - earthly +package-linux-amd64-deb --IS_NIGHTLY=$IS_NIGHTLY
+    - bash scripts/cicd/build-machine/scp-amd64-debs-to-orchestrator.sh
+  rules:
+    - if: '$IS_NIGHTLY == true'
+
+nightly_package_arm64_deb:
+  stage: build_packages
+  needs:
+    - nightly_create_build_machines
+  tags:
+    - build-arm64-deb
+  script:
+    - earthly bootstrap
+    - earthly +package-linux-arm64-deb --IS_NIGHTLY=$IS_NIGHTLY
+    - bash scripts/cicd/build-machine/scp-arm64-debs-to-orchestrator.sh
+  rules:
+    - if: '$IS_NIGHTLY == true'
+
+nightly_package_amd64_rpm:
+  stage: build_packages
+  needs:
+    - nightly_create_build_machines
+  tags:
+    - build-amd64-rpm
+  script:
+    - earthly bootstrap
+    - earthly +package-linux-amd64-rpm --IS_NIGHTLY=$IS_NIGHTLY
+    - bash scripts/cicd/build-machine/scp-amd64-rpms-to-orchestrator.sh
+  rules:
+    - if: '$IS_NIGHTLY == true'
+
+nightly_build_repositories:
+  stage: distribute
+  tags:
+    - build-orchestration
+  variables:
+    SECURE_FILES_DOWNLOAD_PATH: '$HOME'
+  script:
+    - cp scripts/cicd/build-orchestration/generate-nightly-release.sh ~
+    - bash scripts/cicd/build-orchestration/distribute-packages.sh
+  rules:
+    - if: '$IS_NIGHTLY == true'
+
+nightly_delete_build_machines:
+  stage: distribute
+  needs:
+    - deploy_repos
+  tags:
+    - build-orchestration
+  script:
+    - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh delete amd64-deb
+    - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh delete arm64-deb
+    - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh delete amd64-rpm
+  rules:
+    - if: '$IS_NIGHTLY == true'

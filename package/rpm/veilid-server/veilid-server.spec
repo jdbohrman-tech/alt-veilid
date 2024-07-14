@@ -1,6 +1,6 @@
 Summary: Install a server grade, headless Veilid node
 Name: veilid-server
-Version: $CARGO_VERSION
+Version: $RELEASE_VERSION
 Release: 1
 URL: https://veilid.com
 Group: System
