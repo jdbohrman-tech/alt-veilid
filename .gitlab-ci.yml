@@ -379,7 +379,7 @@ nightly_build_repositories:
 nightly_delete_build_machines:
   stage: distribute
   needs:
-    - deploy_repos
+    - nightly_build_repositories
   tags:
     - build-orchestration
   script:
