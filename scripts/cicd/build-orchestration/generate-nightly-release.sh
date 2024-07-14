@@ -16,12 +16,10 @@ do_hash() {
 
 cat << EOF
 Origin: packages.veilid.net
-Label: packages.veilid.net
-Suite: stable
-Codename: bullseye
+Suite: nightly
 Architectures: amd64 arm64
 Components: main
-Description: Official repository for Veilid binaries.
+Description: Official repository for nightly released Veilid binaries.
 Date: $(date -Ru)
 EOF
 do_hash "MD5Sum" "md5sum"

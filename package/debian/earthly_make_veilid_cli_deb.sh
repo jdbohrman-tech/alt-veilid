@@ -3,6 +3,8 @@ set -e
 
 ARCH=$1
 CARGO_ARCH=$2
+IS_NIGHTLY=$3
+BUILD_DATE=$(date '+%Y%m%d')
 CARGO_VERSION="$(/veilid/package/cargo_version.sh /veilid/veilid-cli/Cargo.toml)"
 rm -rf /dpkg
 mkdir -p /dpkg/out
@@ -16,4 +18,13 @@ mkdir -p /dpkg/veilid-cli/usr/bin
 cp -f /veilid/target/$CARGO_ARCH/release/veilid-cli /dpkg/veilid-cli/usr/bin
 # pack it up
 dpkg-deb -b /dpkg/veilid-cli/
-mv /dpkg/veilid-cli.deb /dpkg/out/veilid-cli-$CARGO_VERSION\_$ARCH.deb
+# Appropriatly name the package for STABLE or NIGHTLY release
+if [ "$3" = true ]
+then
+    mv /dpkg/veilid-cli.deb /dpkg/out/veilid-cli-$BUILD_DATE\_$ARCH.deb
+elif [ "$3" = false ]
+then
+    mv /dpkg/veilid-cli.deb /dpkg/out/veilid-cli-$CARGO_VERSION\_$ARCH.deb
+else
+    echo $3 "is not a valid state to determine if the build is STABLE or NIGHTLY"
+fi
