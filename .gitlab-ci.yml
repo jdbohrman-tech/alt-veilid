@@ -333,7 +333,7 @@ nightly_package_amd64_deb:
     - build-amd64-deb
   script:
     - earthly bootstrap
-    - earthly +package-linux-amd64-deb --IS_NIGHTLY=$IS_NIGHTLY
+    - earthly +package-linux-amd64-deb --IS_NIGHTLY="$IS_NIGHTLY"
     - bash scripts/cicd/build-machine/scp-amd64-debs-to-orchestrator.sh
   rules:
     - if: '$IS_NIGHTLY == true'
@@ -346,7 +346,7 @@ nightly_package_arm64_deb:
     - build-arm64-deb
   script:
     - earthly bootstrap
-    - earthly +package-linux-arm64-deb --IS_NIGHTLY=$IS_NIGHTLY
+    - earthly +package-linux-arm64-deb --IS_NIGHTLY="$IS_NIGHTLY"
     - bash scripts/cicd/build-machine/scp-arm64-debs-to-orchestrator.sh
   rules:
     - if: '$IS_NIGHTLY == true'
@@ -359,7 +359,7 @@ nightly_package_amd64_rpm:
     - build-amd64-rpm
   script:
     - earthly bootstrap
-    - earthly +package-linux-amd64-rpm --IS_NIGHTLY=$IS_NIGHTLY
+    - earthly +package-linux-amd64-rpm --IS_NIGHTLY="$IS_NIGHTLY"
     - bash scripts/cicd/build-machine/scp-amd64-rpms-to-orchestrator.sh
   rules:
     - if: '$IS_NIGHTLY == true'
