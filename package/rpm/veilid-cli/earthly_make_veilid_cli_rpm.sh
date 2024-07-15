@@ -7,10 +7,10 @@ CARGO_VERSION="$(/veilid/package/cargo_version.sh /veilid/veilid-cli/Cargo.toml)
     
 # veilid-cli spec file
 cp -rf /veilid/package/rpm/veilid-cli/veilid-cli.spec /root/rpmbuild/SPECS/
-if [ "$3" = true ]
+if [ "$3" = "true" ]
 then
     /veilid/package/replace_variable.sh /root/rpmbuild/SPECS/veilid-cli.spec RELEASE_VERSION $BUILD_DATE
-elif [ "$3" = false ]
+elif [ "$3" = "false" ]
     /veilid/package/replace_variable.sh /root/rpmbuild/SPECS/veilid-cli.spec RELEASE_VERSION $CARGO_VERSION
 else
     echo $3 "is not a valid state to determine if the build is STABLE or NIGHTLY"

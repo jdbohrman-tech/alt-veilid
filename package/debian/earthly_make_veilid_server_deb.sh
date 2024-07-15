@@ -25,10 +25,10 @@ cp -f /veilid/target/$CARGO_ARCH/release/veilid-server /dpkg/veilid-server/usr/b
 # pack it up
 dpkg-deb -b /dpkg/veilid-server/
 # Appropriatly name the package for STABLE or NIGHTLY release
-if [ "$3" = true ]
+if [ "$3" = "true" ]
 then
     mv /dpkg/veilid-server.deb /dpkg/out/veilid-server-$BUILD_DATE\_$ARCH.deb
-elif [ "$3" = false ]
+elif [ "$3" = "false" ]
 then
     mv /dpkg/veilid-server.deb /dpkg/out/veilid-server-$CARGO_VERSION\_$ARCH.deb
 else
