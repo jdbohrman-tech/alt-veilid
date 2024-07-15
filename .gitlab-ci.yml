@@ -171,7 +171,7 @@ build_repositories:
     SECURE_FILES_DOWNLOAD_PATH: '$HOME'
   script:
     - cp scripts/cicd/build-orchestration/generate-stable-release.sh ~
-    - bash scripts/cicd/build-orchestration/distribute-packages.sh
+    - bash scripts/cicd/build-orchestration/distribute-stable-packages.sh
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
 
@@ -372,7 +372,7 @@ nightly_build_repositories:
     SECURE_FILES_DOWNLOAD_PATH: '$HOME'
   script:
     - cp scripts/cicd/build-orchestration/generate-nightly-release.sh ~
-    - bash scripts/cicd/build-orchestration/distribute-packages.sh
+    - bash scripts/cicd/build-orchestration/distribute-nightly-packages.sh
   rules:
     - if: '$IS_NIGHTLY == true'
 
