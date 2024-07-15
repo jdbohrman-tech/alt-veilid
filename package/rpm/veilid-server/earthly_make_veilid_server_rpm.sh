@@ -12,6 +12,7 @@ if [ "$3" = "true" ]
 then
     /veilid/package/replace_variable.sh /root/rpmbuild/SPECS/veilid-server.spec RELEASE_VERSION $BUILD_DATE
 elif [ "$3" = "false" ]
+then
     /veilid/package/replace_variable.sh /root/rpmbuild/SPECS/veilid-server.spec RELEASE_VERSION $CARGO_VERSION
 else
     echo $3 "is not a valid state to determine if the build is STABLE or NIGHTLY"
