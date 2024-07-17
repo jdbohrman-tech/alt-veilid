@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:loggy/loggy.dart';
 import 'package:veilid/veilid.dart';
 
-import 'history_wrapper.dart';
+import 'history_text_editing_controller.dart';
 import 'log.dart';
 import 'log_terminal.dart';
 import 'veilid_theme.dart';
@@ -24,13 +24,13 @@ class _MyAppState extends State<MyApp> with UiLoggy {
   bool _startedUp = false;
   Stream<VeilidUpdate>? _updateStream;
   Future<void>? _updateProcessor;
-  final _debugHistoryWrapper = HistoryWrapper();
+  late final HistoryTextEditingController _historyController;
   String? _errorText;
 
   @override
   void initState() {
     super.initState();
-
+    _historyController = HistoryTextEditingController(setState: setState);
     unawaited(initPlatformState());
   }
 
@@ -177,10 +177,10 @@ class _MyAppState extends State<MyApp> with UiLoggy {
           padding: const EdgeInsets.all(5),
           child: Row(children: [
             Expanded(
-                child: pad(_debugHistoryWrapper.wrap(
-              setState,
+                child: pad(
               TextField(
-                  controller: _debugHistoryWrapper.controller,
+                  controller: _historyController.controller,
+                  focusNode: _historyController.focusNode,
                   decoration: newInputDecoration(
                       'Debug Command', _errorText, _startedUp),
                   textInputAction: TextInputAction.unspecified,
@@ -197,16 +197,14 @@ class _MyAppState extends State<MyApp> with UiLoggy {
                       }
                       final res = await Veilid.instance.debug(v);
                       loggy.info(res);
-                      setState(() {
-                        _debugHistoryWrapper.submit(v);
-                      });
+                      _historyController.submit(v);
                     } on VeilidAPIException catch (e) {
                       setState(() {
                         _errorText = e.toDisplayError();
                       });
                     }
                   }),
-            ))),
+            )),
             pad(
               Column(children: [
                 const Text('Startup'),
