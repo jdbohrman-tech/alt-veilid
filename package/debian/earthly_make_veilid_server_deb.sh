@@ -11,6 +11,16 @@ mkdir -p /dpkg/out
     
 # veilid-server dpkg control
 cp -rf /veilid/package/debian/veilid-server /dpkg
+# Appropriatly name the package for STABLE or NIGHTLY release
+# if [ "$3" = "true" ]
+# then
+#     /veilid/package/replace_variable.sh /dpkg/veilid-server/DEBIAN/control CARGO_VERSION $BUILD_DATE
+# elif [ "$3" = "false" ]
+# then
+#     /veilid/package/replace_variable.sh /dpkg/veilid-server/DEBIAN/control CARGO_VERSION $CARGO_VERSION 
+# else
+#     echo $3 "is not a valid state to determine if the build is STABLE or NIGHTLY"
+# fi
 /veilid/package/replace_variable.sh /dpkg/veilid-server/DEBIAN/control CARGO_VERSION $CARGO_VERSION 
 /veilid/package/replace_variable.sh /dpkg/veilid-server/DEBIAN/control ARCH $ARCH
 # veilid-server configuration

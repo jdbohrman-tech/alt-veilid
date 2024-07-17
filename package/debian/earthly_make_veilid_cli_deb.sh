@@ -10,8 +10,16 @@ rm -rf /dpkg
 mkdir -p /dpkg/out
     
 # veilid-cli dpkg control
-cp -rf /veilid/package/debian/veilid-cli /dpkg
-/veilid/package/replace_variable.sh /dpkg/veilid-cli/DEBIAN/control CARGO_VERSION $CARGO_VERSION
+cp -rf /veilid/package/debian/veilid-cli /dpkg# Appropriatly name the package for STABLE or NIGHTLY release
+if [ "$3" = "true" ]
+then
+    /veilid/package/replace_variable.sh /dpkg/veilid-cli/DEBIAN/control CARGO_VERSION $BUILD_DATE
+elif [ "$3" = "false" ]
+then
+    /veilid/package/replace_variable.sh /dpkg/veilid-cli/DEBIAN/control CARGO_VERSION $CARGO_VERSION 
+else
+    echo $3 "is not a valid state to determine if the build is STABLE or NIGHTLY"
+fi
 /veilid/package/replace_variable.sh /dpkg/veilid-cli/DEBIAN/control ARCH $ARCH
 # veilid-cli executable
 mkdir -p /dpkg/veilid-cli/usr/bin

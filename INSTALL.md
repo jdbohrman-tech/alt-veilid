@@ -27,17 +27,31 @@ dpkg --print-architecture
 **Step 3**: Add Veilid to your list of available software.<br />
 *Explanation*: Use the result of your command in **Step 2** and run **one** of the following:
 
-- For **AMD64** based systems run this command:
+- For *STABLE* releases
+  - **AMD64** based systems run this command:
 
   ```shell
   echo "deb [arch=amd64 signed-by=/usr/share/keyrings/veilid-packages-keyring.gpg] https://packages.veilid.net/apt stable main" | sudo tee /etc/apt/sources.list.d/veilid.list 1>/dev/null
   ```
 
-- For **ARM64** based systems run this command:
+  - **ARM64** based systems run this command:
 
   ```shell
   echo "deb [arch=arm64 signed-by=/usr/share/keyrings/veilid-packages-keyring.gpg] https://packages.veilid.net/apt stable main" | sudo tee /etc/apt/sources.list.d/veilid.list 1>/dev/null
   ```
+- For *NIGHTLY* (bleeding edge) releases
+  - **AMD64** based systems run this command:
+
+  ```shell
+  echo "deb [arch=amd64 signed-by=/usr/share/keyrings/veilid-packages-keyring.gpg] https://packages.veilid.net/apt nightly main" | sudo tee /etc/apt/sources.list.d/veilid.list 1>/dev/null
+  ```
+
+  - **ARM64** based systems run this command:
+
+  ```shell
+  echo "deb [arch=arm64 signed-by=/usr/share/keyrings/veilid-packages-keyring.gpg] https://packages.veilid.net/apt nightly main" | sudo tee /etc/apt/sources.list.d/veilid.list 1>/dev/null
+  ```
+
 
 *Explanation*:
 Each of the above commands will create a new file called `veilid.list` in the `/etc/apt/sources.list.d/`. This file contains instructions that tell the operating system where to download Veilid.

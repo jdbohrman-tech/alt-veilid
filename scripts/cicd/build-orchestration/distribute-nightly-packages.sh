@@ -3,7 +3,7 @@
 # Clean and reset the workspaces
 echo "Setting up the workspace"
 # Rsync active repo to local workspace
-rsync --archive gitlab-runner@10.116.0.3:/srv $HOME
+rsync --archive gitlab-runner@10.116.0.3:/srv/ $HOME/srv/
 # Ensure repo directory structure exists
 mkdir -p $HOME/srv/{gpg,rpm/{nightly/x86_64,nightly/x86_64,stable/x86_64,stable/x86_64},apt/{dists/{stable/main/{binary-amd64,binary-arm64},nightly/main/{binary-amd64,binary-arm64}},pool/{stable/main,nightly/main}}}
 # Delete previous versions of packages
@@ -20,7 +20,7 @@ gpg --armor --export admin@veilid.org > $HOME/srv/gpg/veilid-packages-key.public
 
 # Copy .deb files into the workspace and generate repo files
 echo "Starting deb process"
-cd ~
+cd $HOME
 tar -xf amd64-debs.tar
 tar -xf arm64-debs.tar
 cp *.deb /home/gitlab-runner/srv/apt/pool/nightly/main
@@ -31,11 +31,11 @@ dpkg-scanpackages --arch arm64 pool/nightly > dists/nightly/main/binary-arm64/Pa
 cat dists/nightly/main/binary-amd64/Packages | gzip -9 > dists/nightly/main/binary-amd64/Packages.gz
 cat dists/nightly/main/binary-arm64/Packages | gzip -9 > dists/nightly/main/binary-arm64/Packages.gz
 echo "Creating Release file"
-cd /home/gitlab-runner/srv/apt/dists/nightly
-~/generate-nightly-release.sh > Release
+cd $HOME/srv/apt/dists/nightly
+bash $HOME/generate-nightly-release.sh > Release
 echo "Signing Release file and creating InRelease"
-cat /home/gitlab-runner/srv/apt/dists/nightly/Release | gpg --default-key admin@veilid.org -abs > /home/gitlab-runner/srv/apt/dists/nightly/Release.gpg
-cat /home/gitlab-runner/srv/apt/dists/nightly/Release | gpg --default-key admin@veilid.org -abs --clearsign > /home/gitlab-runner/srv/apt/dists/nightly/InRelease
+cat $HOME/srv/apt/dists/nightly/Release | gpg --default-key admin@veilid.org -abs > /home/gitlab-runner/srv/apt/dists/nightly/Release.gpg
+cat $HOME/srv/apt/dists/nightly/Release | gpg --default-key admin@veilid.org -abs --clearsign > /home/gitlab-runner/srv/apt/dists/nightly/InRelease
 
 # Copy .rpm files into the workspace and generate repo files
 echo "Starting rpm process"
@@ -48,7 +48,7 @@ cp -R $GNUPGHOME $HOME/rpm-build-container/mount/keystore
 echo "Executing container actions"
 docker run --rm -d -it --name rpm-repo-builder --mount type=bind,source=$HOME/rpm-build-container/mount,target=/mount rpm-repo-builder-img:v8
 sleep 2
-cp -R $HOME/rpm-build-container/mount/repo/nightly $HOME/srv/rpm/nightly
+cp -R $HOME/rpm-build-container/mount/repo/nightly/* $HOME/srv/rpm/nightly
 cd $HOME/srv/rpm/nightly/x86_64
 echo "Signing the rpm repository"
 gpg --default-key admin@veilid.org --detach-sign --armor $HOME/srv/rpm/nightly/x86_64/repodata/repomd.xml
@@ -63,7 +63,7 @@ gpgkey=https://packages.veilid.net/gpg/veilid-packages-key.public" > $HOME/srv/r
 # Tar the repo data and transfer to the repo server
 echo "Moving the repo scaffold to the repo server"
 cd $HOME
-rsync --archive $HOME/srv gitlab-runner@10.116.0.3:/srv
+rsync --archive $HOME/srv/ gitlab-runner@10.116.0.3:/srv/
 # tar -cf $HOME/repo.tar srv
 # scp -i $HOME/.ssh/id_ed25519 $HOME/repo.tar gitlab-runner@10.116.0.3:~
 
