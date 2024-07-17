@@ -12,13 +12,6 @@ IF NOT DEFINED ProgramFiles(x86) (
     goto end
 )
 
-FOR %%X IN (protoc.exe) DO (SET PROTOC_FOUND=%%~$PATH:X)
-IF NOT DEFINED PROTOC_FOUND (
-    echo protobuf compiler ^(protoc^) is required but it's not installed. Install protoc 23.2 or higher. Ensure it is in your path. Aborting.
-    echo protoc is available here: https://github.com/protocolbuffers/protobuf/releases/download/v23.2/protoc-23.2-win64.zip
-    goto end
-)
-
 FOR %%X IN (capnp.exe) DO (SET CAPNP_FOUND=%%~$PATH:X)
 IF NOT DEFINED CAPNP_FOUND (
     echo capnproto compiler ^(capnp^) is required but it's not installed. Install capnp 1.0.1 or higher. Ensure it is in your path. Aborting.
