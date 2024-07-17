@@ -10,7 +10,8 @@ rm -rf /dpkg
 mkdir -p /dpkg/out
     
 # veilid-cli dpkg control
-cp -rf /veilid/package/debian/veilid-cli /dpkg# Appropriatly name the package for STABLE or NIGHTLY release
+cp -rf /veilid/package/debian/veilid-cli /dpkg
+# Appropriatly set vars for STABLE or NIGHTLY release
 if [ "$3" = "true" ]
 then
     /veilid/package/replace_variable.sh /dpkg/veilid-cli/DEBIAN/control CARGO_VERSION $BUILD_DATE
@@ -36,3 +37,4 @@ then
 else
     echo $3 "is not a valid state to determine if the build is STABLE or NIGHTLY"
 fi
+echo "make veilid-cli deb process complete"

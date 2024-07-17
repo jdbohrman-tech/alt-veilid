@@ -6,4 +6,4 @@ Architecture: $ARCH
 Depends: libc6 (>= 2.23)
 Maintainer: jsmith@veilid.org
 Description: Veilid Server Command Line Interface
-  The Veilid peer-to-peer network server command line interface
+  This package installs a a CLI interface for locally installed Veilid peer-to-peer network headless nodes.
