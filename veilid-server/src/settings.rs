@@ -163,26 +163,26 @@ core:
             udp:
                 enabled: true
                 socket_pool_size: 0
-                listen_address: ''
+                listen_address: ':5150'
                 # public_address: ''
             tcp:
                 connect: true
                 listen: true
                 max_connections: 32
-                listen_address: ''
+                listen_address: ':5150'
                 #'public_address: ''
             ws:
                 connect: true
                 listen: true
                 max_connections: 32
-                listen_address: ''
+                listen_address: ':5150'
                 path: 'ws'
                 # url: 'ws://localhost:5150/ws'
             wss:
                 connect: true
                 listen: false
                 max_connections: 32
-                listen_address: ''
+                listen_address: ':5150'
                 path: 'ws'
                 # url: ''
         "#,
@@ -1676,26 +1676,40 @@ mod tests {
         );
         assert_eq!(s.core.network.application.http.url, None);
         //
+        let valid_socket_addrs = [
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 5150),
+            SocketAddr::new(IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0)), 5150),
+        ];
+
         assert!(s.core.network.protocol.udp.enabled);
         assert_eq!(s.core.network.protocol.udp.socket_pool_size, 0);
-        assert_eq!(s.core.network.protocol.udp.listen_address.name, "");
-        assert_eq!(s.core.network.protocol.udp.listen_address.addrs, vec![]);
+        assert_eq!(s.core.network.protocol.udp.listen_address.name, ":5150");
+        for addr in &s.core.network.protocol.udp.listen_address.addrs {
+            assert!(valid_socket_addrs.contains(addr));
+        }
+        assert!(!s.core.network.protocol.udp.listen_address.addrs.is_empty());
         assert_eq!(s.core.network.protocol.udp.public_address, None);
 
         //
         assert!(s.core.network.protocol.tcp.connect);
         assert!(s.core.network.protocol.tcp.listen);
         assert_eq!(s.core.network.protocol.tcp.max_connections, 32);
-        assert_eq!(s.core.network.protocol.tcp.listen_address.name, "");
-        assert_eq!(s.core.network.protocol.tcp.listen_address.addrs, vec![]);
+        assert_eq!(s.core.network.protocol.tcp.listen_address.name, ":5150");
+        for addr in &s.core.network.protocol.tcp.listen_address.addrs {
+            assert!(valid_socket_addrs.contains(addr));
+        }
+        assert!(!s.core.network.protocol.tcp.listen_address.addrs.is_empty());
         assert_eq!(s.core.network.protocol.tcp.public_address, None);
 
         //
         assert!(s.core.network.protocol.ws.connect);
         assert!(s.core.network.protocol.ws.listen);
         assert_eq!(s.core.network.protocol.ws.max_connections, 32);
-        assert_eq!(s.core.network.protocol.ws.listen_address.name, "");
-        assert_eq!(s.core.network.protocol.ws.listen_address.addrs, vec![]);
+        assert_eq!(s.core.network.protocol.ws.listen_address.name, ":5150");
+        for addr in &s.core.network.protocol.ws.listen_address.addrs {
+            assert!(valid_socket_addrs.contains(addr));
+        }
+        assert!(!s.core.network.protocol.ws.listen_address.addrs.is_empty());
         assert_eq!(
             s.core.network.protocol.ws.path,
             std::path::PathBuf::from("ws")
@@ -1705,8 +1719,11 @@ mod tests {
         assert!(s.core.network.protocol.wss.connect);
         assert!(!s.core.network.protocol.wss.listen);
         assert_eq!(s.core.network.protocol.wss.max_connections, 32);
-        assert_eq!(s.core.network.protocol.wss.listen_address.name, "");
-        assert_eq!(s.core.network.protocol.wss.listen_address.addrs, vec![]);
+        assert_eq!(s.core.network.protocol.wss.listen_address.name, ":5150");
+        for addr in &s.core.network.protocol.wss.listen_address.addrs {
+            assert!(valid_socket_addrs.contains(addr));
+        }
+        assert!(!s.core.network.protocol.wss.listen_address.addrs.is_empty());
         assert_eq!(
             s.core.network.protocol.wss.path,
             std::path::PathBuf::from("ws")
