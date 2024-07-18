@@ -6,8 +6,8 @@ use console_subscriber::ConsoleLayer;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "opentelemetry-otlp")] {
-        use opentelemetry::sdk::*;
         use opentelemetry::*;
+        use opentelemetry_sdk::*;
         use opentelemetry_otlp::WithExportConfig;
     }
 }
@@ -103,12 +103,12 @@ impl VeilidLogs {
                     let exporter = opentelemetry_otlp::new_exporter()
                         .grpcio()
                         .with_endpoint(grpc_endpoint);
-                    let batch = opentelemetry::runtime::AsyncStd;
+                    let batch = opentelemetry_sdk::runtime::AsyncStd;
                 } else if #[cfg(feature="rt-tokio")] {
                     let exporter = opentelemetry_otlp::new_exporter()
                         .tonic()
                         .with_endpoint(format!("http://{}", grpc_endpoint));
-                    let batch = opentelemetry::runtime::Tokio;
+                    let batch = opentelemetry_sdk::runtime::Tokio;
                 } else {
                     compile_error!("needs executor implementation")
                 }
@@ -117,7 +117,7 @@ impl VeilidLogs {
             let tracer = opentelemetry_otlp::new_pipeline()
                 .tracing()
                 .with_exporter(exporter)
-                .with_trace_config(opentelemetry::sdk::trace::config().with_resource(
+                .with_trace_config(opentelemetry_sdk::trace::Config::default().with_resource(
                     Resource::new(vec![KeyValue::new(
                         opentelemetry_semantic_conventions::resource::SERVICE_NAME,
                         format!(

@@ -39,7 +39,7 @@ cursive_buffered_backend = { git = "https://gitlab.com/veilid/cursive-buffered-b
 # cursive-multiplex = "0.6.0"
 # cursive_tree_view = "0.6.0"
 cursive_table_view = { git = "https://gitlab.com/veilid/cursive-table-view.git" }
-arboard = "3.3.0"
+arboard = "3.4.0"
 # cursive-tabs = "0.5.0"
 clap = { version = "4", features = ["derive"] }
 directories = "^5"
@@ -63,9 +63,9 @@ flume = { version = "^0", features = ["async"] }
 data-encoding = { version = "^2" }
 indent = { version = "0.1.1" }
 
-chrono = "0.4.31"
+chrono = "0.4.38"
 owning_ref = "0.4.1"
-unicode-width = "0.1.11"
+unicode-width = "0.1.13"
 lru = "0.10.1"
 rustyline-async = "0.4.2"
 console = "0.15.8"
