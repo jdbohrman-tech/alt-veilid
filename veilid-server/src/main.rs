@@ -199,6 +199,7 @@ fn main() -> EyreResult<()> {
         settingsrw.logging.terminal.enabled = true;
         settingsrw.logging.terminal.level = LogLevel::Trace;
     }
+    #[cfg(feature = "opentelemetry-otlp")]
     if args.otlp.is_some() {
         println!("Enabling OTLP tracing");
         settingsrw.logging.otlp.enabled = true;
