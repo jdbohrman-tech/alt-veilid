@@ -398,12 +398,12 @@ impl BucketEntryInner {
         }
 
         // Check connections
-        let last_connections = self.last_flows(
+        let last_flows = self.last_flows(
             rti,
             true,
             NodeRefFilter::from(routing_domain),
         );
-        !last_connections.is_empty()
+        !last_flows.is_empty()
     }
 
     pub fn node_info(&self, routing_domain: RoutingDomain) -> Option<&NodeInfo> {
@@ -539,8 +539,8 @@ impl BucketEntryInner {
         only_live: bool,
         filter: NodeRefFilter,
     ) -> Vec<(Flow, Timestamp)> {
-        let connection_manager =
-            rti.unlocked_inner.network_manager.connection_manager();
+        let opt_connection_manager =
+            rti.unlocked_inner.network_manager.opt_connection_manager();
 
         let mut out: Vec<(Flow, Timestamp)> = self
             .last_flows
@@ -568,7 +568,11 @@ impl BucketEntryInner {
                     // Should we check the connection table?
                     if v.0.protocol_type().is_ordered() {
                         // Look the connection up in the connection manager and see if it's still there
-                        connection_manager.get_connection(v.0).is_some()
+                        if let Some(connection_manager) = &opt_connection_manager {
+                            connection_manager.get_connection(v.0).is_some()
+                        } else {
+                            false
+                        }
                     } else {
                         // If this is not connection oriented, then we check our last seen time
                         // to see if this mapping has expired (beyond our timeout)
