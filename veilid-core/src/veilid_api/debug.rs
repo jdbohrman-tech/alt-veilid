@@ -867,9 +867,11 @@ impl VeilidAPI {
                     .purge_last_connections();
 
                 if let Some(connection_manager) = &opt_connection_manager {
-                    connection_manager.startup().await;
+                    connection_manager
+                        .startup()
+                        .await
+                        .map_err(VeilidAPIError::internal)?;
                 }
-
                 Ok("Connections purged".to_owned())
             } else if args[0] == "routes" {
                 // Purge route spec store

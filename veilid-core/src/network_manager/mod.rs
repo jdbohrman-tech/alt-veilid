@@ -428,7 +428,7 @@ impl NetworkManager {
         });
 
         // Start network components
-        connection_manager.startup().await;
+        connection_manager.startup().await?;
         match net.startup().await? {
             StartupDisposition::Success => {}
             StartupDisposition::BindRetry => {
@@ -546,9 +546,7 @@ impl NetworkManager {
     }
 
     pub fn network_is_started(&self) -> bool {
-        self.opt_net()
-            .and_then(|net| net.is_started())
-            .unwrap_or(false)
+        self.opt_net().map(|net| net.is_started()).unwrap_or(false)
     }
 
     pub fn generate_node_status(&self, _routing_domain: RoutingDomain) -> NodeStatus {

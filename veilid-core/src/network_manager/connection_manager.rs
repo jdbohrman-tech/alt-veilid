@@ -53,6 +53,7 @@ struct ConnectionManagerArc {
     connection_inactivity_timeout_ms: u32,
     connection_table: ConnectionTable,
     address_lock_table: AsyncTagLockTable<SocketAddr>,
+    startup_lock: StartupLock,
     inner: Mutex<Option<ConnectionManagerInner>>,
 }
 impl core::fmt::Debug for ConnectionManagerArc {
@@ -98,6 +99,7 @@ impl ConnectionManager {
             connection_inactivity_timeout_ms,
             connection_table: ConnectionTable::new(config, address_filter),
             address_lock_table: AsyncTagLockTable::new(),
+            startup_lock: StartupLock::new(),
             inner: Mutex::new(None),
         }
     }
@@ -115,8 +117,11 @@ impl ConnectionManager {
         self.arc.connection_inactivity_timeout_ms
     }
 
-    pub async fn startup(&self) {
+    pub async fn startup(&self) -> EyreResult<()> {
+        let guard = self.arc.startup_lock.startup()?;
+
         log_net!(debug "startup connection manager");
+
         let mut inner = self.arc.inner.lock();
         if inner.is_some() {
             panic!("shouldn't start connection manager twice without shutting it down first");
@@ -133,10 +138,19 @@ impl ConnectionManager {
 
         // Store in the inner object
         *inner = Some(Self::new_inner(stop_source, sender, async_processor));
+
+        guard.success();
+
+        Ok(())
     }
 
     pub async fn shutdown(&self) {
         log_net!(debug "starting connection manager shutdown");
+        let Ok(guard) = self.arc.startup_lock.shutdown().await else {
+            log_net!(debug "connection manager is already shut down");
+            return;
+        };
+
         // Remove the inner from the lock
         let mut inner = {
             let mut inner_lock = self.arc.inner.lock();
@@ -158,6 +172,8 @@ impl ConnectionManager {
         // Wait for the connections to complete
         log_net!(debug "waiting for connection handlers to complete");
         self.arc.connection_table.join().await;
+
+        guard.success();
         log_net!(debug "finished connection manager shutdown");
     }
 
@@ -263,6 +279,9 @@ impl ConnectionManager {
 
     // Returns a network connection if one already is established
     pub fn get_connection(&self, flow: Flow) -> Option<ConnectionHandle> {
+        let Ok(_guard) = self.arc.startup_lock.enter() else {
+            return None;
+        };
         self.arc.connection_table.peek_connection_by_flow(flow)
     }
 
@@ -276,6 +295,9 @@ impl ConnectionManager {
         self.arc.connection_table.ref_connection_by_id(id, kind)
     }
     pub fn try_connection_ref_scope(&self, id: NetworkConnectionId) -> Option<ConnectionRefScope> {
+        let Ok(_guard) = self.arc.startup_lock.enter() else {
+            return None;
+        };
         ConnectionRefScope::try_new(self.clone(), id)
     }
 
@@ -288,6 +310,11 @@ impl ConnectionManager {
         &self,
         dial_info: DialInfo,
     ) -> EyreResult<NetworkResult<ConnectionHandle>> {
+        let Ok(_guard) = self.arc.startup_lock.enter() else {
+            return Ok(NetworkResult::service_unavailable(
+                "connection manager is not started",
+            ));
+        };
         let peer_address = dial_info.peer_address();
         let remote_addr = peer_address.socket_addr();
         let mut preferred_local_address = self
