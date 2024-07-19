@@ -172,7 +172,7 @@ build_repositories:
   tags:
     - build-orchestration
   variables:
-    SECURE_FILES_DOWNLOAD_PATH: '/home/gitlab-runner/'
+    SECURE_FILES_DOWNLOAD_PATH: './'
   script:
     - curl --silent "https://gitlab.com/gitlab-org/incubation-engineering/mobile-devops/download-secure-files/-/raw/main/installer" | bash
     - cp scripts/cicd/build-orchestration/rpm-repo-building/Dockerfile ~/rpm-build-container
@@ -287,7 +287,7 @@ dryrun_build_repositories:
   tags:
     - build-orchestration
   variables:
-    SECURE_FILES_DOWNLOAD_PATH: '/home/gitlab-runner/'
+    SECURE_FILES_DOWNLOAD_PATH: './'
   script:
     - curl --silent "https://gitlab.com/gitlab-org/incubation-engineering/mobile-devops/download-secure-files/-/raw/main/installer" | bash
     - cp scripts/cicd/build-orchestration/generate-release.sh ~
@@ -377,7 +377,7 @@ nightly_build_repositories:
   tags:
     - build-orchestration
   variables:
-    SECURE_FILES_DOWNLOAD_PATH: '/home/gitlab-runner/'
+    SECURE_FILES_DOWNLOAD_PATH: './'
   script:
     - curl --silent "https://gitlab.com/gitlab-org/incubation-engineering/mobile-devops/download-secure-files/-/raw/main/installer" | bash
     - cp scripts/cicd/build-orchestration/generate-nightly-release.sh ~
