@@ -10,7 +10,7 @@ rm -rf $HOME/srv/rpm/stable/x86_64/*
 
 # Setup crypto
 export GNUPGHOME="$(mktemp -d ~/pgpkeys-XXXXXX)"
-cat $HOME/veilid-packages-key.private | gpg --import
+cat veilid-packages-key.private | gpg --import
 gpg --armor --export admin@veilid.org > $HOME/srv/gpg/veilid-packages-key.public
 
 # Copy .deb files into the workspace and generate repo files
@@ -39,7 +39,7 @@ tar -xf amd64-rpms.tar
 echo "Copying rpms to container workspace"
 cp *x86_64.rpm $HOME/rpm-build-container/mount/repo/stable/x86_64
 echo "Copying signing material to container workspace"
-cp -R $GNUPGHOME $HOME/rpm-build-container/mount/keystore
+cp -R $GNUPGHOME/* $HOME/rpm-build-container/mount/keystore
 echo "Executing container actions"
 docker run --rm -d -it --name rpm-repo-builder --mount type=bind,source=$HOME/rpm-build-container/mount,target=/mount rpm-repo-builder-img:v12
 sleep 2
