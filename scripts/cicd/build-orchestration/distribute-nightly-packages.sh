@@ -4,14 +4,9 @@
 echo "Setting up the workspace"
 # Rsync active repo to local workspace
 rsync --archive gitlab-runner@10.116.0.3:/srv/ $HOME/srv/
-# Ensure repo directory structure exists
-mkdir -p $HOME/srv/{gpg,rpm/{nightly/x86_64,nightly/x86_64,stable/x86_64,stable/x86_64},apt/{dists/{stable/main/{binary-amd64,binary-arm64},nightly/main/{binary-amd64,binary-arm64}},pool/{stable/main,nightly/main}}}
 # Delete previous versions of packages
 rm -rf $HOME/srv/apt/pool/nightly/main/*.deb
-rm -rf $HOME/srv/rpm/{nightly/x86_64/*,nightly/x86_64/*}
-# Ensure RPM workspace setup
-mkdir -p $HOME/rpm-build-container/mount/repo/{nightly/x86_64,nightly/x86_64,stable/x86_64,stable/x86_64}
-rm -rf $HOME/rpm-builder/mount/repo/{nightly/x86_64/*,nightly/x86_64/*}
+rm -rf $HOME/srv/rpm/nightly/x86_64/*
 
 # Setup crypto
 export GNUPGHOME="$(mktemp -d ~/pgpkeys-XXXXXX)"
@@ -44,11 +39,11 @@ tar -xf amd64-rpms.tar
 echo "Copying rpms to container workspace"
 cp *x86_64.rpm $HOME/rpm-build-container/mount/repo/nightly/x86_64
 echo "Copying signing material to container workspace"
-cp -R $GNUPGHOME $HOME/rpm-build-container/mount/keystore
+cp -R $GNUPGHOME/* $HOME/rpm-build-container/mount/keystore
 echo "Executing container actions"
-docker run --rm -d -it --name rpm-repo-builder --mount type=bind,source=$HOME/rpm-build-container/mount,target=/mount rpm-repo-builder-img:v8
+docker run --rm -d -it -e IS_NIGHTLY=$IS_NIGHTLY --name rpm-repo-builder --mount type=bind,source=$HOME/rpm-build-container/mount,target=/mount rpm-repo-builder-img:v12
 sleep 2
-cp -R $HOME/rpm-build-container/mount/repo/nightly/* $HOME/srv/rpm/nightly
+cp -R $HOME/rpm-build-container/mount/repo/nightly/x86_64/* $HOME/srv/rpm/nightly/x86_64
 cd $HOME/srv/rpm/nightly/x86_64
 echo "Signing the rpm repository"
 gpg --default-key admin@veilid.org --detach-sign --armor $HOME/srv/rpm/nightly/x86_64/repodata/repomd.xml
@@ -58,22 +53,19 @@ name=Veilid Nightly x86_64 RPM Repo
 baseurl=https://packages.veilid.net/rpm/nightly/x86_64
 enabled=1
 gpgcheck=1
-gpgkey=https://packages.veilid.net/gpg/veilid-packages-key.public" > $HOME/srv/rpm/nightly/x86_64/veilid-rpm-repo.repo
+gpgkey=https://packages.veilid.net/gpg/veilid-packages-key.public" > $HOME/srv/rpm/nightly/x86_64/veilid-nightly-x86_64-rpm.repo
 
 # Tar the repo data and transfer to the repo server
 echo "Moving the repo scaffold to the repo server"
 cd $HOME
-rsync --archive $HOME/srv/ gitlab-runner@10.116.0.3:/srv/
-# tar -cf $HOME/repo.tar srv
-# scp -i $HOME/.ssh/id_ed25519 $HOME/repo.tar gitlab-runner@10.116.0.3:~
+rsync --archive $HOME/srv/* gitlab-runner@10.116.0.3:/srv
 
 # Cleanup
 echo "Cleaning up the workspace"
 rm -rf $GNUPGHOME
-# rm $HOME/repo.tar
+rm $HOME/*.tar
 rm $HOME/*.deb
 rm $HOME/*.rpm
-rm -rf $HOME/rpm-build-container/mount/keystore
-# rm rpm-build-container/mount/repo/*.rpm
-# rm -rf rpm-build-container/mount/repo/repodata/*
-echo "Process complete"
+rm -rf $HOME/rpm-build-container/mount/keystore/*
+rm -rf $HOME/rpm-build-container/mount/repo/nightly/x86_64/*
+echo "Nightly packages distribution process complete"
