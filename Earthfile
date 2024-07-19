@@ -206,21 +206,23 @@ unit-tests-linux:
 
 # Package 
 package-linux-amd64-deb:
+    ARG IS_NIGHTLY="false"
     FROM +build-linux-amd64
     #################################
     ### DEBIAN DPKG .DEB FILES
     #################################
     COPY --dir package /veilid
     # veilid-server
-    RUN /veilid/package/debian/earthly_make_veilid_server_deb.sh amd64 x86_64-unknown-linux-gnu true
+    RUN /veilid/package/debian/earthly_make_veilid_server_deb.sh amd64 x86_64-unknown-linux-gnu "$IS_NIGHTLY"
     SAVE ARTIFACT --keep-ts /dpkg/out/*.deb AS LOCAL ./target/packages/
     # veilid-cli
-    RUN /veilid/package/debian/earthly_make_veilid_cli_deb.sh amd64 x86_64-unknown-linux-gnu true
+    RUN /veilid/package/debian/earthly_make_veilid_cli_deb.sh amd64 x86_64-unknown-linux-gnu "$IS_NIGHTLY"
     # save artifacts
     SAVE ARTIFACT --keep-ts /dpkg/out/*.deb AS LOCAL ./target/packages/
 
 package-linux-amd64-rpm:
-    FROM --platform amd64 rockylinux:8
+    ARG IS_NIGHTLY="false"
+    FROM --platform amd64 rockylinux:9
     RUN yum install -y createrepo rpm-build rpm-sign yum-utils rpmdevtools
     RUN rpmdev-setuptree
     #################################
@@ -231,28 +233,30 @@ package-linux-amd64-rpm:
     COPY +build-linux-amd64/x86_64-unknown-linux-gnu /veilid/target/x86_64-unknown-linux-gnu
     RUN mkdir -p /rpm-work-dir/veilid-server
     # veilid-server
-    RUN veilid/package/rpm/veilid-server/earthly_make_veilid_server_rpm.sh x86_64 x86_64-unknown-linux-gnu true
+    RUN veilid/package/rpm/veilid-server/earthly_make_veilid_server_rpm.sh x86_64 x86_64-unknown-linux-gnu "$IS_NIGHTLY"
     #SAVE ARTIFACT --keep-ts /root/rpmbuild/RPMS/x86_64/*.rpm AS LOCAL ./target/packages/
     # veilid-cli
-    RUN veilid/package/rpm/veilid-cli/earthly_make_veilid_cli_rpm.sh x86_64 x86_64-unknown-linux-gnu true
+    RUN veilid/package/rpm/veilid-cli/earthly_make_veilid_cli_rpm.sh x86_64 x86_64-unknown-linux-gnu "$IS_NIGHTLY"
     # save artifacts
     SAVE ARTIFACT --keep-ts /root/rpmbuild/RPMS/x86_64/*.rpm AS LOCAL ./target/packages/
     
 package-linux-arm64-deb:
+    ARG IS_NIGHTLY="false"
     FROM +build-linux-arm64
     #################################
     ### DEBIAN DPKG .DEB FILES
     #################################
     COPY --dir package /veilid
     # veilid-server
-    RUN /veilid/package/debian/earthly_make_veilid_server_deb.sh arm64 aarch64-unknown-linux-gnu true
+    RUN /veilid/package/debian/earthly_make_veilid_server_deb.sh arm64 aarch64-unknown-linux-gnu "$IS_NIGHTLY"
     SAVE ARTIFACT --keep-ts /dpkg/out/*.deb AS LOCAL ./target/packages/
     # veilid-cli
-    RUN /veilid/package/debian/earthly_make_veilid_cli_deb.sh arm64 aarch64-unknown-linux-gnu true
+    RUN /veilid/package/debian/earthly_make_veilid_cli_deb.sh arm64 aarch64-unknown-linux-gnu "$IS_NIGHTLY"
     # save artifacts
     SAVE ARTIFACT --keep-ts /dpkg/out/*.deb AS LOCAL ./target/packages/
 
 package-linux-arm64-rpm:
+    ARG IS_NIGHTLY="false"
     FROM --platform arm64 rockylinux:8
     RUN yum install -y createrepo rpm-build rpm-sign yum-utils rpmdevtools
     RUN rpmdev-setuptree
@@ -264,10 +268,10 @@ package-linux-arm64-rpm:
     COPY +build-linux-arm64/aarch64-unknown-linux-gnu /veilid/target/aarch64-unknown-linux-gnu
     RUN mkdir -p /rpm-work-dir/veilid-server
     # veilid-server
-    RUN veilid/package/rpm/veilid-server/earthly_make_veilid_server_rpm.sh aarch64 aarch64-unknown-linux-gnu --IS_NIGHTLY=$IS_NIGHTLY
+    RUN veilid/package/rpm/veilid-server/earthly_make_veilid_server_rpm.sh aarch64 aarch64-unknown-linux-gnu "$IS_NIGHTLY"
     #SAVE ARTIFACT --keep-ts /root/rpmbuild/RPMS/aarch64/*.rpm AS LOCAL ./target/packages/
     # veilid-cli
-    RUN veilid/package/rpm/veilid-cli/earthly_make_veilid_cli_rpm.sh aarch64 aarch64-unknown-linux-gnu --IS_NIGHTLY=$IS_NIGHTLY
+    RUN veilid/package/rpm/veilid-cli/earthly_make_veilid_cli_rpm.sh aarch64 aarch64-unknown-linux-gnu "$IS_NIGHTLY"
     # save artifacts
     SAVE ARTIFACT --keep-ts /root/rpmbuild/RPMS/aarch64/*.rpm AS LOCAL ./target/packages/
 

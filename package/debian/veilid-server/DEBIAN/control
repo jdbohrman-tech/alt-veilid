@@ -6,4 +6,6 @@ Architecture: $ARCH
 Depends: libc6 (>= 2.23)
 Maintainer: jsmith@veilid.org
 Description: Veilid Server
-  The Veilid peer-to-peer network server
+  This package installs a Veilid peer-to-peer network headless node which can be deployed for
+  supporting the overall Veilid network or for local development/experimental purposes. See
+  https://veilid.com for more information.
