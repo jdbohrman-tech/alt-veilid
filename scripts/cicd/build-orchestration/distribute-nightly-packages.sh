@@ -58,7 +58,7 @@ gpgkey=https://packages.veilid.net/gpg/veilid-packages-key.public" > $HOME/srv/r
 # Tar the repo data and transfer to the repo server
 echo "Moving the repo scaffold to the repo server"
 cd $HOME
-rsync --archive $HOME/srv/* gitlab-runner@10.116.0.3:/srv
+rsync --archive --delete $HOME/srv/* gitlab-runner@10.116.0.3:/srv
 
 # Cleanup
 echo "Cleaning up the workspace"
