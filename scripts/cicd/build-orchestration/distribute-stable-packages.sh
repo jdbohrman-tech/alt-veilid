@@ -10,7 +10,7 @@ rm -rf $HOME/srv/rpm/stable/x86_64/*
 
 # Setup crypto
 export GNUPGHOME="$(mktemp -d ~/pgpkeys-XXXXXX)"
-cat $HOME/package-signing-key.private | gpg --import
+cat $HOME/veilid-packages-key.private | gpg --import
 gpg --armor --export admin@veilid.org > $HOME/srv/gpg/veilid-packages-key.public
 
 # Copy .deb files into the workspace and generate repo files
