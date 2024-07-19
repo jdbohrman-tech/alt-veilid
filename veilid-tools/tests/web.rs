@@ -44,3 +44,10 @@ async fn run_test_async_tag_lock() {
 
     test_async_tag_lock::test_all().await;
 }
+
+#[wasm_bindgen_test]
+async fn run_test_startup_lock() {
+    setup();
+
+    test_startup_lock::test_all().await;
+}

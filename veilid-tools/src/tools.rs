@@ -54,6 +54,20 @@ cfg_if::cfg_if! {
                 $x.clone().try_lock_owned().ok()
             };
         }
+
+        #[macro_export]
+        macro_rules! asyncrwlock_try_read {
+            ($x:expr) => {
+                $x.try_read().ok()
+            };
+        }
+
+        #[macro_export]
+        macro_rules! asyncrwlock_try_write {
+            ($x:expr) => {
+                $x.try_write().ok()
+            };
+        }
     } else {
         #[macro_export]
         macro_rules! asyncmutex_try_lock {
@@ -71,6 +85,18 @@ cfg_if::cfg_if! {
         macro_rules! asyncmutex_try_lock_arc {
             ($x:expr) => {
                 $x.try_lock_arc()
+            };
+        }
+        #[macro_export]
+        macro_rules! asyncrwlock_try_read {
+            ($x:expr) => {
+                $x.try_read()
+            };
+        }
+        #[macro_export]
+        macro_rules! asyncrwlock_try_write {
+            ($x:expr) => {
+                $x.try_write()
             };
         }
     }

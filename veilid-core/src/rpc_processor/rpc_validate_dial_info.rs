@@ -10,6 +10,12 @@ impl RPCProcessor {
         dial_info: DialInfo,
         redirect: bool,
     ) -> Result<bool, RPCError> {
+        let _guard = self
+            .unlocked_inner
+            .startup_lock
+            .enter()
+            .map_err(RPCError::map_try_again("not started up"))?;
+
         let network_manager = self.network_manager();
         let receipt_time = ms_to_us(self.unlocked_inner.validate_dial_info_receipt_time_ms);
 

@@ -34,6 +34,12 @@ impl RPCProcessor {
         descriptor: SignedValueDescriptor,
         send_descriptor: bool,
     ) ->RPCNetworkResult<Answer<SetValueAnswer>> {
+        let _guard = self
+            .unlocked_inner
+            .startup_lock
+            .enter()
+            .map_err(RPCError::map_try_again("not started up"))?;
+
         // Ensure destination never has a private route
         // and get the target noderef so we can validate the response
         let Some(target) = dest.node() else {

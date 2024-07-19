@@ -9,6 +9,12 @@ impl RPCProcessor {
         dest: Destination,
         message: Vec<u8>,
     ) -> RPCNetworkResult<()> {
+        let _guard = self
+            .unlocked_inner
+            .startup_lock
+            .enter()
+            .map_err(RPCError::map_try_again("not started up"))?;
+
         let app_message = RPCOperationAppMessage::new(message)?;
         let statement = RPCStatement::new(RPCStatementDetail::AppMessage(Box::new(app_message)));
 

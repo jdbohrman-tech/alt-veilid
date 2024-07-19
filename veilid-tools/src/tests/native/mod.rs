@@ -14,6 +14,8 @@ use super::*;
 pub async fn run_all_tests() {
     info!("TEST: exec_test_host_interface");
     test_host_interface::test_all().await;
+    info!("TEST: exec_test_startup_lock");
+    test_startup_lock::test_all().await;
     info!("TEST: exec_test_network_interfaces");
     test_network_interfaces::test_all().await;
     info!("TEST: exec_test_async_peek_stream");
@@ -84,6 +86,15 @@ cfg_if! {
             setup();
             block_on(async {
                 test_host_interface::test_all().await;
+            });
+        }
+
+        #[test]
+        #[serial]
+        fn run_test_startup_lock() {
+            setup();
+            block_on(async {
+                test_startup_lock::test_all().await;
             });
         }
 

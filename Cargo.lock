@@ -6034,7 +6034,6 @@ version = "0.3.3"
 dependencies = [
  "argon2",
  "async-io 1.13.0",
- "async-lock 2.8.0",
  "async-std",
  "async-std-resolver",
  "async-tls",

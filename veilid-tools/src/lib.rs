@@ -49,6 +49,7 @@ pub mod single_shot_eventual;
 pub mod sleep;
 pub mod spawn;
 pub mod split_url;
+pub mod startup_lock;
 pub mod tick_task;
 pub mod timeout;
 pub mod timeout_or;
@@ -124,8 +125,17 @@ cfg_if! {
         pub use async_lock::MutexGuard as AsyncMutexGuard;
         #[doc(no_inline)]
         pub use async_lock::MutexGuardArc as AsyncMutexGuardArc;
+
+        #[doc(no_inline)]
+        pub use async_lock::RwLock as AsyncRwLock;
+        #[doc(no_inline)]
+        pub use async_lock::RwLockReadGuard as AsyncRwLockReadGuard;
+        #[doc(no_inline)]
+        pub use async_lock::RwLockWriteGuard as AsyncRwLockWriteGuard;
+
         #[doc(no_inline)]
         pub use async_executors::JoinHandle as LowLevelJoinHandle;
+
     } else {
         cfg_if! {
             if #[cfg(feature="rt-async-std")] {
@@ -135,8 +145,17 @@ cfg_if! {
                 pub use async_std::sync::MutexGuard as AsyncMutexGuard;
                 #[doc(no_inline)]
                 pub use async_std::sync::MutexGuardArc as AsyncMutexGuardArc;
+
+                #[doc(no_inline)]
+                pub use async_std::sync::RwLock as AsyncRwLock;
+                #[doc(no_inline)]
+                pub use async_std::sync::RwLockReadGuard as AsyncRwLockReadGuard;
+                #[doc(no_inline)]
+                pub use async_std::sync::RwLockWriteGuard as AsyncRwLockWriteGuard;
+
                 #[doc(no_inline)]
                 pub use async_std::task::JoinHandle as LowLevelJoinHandle;
+
             } else if #[cfg(feature="rt-tokio")] {
                 #[doc(no_inline)]
                 pub use tokio::sync::Mutex as AsyncMutex;
@@ -144,6 +163,15 @@ cfg_if! {
                 pub use tokio::sync::MutexGuard as AsyncMutexGuard;
                 #[doc(no_inline)]
                 pub use tokio::sync::OwnedMutexGuard as AsyncMutexGuardArc;
+
+                #[doc(no_inline)]
+                pub use tokio::sync::RwLock as AsyncRwLock;
+                #[doc(no_inline)]
+                pub use tokio::sync::RwLockReadGuard as AsyncRwLockReadGuard;
+                #[doc(no_inline)]
+                pub use tokio::sync::RwLockWriteGuard as AsyncRwLockWriteGuard;
+
+
                 #[doc(no_inline)]
                 pub use tokio::task::JoinHandle as LowLevelJoinHandle;
             } else {
@@ -201,6 +229,8 @@ pub use sleep::*;
 pub use spawn::*;
 #[doc(inline)]
 pub use split_url::*;
+#[doc(inline)]
+pub use startup_lock::*;
 #[doc(inline)]
 pub use tick_task::*;
 #[doc(inline)]

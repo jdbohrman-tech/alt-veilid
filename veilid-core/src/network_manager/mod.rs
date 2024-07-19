@@ -1132,7 +1132,13 @@ impl NetworkManager {
         source_noderef.merge_filter(NodeRefFilter::new().with_routing_domain(routing_domain));
 
         // Pass message to RPC system
-        rpc.enqueue_direct_message(envelope, source_noderef, flow, routing_domain, body)?;
+        if let Err(e) =
+            rpc.enqueue_direct_message(envelope, source_noderef, flow, routing_domain, body)
+        {
+            // Couldn't enqueue, but not the sender's fault
+            log_net!(debug "failed to enqueue direct message: {}", e);
+            return Ok(false);
+        }
 
         // Inform caller that we dealt with the envelope locally
         Ok(true)
