@@ -141,6 +141,7 @@ enum SendDataToExistingFlowResult {
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum StartupDisposition {
     Success,
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     BindRetry,
 }
 
@@ -213,9 +214,18 @@ impl NetworkManager {
             routing_table: RwLock::new(None),
             components: RwLock::new(None),
             update_callback: RwLock::new(None),
-            rolling_transfers_task: TickTask::new(ROLLING_TRANSFERS_INTERVAL_SECS),
-            public_address_check_task: TickTask::new(PUBLIC_ADDRESS_CHECK_TASK_INTERVAL_SECS),
-            address_filter_task: TickTask::new(ADDRESS_FILTER_TASK_INTERVAL_SECS),
+            rolling_transfers_task: TickTask::new(
+                "rolling_transfers_task",
+                ROLLING_TRANSFERS_INTERVAL_SECS,
+            ),
+            public_address_check_task: TickTask::new(
+                "public_address_check_task",
+                PUBLIC_ADDRESS_CHECK_TASK_INTERVAL_SECS,
+            ),
+            address_filter_task: TickTask::new(
+                "address_filter_task",
+                ADDRESS_FILTER_TASK_INTERVAL_SECS,
+            ),
             network_key,
             startup_lock: StartupLock::new(),
         }

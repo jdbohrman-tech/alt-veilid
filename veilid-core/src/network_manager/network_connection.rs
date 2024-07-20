@@ -148,7 +148,7 @@ impl NetworkConnection {
         let local_stop_token = stop_source.token();
 
         // Spawn connection processor and pass in protocol connection
-        let processor = spawn(Self::process_connection(
+        let processor = spawn("connection processor", Self::process_connection(
             connection_manager,
             local_stop_token,
             manager_stop_token,

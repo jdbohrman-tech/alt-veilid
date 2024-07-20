@@ -191,7 +191,7 @@ impl IGDManager {
         mapped_port: u16,
     ) -> Option<()> {
         let this = self.clone();
-        blocking_wrapper(move || {
+        blocking_wrapper("igd unmap_port", move || {
             let mut inner = this.inner.lock();
 
             // If we already have this port mapped, just return the existing portmap
@@ -235,7 +235,7 @@ impl IGDManager {
         expected_external_address: Option<IpAddr>,
     ) -> Option<SocketAddr> {
         let this = self.clone();
-        blocking_wrapper(move || {
+        blocking_wrapper("igd map_any_port", move || {
             let mut inner = this.inner.lock();
 
             // If we already have this port mapped, just return the existing portmap
@@ -340,7 +340,7 @@ impl IGDManager {
         }
 
         let this = self.clone();
-        blocking_wrapper(move || {
+        blocking_wrapper("igd tick", move || {
             let mut inner = this.inner.lock();
 
             // Process full renewals

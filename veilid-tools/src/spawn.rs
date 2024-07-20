@@ -4,7 +4,7 @@ cfg_if! {
     if #[cfg(target_arch = "wasm32")] {
         use async_executors::{Bindgen, LocalSpawnHandleExt, SpawnHandleExt};
 
-        pub fn spawn<Out>(future: impl Future<Output = Out> + Send + 'static) -> MustJoinHandle<Out>
+        pub fn spawn<Out>(_name: &str, future: impl Future<Output = Out> + Send + 'static) -> MustJoinHandle<Out>
         where
             Out: Send + 'static,
         {
@@ -15,7 +15,7 @@ cfg_if! {
             )
         }
 
-        pub fn spawn_local<Out>(future: impl Future<Output = Out> + 'static) -> MustJoinHandle<Out>
+        pub fn spawn_local<Out>(_name: &str, future: impl Future<Output = Out> + 'static) -> MustJoinHandle<Out>
         where
             Out: 'static,
         {
@@ -26,7 +26,7 @@ cfg_if! {
             )
         }
 
-        pub fn spawn_detached<Out>(future: impl Future<Output = Out> + Send + 'static)
+        pub fn spawn_detached<Out>(_name: &str, future: impl Future<Output = Out> + Send + 'static)
         where
             Out: Send + 'static,
         {
@@ -35,7 +35,7 @@ cfg_if! {
                 .expect("wasm-bindgen-futures spawn_handle_local should never error out")
                 .detach()
         }
-        pub fn spawn_detached_local<Out>(future: impl Future<Output = Out> + 'static)
+        pub fn spawn_detached_local<Out>(_name: &str, future: impl Future<Output = Out> + 'static)
         where
             Out: 'static,
         {
@@ -47,60 +47,60 @@ cfg_if! {
 
     } else {
 
-        pub fn spawn<Out>(future: impl Future<Output = Out> + Send + 'static) -> MustJoinHandle<Out>
+        pub fn spawn<Out>(name: &str, future: impl Future<Output = Out> + Send + 'static) -> MustJoinHandle<Out>
         where
             Out: Send + 'static,
         {
             cfg_if! {
                 if #[cfg(feature="rt-async-std")] {
-                    MustJoinHandle::new(async_std::task::spawn(future))
+                    MustJoinHandle::new(async_std::task::Builder::new().name(name).spawn(future).unwrap())
                 } else if #[cfg(feature="rt-tokio")] {
-                    MustJoinHandle::new(tokio::task::spawn(future))
+                    MustJoinHandle::new(tokio::task::Builder::new().name(name).spawn(future).unwrap())
                 }
             }
         }
 
-        pub fn spawn_local<Out>(future: impl Future<Output = Out> + 'static) -> MustJoinHandle<Out>
+        pub fn spawn_local<Out>(name: &str, future: impl Future<Output = Out> + 'static) -> MustJoinHandle<Out>
         where
             Out: 'static,
         {
             cfg_if! {
                 if #[cfg(feature="rt-async-std")] {
-                    MustJoinHandle::new(async_std::task::spawn_local(future))
+                    MustJoinHandle::new(async_std::task::Builder::new().name(name).local(future).unwrap())
                 } else if #[cfg(feature="rt-tokio")] {
-                    MustJoinHandle::new(tokio::task::spawn_local(future))
+                    MustJoinHandle::new(tokio::task::Builder::new().name(name).spawn_local(future).unwrap())
                 }
             }
         }
 
-        pub fn spawn_detached<Out>(future: impl Future<Output = Out> + Send + 'static)
+        pub fn spawn_detached<Out>(name: &str, future: impl Future<Output = Out> + Send + 'static)
         where
             Out: Send + 'static,
         {
             cfg_if! {
                 if #[cfg(feature="rt-async-std")] {
-                    drop(async_std::task::spawn(future));
+                    drop(async_std::task::Builder::new().name(name).spawn(future).unwrap());
                 } else if #[cfg(feature="rt-tokio")] {
-                    drop(tokio::task::spawn(future));
+                    drop(tokio::task::Builder::new().name(name).spawn(future).unwrap());
                 }
             }
         }
 
-        pub fn spawn_detached_local<Out>(future: impl Future<Output = Out> + 'static)
+        pub fn spawn_detached_local<Out>(name: &str,future: impl Future<Output = Out> + 'static)
         where
             Out: 'static,
         {
             cfg_if! {
                 if #[cfg(feature="rt-async-std")] {
-                    drop(async_std::task::spawn_local(future));
+                    drop(async_std::task::Builder::new().name(name).local(future).unwrap());
                 } else if #[cfg(feature="rt-tokio")] {
-                    drop(tokio::task::spawn_local(future));
+                    drop(tokio::task::Builder::new().name(name).spawn_local(future).unwrap());
                 }
             }
         }
 
         #[allow(unused_variables)]
-        pub async fn blocking_wrapper<F, R>(blocking_task: F, err_result: R) -> R
+        pub async fn blocking_wrapper<F, R>(name: &str, blocking_task: F, err_result: R) -> R
         where
             F: FnOnce() -> R + Send + 'static,
             R: Send + 'static,
@@ -108,9 +108,9 @@ cfg_if! {
             // run blocking stuff in blocking thread
             cfg_if! {
                 if #[cfg(feature="rt-async-std")] {
-                    async_std::task::spawn_blocking(blocking_task).await
+                    async_std::task::Builder::new().name(name).blocking(blocking_task)
                 } else if #[cfg(feature="rt-tokio")] {
-                    tokio::task::spawn_blocking(blocking_task).await.unwrap_or(err_result)
+                    tokio::task::Builder::new().name(name).spawn_blocking(blocking_task).unwrap().await.unwrap_or(err_result)
                 } else {
                     #[compile_error("must use an executor")]
                 }

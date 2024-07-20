@@ -187,7 +187,7 @@ impl ClientApiConnection {
 
         // Request initial server state
         let capi = self.clone();
-        spawn_detached_local(async move {
+        spawn_detached_local("get initial server state", async move {
             let mut req = json::JsonValue::new_object();
             req["op"] = "GetState".into();
             let Some(resp) = capi.perform_request(req).await else {

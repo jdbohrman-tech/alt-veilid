@@ -225,7 +225,7 @@ impl StorageManager {
         };
 
         // Call the fanout in a spawned task
-        spawn(Box::pin(async move {
+        spawn("outbound_get_value fanout", Box::pin(async move {
             let fanout_call = FanoutCall::new(
                 routing_table.clone(),
                 key,

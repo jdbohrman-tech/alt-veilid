@@ -35,7 +35,7 @@ pub async fn test_simple_single_contention() {
     let g1 = table.lock_tag(a1).await;
 
     info!("locked");
-    let t1 = spawn(async move {
+    let t1 = spawn("t1", async move {
         // move the guard into the task
         let _g1_take = g1;
         // hold the guard for a bit
@@ -90,7 +90,7 @@ pub async fn test_simple_double_contention() {
     let g2 = table.lock_tag(a2).await;
 
     info!("locked");
-    let t1 = spawn(async move {
+    let t1 = spawn("t1", async move {
         // move the guard into the tas
         let _g1_take = g1;
         // hold the guard for a bit
@@ -99,7 +99,7 @@ pub async fn test_simple_double_contention() {
         // release the guard
         info!("released");
     });
-    let t2 = spawn(async move {
+    let t2 = spawn("t2", async move {
         // move the guard into the task
         let _g2_take = g2;
         // hold the guard for a bit
@@ -131,7 +131,7 @@ pub async fn test_parallel_single_contention() {
     let a1 = SocketAddr::new("1.2.3.4".parse().unwrap(), 1234);
 
     let table1 = table.clone();
-    let t1 = spawn(async move {
+    let t1 = spawn("t1", async move {
         // lock the tag
         let _g = table1.lock_tag(a1).await;
         info!("locked t1");
@@ -143,7 +143,7 @@ pub async fn test_parallel_single_contention() {
     });
 
     let table2 = table.clone();
-    let t2 = spawn(async move {
+    let t2 = spawn("t2", async move {
         // lock the tag
         let _g = table2.lock_tag(a1).await;
         info!("locked t2");
@@ -155,7 +155,7 @@ pub async fn test_parallel_single_contention() {
     });
 
     let table3 = table.clone();
-    let t3 = spawn(async move {
+    let t3 = spawn("t3", async move {
         // lock the tag
         let _g = table3.lock_tag(a1).await;
         info!("locked t3");

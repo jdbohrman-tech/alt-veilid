@@ -34,7 +34,7 @@ pub async fn run_veilid_server_with_signals(
         Signals::new([SIGHUP, SIGTERM, SIGINT, SIGQUIT]).wrap_err("failed to init signals")?;
     let handle = signals.handle();
 
-    let signals_task = spawn(handle_signals(signals));
+    let signals_task = spawn("signals", handle_signals(signals));
 
     // Run veilid server
     let res = run_veilid_server(settings, server_mode, veilid_logs).await;

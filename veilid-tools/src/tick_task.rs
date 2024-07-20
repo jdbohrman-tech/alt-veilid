@@ -10,6 +10,7 @@ type TickTaskRoutine<E> =
 /// If the prior tick is still running, it will allow it to finish, and do another tick when the timer comes around again.
 /// One should attempt to make tasks short-lived things that run in less than the tick period if you want things to happen with regular periodicity.
 pub struct TickTask<E: Send + 'static> {
+    name: String,
     last_timestamp_us: AtomicU64,
     tick_period_us: u64,
     routine: OnceCell<Box<TickTaskRoutine<E>>>,
@@ -19,8 +20,9 @@ pub struct TickTask<E: Send + 'static> {
 }
 
 impl<E: Send + 'static> TickTask<E> {
-    pub fn new_us(tick_period_us: u64) -> Self {
+    pub fn new_us(name: &str, tick_period_us: u64) -> Self {
         Self {
+            name: name.to_string(),
             last_timestamp_us: AtomicU64::new(0),
             tick_period_us,
             routine: OnceCell::new(),
@@ -29,8 +31,9 @@ impl<E: Send + 'static> TickTask<E> {
             running: Arc::new(AtomicBool::new(false)),
         }
     }
-    pub fn new_ms(tick_period_ms: u32) -> Self {
+    pub fn new_ms(name: &str, tick_period_ms: u32) -> Self {
         Self {
+            name: name.to_string(),
             last_timestamp_us: AtomicU64::new(0),
             tick_period_us: (tick_period_ms as u64) * 1000u64,
             routine: OnceCell::new(),
@@ -39,8 +42,9 @@ impl<E: Send + 'static> TickTask<E> {
             running: Arc::new(AtomicBool::new(false)),
         }
     }
-    pub fn new(tick_period_sec: u32) -> Self {
+    pub fn new(name: &str, tick_period_sec: u32) -> Self {
         Self {
+            name: name.to_string(),
             last_timestamp_us: AtomicU64::new(0),
             tick_period_us: (tick_period_sec as u64) * 1000000u64,
             routine: OnceCell::new(),
@@ -147,7 +151,11 @@ impl<E: Send + 'static> TickTask<E> {
             running.store(false, core::sync::atomic::Ordering::Release);
             out
         });
-        match self.single_future.single_spawn(wrapped_routine).await {
+        match self
+            .single_future
+            .single_spawn(&self.name, wrapped_routine)
+            .await
+        {
             // We should have already consumed the result of the last run, or there was none
             // and we should definitely have run, because the prior 'check()' operation
             // should have ensured the singlefuture was ready to run

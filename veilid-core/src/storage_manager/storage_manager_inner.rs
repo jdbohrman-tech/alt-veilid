@@ -133,7 +133,7 @@ impl StorageManagerInner {
         self.deferred_result_processor.init().await;
 
         // Schedule tick
-        let tick_future = interval(1000, move || {
+        let tick_future = interval("storage manager tick", 1000, move || {
             let this = outer_self.clone();
             async move {
                 if let Err(e) = this.tick().await {

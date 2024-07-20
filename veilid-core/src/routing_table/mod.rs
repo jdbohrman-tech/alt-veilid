@@ -221,14 +221,26 @@ impl RoutingTable {
             node_id: c.network.routing_table.node_id.clone(),
             node_id_secret: c.network.routing_table.node_id_secret.clone(),
             kick_queue: Mutex::new(BTreeSet::default()),
-            rolling_transfers_task: TickTask::new(ROLLING_TRANSFERS_INTERVAL_SECS),
-            kick_buckets_task: TickTask::new(1),
-            bootstrap_task: TickTask::new(1),
-            peer_minimum_refresh_task: TickTask::new(1),
-            closest_peers_refresh_task: TickTask::new_ms(c.network.dht.min_peer_refresh_time_ms),
-            ping_validator_task: TickTask::new(1),
-            relay_management_task: TickTask::new(RELAY_MANAGEMENT_INTERVAL_SECS),
-            private_route_management_task: TickTask::new(PRIVATE_ROUTE_MANAGEMENT_INTERVAL_SECS),
+            rolling_transfers_task: TickTask::new(
+                "rolling_transfers_task",
+                ROLLING_TRANSFERS_INTERVAL_SECS,
+            ),
+            kick_buckets_task: TickTask::new("kick_buckets_task", 1),
+            bootstrap_task: TickTask::new("bootstrap_task", 1),
+            peer_minimum_refresh_task: TickTask::new("peer_minimum_refresh_task", 1),
+            closest_peers_refresh_task: TickTask::new_ms(
+                "closest_peers_refresh_task",
+                c.network.dht.min_peer_refresh_time_ms,
+            ),
+            ping_validator_task: TickTask::new("ping_validator_task", 1),
+            relay_management_task: TickTask::new(
+                "relay_management_task",
+                RELAY_MANAGEMENT_INTERVAL_SECS,
+            ),
+            private_route_management_task: TickTask::new(
+                "private_route_management_task",
+                PRIVATE_ROUTE_MANAGEMENT_INTERVAL_SECS,
+            ),
         }
     }
     pub fn new(network_manager: NetworkManager) -> Self {

@@ -62,7 +62,7 @@ pub async fn test_contention() {
     assert!(lock.is_started());
     let lock2 = lock.clone();
     let val2 = val.clone();
-    let jh = spawn(async move {
+    let jh = spawn("task", async move {
         let _guard = lock2.enter().expect("should enter");
         sleep(2000).await;
         val2.store(true, Ordering::Release);
@@ -95,7 +95,7 @@ pub async fn test_bad_enter() {
     assert!(!lock.is_shut_down());
 
     let lock2 = lock.clone();
-    let jh = spawn(async move {
+    let jh = spawn("task", async move {
         let guard = lock2.shutdown().await.expect("should shutdown");
         sleep(2000).await;
         guard.success();
@@ -139,7 +139,7 @@ pub async fn test_multiple_enter() {
 
     //eprintln!("1");
     let lock2 = lock.clone();
-    let jh = spawn(async move {
+    let jh = spawn("task", async move {
         //eprintln!("2");
         let guard = lock2.shutdown().await.expect("should shutdown");
         //eprintln!("7");

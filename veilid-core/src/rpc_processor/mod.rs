@@ -392,10 +392,10 @@ impl RPCProcessor {
                 "Spinning up {} RPC workers",
                 self.unlocked_inner.concurrency
             );
-            for _ in 0..self.unlocked_inner.concurrency {
+            for task_n in 0..self.unlocked_inner.concurrency {
                 let this = self.clone();
                 let receiver = channel.1.clone();
-                let jh = spawn(Self::rpc_worker(
+                let jh = spawn(&format!("rpc worker {}",task_n), Self::rpc_worker(
                     this,
                     inner.stop_source.as_ref().unwrap().token(),
                     receiver,
@@ -1679,14 +1679,9 @@ impl RPCProcessor {
     ) {
         while let Ok(Ok((_span_id, msg))) =
             receiver.recv_async().timeout_at(stop_token.clone()).await
-        {
-            //let rpc_worker_span = span!(parent: None, Level::TRACE, "rpc_worker recv");
-            // xxx: causes crash (Missing otel data span extensions)
-            // rpc_worker_span.follows_from(span_id);
-                    
+        {                    
             network_result_value_or_log!(match self
                 .process_rpc_message(msg).in_current_span()
-                //.instrument(rpc_worker_span)
                 .await
             {
                 Err(e) => {

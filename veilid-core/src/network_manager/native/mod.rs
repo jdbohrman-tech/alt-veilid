@@ -173,9 +173,9 @@ impl Network {
             routing_table,
             connection_manager,
             interfaces: NetworkInterfaces::new(),
-            update_network_class_task: TickTask::new(1),
-            network_interfaces_task: TickTask::new(1),
-            upnp_task: TickTask::new(1),
+            update_network_class_task: TickTask::new("update_network_class_task", 1),
+            network_interfaces_task: TickTask::new("network_interfaces_task", 1),
+            upnp_task: TickTask::new("upnp_task", 1),
             igd_manager: igd_manager::IGDManager::new(config.clone()),
         }
     }

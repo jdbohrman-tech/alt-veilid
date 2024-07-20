@@ -114,7 +114,7 @@ impl CommandProcessor {
         trace!("CommandProcessor::cmd_help");
         let capi = self.capi();
         let ui = self.ui_sender();
-        spawn_detached_local(async move {
+        spawn_detached_local("cmd help", async move {
             let out = match capi.server_debug("help".to_owned()).await {
                 Err(e) => {
                     error!("Server command 'debug help' failed: {}", e);
@@ -166,7 +166,7 @@ Server Debug Commands:
         trace!("CommandProcessor::cmd_shutdown");
         let capi = self.capi();
         let ui = self.ui_sender();
-        spawn_detached_local(async move {
+        spawn_detached_local("cmd shutdown", async move {
             if let Err(e) = capi.server_shutdown().await {
                 error!("Server command 'shutdown' failed to execute: {}", e);
             }
@@ -179,7 +179,7 @@ Server Debug Commands:
         trace!("CommandProcessor::cmd_disconnect");
         let capi = self.capi();
         let ui = self.ui_sender();
-        spawn_detached_local(async move {
+        spawn_detached_local("cmd disconnect", async move {
             capi.disconnect().await;
             ui.send_callback(callback);
         });
@@ -190,7 +190,7 @@ Server Debug Commands:
         trace!("CommandProcessor::cmd_debug");
         let capi = self.capi();
         let ui = self.ui_sender();
-        spawn_detached_local(async move {
+        spawn_detached_local("cmd debug", async move {
             match capi.server_debug(command_line).await {
                 Ok(output) => {
                     ui.add_node_event(Level::Info, &output);
@@ -213,7 +213,7 @@ Server Debug Commands:
         trace!("CommandProcessor::cmd_change_log_level");
         let capi = self.capi();
         let ui = self.ui_sender();
-        spawn_detached_local(async move {
+        spawn_detached_local("cmd change_log_level", async move {
             let (layer, rest) = Self::word_split(&rest.unwrap_or_default());
             let log_level = match convert_loglevel(&rest.unwrap_or_default()) {
                 Ok(v) => v,
@@ -252,7 +252,7 @@ Server Debug Commands:
         trace!("CommandProcessor::cmd_change_log_ignore");
         let capi = self.capi();
         let ui = self.ui_sender();
-        spawn_detached_local(async move {
+        spawn_detached_local("cmd change_log_ignoe", async move {
             let (layer, rest) = Self::word_split(&rest.unwrap_or_default());
             let log_ignore = rest.unwrap_or_default();
 
@@ -284,7 +284,7 @@ Server Debug Commands:
 
         let ui = self.ui_sender();
         let this = self.clone();
-        spawn_detached_local(async move {
+        spawn_detached_local("cmd enable", async move {
             let flag = rest.clone().unwrap_or_default();
             match flag.as_str() {
                 "app_messages" => {
@@ -306,7 +306,7 @@ Server Debug Commands:
 
         let ui = self.ui_sender();
         let this = self.clone();
-        spawn_detached_local(async move {
+        spawn_detached_local("cmd disable", async move {
             let flag = rest.clone().unwrap_or_default();
             match flag.as_str() {
                 "app_messages" => {
@@ -664,7 +664,7 @@ Server Debug Commands:
     pub fn attach(&self) {
         let capi = self.capi();
 
-        spawn_detached_local(async move {
+        spawn_detached_local("attach", async move {
             if let Err(e) = capi.server_attach().await {
                 error!("Server command 'attach' failed to execute: {}", e);
             }
@@ -674,7 +674,7 @@ Server Debug Commands:
     pub fn detach(&self) {
         let capi = self.capi();
 
-        spawn_detached_local(async move {
+        spawn_detached_local("detach", async move {
             if let Err(e) = capi.server_detach().await {
                 error!("Server command 'detach' failed to execute: {}", e);
             }

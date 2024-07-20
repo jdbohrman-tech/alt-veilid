@@ -124,6 +124,7 @@ where
     // Possibly spawn the future possibly returning the value of the last execution
     pub async fn single_spawn_local(
         &self,
+        name: &str,
         future: impl Future<Output = T> + 'static,
     ) -> Result<(Option<T>, bool), ()> {
         let mut out: Option<T> = None;
@@ -152,7 +153,7 @@ where
 
         // Run if we should do that
         if run {
-            self.unlock(Some(spawn_local(future)));
+            self.unlock(Some(spawn_local(name, future)));
         }
 
         // Return the prior result if we have one
@@ -166,6 +167,7 @@ where
 {
     pub async fn single_spawn(
         &self,
+        name: &str,
         future: impl Future<Output = T> + Send + 'static,
     ) -> Result<(Option<T>, bool), ()> {
         let mut out: Option<T> = None;
@@ -191,7 +193,7 @@ where
         }
         // Run if we should do that
         if run {
-            self.unlock(Some(spawn(future)));
+            self.unlock(Some(spawn(name, future)));
         }
         // Return the prior result if we have one
         Ok((out, run))

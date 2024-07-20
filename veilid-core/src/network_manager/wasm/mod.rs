@@ -52,7 +52,6 @@ pub const MAX_CAPABILITIES: usize = 64;
 /////////////////////////////////////////////////////////////////
 
 struct NetworkInner {
-    network_started: Option<bool>,
     network_needs_restart: bool,
     protocol_config: ProtocolConfig,
 }
@@ -77,7 +76,6 @@ pub(in crate::network_manager) struct Network {
 impl Network {
     fn new_inner() -> NetworkInner {
         NetworkInner {
-            network_started: Some(false),
             network_needs_restart: false,
             protocol_config: Default::default(),
         }

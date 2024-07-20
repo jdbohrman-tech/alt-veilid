@@ -30,7 +30,7 @@ pub async fn test_eventual() {
         let i4 = e1.instance_clone(4u32);
         drop(i2);
 
-        let jh = spawn(async move {
+        let jh = spawn("task", async move {
             sleep(1000).await;
             e1.resolve();
         });
@@ -47,7 +47,7 @@ pub async fn test_eventual() {
         let i3 = e1.instance_clone(3u32);
         let i4 = e1.instance_clone(4u32);
         let e1_c1 = e1.clone();
-        let jh = spawn(async move {
+        let jh = spawn("task", async move {
             let i5 = e1.instance_clone(5u32);
             let i6 = e1.instance_clone(6u32);
             assert_eq!(i1.await, 1u32);
@@ -67,7 +67,7 @@ pub async fn test_eventual() {
         let i1 = e1.instance_clone(1u32);
         let i2 = e1.instance_clone(2u32);
         let e1_c1 = e1.clone();
-        let jh = spawn(async move {
+        let jh = spawn("task", async move {
             assert_eq!(i1.await, 1u32);
             assert_eq!(i2.await, 2u32);
         });
@@ -80,7 +80,7 @@ pub async fn test_eventual() {
         //
         let j1 = e1.instance_clone(1u32);
         let j2 = e1.instance_clone(2u32);
-        let jh = spawn(async move {
+        let jh = spawn("task", async move {
             assert_eq!(j1.await, 1u32);
             assert_eq!(j2.await, 2u32);
         });
@@ -105,7 +105,7 @@ pub async fn test_eventual_value() {
         drop(i2);
 
         let e1_c1 = e1.clone();
-        let jh = spawn(async move {
+        let jh = spawn("task", async move {
             sleep(1000).await;
             e1_c1.resolve(3u32);
         });
@@ -122,7 +122,7 @@ pub async fn test_eventual_value() {
         let i3 = e1.instance();
         let i4 = e1.instance();
         let e1_c1 = e1.clone();
-        let jh = spawn(async move {
+        let jh = spawn("task", async move {
             let i5 = e1.instance();
             let i6 = e1.instance();
             i1.await;
@@ -144,7 +144,7 @@ pub async fn test_eventual_value() {
         let i1 = e1.instance();
         let i2 = e1.instance();
         let e1_c1 = e1.clone();
-        let jh = spawn(async move {
+        let jh = spawn("task", async move {
             i1.await;
             i2.await;
         });
@@ -157,7 +157,7 @@ pub async fn test_eventual_value() {
         //
         let j1 = e1.instance();
         let j2 = e1.instance();
-        let jh = spawn(async move {
+        let jh = spawn("task", async move {
             j1.await;
             j2.await;
         });
@@ -181,7 +181,7 @@ pub async fn test_eventual_value_clone() {
         let i4 = e1.instance();
         drop(i2);
 
-        let jh = spawn(async move {
+        let jh = spawn("task", async move {
             sleep(1000).await;
             e1.resolve(3u32);
         });
@@ -199,7 +199,7 @@ pub async fn test_eventual_value_clone() {
         let i3 = e1.instance();
         let i4 = e1.instance();
         let e1_c1 = e1.clone();
-        let jh = spawn(async move {
+        let jh = spawn("task", async move {
             let i5 = e1.instance();
             let i6 = e1.instance();
             assert_eq!(i1.await, 4);
@@ -220,7 +220,7 @@ pub async fn test_eventual_value_clone() {
         let i1 = e1.instance();
         let i2 = e1.instance();
         let e1_c1 = e1.clone();
-        let jh = spawn(async move {
+        let jh = spawn("task", async move {
             assert_eq!(i1.await, 5);
             assert_eq!(i2.await, 5);
         });
@@ -231,7 +231,7 @@ pub async fn test_eventual_value_clone() {
         //
         let j1 = e1.instance();
         let j2 = e1.instance();
-        let jh = spawn(async move {
+        let jh = spawn("task", async move {
             assert_eq!(j1.await, 6);
             assert_eq!(j2.await, 6);
         });
@@ -245,7 +245,7 @@ pub async fn test_interval() {
     info!("testing interval");
 
     let tick: Arc<Mutex<u32>> = Arc::new(Mutex::new(0u32));
-    let stopper = interval(1000, move || {
+    let stopper = interval("interval", 1000, move || {
         let tick = tick.clone();
         async move {
             let mut tick = tick.lock();
@@ -493,7 +493,7 @@ pub async fn test_must_join_single_future() {
     let sf = MustJoinSingleFuture::<u32>::new();
     assert_eq!(sf.check().await, Ok(None));
     assert_eq!(
-        sf.single_spawn(async {
+        sf.single_spawn("t1", async {
             sleep(2000).await;
             69
         })
@@ -501,10 +501,13 @@ pub async fn test_must_join_single_future() {
         Ok((None, true))
     );
     assert_eq!(sf.check().await, Ok(None));
-    assert_eq!(sf.single_spawn(async { panic!() }).await, Ok((None, false)));
+    assert_eq!(
+        sf.single_spawn("t2", async { panic!() }).await,
+        Ok((None, false))
+    );
     assert_eq!(sf.join().await, Ok(Some(69)));
     assert_eq!(
-        sf.single_spawn(async {
+        sf.single_spawn("t3", async {
             sleep(1000).await;
             37
         })
@@ -513,7 +516,7 @@ pub async fn test_must_join_single_future() {
     );
     sleep(2000).await;
     assert_eq!(
-        sf.single_spawn(async {
+        sf.single_spawn("t4", async {
             sleep(1000).await;
             27
         })

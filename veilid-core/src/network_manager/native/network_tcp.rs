@@ -297,7 +297,7 @@ impl Network {
         let connection_manager = self.connection_manager();
 
         ////////////////////////////////////////////////////////////
-        let jh = spawn(async move {
+        let jh = spawn(&format!("TCP listener {}", addr), async move {
             // moves listener object in and get incoming iterator
             // when this task exists, the listener will close the socket
 

@@ -176,7 +176,7 @@ impl Crypto {
 
         // Schedule flushing
         let this = self.clone();
-        let flush_future = interval(60000, move || {
+        let flush_future = interval("crypto flush", 60000, move || {
             let this = this.clone();
             async move {
                 if let Err(e) = this.flush().await {

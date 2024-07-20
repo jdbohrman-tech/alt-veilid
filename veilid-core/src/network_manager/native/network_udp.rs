@@ -16,14 +16,14 @@ impl Network {
             }
         }
         log_net!("task_count: {}", task_count);
-        for _ in 0..task_count {
+        for task_n in 0..task_count {
             log_net!("Spawning UDP listener task");
 
             ////////////////////////////////////////////////////////////
             // Run thread task to process stream of messages
             let this = self.clone();
 
-            let jh = spawn(async move {
+            let jh = spawn(&format!("UDP listener {}", task_n), async move {
                 log_net!("UDP listener task spawned");
 
                 // Collect all our protocol handlers into a vector

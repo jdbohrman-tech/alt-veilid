@@ -86,6 +86,7 @@ impl LogViewerUI {
             done.await;
         } else {
             while let Ok(Ok(c)) = blocking_wrapper(
+                "LogViewerUI read",
                 {
                     let term = term.clone();
                     move || term.read_char()

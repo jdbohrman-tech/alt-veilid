@@ -32,7 +32,10 @@ impl DeferredStreamProcessor {
         self.opt_stopper = Some(stopper);
         let (dsc_tx, dsc_rx) = flume::unbounded::<SendPinBoxFuture<()>>();
         self.opt_deferred_stream_channel = Some(dsc_tx);
-        self.opt_join_handle = Some(spawn(Self::processor(stop_token, dsc_rx)));
+        self.opt_join_handle = Some(spawn(
+            "deferred stream processor",
+            Self::processor(stop_token, dsc_rx),
+        ));
     }
 
     /// Terminate the processor and ensure all streams are closed

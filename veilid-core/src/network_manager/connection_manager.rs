@@ -134,7 +134,10 @@ impl ConnectionManager {
         let stop_source = StopSource::new();
 
         // Spawn the async processor
-        let async_processor = spawn(self.clone().async_processor(stop_source.token(), receiver));
+        let async_processor = spawn(
+            "connection manager async processor",
+            self.clone().async_processor(stop_source.token(), receiver),
+        );
 
         // Store in the inner object
         *inner = Some(Self::new_inner(stop_source, sender, async_processor));

@@ -108,7 +108,7 @@ pub async fn run_veilid_server(
     let capi2 = capi.clone();
     let update_receiver_shutdown = SingleShotEventual::new(Some(()));
     let mut update_receiver_shutdown_instance = update_receiver_shutdown.instance().fuse();
-    let update_receiver_jh = spawn_local(async move {
+    let update_receiver_jh = spawn_local("update_receiver", async move {
         loop {
             select! {
                 res = receiver.recv_async() => {

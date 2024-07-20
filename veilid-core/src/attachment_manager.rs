@@ -323,7 +323,10 @@ impl AttachmentManager {
             return false;
         }
         inner.maintain_peers = true;
-        inner.attachment_maintainer_jh = Some(spawn(self.clone().attachment_maintainer()));
+        inner.attachment_maintainer_jh = Some(spawn(
+            "attachment maintainer",
+            self.clone().attachment_maintainer(),
+        ));
 
         true
     }

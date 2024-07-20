@@ -3,7 +3,7 @@ use super::*;
 cfg_if! {
     if #[cfg(target_arch = "wasm32")] {
 
-        pub fn interval<F, FUT>(freq_ms: u32, callback: F) -> SendPinBoxFuture<()>
+        pub fn interval<F, FUT>(name: &str, freq_ms: u32, callback: F) -> SendPinBoxFuture<()>
         where
             F: Fn() -> FUT + Send + Sync + 'static,
             FUT: Future<Output = ()> + Send,
@@ -11,7 +11,7 @@ cfg_if! {
             let e = Eventual::new();
 
             let ie = e.clone();
-            let jh = spawn(Box::pin(async move {
+            let jh = spawn(name, Box::pin(async move {
                 while timeout(freq_ms, ie.instance_clone(())).await.is_err() {
                     callback().await;
                 }
@@ -25,7 +25,7 @@ cfg_if! {
 
     } else {
 
-        pub fn interval<F, FUT>(freq_ms: u32, callback: F) -> SendPinBoxFuture<()>
+        pub fn interval<F, FUT>(name: &str, freq_ms: u32, callback: F) -> SendPinBoxFuture<()>
         where
             F: Fn() -> FUT + Send + Sync + 'static,
             FUT: Future<Output = ()> + Send,
@@ -33,7 +33,7 @@ cfg_if! {
             let e = Eventual::new();
 
             let ie = e.clone();
-            let jh = spawn(async move {
+            let jh = spawn(name, async move {
                 while timeout(freq_ms, ie.instance_clone(())).await.is_err() {
                     callback().await;
                 }
