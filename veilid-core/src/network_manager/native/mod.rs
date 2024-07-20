@@ -941,10 +941,12 @@ impl Network {
             }
             Ok(StartupDisposition::BindRetry) => {
                 debug!("network bind retry");
+                self.shutdown_internal().await;
                 Ok(StartupDisposition::BindRetry)
             }
             Err(e) => {
                 debug!("network failed to start");
+                self.shutdown_internal().await;
                 Err(e)
             }
         }
@@ -964,13 +966,7 @@ impl Network {
     }
 
     #[instrument(level = "debug", skip_all)]
-    pub async fn shutdown(&self) {
-        log_net!(debug "starting low level network shutdown");
-        let Ok(guard) = self.unlocked_inner.startup_lock.shutdown().await else {
-            log_net!(debug "low level network is already shut down");
-            return;
-        };
-
+    async fn shutdown_internal(&self) {
         let routing_table = self.routing_table();
 
         // Stop all tasks
@@ -1014,6 +1010,17 @@ impl Network {
 
         // Reset state including network class
         *self.inner.lock() = Self::new_inner();
+    }
+
+    #[instrument(level = "debug", skip_all)]
+    pub async fn shutdown(&self) {
+        log_net!(debug "starting low level network shutdown");
+        let Ok(guard) = self.unlocked_inner.startup_lock.shutdown().await else {
+            log_net!(debug "low level network is already shut down");
+            return;
+        };
+
+        self.shutdown_internal().await;
 
         guard.success();
         log_net!(debug "finished low level network shutdown");

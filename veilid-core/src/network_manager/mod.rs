@@ -64,6 +64,8 @@ pub const PUBLIC_ADDRESS_INCONSISTENCY_PUNISHMENT_TIMEOUT_US: TimestampDuration 
 pub const ADDRESS_FILTER_TASK_INTERVAL_SECS: u32 = 60;
 pub const BOOT_MAGIC: &[u8; 4] = b"BOOT";
 
+static FUCK: AtomicUsize = AtomicUsize::new(0);
+
 #[derive(Clone, Debug, Default)]
 pub struct ProtocolConfig {
     pub outbound: ProtocolTypeSet,
@@ -172,6 +174,8 @@ struct NetworkManagerUnlockedInner {
     address_filter_task: TickTask<EyreReport>,
     // Network Key
     network_key: Option<SharedSecret>,
+    // Startup Lock
+    startup_lock: StartupLock,
 }
 
 #[derive(Clone)]
@@ -213,6 +217,7 @@ impl NetworkManager {
             public_address_check_task: TickTask::new(PUBLIC_ADDRESS_CHECK_TASK_INTERVAL_SECS),
             address_filter_task: TickTask::new(ADDRESS_FILTER_TASK_INTERVAL_SECS),
             network_key,
+            startup_lock: StartupLock::new(),
         }
     }
 
@@ -445,27 +450,30 @@ impl NetworkManager {
 
     #[instrument(level = "debug", skip_all, err)]
     pub async fn startup(&self) -> EyreResult<StartupDisposition> {
+        let guard = self.unlocked_inner.startup_lock.startup()?;
+
         match self.internal_startup().await {
             Ok(StartupDisposition::Success) => {
+                guard.success();
+
                 // Inform api clients that things have changed
                 self.send_network_update();
+
                 Ok(StartupDisposition::Success)
             }
             Ok(StartupDisposition::BindRetry) => {
-                self.shutdown().await;
+                self.shutdown_internal().await;
                 Ok(StartupDisposition::BindRetry)
             }
             Err(e) => {
-                self.shutdown().await;
+                self.shutdown_internal().await;
                 Err(e)
             }
         }
     }
 
     #[instrument(level = "debug", skip_all)]
-    pub async fn shutdown(&self) {
-        log_net!(debug "starting network manager shutdown");
-
+    async fn shutdown_internal(&self) {
         // Cancel all tasks
         self.cancel_tasks().await;
 
@@ -487,6 +495,20 @@ impl NetworkManager {
         {
             *self.inner.lock() = NetworkManager::new_inner();
         }
+    }
+
+    #[instrument(level = "debug", skip_all)]
+    pub async fn shutdown(&self) {
+        log_net!(debug "starting network manager shutdown");
+
+        let Ok(guard) = self.unlocked_inner.startup_lock.shutdown().await else {
+            log_net!(debug "network manager is already shut down");
+            return;
+        };
+
+        self.shutdown_internal().await;
+
+        guard.success();
 
         // send update
         log_net!(debug "sending network state update to api clients");
@@ -562,6 +584,9 @@ impl NetworkManager {
         extra_data: D,
         callback: impl ReceiptCallback,
     ) -> EyreResult<Vec<u8>> {
+        let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
+            bail!("network is not started");
+        };
         let receipt_manager = self.receipt_manager();
         let routing_table = self.routing_table();
 
@@ -597,6 +622,10 @@ impl NetworkManager {
         expiration_us: u64,
         extra_data: D,
     ) -> EyreResult<(Vec<u8>, EventualValueFuture<ReceiptEvent>)> {
+        let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
+            bail!("network is not started");
+        };
+
         let receipt_manager = self.receipt_manager();
         let routing_table = self.routing_table();
 
@@ -633,6 +662,10 @@ impl NetworkManager {
         &self,
         receipt_data: R,
     ) -> NetworkResult<()> {
+        let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
+            return NetworkResult::service_unavailable("network is not started");
+        };
+
         let receipt_manager = self.receipt_manager();
 
         let receipt = match Receipt::from_signed_data(self.crypto(), receipt_data.as_ref()) {
@@ -654,6 +687,10 @@ impl NetworkManager {
         receipt_data: R,
         inbound_noderef: NodeRef,
     ) -> NetworkResult<()> {
+        let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
+            return NetworkResult::service_unavailable("network is not started");
+        };
+
         let receipt_manager = self.receipt_manager();
 
         let receipt = match Receipt::from_signed_data(self.crypto(), receipt_data.as_ref()) {
@@ -674,6 +711,10 @@ impl NetworkManager {
         &self,
         receipt_data: R,
     ) -> NetworkResult<()> {
+        let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
+            return NetworkResult::service_unavailable("network is not started");
+        };
+
         let receipt_manager = self.receipt_manager();
 
         let receipt = match Receipt::from_signed_data(self.crypto(), receipt_data.as_ref()) {
@@ -695,6 +736,10 @@ impl NetworkManager {
         receipt_data: R,
         private_route: PublicKey,
     ) -> NetworkResult<()> {
+        let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
+            return NetworkResult::service_unavailable("network is not started");
+        };
+
         let receipt_manager = self.receipt_manager();
 
         let receipt = match Receipt::from_signed_data(self.crypto(), receipt_data.as_ref()) {
@@ -710,12 +755,16 @@ impl NetworkManager {
     }
 
     // Process a received signal
-    #[instrument(level = "trace", target = "receipt", skip_all)]
+    #[instrument(level = "trace", target = "net", skip_all)]
     pub async fn handle_signal(
         &self,
         signal_flow: Flow,
         signal_info: SignalInfo,
     ) -> EyreResult<NetworkResult<()>> {
+        let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
+            return Ok(NetworkResult::service_unavailable("network is not started"));
+        };
+
         match signal_info {
             SignalInfo::ReverseConnect { receipt, peer_info } => {
                 let routing_table = self.routing_table();
@@ -809,7 +858,7 @@ impl NetworkManager {
     }
 
     /// Builds an envelope for sending over the network
-    #[instrument(level = "trace", target = "receipt", skip_all)]
+    #[instrument(level = "trace", target = "net", skip_all)]
     fn build_envelope<B: AsRef<[u8]>>(
         &self,
         dest_node_id: TypedKey,
@@ -852,13 +901,19 @@ impl NetworkManager {
     /// node_ref is the direct destination to which the envelope will be sent
     /// If 'destination_node_ref' is specified, it can be different than the node_ref being sent to
     /// which will cause the envelope to be relayed
-    #[instrument(level = "trace", target = "receipt", skip_all)]
+    #[instrument(level = "trace", target = "net", skip_all)]
     pub async fn send_envelope<B: AsRef<[u8]>>(
         &self,
         node_ref: NodeRef,
         destination_node_ref: Option<NodeRef>,
         body: B,
     ) -> EyreResult<NetworkResult<SendDataMethod>> {
+        let _dg = DebugGuard::new(&FUCK);
+
+        let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
+            bail!("network is not started");
+        };
+
         let destination_node_ref = destination_node_ref.as_ref().unwrap_or(&node_ref).clone();
         let best_node_id = destination_node_ref.best_node_id();
 
@@ -896,6 +951,10 @@ impl NetworkManager {
         dial_info: DialInfo,
         rcpt_data: Vec<u8>,
     ) -> EyreResult<()> {
+        let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
+            bail!("network is not started");
+        };
+
         // Do we need to validate the outgoing receipt? Probably not
         // because it is supposed to be opaque and the
         // recipient/originator does the validation
@@ -916,8 +975,12 @@ impl NetworkManager {
     // Called when a packet potentially containing an RPC envelope is received by a low-level
     // network protocol handler. Processes the envelope, authenticates and decrypts the RPC message
     // and passes it to the RPC handler
-    #[instrument(level = "trace", target = "receipt", skip_all)]
+    #[instrument(level = "trace", target = "net", skip_all)]
     async fn on_recv_envelope(&self, data: &mut [u8], flow: Flow) -> EyreResult<bool> {
+        let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
+            return Ok(false);
+        };
+
         log_net!("envelope of {} bytes received from {:?}", data.len(), flow);
         let remote_addr = flow.remote_address().ip_addr();
 

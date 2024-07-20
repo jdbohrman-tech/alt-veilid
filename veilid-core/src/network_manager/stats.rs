@@ -35,7 +35,7 @@ impl Default for NetworkManagerStats {
 
 impl NetworkManager {
     // Callbacks from low level network for statistics gathering
-    pub fn stats_packet_sent(&self, addr: IpAddr, bytes: ByteCount) {
+    pub(crate) fn stats_packet_sent(&self, addr: IpAddr, bytes: ByteCount) {
         let inner = &mut *self.inner.lock();
         inner
             .stats
@@ -52,7 +52,7 @@ impl NetworkManager {
             .add_up(bytes);
     }
 
-    pub fn stats_packet_rcvd(&self, addr: IpAddr, bytes: ByteCount) {
+    pub(crate) fn stats_packet_rcvd(&self, addr: IpAddr, bytes: ByteCount) {
         let inner = &mut *self.inner.lock();
         inner
             .stats

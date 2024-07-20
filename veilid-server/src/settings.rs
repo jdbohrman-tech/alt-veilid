@@ -69,6 +69,9 @@ logging:
     flame:
         enabled: false
         path: ''
+    perfetto:
+        enabled: false
+        path: ''
     console:
         enabled: false
 testing:
@@ -452,6 +455,12 @@ pub struct Flame {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+pub struct Perfetto {
+    pub enabled: bool,
+    pub path: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Console {
     pub enabled: bool,
 }
@@ -503,6 +512,7 @@ pub struct Logging {
     pub api: Api,
     pub otlp: Otlp,
     pub flame: Flame,
+    pub perfetto: Perfetto,
     pub console: Console,
 }
 
@@ -873,6 +883,15 @@ impl Settings {
         })
     }
 
+    /// Determine default perfetto output path
+    pub fn get_default_perfetto_path(subnode_index: u16) -> PathBuf {
+        std::env::temp_dir().join(if subnode_index == 0 {
+            "veilid-server.pftrace".to_owned()
+        } else {
+            format!("veilid-server-{}.pftrace", subnode_index)
+        })
+    }
+
     #[allow(dead_code)]
     fn get_or_create_private_directory<P: AsRef<Path>>(path: P, group_read: bool) -> bool {
         let path = path.as_ref();
@@ -996,6 +1015,8 @@ impl Settings {
         set_config_value!(inner.logging.otlp.ignore_log_targets, value);
         set_config_value!(inner.logging.flame.enabled, value);
         set_config_value!(inner.logging.flame.path, value);
+        set_config_value!(inner.logging.perfetto.enabled, value);
+        set_config_value!(inner.logging.perfetto.path, value);
         set_config_value!(inner.logging.console.enabled, value);
         set_config_value!(inner.testing.subnode_index, value);
         set_config_value!(inner.core.capabilities.disable, value);
@@ -1565,6 +1586,8 @@ mod tests {
         );
         assert!(!s.logging.flame.enabled);
         assert_eq!(s.logging.flame.path, "");
+        assert!(!s.logging.perfetto.enabled);
+        assert_eq!(s.logging.perfetto.path, "");
         assert!(!s.logging.console.enabled);
         assert_eq!(s.testing.subnode_index, 0);
 

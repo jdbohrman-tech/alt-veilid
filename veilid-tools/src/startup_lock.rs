@@ -34,7 +34,21 @@ impl<'a> StartupLockGuard<'a> {
 #[derive(Debug)]
 pub struct StartupLockEnterGuard<'a> {
     _guard: AsyncRwLockReadGuard<'a, bool>,
+    // #[cfg(feature = "debug-locks")]
+    id: usize,
+    // #[cfg(feature = "debug-locks")]
+    active_guards: Arc<Mutex<HashMap<usize, backtrace::Backtrace>>>,
 }
+
+//#[cfg(feature = "debug-locks")]
+impl<'a> Drop for StartupLockEnterGuard<'a> {
+    fn drop(&mut self) {
+        self.active_guards.lock().remove(&self.id);
+    }
+}
+
+//#[cfg(feature = "debug-locks")]
+static GUARD_ID: AtomicUsize = AtomicUsize::new(0);
 
 /// Synchronization mechanism that tracks the startup and shutdown of a region of code.
 /// Guarantees that some code can only be started up once and shut down only if it is
@@ -46,12 +60,16 @@ pub struct StartupLockEnterGuard<'a> {
 #[derive(Debug)]
 pub struct StartupLock {
     rwlock: AsyncRwLock<bool>,
+    // #[cfg(feature = "debug-locks")]
+    active_guards: Arc<Mutex<HashMap<usize, backtrace::Backtrace>>>,
 }
 
 impl StartupLock {
     pub fn new() -> Self {
         Self {
             rwlock: AsyncRwLock::new(false),
+            // #[cfg(feature = "debug-locks")]
+            active_guards: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -91,7 +109,20 @@ impl StartupLock {
     /// One must call 'success()' on the returned startup lock guard if shutdown was successful
     /// otherwise the startup lock will not shift to the 'stopped' state.
     pub async fn shutdown(&self) -> Result<StartupLockGuard, StartupLockAlreadyShutDownError> {
-        let guard = self.rwlock.write().await;
+        cfg_if! {
+            if #[cfg(feature = "debug-locks")] {
+                //let guard = self.rwlock.write().await;
+            } else {
+                let guard = self.rwlock.write().await;
+                // let guard = match timeout(30000, self.rwlock.write()).await {
+                //     Ok(v) => v,
+                //     Err(_) => {
+                //         eprintln!("active guards: {:#?}", self.active_guards.lock().values().collect::<Vec<_>>());
+                //         panic!("shutdown deadlock");
+                //     }
+                // };
+            }
+        }
         if !*guard {
             return Err(StartupLockAlreadyShutDownError);
         }
@@ -109,7 +140,16 @@ impl StartupLock {
         if !*guard {
             return Err(StartupLockNotStartedError);
         }
-        Ok(StartupLockEnterGuard { _guard: guard })
+        let out = StartupLockEnterGuard {
+            _guard: guard,
+            //#[cfg(feature = "debug-locks")]
+            id: GUARD_ID.fetch_add(1, Ordering::AcqRel),
+            active_guards: self.active_guards.clone(),
+        };
+        self.active_guards
+            .lock()
+            .insert(out.id, backtrace::Backtrace::new());
+        Ok(out)
     }
 }
 

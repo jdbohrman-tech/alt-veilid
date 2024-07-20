@@ -414,6 +414,10 @@ impl ConnectionManager {
                 if !allow_accept {
                     return;
                 }
+                let Ok(_guard) = self.arc.startup_lock.enter() else {
+                    return;
+                };
+
                 // Async lock on the remote address for atomicity per remote
                 let _lock_guard = self
                     .arc

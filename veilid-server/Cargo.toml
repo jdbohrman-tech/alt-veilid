@@ -81,6 +81,7 @@ stop-token = { version = "^0", default-features = false }
 sysinfo = { version = "^0.30.13" }
 wg = { version = "^0.9.1", features = ["future"] }
 tracing-flame = "0.2.0"
+tracing-perfetto = "0.1.1"
 
 [target.'cfg(windows)'.dependencies]
 windows-service = "^0"

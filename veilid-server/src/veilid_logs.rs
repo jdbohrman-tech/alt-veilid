@@ -18,6 +18,7 @@ use std::path::*;
 use std::sync::Arc;
 use tracing_appender::*;
 use tracing_flame::FlameLayer;
+use tracing_perfetto::PerfettoLayer;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::*;
 
@@ -48,14 +49,15 @@ impl VeilidLogs {
 
         #[cfg(feature = "rt-tokio")]
         if settingsr.logging.console.enabled {
+            let filter = veilid_core::VeilidLayerFilter::new_no_default(
+                veilid_core::VeilidConfigLogLevel::Trace,
+                &[],
+            );
+
             let layer = ConsoleLayer::builder()
                 .with_default_env()
                 .spawn()
-                .with_filter(
-                    filter::Targets::new()
-                        .with_target("tokio", Level::TRACE)
-                        .with_target("runtime", Level::TRACE),
-                );
+                .with_filter(filter);
             layers.push(layer.boxed());
         }
 
@@ -88,6 +90,26 @@ impl VeilidLogs {
                 flame_layer
                     .with_threads_collapsed(true)
                     .with_empty_samples(false)
+                    .with_filter(filter)
+                    .boxed(),
+            );
+        }
+
+        // Perfetto logger
+        if settingsr.logging.perfetto.enabled {
+            let filter = veilid_core::VeilidLayerFilter::new_no_default(
+                veilid_core::VeilidConfigLogLevel::Trace,
+                &veilid_core::FLAME_LOG_FACILITIES_IGNORE_LIST.map(|x| x.to_string()),
+            );
+            let perfetto_layer = PerfettoLayer::new(std::sync::Mutex::new(std::fs::File::create(
+                &settingsr.logging.perfetto.path,
+            )?));
+
+            // Do not include this in change_log_level changes, so we keep trace level
+            // filters.insert("flame", filter.clone());
+            layers.push(
+                perfetto_layer
+                    .with_debug_annotations(true)
                     .with_filter(filter)
                     .boxed(),
             );

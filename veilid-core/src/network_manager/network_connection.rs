@@ -309,10 +309,6 @@ impl NetworkConnection {
                         match res {
                             Ok((_span_id, message)) => {
                                 
-                                // let span = span!(Level::TRACE, "process_connection send");
-                                // span.follows_from(span_id);
-                                // let _enter = span.enter();         
-
                                 // Touch the LRU for this connection
                                 connection_manager.touch_connection_by_id(connection_id);
 

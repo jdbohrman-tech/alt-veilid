@@ -107,7 +107,7 @@ pub use std::str::FromStr;
 #[doc(no_inline)]
 pub use std::string::{String, ToString};
 #[doc(no_inline)]
-pub use std::sync::atomic::{AtomicBool, Ordering};
+pub use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 #[doc(no_inline)]
 pub use std::sync::{Arc, Weak};
 #[doc(no_inline)]
@@ -117,6 +117,13 @@ pub use std::time::Duration;
 #[doc(no_inline)]
 pub use std::vec::Vec;
 
+#[doc(no_inline)]
+pub use async_lock::RwLock as AsyncRwLock;
+#[doc(no_inline)]
+pub use async_lock::RwLockReadGuard as AsyncRwLockReadGuard;
+#[doc(no_inline)]
+pub use async_lock::RwLockWriteGuard as AsyncRwLockWriteGuard;
+
 cfg_if! {
     if #[cfg(target_arch = "wasm32")] {
         #[doc(no_inline)]
@@ -125,13 +132,6 @@ cfg_if! {
         pub use async_lock::MutexGuard as AsyncMutexGuard;
         #[doc(no_inline)]
         pub use async_lock::MutexGuardArc as AsyncMutexGuardArc;
-
-        #[doc(no_inline)]
-        pub use async_lock::RwLock as AsyncRwLock;
-        #[doc(no_inline)]
-        pub use async_lock::RwLockReadGuard as AsyncRwLockReadGuard;
-        #[doc(no_inline)]
-        pub use async_lock::RwLockWriteGuard as AsyncRwLockWriteGuard;
 
         #[doc(no_inline)]
         pub use async_executors::JoinHandle as LowLevelJoinHandle;
@@ -146,12 +146,12 @@ cfg_if! {
                 #[doc(no_inline)]
                 pub use async_std::sync::MutexGuardArc as AsyncMutexGuardArc;
 
-                #[doc(no_inline)]
-                pub use async_std::sync::RwLock as AsyncRwLock;
-                #[doc(no_inline)]
-                pub use async_std::sync::RwLockReadGuard as AsyncRwLockReadGuard;
-                #[doc(no_inline)]
-                pub use async_std::sync::RwLockWriteGuard as AsyncRwLockWriteGuard;
+                // #[doc(no_inline)]
+                // pub use async_std::sync::RwLock as AsyncRwLock;
+                // #[doc(no_inline)]
+                // pub use async_std::sync::RwLockReadGuard as AsyncRwLockReadGuard;
+                // #[doc(no_inline)]
+                // pub use async_std::sync::RwLockWriteGuard as AsyncRwLockWriteGuard;
 
                 #[doc(no_inline)]
                 pub use async_std::task::JoinHandle as LowLevelJoinHandle;
@@ -164,12 +164,12 @@ cfg_if! {
                 #[doc(no_inline)]
                 pub use tokio::sync::OwnedMutexGuard as AsyncMutexGuardArc;
 
-                #[doc(no_inline)]
-                pub use tokio::sync::RwLock as AsyncRwLock;
-                #[doc(no_inline)]
-                pub use tokio::sync::RwLockReadGuard as AsyncRwLockReadGuard;
-                #[doc(no_inline)]
-                pub use tokio::sync::RwLockWriteGuard as AsyncRwLockWriteGuard;
+                // #[doc(no_inline)]
+                // pub use tokio::sync::RwLock as AsyncRwLock;
+                // #[doc(no_inline)]
+                // pub use tokio::sync::RwLockReadGuard as AsyncRwLockReadGuard;
+                // #[doc(no_inline)]
+                // pub use tokio::sync::RwLockWriteGuard as AsyncRwLockWriteGuard;
 
 
                 #[doc(no_inline)]
