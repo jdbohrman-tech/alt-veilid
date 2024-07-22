@@ -53,7 +53,7 @@ cfg_if! {
         {
             cfg_if! {
                 if #[cfg(feature="rt-async-std")] {
-                    MustJoinHandle::new(async_std::task::Builder::new().name(name).spawn(future).unwrap())
+                    MustJoinHandle::new(async_std::task::Builder::new().name(name.to_string()).spawn(future).unwrap())
                 } else if #[cfg(feature="rt-tokio")] {
                     MustJoinHandle::new(tokio::task::Builder::new().name(name).spawn(future).unwrap())
                 }
@@ -66,7 +66,7 @@ cfg_if! {
         {
             cfg_if! {
                 if #[cfg(feature="rt-async-std")] {
-                    MustJoinHandle::new(async_std::task::Builder::new().name(name).local(future).unwrap())
+                    MustJoinHandle::new(async_std::task::Builder::new().name(name.to_string()).local(future).unwrap())
                 } else if #[cfg(feature="rt-tokio")] {
                     MustJoinHandle::new(tokio::task::Builder::new().name(name).spawn_local(future).unwrap())
                 }
@@ -79,7 +79,7 @@ cfg_if! {
         {
             cfg_if! {
                 if #[cfg(feature="rt-async-std")] {
-                    drop(async_std::task::Builder::new().name(name).spawn(future).unwrap());
+                    drop(async_std::task::Builder::new().name(name.to_string()).spawn(future).unwrap());
                 } else if #[cfg(feature="rt-tokio")] {
                     drop(tokio::task::Builder::new().name(name).spawn(future).unwrap());
                 }
@@ -92,7 +92,7 @@ cfg_if! {
         {
             cfg_if! {
                 if #[cfg(feature="rt-async-std")] {
-                    drop(async_std::task::Builder::new().name(name).local(future).unwrap());
+                    drop(async_std::task::Builder::new().name(name.to_string()).local(future).unwrap());
                 } else if #[cfg(feature="rt-tokio")] {
                     drop(tokio::task::Builder::new().name(name).spawn_local(future).unwrap());
                 }
@@ -108,7 +108,9 @@ cfg_if! {
             // run blocking stuff in blocking thread
             cfg_if! {
                 if #[cfg(feature="rt-async-std")] {
-                    async_std::task::Builder::new().name(name).blocking(blocking_task)
+                    let _name = name;
+                    // async_std::task::Builder blocking doesn't work like spawn_blocking()
+                    async_std::task::spawn_blocking(blocking_task).await
                 } else if #[cfg(feature="rt-tokio")] {
                     tokio::task::Builder::new().name(name).spawn_blocking(blocking_task).unwrap().await.unwrap_or(err_result)
                 } else {
