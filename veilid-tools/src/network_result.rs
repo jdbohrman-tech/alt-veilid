@@ -32,6 +32,7 @@ impl<T> IoNetworkResultExt<T> for io::Result<T> {
             Err(e) => match e.kind() {
                 io::ErrorKind::TimedOut => Ok(NetworkResult::Timeout),
                 io::ErrorKind::UnexpectedEof
+                | io::ErrorKind::BrokenPipe
                 | io::ErrorKind::ConnectionAborted
                 | io::ErrorKind::ConnectionRefused
                 | io::ErrorKind::ConnectionReset
@@ -51,6 +52,7 @@ impl<T> IoNetworkResultExt<T> for io::Result<T> {
                 match e.kind() {
                     io::ErrorKind::TimedOut => Ok(NetworkResult::Timeout),
                     io::ErrorKind::UnexpectedEof
+                    | io::ErrorKind::BrokenPipe
                     | io::ErrorKind::ConnectionAborted
                     | io::ErrorKind::ConnectionRefused
                     | io::ErrorKind::ConnectionReset => Ok(NetworkResult::NoConnection(e)),
