@@ -1674,7 +1674,6 @@ impl RPCProcessor {
         }
     }
 
-    #[instrument(level="trace", target="rpc", skip_all)]
     async fn rpc_worker(
         self,
         stop_token: StopToken,

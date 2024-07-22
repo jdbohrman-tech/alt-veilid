@@ -126,7 +126,7 @@ impl<E: Send + 'static> TickTask<E> {
 
         if opt_stop_source.is_some() {
             // See if the previous execution finished with an error
-            match self.single_future.check().in_current_span().await {
+            match self.single_future.check().await {
                 Ok(Some(Err(e))) => {
                     // We have an error result, which means the singlefuture ran but we need to propagate the error
                     return Err(e);
@@ -163,7 +163,6 @@ impl<E: Send + 'static> TickTask<E> {
         match self
             .single_future
             .single_spawn(&self.name, wrapped_routine)
-            .in_current_span()
             .await
         {
             // We should have already consumed the result of the last run, or there was none

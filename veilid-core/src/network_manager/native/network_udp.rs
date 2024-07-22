@@ -58,6 +58,7 @@ impl Network {
                             match ph
                                 .recv_message(&mut data)
                                 .timeout_at(stop_token.clone())
+                                .in_current_span()
                                 .await
                             {
                                 Ok(Ok((size, flow))) => {
@@ -90,7 +91,7 @@ impl Network {
                 // Now we wait for join handles to exit,
                 // if any error out it indicates an error needing
                 // us to completely restart the network
-                while let Some(v) = protocol_handlers_unordered.next().await {
+                while let Some(v) = protocol_handlers_unordered.next().in_current_span().await {
                     // true = stopped, false = errored
                     if !v {
                         // If any protocol handler fails, our socket died and we need to restart the network
@@ -99,7 +100,7 @@ impl Network {
                 }
 
                 log_net!("UDP listener task stopped");
-            });
+            }.instrument(trace_span!(parent: None, "UDP Listener")));
             ////////////////////////////////////////////////////////////
 
             // Add to join handle
