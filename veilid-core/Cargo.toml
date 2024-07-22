@@ -51,6 +51,7 @@ crypto-test = ["enable-crypto-vld0", "enable-crypto-none"]
 crypto-test-none = ["enable-crypto-none"]
 veilid_core_android_tests = ["dep:paranoid-android"]
 veilid_core_ios_tests = ["dep:tracing-oslog"]
+debug-locks = ["veilid-tools/debug-locks"]
 
 ### DEPENDENCIES
 

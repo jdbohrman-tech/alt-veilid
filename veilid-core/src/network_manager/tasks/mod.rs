@@ -48,6 +48,7 @@ impl NetworkManager {
         }
     }
 
+    #[instrument(level = "trace", name = "NetworkManager::tick", skip_all, err)]
     pub async fn tick(&self) -> EyreResult<()> {
         let routing_table = self.routing_table();
         let net = self.net();

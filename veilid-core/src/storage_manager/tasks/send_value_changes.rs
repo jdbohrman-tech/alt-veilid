@@ -32,15 +32,24 @@ impl StorageManager {
         // Add a future for each value change
         for vc in value_changes {
             let this = self.clone();
-            unord.push(async move {
-                if let Err(e) = this.send_value_change(vc).await {
-                    log_stor!(debug "Failed to send value change: {}", e);
+            unord.push(
+                async move {
+                    if let Err(e) = this.send_value_change(vc).await {
+                        log_stor!(debug "Failed to send value change: {}", e);
+                    }
                 }
-            });
+                .in_current_span(),
+            );
         }
 
         while !unord.is_empty() {
-            match unord.next().timeout_at(stop_token.clone()).await {
+            match unord
+                .next()
+                .in_current_span()
+                .timeout_at(stop_token.clone())
+                .in_current_span()
+                .await
+            {
                 Ok(Some(_)) => {
                     // Some ValueChanged completed
                 }

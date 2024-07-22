@@ -38,6 +38,7 @@ rt-tokio = [
 ]
 tracking = ["veilid-core/tracking"]
 debug-json-api = []
+debug-locks = ["veilid-core/debug-locks"]
 
 [dependencies]
 veilid-core = { path = "../veilid-core", default-features = false }

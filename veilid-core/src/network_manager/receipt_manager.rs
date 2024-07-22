@@ -281,7 +281,13 @@ impl ReceiptManager {
         }
     }
 
-    #[instrument(level = "trace", target = "receipt", skip_all, err)]
+    #[instrument(
+        level = "trace",
+        target = "receipt",
+        name = "ReceiptManager::tick",
+        skip_all,
+        err
+    )]
     pub async fn tick(&self) -> EyreResult<()> {
         let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
             return Ok(());
@@ -308,8 +314,9 @@ impl ReceiptManager {
                         "receipt timeout",
                         self.clone()
                             .timeout_task_routine(now, stop_token)
-                            .in_current_span(),
+                            .instrument(trace_span!(parent: None, "receipt timeout task")),
                     )
+                    .in_current_span()
                     .await;
             }
         }

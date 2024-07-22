@@ -211,7 +211,7 @@ impl AttachmentManager {
         }
     }
 
-    #[instrument(level = "debug", skip_all)]
+    #[instrument(parent = None, level = "debug", skip_all)]
     async fn attachment_maintainer(self) {
         log_net!(debug "attachment starting");
         self.update_attaching_detaching_state(AttachmentState::Attaching);

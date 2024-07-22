@@ -8,7 +8,7 @@ where
 {
     waiter: OperationWaiter<T, C>,
     op_id: OperationId,
-    eventual_instance: Option<EventualValueFuture<(Option<Id>, T)>>,
+    result_receiver: Option<flume::Receiver<(Span, T)>>,
 }
 
 impl<T, C> Drop for OperationWaitHandle<T, C>
@@ -17,7 +17,7 @@ where
     C: Unpin + Clone,
 {
     fn drop(&mut self) {
-        if self.eventual_instance.is_some() {
+        if self.result_receiver.is_some() {
             self.waiter.cancel_op_waiter(self.op_id);
         }
     }
@@ -31,7 +31,7 @@ where
 {
     context: C,
     timestamp: Timestamp,
-    eventual: EventualValue<(Option<Id>, T)>,
+    result_sender: flume::Sender<(Span, T)>,
 }
 
 #[derive(Debug)]
@@ -80,11 +80,11 @@ where
     /// Set up wait for operation to complete
     pub fn add_op_waiter(&self, op_id: OperationId, context: C) -> OperationWaitHandle<T, C> {
         let mut inner = self.inner.lock();
-        let e = EventualValue::new();
+        let (result_sender, result_receiver) = flume::bounded(1);
         let waiting_op = OperationWaitingOp {
             context,
             timestamp: get_aligned_timestamp(),
-            eventual: e.clone(),
+            result_sender,
         };
         if inner.waiting_op_table.insert(op_id, waiting_op).is_some() {
             error!(
@@ -96,7 +96,7 @@ where
         OperationWaitHandle {
             waiter: self.clone(),
             op_id,
-            eventual_instance: Some(e.instance()),
+            result_receiver: Some(result_receiver),
         }
     }
 
@@ -122,14 +122,15 @@ where
     }
 
     /// Remove wait for op
+    #[instrument(level = "trace", target = "rpc", skip_all)]
     fn cancel_op_waiter(&self, op_id: OperationId) {
         let mut inner = self.inner.lock();
         inner.waiting_op_table.remove(&op_id);
     }
 
-    /// Complete the app call
+    /// Complete the waiting op
     #[instrument(level = "trace", target = "rpc", skip_all)]
-    pub async fn complete_op_waiter(&self, op_id: OperationId, message: T) -> Result<(), RPCError> {
+    pub fn complete_op_waiter(&self, op_id: OperationId, message: T) -> Result<(), RPCError> {
         let waiting_op = {
             let mut inner = self.inner.lock();
             inner
@@ -141,10 +142,9 @@ where
                 )))?
         };
         waiting_op
-            .eventual
-            .resolve((Span::current().id(), message))
-            .await;
-        Ok(())
+            .result_sender
+            .send((Span::current(), message))
+            .map_err(RPCError::ignore)
     }
 
     /// Wait for operation to complete
@@ -156,29 +156,30 @@ where
     ) -> Result<TimeoutOr<(T, TimestampDuration)>, RPCError> {
         let timeout_ms = us_to_ms(timeout_us.as_u64()).map_err(RPCError::internal)?;
 
-        // Take the instance
+        // Take the receiver
         // After this, we must manually cancel since the cancel on handle drop is disabled
-        let eventual_instance = handle.eventual_instance.take().unwrap();
+        let result_receiver = handle.result_receiver.take().unwrap();
+
+        let result_fut = result_receiver.recv_async().in_current_span();
 
         // wait for eventualvalue
         let start_ts = get_aligned_timestamp();
-        let res = timeout(timeout_ms, eventual_instance)
-            .await
-            .into_timeout_or();
-        Ok(res
-            .on_timeout(|| {
-                // log_rpc!(debug "op wait timed out: {}", handle.op_id);
-                // debug_print_backtrace();
+        let res = timeout(timeout_ms, result_fut).await.into_timeout_or();
+
+        match res {
+            TimeoutOr::Timeout => {
                 self.cancel_op_waiter(handle.op_id);
-            })
-            .map(|res| {
-                let (_span_id, ret) = res.take_value().unwrap();
+                Ok(TimeoutOr::Timeout)
+            }
+            TimeoutOr::Value(Ok((_span_id, ret))) => {
                 let end_ts = get_aligned_timestamp();
 
                 //xxx: causes crash (Missing otel data span extensions)
                 // Span::current().follows_from(span_id);
 
-                (ret, end_ts.saturating_sub(start_ts))
-            }))
+                Ok(TimeoutOr::Value((ret, end_ts.saturating_sub(start_ts))))
+            }
+            TimeoutOr::Value(Err(e)) => Err(RPCError::ignore(e)),
+        }
     }
 }

@@ -64,6 +64,7 @@ where
     }
 
     /// Check the result and take it if there is one
+    #[cfg_attr(feature = "tracing", instrument(level = "trace", skip_all))]
     pub async fn check(&self) -> Result<Option<T>, ()> {
         let mut out: Option<T> = None;
 
@@ -95,6 +96,7 @@ where
     }
 
     /// Wait for the result and take it
+    #[cfg_attr(feature = "tracing", instrument(level = "trace", skip_all))]
     pub async fn join(&self) -> Result<Option<T>, ()> {
         let mut out: Option<T> = None;
 

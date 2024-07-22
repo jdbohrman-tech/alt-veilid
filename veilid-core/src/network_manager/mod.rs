@@ -64,8 +64,6 @@ pub const PUBLIC_ADDRESS_INCONSISTENCY_PUNISHMENT_TIMEOUT_US: TimestampDuration 
 pub const ADDRESS_FILTER_TASK_INTERVAL_SECS: u32 = 60;
 pub const BOOT_MAGIC: &[u8; 4] = b"BOOT";
 
-static FUCK: AtomicUsize = AtomicUsize::new(0);
-
 #[derive(Clone, Debug, Default)]
 pub struct ProtocolConfig {
     pub outbound: ProtocolTypeSet,
@@ -586,7 +584,7 @@ impl NetworkManager {
     }
 
     /// Generates a multi-shot/normal receipt
-    #[instrument(level = "trace", skip(self, extra_data, callback), err)]
+    #[instrument(level = "trace", skip(self, extra_data, callback))]
     pub fn generate_receipt<D: AsRef<[u8]>>(
         &self,
         expiration_us: u64,
@@ -626,7 +624,7 @@ impl NetworkManager {
     }
 
     /// Generates a single-shot/normal receipt
-    #[instrument(level = "trace", skip(self, extra_data), err)]
+    #[instrument(level = "trace", skip(self, extra_data))]
     pub fn generate_single_shot_receipt<D: AsRef<[u8]>>(
         &self,
         expiration_us: u64,
@@ -918,10 +916,8 @@ impl NetworkManager {
         destination_node_ref: Option<NodeRef>,
         body: B,
     ) -> EyreResult<NetworkResult<SendDataMethod>> {
-        let _dg = DebugGuard::new(&FUCK);
-
         let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
-            bail!("network is not started");
+            return Ok(NetworkResult::no_connection_other("network is not started"));
         };
 
         let destination_node_ref = destination_node_ref.as_ref().unwrap_or(&node_ref).clone();
@@ -962,7 +958,8 @@ impl NetworkManager {
         rcpt_data: Vec<u8>,
     ) -> EyreResult<()> {
         let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
-            bail!("network is not started");
+            log_net!(debug "not sending out-of-band receipt to {} because network is stopped", dial_info);
+            return Ok(());
         };
 
         // Do we need to validate the outgoing receipt? Probably not

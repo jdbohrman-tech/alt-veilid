@@ -222,7 +222,7 @@ impl WebsocketProtocolHandler {
         let mut peek_buf = [0u8; MAX_WS_BEFORE_BODY];
         let peek_len = match timeout(
             self.arc.connection_initial_timeout_ms,
-            ps.peek(&mut peek_buf),
+            ps.peek(&mut peek_buf).in_current_span(),
         )
         .await
         {

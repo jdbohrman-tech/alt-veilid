@@ -518,7 +518,7 @@ impl Network {
                         let mut out = vec![0u8; MAX_MESSAGE_SIZE];
                         let (recv_len, recv_addr) = network_result_try!(timeout(
                             timeout_ms,
-                            h.recv_message(&mut out).instrument(Span::current())
+                            h.recv_message(&mut out).in_current_span()
                         )
                         .await
                         .into_network_result())
@@ -569,7 +569,7 @@ impl Network {
 
                         let out = network_result_try!(network_result_try!(timeout(
                             timeout_ms,
-                            pnc.recv()
+                            pnc.recv().in_current_span()
                         )
                         .await
                         .into_network_result())
@@ -1063,7 +1063,7 @@ impl Network {
         Ok(())
     }
 
-    #[instrument(level = "trace", target = "net", skip_all, err)]
+    #[instrument(parent = None, level = "trace", target = "net", skip_all, err)]
     async fn upnp_task_routine(self, _stop_token: StopToken, _l: u64, _t: u64) -> EyreResult<()> {
         if !self.unlocked_inner.igd_manager.tick().await? {
             info!("upnp failed, restarting local network");
@@ -1074,7 +1074,7 @@ impl Network {
         Ok(())
     }
 
-    #[instrument(level = "trace", target = "net", skip_all, err)]
+    #[instrument(level = "trace", target = "net", name = "Network::tick", skip_all, err)]
     pub(crate) async fn tick(&self) -> EyreResult<()> {
         let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
             log_net!(debug "ignoring due to not started up");

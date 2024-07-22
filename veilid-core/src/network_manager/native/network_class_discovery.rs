@@ -200,7 +200,12 @@ impl Network {
         // Wait for all discovery futures to complete and apply discoverycontexts
         let mut all_address_types = AddressTypeSet::new();
         loop {
-            match unord.next().timeout_at(stop_token.clone()).await {
+            match unord
+                .next()
+                .timeout_at(stop_token.clone())
+                .in_current_span()
+                .await
+            {
                 Ok(Some(Some(dr))) => {
                     // Found some new dial info for this protocol/address combination
                     self.update_with_detected_dial_info(dr.ddi.clone()).await?;
@@ -277,7 +282,7 @@ impl Network {
 
         Ok(())
     }
-    #[instrument(level = "trace", skip(self), err)]
+    #[instrument(parent = None, level = "trace", skip(self), err)]
     pub async fn update_network_class_task_routine(
         self,
         stop_token: StopToken,

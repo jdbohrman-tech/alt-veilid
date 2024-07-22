@@ -251,6 +251,7 @@ pub mod tests;
 cfg_if! {
     if #[cfg(feature = "tracing")] {
         use tracing::*;
+
         #[macro_export]
         macro_rules! debug_target_enabled {
             ($target:expr) => { enabled!(target: $target, Level::DEBUG) }

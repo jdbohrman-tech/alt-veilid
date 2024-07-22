@@ -366,7 +366,6 @@ impl VeilidAPI {
         let rpc_processor = self.rpc_processor()?;
         rpc_processor
             .app_call_reply(call_id, message)
-            .await
             .map_err(|e| e.into())
     }
 

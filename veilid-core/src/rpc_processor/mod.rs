@@ -277,7 +277,7 @@ enum RPCKind {
 /////////////////////////////////////////////////////////////////////
 
 struct RPCProcessorInner {
-    send_channel: Option<flume::Sender<(Option<Id>, RPCMessageEncoded)>>,
+    send_channel: Option<flume::Sender<(Span, RPCMessageEncoded)>>,
     stop_source: Option<StopSource>,
     worker_join_handles: Vec<MustJoinHandle<()>>,
 }
@@ -590,7 +590,7 @@ impl RPCProcessor {
             };
 
             Ok(nr)
-        })
+        }.in_current_span())
     }
 
     #[instrument(level="trace", target="rpc", skip_all)]
@@ -1662,10 +1662,13 @@ impl RPCProcessor {
                 RPCStatementDetail::AppMessage(_) => self.process_app_message(msg).await,
             },
             RPCOperationKind::Answer(_) => {
-                self.unlocked_inner
+                let op_id = msg.operation.op_id();
+                if let Err(e) = self.unlocked_inner
                     .waiting_rpc_table
-                    .complete_op_waiter(msg.operation.op_id(), msg)
-                    .await?;
+                    .complete_op_waiter(op_id, msg) {
+                        log_rpc!(debug "Operation id {} did not complete: {}", op_id, e);
+                        // Don't throw an error here because it's okay if the original operation timed out
+                    }
                 Ok(NetworkResult::value(()))
             }
         }
@@ -1675,13 +1678,16 @@ impl RPCProcessor {
     async fn rpc_worker(
         self,
         stop_token: StopToken,
-        receiver: flume::Receiver<(Option<Id>, RPCMessageEncoded)>,
+        receiver: flume::Receiver<(Span, RPCMessageEncoded)>,
     ) {
-        while let Ok(Ok((_span_id, msg))) =
+        while let Ok(Ok((prev_span, msg))) =
             receiver.recv_async().timeout_at(stop_token.clone()).await
         {                    
+            let rpc_message_span = tracing::trace_span!("rpc message");
+            rpc_message_span.follows_from(prev_span);
+            
             network_result_value_or_log!(match self
-                .process_rpc_message(msg).in_current_span()
+                .process_rpc_message(msg).instrument(rpc_message_span)
                 .await
             {
                 Err(e) => {
@@ -1730,9 +1736,8 @@ impl RPCProcessor {
             };
             send_channel
         };
-        let span_id = Span::current().id();
         send_channel
-            .try_send((span_id, msg))
+            .try_send((Span::current(), msg))
             .map_err(|e| eyre!("failed to enqueue direct RPC message: {}", e))?;
         Ok(())
     }
@@ -1766,9 +1771,8 @@ impl RPCProcessor {
             };
             send_channel
         };
-        let span_id = Span::current().id();
         send_channel
-            .try_send((span_id, msg))
+            .try_send((Span::current(), msg))
             .map_err(|e| eyre!("failed to enqueue safety routed RPC message: {}", e))?;
         Ok(())
     }
@@ -1805,9 +1809,8 @@ impl RPCProcessor {
             };
             send_channel
         };
-        let span_id = Span::current().id();
         send_channel
-            .try_send((span_id, msg))
+            .try_send((Span::current(), msg))
             .map_err(|e| eyre!("failed to enqueue private routed RPC message: {}", e))?;
         Ok(())
     }

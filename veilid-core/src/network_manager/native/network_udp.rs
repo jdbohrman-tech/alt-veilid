@@ -3,6 +3,7 @@ use sockets::*;
 use stop_token::future::FutureExt;
 
 impl Network {
+    #[instrument(level = "trace", skip_all)]
     pub(super) async fn create_udp_listener_tasks(&self) -> EyreResult<()> {
         // Spawn socket tasks
         let mut task_count = {
@@ -108,6 +109,7 @@ impl Network {
         Ok(())
     }
 
+    #[instrument(level = "trace", skip_all)]
     async fn create_udp_protocol_handler(&self, addr: SocketAddr) -> EyreResult<bool> {
         log_net!("create_udp_protocol_handler on {:?}", &addr);
 
@@ -148,6 +150,7 @@ impl Network {
         Ok(true)
     }
 
+    #[instrument(level = "trace", skip_all)]
     pub(super) async fn create_udp_protocol_handlers(
         &self,
         bind_set: NetworkBindSet,

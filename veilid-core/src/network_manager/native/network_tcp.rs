@@ -38,6 +38,7 @@ impl Network {
         Ok(acceptor)
     }
 
+    #[instrument(level = "trace", skip_all)]
     async fn try_tls_handlers(
         &self,
         tls_acceptor: &TlsAcceptor,
@@ -60,7 +61,7 @@ impl Network {
         // read a chunk of the stream
         timeout(
             tls_connection_initial_timeout_ms,
-            ps.peek_exact(&mut first_packet),
+            ps.peek_exact(&mut first_packet).in_current_span(),
         )
         .await
         .wrap_err("tls initial timeout")?
@@ -70,6 +71,7 @@ impl Network {
             .await
     }
 
+    #[instrument(level = "trace", skip_all)]
     async fn try_handlers(
         &self,
         stream: AsyncPeekStream,
@@ -90,6 +92,7 @@ impl Network {
         Ok(None)
     }
 
+    #[instrument(level = "trace", skip_all)]
     async fn tcp_acceptor(
         self,
         tcp_stream: io::Result<TcpStream>,
@@ -180,7 +183,7 @@ impl Network {
         // read a chunk of the stream
         if timeout(
             connection_initial_timeout_ms,
-            ps.peek_exact(&mut first_packet),
+            ps.peek_exact(&mut first_packet).in_current_span(),
         )
         .await
         .is_err()
@@ -237,6 +240,7 @@ impl Network {
         }
     }
 
+    #[instrument(level = "trace", skip_all)]
     async fn spawn_socket_listener(&self, addr: SocketAddr) -> EyreResult<bool> {
         // Get config
         let (connection_initial_timeout_ms, tls_connection_initial_timeout_ms) = {
@@ -344,6 +348,7 @@ impl Network {
     /////////////////////////////////////////////////////////////////
 
     // TCP listener that multiplexes ports so multiple protocols can exist on a single port
+    #[instrument(level = "trace", skip_all)]
     pub(super) async fn start_tcp_listener(
         &self,
         bind_set: NetworkBindSet,

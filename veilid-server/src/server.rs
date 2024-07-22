@@ -108,25 +108,29 @@ pub async fn run_veilid_server(
     let capi2 = capi.clone();
     let update_receiver_shutdown = SingleShotEventual::new(Some(()));
     let mut update_receiver_shutdown_instance = update_receiver_shutdown.instance().fuse();
-    let update_receiver_jh = spawn_local("update_receiver", async move {
-        loop {
-            select! {
-                res = receiver.recv_async() => {
-                    if let Ok(change) = res {
-                        if let Some(capi) = &capi2 {
-                            // Handle state changes on main thread for capnproto rpc
-                            capi.clone().handle_update(change);
+    let update_receiver_jh = spawn_local(
+        "update_receiver",
+        async move {
+            loop {
+                select! {
+                    res = receiver.recv_async() => {
+                        if let Ok(change) = res {
+                            if let Some(capi) = &capi2 {
+                                // Handle state changes on main thread for capnproto rpc
+                                capi.clone().handle_update(change);
+                            }
+                        } else {
+                            break;
                         }
-                    } else {
+                    }
+                    _ = update_receiver_shutdown_instance => {
                         break;
                     }
-                }
-                _ = update_receiver_shutdown_instance => {
-                    break;
-                }
-            };
+                };
+            }
         }
-    });
+        .in_current_span(),
+    );
 
     // Auto-attach if desired
     let mut out = Ok(());

@@ -237,8 +237,6 @@ impl RoutingTable {
         _last_ts: Timestamp,
         cur_ts: Timestamp,
     ) -> EyreResult<()> {
-        eprintln!("pv tick");
-
         let mut futurequeue: VecDeque<PingValidatorFuture> = VecDeque::new();
 
         // PublicInternet
@@ -253,9 +251,19 @@ impl RoutingTable {
         let mut unord = FuturesUnordered::new();
 
         while !unord.is_empty() || !futurequeue.is_empty() {
-            log_rtab!(debug "Ping validation queue: {} remaining, {} in progress", futurequeue.len(), unord.len());
+            log_rtab!(
+                "Ping validation queue: {} remaining, {} in progress",
+                futurequeue.len(),
+                unord.len()
+            );
+
             // Process one unordered futures if we have some
-            match unord.next().timeout_at(stop_token.clone()).await {
+            match unord
+                .next()
+                .timeout_at(stop_token.clone())
+                .in_current_span()
+                .await
+            {
                 Ok(Some(_)) => {
                     // Some ping completed
                 }
@@ -273,7 +281,7 @@ impl RoutingTable {
                 let Some(fq) = futurequeue.pop_front() else {
                     break;
                 };
-                unord.push(fq.in_current_span());
+                unord.push(fq);
             }
         }
 

@@ -506,20 +506,21 @@ pub fn map_to_string<X: ToString>(arg: X) -> String {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 pub struct DebugGuard {
+    name: &'static str,
     counter: &'static AtomicUsize,
 }
 
 impl DebugGuard {
-    pub fn new(counter: &'static AtomicUsize) -> Self {
+    pub fn new(name: &'static str, counter: &'static AtomicUsize) -> Self {
         let c = counter.fetch_add(1, Ordering::SeqCst);
-        eprintln!("DebugGuard Entered: {}", c + 1);
-        Self { counter }
+        eprintln!("{} entered: {}", name, c + 1);
+        Self { name, counter }
     }
 }
 
 impl Drop for DebugGuard {
     fn drop(&mut self) {
         let c = self.counter.fetch_sub(1, Ordering::SeqCst);
-        eprintln!("DebugGuard Exited: {}", c - 1);
+        eprintln!("{} exited: {}", self.name, c - 1);
     }
 }

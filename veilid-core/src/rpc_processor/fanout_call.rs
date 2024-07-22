@@ -321,13 +321,17 @@ where
             }
         }
         // Wait for them to complete
-        timeout(timeout_ms, async {
-            while let Some(is_done) = unord.next().await {
-                if is_done {
-                    break;
+        timeout(
+            timeout_ms,
+            async {
+                while let Some(is_done) = unord.next().in_current_span().await {
+                    if is_done {
+                        break;
+                    }
                 }
             }
-        })
+            .in_current_span(),
+        )
         .await
         .into_timeout_or()
         .map(|_| {

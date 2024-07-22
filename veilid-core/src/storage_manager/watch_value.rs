@@ -294,7 +294,7 @@ impl StorageManager {
                 log_network_result!(debug "WatchValue fanout call returned peers {} ({})", wva.answer.peers.len(), next_node);
 
                 Ok(NetworkResult::value(wva.answer.peers))
-            }.in_current_span()
+            }.instrument(tracing::trace_span!("outbound_watch_value call routine"))
         };
 
         // Routine to call to check if we're done at each step

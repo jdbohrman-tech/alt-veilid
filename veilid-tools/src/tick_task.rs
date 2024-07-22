@@ -104,22 +104,29 @@ impl<E: Send + 'static> TickTask<E> {
             return Ok(());
         }
 
-        self.internal_tick(now, last_timestamp_us).await.map(drop)
+        let itick = self.internal_tick(now, last_timestamp_us);
+
+        itick.await.map(drop)
     }
 
     pub async fn try_tick_now(&self) -> Result<bool, E> {
         let now = get_timestamp();
         let last_timestamp_us = self.last_timestamp_us.load(Ordering::Acquire);
 
-        self.internal_tick(now, last_timestamp_us).await
+        let itick = self.internal_tick(now, last_timestamp_us);
+
+        itick.await
     }
 
     async fn internal_tick(&self, now: u64, last_timestamp_us: u64) -> Result<bool, E> {
         // Lock the stop source, tells us if we have ever started this future
-        let opt_stop_source = &mut *self.stop_source.lock().await;
+        let opt_stop_source_fut = self.stop_source.lock();
+
+        let opt_stop_source = &mut *opt_stop_source_fut.await;
+
         if opt_stop_source.is_some() {
             // See if the previous execution finished with an error
-            match self.single_future.check().await {
+            match self.single_future.check().in_current_span().await {
                 Ok(Some(Err(e))) => {
                     // We have an error result, which means the singlefuture ran but we need to propagate the error
                     return Err(e);
@@ -145,15 +152,18 @@ impl<E: Send + 'static> TickTask<E> {
         let stop_token = stop_source.token();
         let running = self.running.clone();
         let routine = self.routine.get().unwrap()(stop_token, last_timestamp_us, now);
+
         let wrapped_routine = Box::pin(async move {
             running.store(true, core::sync::atomic::Ordering::Release);
             let out = routine.await;
             running.store(false, core::sync::atomic::Ordering::Release);
             out
         });
+
         match self
             .single_future
             .single_spawn(&self.name, wrapped_routine)
+            .in_current_span()
             .await
         {
             // We should have already consumed the result of the last run, or there was none

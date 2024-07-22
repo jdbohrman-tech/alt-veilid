@@ -15,6 +15,11 @@ impl RPCProcessor {
             .startup_lock
             .enter()
             .map_err(RPCError::map_try_again("not started up"))?;
+        let stop_token = self
+            .unlocked_inner
+            .startup_lock
+            .stop_token()
+            .ok_or(RPCError::try_again("not started up"))?;
 
         let network_manager = self.network_manager();
         let receipt_time = ms_to_us(self.unlocked_inner.validate_dial_info_receipt_time_ms);
@@ -38,23 +43,35 @@ impl RPCProcessor {
         );
 
         // Wait for receipt
-        match eventual_value.await.take_value().unwrap() {
-            ReceiptEvent::ReturnedPrivate { private_route: _ }
-            | ReceiptEvent::ReturnedInBand { inbound_noderef: _ }
-            | ReceiptEvent::ReturnedSafety => {
-                log_net!(debug "validate_dial_info receipt should be returned out-of-band");
-                Ok(false)
+        match eventual_value
+            .timeout_at(stop_token)
+            .in_current_span()
+            .await
+        {
+            Err(_) => {
+                return Err(RPCError::try_again("not started up"));
             }
-            ReceiptEvent::ReturnedOutOfBand => {
-                log_net!(debug "validate_dial_info receipt returned");
-                Ok(true)
-            }
-            ReceiptEvent::Expired => {
-                log_net!(debug "validate_dial_info receipt expired");
-                Ok(false)
-            }
-            ReceiptEvent::Cancelled => {
-                Err(RPCError::internal("receipt was dropped before expiration"))
+            Ok(v) => {
+                let receipt_event = v.take_value().unwrap();
+                match receipt_event {
+                    ReceiptEvent::ReturnedPrivate { private_route: _ }
+                    | ReceiptEvent::ReturnedInBand { inbound_noderef: _ }
+                    | ReceiptEvent::ReturnedSafety => {
+                        log_net!(debug "validate_dial_info receipt should be returned out-of-band");
+                        Ok(false)
+                    }
+                    ReceiptEvent::ReturnedOutOfBand => {
+                        log_net!(debug "validate_dial_info receipt returned");
+                        Ok(true)
+                    }
+                    ReceiptEvent::Expired => {
+                        log_net!(debug "validate_dial_info receipt expired");
+                        Ok(false)
+                    }
+                    ReceiptEvent::Cancelled => {
+                        Err(RPCError::internal("receipt was dropped before expiration"))
+                    }
+                }
             }
         }
     }

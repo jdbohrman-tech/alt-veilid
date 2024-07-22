@@ -136,7 +136,8 @@ impl NetworkConnection {
         let flow = protocol_connection.flow();
 
         // Create handle for sending
-        let (sender, receiver) = flume::bounded(get_concurrency() as usize);
+        //let (sender, receiver) = flume::bounded(get_concurrency() as usize);
+        let (sender, receiver) = flume::unbounded();
 
         // Create stats
         let stats = Arc::new(Mutex::new(NetworkConnectionStats {
@@ -265,7 +266,7 @@ impl NetworkConnection {
 
     // Connection receiver loop
     #[allow(clippy::too_many_arguments)]
-    #[instrument(level="trace", target="net", skip_all)]
+    #[instrument(parent = None, level="trace", target="net", skip_all)]
     fn process_connection(
         connection_manager: ConnectionManager,
         local_stop_token: StopToken,
@@ -299,7 +300,7 @@ impl NetworkConnection {
             };
             let timer = MutableFuture::new(new_timer());
 
-            unord.push(system_boxed(timer.clone()));
+            unord.push(system_boxed(timer.clone().in_current_span()));
 
             loop {
                 // Add another message sender future if necessary
@@ -333,7 +334,7 @@ impl NetworkConnection {
                                 RecvLoopAction::Finish
                             }
                         }
-                    });
+                    }.in_current_span());
                     unord.push(system_boxed(sender_fut.in_current_span()));
                 }
 

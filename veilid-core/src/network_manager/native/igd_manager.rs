@@ -310,7 +310,7 @@ impl IGDManager {
         .await
     }
 
-    #[instrument(level = "trace", target = "net", skip_all, err)]
+    #[instrument(level = "trace", target = "net", name = "IGDManager::tick", skip_all, err)]
     pub async fn tick(&self) -> EyreResult<bool> {
         // Refresh mappings if we have them
         // If an error is received, then return false to restart the local network
@@ -434,6 +434,6 @@ impl IGDManager {
             
             // Normal exit, no restart
             Ok(true)
-        }, Err(eyre!("failed to process blocking task"))).in_current_span().await
+        }, Err(eyre!("failed to process blocking task"))).instrument(tracing::trace_span!("igd tick fut")).await
     }
 }

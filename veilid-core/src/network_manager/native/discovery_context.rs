@@ -262,7 +262,7 @@ impl DiscoveryContext {
             // Always process two at a time so we get both addresses in parallel if possible
             if unord.len() == 2 {
                 // Process one
-                if let Some(Some(ei)) = unord.next().await {
+                if let Some(Some(ei)) = unord.next().in_current_span().await {
                     external_address_infos.push(ei);
                     if external_address_infos.len() == 2 {
                         break;
@@ -272,7 +272,7 @@ impl DiscoveryContext {
         }
         // Finish whatever is left if we need to
         if external_address_infos.len() < 2 {
-            while let Some(res) = unord.next().await {
+            while let Some(res) = unord.next().in_current_span().await {
                 if let Some(ei) = res {
                     external_address_infos.push(ei);
                     if external_address_infos.len() == 2 {
@@ -644,6 +644,7 @@ impl DiscoveryContext {
     }
 
     /// Add discovery futures to an unordered set that may detect dialinfo when they complete
+    #[instrument(level = "trace", skip(self))]
     pub async fn discover(
         &self,
         unord: &mut FuturesUnordered<SendPinBoxFuture<Option<DetectionResult>>>,
@@ -681,7 +682,7 @@ impl DiscoveryContext {
             }
         };
         if let Some(clear_network_callback) = some_clear_network_callback {
-            clear_network_callback().await;
+            clear_network_callback().in_current_span().await;
         }
 
         // UPNP Automatic Mapping
