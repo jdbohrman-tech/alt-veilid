@@ -16,6 +16,8 @@ VERSION 0.7
 FROM ubuntu:18.04
 
 ENV ZIG_VERSION=0.13.0-dev.46+3648d7df1
+ENV CMAKE_VERSION_MINOR=3.30
+ENV CMAKE_VERSION_PATCH=3.30.1
 ENV RUSTUP_HOME=/usr/local/rustup
 ENV RUSTUP_DIST_SERVER=https://static.rust-lang.org
 ENV CARGO_HOME=/usr/local/cargo
@@ -28,7 +30,11 @@ WORKDIR /veilid
 # Install build prerequisites & setup required directories
 deps-base:
     RUN apt-get -y update
-    RUN apt-get install -y iproute2 curl build-essential cmake libssl-dev openssl file git pkg-config libdbus-1-dev libdbus-glib-1-dev libgirepository1.0-dev libcairo2-dev checkinstall unzip libncursesw5-dev libncurses5-dev
+    RUN apt-get install -y iproute2 curl build-essential libssl-dev openssl file git pkg-config libdbus-1-dev libdbus-glib-1-dev libgirepository1.0-dev libcairo2-dev checkinstall unzip libncursesw5-dev libncurses5-dev
+    RUN curl -O https://cmake.org/files/v$CMAKE_VERSION_MINOR/cmake-$CMAKE_VERSION_PATCH-linux-$(arch).sh
+    RUN mkdir /opt/cmake
+    RUN sh cmake-$CMAKE_VERSION_PATCH-linux-$(arch).sh --skip-license --prefix=/opt/cmake
+    RUN ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake
 
 # Install Rust
 deps-rust:
