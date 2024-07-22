@@ -33,7 +33,7 @@ rt-wasm-bindgen = ["async_executors/bindgen", "async_executors/timer"]
 
 veilid_tools_android_tests = ["dep:paranoid-android"]
 veilid_tools_ios_tests = ["dep:tracing", "dep:oslog", "dep:tracing-oslog"]
-tracing = ["dep:tracing", "dep:tracing-subscriber"]
+tracing = ["dep:tracing", "dep:tracing-subscriber", "tokio/tracing"]
 debug-locks = []
 
 [dependencies]
