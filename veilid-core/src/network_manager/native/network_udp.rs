@@ -3,6 +3,7 @@ use sockets::*;
 use stop_token::future::FutureExt;
 
 impl Network {
+    #[instrument(level = "trace", skip_all)]
     pub(super) async fn create_udp_listener_tasks(&self) -> EyreResult<()> {
         // Spawn socket tasks
         let mut task_count = {
@@ -16,14 +17,14 @@ impl Network {
             }
         }
         log_net!("task_count: {}", task_count);
-        for _ in 0..task_count {
+        for task_n in 0..task_count {
             log_net!("Spawning UDP listener task");
 
             ////////////////////////////////////////////////////////////
             // Run thread task to process stream of messages
             let this = self.clone();
 
-            let jh = spawn(async move {
+            let jh = spawn(&format!("UDP listener {}", task_n), async move {
                 log_net!("UDP listener task spawned");
 
                 // Collect all our protocol handlers into a vector
@@ -57,6 +58,7 @@ impl Network {
                             match ph
                                 .recv_message(&mut data)
                                 .timeout_at(stop_token.clone())
+                                .in_current_span()
                                 .await
                             {
                                 Ok(Ok((size, flow))) => {
@@ -89,7 +91,7 @@ impl Network {
                 // Now we wait for join handles to exit,
                 // if any error out it indicates an error needing
                 // us to completely restart the network
-                while let Some(v) = protocol_handlers_unordered.next().await {
+                while let Some(v) = protocol_handlers_unordered.next().in_current_span().await {
                     // true = stopped, false = errored
                     if !v {
                         // If any protocol handler fails, our socket died and we need to restart the network
@@ -98,7 +100,7 @@ impl Network {
                 }
 
                 log_net!("UDP listener task stopped");
-            });
+            }.instrument(trace_span!(parent: None, "UDP Listener")));
             ////////////////////////////////////////////////////////////
 
             // Add to join handle
@@ -108,6 +110,7 @@ impl Network {
         Ok(())
     }
 
+    #[instrument(level = "trace", skip_all)]
     async fn create_udp_protocol_handler(&self, addr: SocketAddr) -> EyreResult<bool> {
         log_net!("create_udp_protocol_handler on {:?}", &addr);
 
@@ -148,6 +151,7 @@ impl Network {
         Ok(true)
     }
 
+    #[instrument(level = "trace", skip_all)]
     pub(super) async fn create_udp_protocol_handlers(
         &self,
         bind_set: NetworkBindSet,

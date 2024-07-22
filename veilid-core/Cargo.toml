@@ -51,6 +51,7 @@ crypto-test = ["enable-crypto-vld0", "enable-crypto-none"]
 crypto-test-none = ["enable-crypto-none"]
 veilid_core_android_tests = ["dep:paranoid-android"]
 veilid_core_ios_tests = ["dep:tracing-oslog"]
+debug-locks = ["veilid-tools/debug-locks"]
 
 ### DEPENDENCIES
 
@@ -191,7 +192,6 @@ async_executors = { version = "0.7.0", default-features = false, features = [
     "bindgen",
     "timer",
 ] }
-async-lock = "2.8.0"
 wasm-bindgen = "0.2.92"
 js-sys = "0.3.69"
 wasm-bindgen-futures = "0.4.42"

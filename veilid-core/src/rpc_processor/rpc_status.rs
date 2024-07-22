@@ -20,6 +20,12 @@ impl RPCProcessor {
         self,
         dest: Destination,
     ) -> RPCNetworkResult<Answer<Option<SenderInfo>>> {
+        let _guard = self
+            .unlocked_inner
+            .startup_lock
+            .enter()
+            .map_err(RPCError::map_try_again("not started up"))?;
+
         // Determine routing domain and node status to send
         let (opt_target_nr, routing_domain, node_status) = if let Some(UnsafeRoutingInfo {
             opt_node,

@@ -13,6 +13,12 @@ impl RPCProcessor {
         watch_id: u64,
         value: Option<SignedValueData>,
     ) -> RPCNetworkResult<()> {
+        let _guard = self
+            .unlocked_inner
+            .startup_lock
+            .enter()
+            .map_err(RPCError::map_try_again("not started up"))?;
+
         // Ensure destination is never using a safety route
         if matches!(dest.get_safety_selection(), SafetySelection::Safe(_)) {
             return Err(RPCError::internal(

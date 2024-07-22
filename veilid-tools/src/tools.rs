@@ -54,6 +54,20 @@ cfg_if::cfg_if! {
                 $x.clone().try_lock_owned().ok()
             };
         }
+
+        // #[macro_export]
+        // macro_rules! asyncrwlock_try_read {
+        //     ($x:expr) => {
+        //         $x.try_read().ok()
+        //     };
+        // }
+
+        // #[macro_export]
+        // macro_rules! asyncrwlock_try_write {
+        //     ($x:expr) => {
+        //         $x.try_write().ok()
+        //     };
+        // }
     } else {
         #[macro_export]
         macro_rules! asyncmutex_try_lock {
@@ -73,7 +87,21 @@ cfg_if::cfg_if! {
                 $x.try_lock_arc()
             };
         }
+
     }
+}
+
+#[macro_export]
+macro_rules! asyncrwlock_try_read {
+    ($x:expr) => {
+        $x.try_read()
+    };
+}
+#[macro_export]
+macro_rules! asyncrwlock_try_write {
+    ($x:expr) => {
+        $x.try_write()
+    };
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -473,4 +501,26 @@ pub fn type_name_of_val<T: ?Sized>(_val: &T) -> &'static str {
 
 pub fn map_to_string<X: ToString>(arg: X) -> String {
     arg.to_string()
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+pub struct DebugGuard {
+    name: &'static str,
+    counter: &'static AtomicUsize,
+}
+
+impl DebugGuard {
+    pub fn new(name: &'static str, counter: &'static AtomicUsize) -> Self {
+        let c = counter.fetch_add(1, Ordering::SeqCst);
+        eprintln!("{} entered: {}", name, c + 1);
+        Self { name, counter }
+    }
+}
+
+impl Drop for DebugGuard {
+    fn drop(&mut self) {
+        let c = self.counter.fetch_sub(1, Ordering::SeqCst);
+        eprintln!("{} exited: {}", self.name, c - 1);
+    }
 }

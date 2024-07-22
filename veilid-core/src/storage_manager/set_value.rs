@@ -177,7 +177,7 @@ impl StorageManager {
                     ctx.send_partial_update = true;
 
                     Ok(NetworkResult::value(sva.answer.peers))
-                }.in_current_span()
+                }.instrument(tracing::trace_span!("fanout call_routine"))
             }
         };
 
@@ -224,7 +224,7 @@ impl StorageManager {
         };
 
         // Call the fanout in a spawned task
-        spawn(Box::pin(async move {
+        spawn("outbound_set_value fanout", Box::pin(async move {
             let fanout_call = FanoutCall::new(
                 routing_table.clone(),
                 key,
@@ -267,7 +267,7 @@ impl StorageManager {
             })) {
                 log_dht!(debug "Sending SetValue result failed: {}", e);
             }
-        }.in_current_span()))
+        }.instrument(tracing::trace_span!("outbound_set_value fanout routine"))))
         .detach();
 
         Ok(out_rx)
@@ -329,7 +329,7 @@ impl StorageManager {
 
                         // Return done
                         false
-                    }.in_current_span())
+                    }.instrument(tracing::trace_span!("outbound_set_value deferred results")))
                 },
             ),
         );

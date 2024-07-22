@@ -158,9 +158,14 @@ struct ReceiptManagerInner {
     timeout_task: MustJoinSingleFuture<()>,
 }
 
+struct ReceiptManagerUnlockedInner {
+    startup_lock: StartupLock,
+}
+
 #[derive(Clone)]
 pub(super) struct ReceiptManager {
     inner: Arc<Mutex<ReceiptManagerInner>>,
+    unlocked_inner: Arc<ReceiptManagerUnlockedInner>,
 }
 
 impl ReceiptManager {
@@ -177,6 +182,9 @@ impl ReceiptManager {
     pub fn new(network_manager: NetworkManager) -> Self {
         Self {
             inner: Arc::new(Mutex::new(Self::new_inner(network_manager))),
+            unlocked_inner: Arc::new(ReceiptManagerUnlockedInner {
+                startup_lock: StartupLock::new(),
+            }),
         }
     }
 
@@ -185,6 +193,7 @@ impl ReceiptManager {
     }
 
     pub async fn startup(&self) -> EyreResult<()> {
+        let guard = self.unlocked_inner.startup_lock.startup()?;
         log_net!(debug "startup receipt manager");
 
         // Retrieve config
@@ -195,6 +204,7 @@ impl ReceiptManager {
             inner.stop_source = Some(StopSource::new());
         }
 
+        guard.success();
         Ok(())
     }
 
@@ -223,7 +233,7 @@ impl ReceiptManager {
     }
 
     #[instrument(level = "trace", target = "receipt", skip_all)]
-    pub async fn timeout_task_routine(self, now: Timestamp, stop_token: StopToken) {
+    async fn timeout_task_routine(self, now: Timestamp, stop_token: StopToken) {
         // Go through all receipts and build a list of expired nonces
         let mut new_next_oldest_ts: Option<Timestamp> = None;
         let mut expired_records = Vec::new();
@@ -271,8 +281,18 @@ impl ReceiptManager {
         }
     }
 
-    #[instrument(level = "trace", target = "receipt", skip_all, err)]
+    #[instrument(
+        level = "trace",
+        target = "receipt",
+        name = "ReceiptManager::tick",
+        skip_all,
+        err
+    )]
     pub async fn tick(&self) -> EyreResult<()> {
+        let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
+            return Ok(());
+        };
+
         let (next_oldest_ts, timeout_task, stop_token) = {
             let inner = self.inner.lock();
             let stop_token = match inner.stop_source.as_ref() {
@@ -291,10 +311,12 @@ impl ReceiptManager {
                 // Single-spawn the timeout task routine
                 let _ = timeout_task
                     .single_spawn(
+                        "receipt timeout",
                         self.clone()
                             .timeout_task_routine(now, stop_token)
-                            .in_current_span(),
+                            .instrument(trace_span!(parent: None, "receipt timeout task")),
                     )
+                    .in_current_span()
                     .await;
             }
         }
@@ -303,6 +325,11 @@ impl ReceiptManager {
 
     pub async fn shutdown(&self) {
         log_net!(debug "starting receipt manager shutdown");
+        let Ok(guard) = self.unlocked_inner.startup_lock.shutdown().await else {
+            log_net!(debug "receipt manager is already shut down");
+            return;
+        };
+
         let network_manager = self.network_manager();
 
         // Stop all tasks
@@ -320,6 +347,8 @@ impl ReceiptManager {
         }
 
         *self.inner.lock() = Self::new_inner(network_manager);
+
+        guard.success();
         log_net!(debug "finished receipt manager shutdown");
     }
 
@@ -332,6 +361,10 @@ impl ReceiptManager {
         expected_returns: u32,
         callback: impl ReceiptCallback,
     ) {
+        let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
+            log_net!(debug "ignoring due to not started up");
+            return;
+        };
         let receipt_nonce = receipt.get_nonce();
         event!(target: "receipt", Level::DEBUG, "== New Multiple Receipt ({}) {} ", expected_returns, receipt_nonce.encode());
         let record = Arc::new(Mutex::new(ReceiptRecord::new(
@@ -353,6 +386,10 @@ impl ReceiptManager {
         expiration: Timestamp,
         eventual: ReceiptSingleShotType,
     ) {
+        let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
+            log_net!(debug "ignoring due to not started up");
+            return;
+        };
         let receipt_nonce = receipt.get_nonce();
         event!(target: "receipt", Level::DEBUG, "== New SingleShot Receipt {}", receipt_nonce.encode());
 
@@ -384,6 +421,8 @@ impl ReceiptManager {
     #[allow(dead_code)]
     pub async fn cancel_receipt(&self, nonce: &Nonce) -> EyreResult<()> {
         event!(target: "receipt", Level::DEBUG, "== Cancel Receipt {}", nonce.encode());
+
+        let _guard = self.unlocked_inner.startup_lock.enter()?;
 
         // Remove the record
         let record = {
@@ -417,6 +456,10 @@ impl ReceiptManager {
         receipt: Receipt,
         receipt_returned: ReceiptReturned,
     ) -> NetworkResult<()> {
+        let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
+            return NetworkResult::service_unavailable("receipt manager not started");
+        };
+
         let receipt_nonce = receipt.get_nonce();
         let extra_data = receipt.get_extra_data();
 

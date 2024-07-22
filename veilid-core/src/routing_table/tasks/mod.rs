@@ -112,6 +112,7 @@ impl RoutingTable {
 
     /// Ticks about once per second
     /// to run tick tasks which may run at slower tick rates as configured
+    #[instrument(level = "trace", name = "RoutingTable::tick", skip_all, err)]
     pub async fn tick(&self) -> EyreResult<()> {
         // Don't tick if paused
         let opt_tick_guard = {

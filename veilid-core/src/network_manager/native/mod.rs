@@ -72,8 +72,6 @@ pub const MAX_CAPABILITIES: usize = 64;
 /////////////////////////////////////////////////////////////////
 
 struct NetworkInner {
-    /// Some(true) if the low-level network is running, Some(false) if it is not, None if it is in transit
-    network_started: Option<bool>,
     /// set if the network needs to be restarted due to a low level configuration change
     /// such as dhcp release or change of address or interfaces being added or removed
     network_needs_restart: bool,
@@ -114,6 +112,9 @@ struct NetworkInner {
 }
 
 struct NetworkUnlockedInner {
+    // Startup lock
+    startup_lock: StartupLock,
+
     // Accessors
     routing_table: RoutingTable,
     network_manager: NetworkManager,
@@ -139,7 +140,6 @@ pub(in crate::network_manager) struct Network {
 impl Network {
     fn new_inner() -> NetworkInner {
         NetworkInner {
-            network_started: Some(false),
             network_needs_restart: false,
             needs_public_dial_info_check: false,
             network_already_cleared: false,
@@ -168,13 +168,14 @@ impl Network {
     ) -> NetworkUnlockedInner {
         let config = network_manager.config();
         NetworkUnlockedInner {
+            startup_lock: StartupLock::new(),
             network_manager,
             routing_table,
             connection_manager,
             interfaces: NetworkInterfaces::new(),
-            update_network_class_task: TickTask::new(1),
-            network_interfaces_task: TickTask::new(1),
-            upnp_task: TickTask::new(1),
+            update_network_class_task: TickTask::new("update_network_class_task", 1),
+            network_interfaces_task: TickTask::new("network_interfaces_task", 1),
+            upnp_task: TickTask::new("upnp_task", 1),
             igd_manager: igd_manager::IGDManager::new(config.clone()),
         }
     }
@@ -335,12 +336,12 @@ impl Network {
         inner.preferred_local_addresses.get(&key).copied()
     }
 
-    pub fn is_stable_interface_address(&self, addr: IpAddr) -> bool {
+    pub(crate) fn is_stable_interface_address(&self, addr: IpAddr) -> bool {
         let stable_addrs = self.get_stable_interface_addresses();
         stable_addrs.contains(&addr)
     }
 
-    pub fn get_stable_interface_addresses(&self) -> Vec<IpAddr> {
+    pub(crate) fn get_stable_interface_addresses(&self) -> Vec<IpAddr> {
         let addrs = self.unlocked_inner.interfaces.stable_addresses();
         let mut addrs: Vec<IpAddr> = addrs
             .into_iter()
@@ -377,7 +378,7 @@ impl Network {
     ////////////////////////////////////////////////////////////
 
     // Record DialInfo failures
-    pub async fn record_dial_info_failure<T, F: Future<Output = EyreResult<NetworkResult<T>>>>(
+    async fn record_dial_info_failure<T, F: Future<Output = EyreResult<NetworkResult<T>>>>(
         &self,
         dial_info: DialInfo,
         fut: F,
@@ -401,6 +402,8 @@ impl Network {
         dial_info: DialInfo,
         data: Vec<u8>,
     ) -> EyreResult<NetworkResult<()>> {
+        let _guard = self.unlocked_inner.startup_lock.enter()?;
+
         self.record_dial_info_failure(
             dial_info.clone(),
             async move {
@@ -476,6 +479,8 @@ impl Network {
         data: Vec<u8>,
         timeout_ms: u32,
     ) -> EyreResult<NetworkResult<Vec<u8>>> {
+        let _guard = self.unlocked_inner.startup_lock.enter()?;
+
         self.record_dial_info_failure(
             dial_info.clone(),
             async move {
@@ -513,7 +518,7 @@ impl Network {
                         let mut out = vec![0u8; MAX_MESSAGE_SIZE];
                         let (recv_len, recv_addr) = network_result_try!(timeout(
                             timeout_ms,
-                            h.recv_message(&mut out).instrument(Span::current())
+                            h.recv_message(&mut out).in_current_span()
                         )
                         .await
                         .into_network_result())
@@ -564,7 +569,7 @@ impl Network {
 
                         let out = network_result_try!(network_result_try!(timeout(
                             timeout_ms,
-                            pnc.recv()
+                            pnc.recv().in_current_span()
                         )
                         .await
                         .into_network_result())
@@ -590,6 +595,8 @@ impl Network {
         flow: Flow,
         data: Vec<u8>,
     ) -> EyreResult<SendDataToExistingFlowResult> {
+        let _guard = self.unlocked_inner.startup_lock.enter()?;
+
         let data_len = data.len();
 
         // Handle connectionless protocol
@@ -655,6 +662,8 @@ impl Network {
         dial_info: DialInfo,
         data: Vec<u8>,
     ) -> EyreResult<NetworkResult<UniqueFlow>> {
+        let _guard = self.unlocked_inner.startup_lock.enter()?;
+
         self.record_dial_info_failure(
             dial_info.clone(),
             async move {
@@ -922,22 +931,22 @@ impl Network {
 
     #[instrument(level = "debug", err, skip_all)]
     pub async fn startup(&self) -> EyreResult<StartupDisposition> {
-        self.inner.lock().network_started = None;
+        let guard = self.unlocked_inner.startup_lock.startup()?;
 
         match self.startup_internal().await {
             Ok(StartupDisposition::Success) => {
                 info!("network started");
-                self.inner.lock().network_started = Some(true);
+                guard.success();
                 Ok(StartupDisposition::Success)
             }
             Ok(StartupDisposition::BindRetry) => {
                 debug!("network bind retry");
-                self.inner.lock().network_started = Some(false);
+                self.shutdown_internal().await;
                 Ok(StartupDisposition::BindRetry)
             }
             Err(e) => {
                 debug!("network failed to start");
-                self.inner.lock().network_started = Some(false);
+                self.shutdown_internal().await;
                 Err(e)
             }
         }
@@ -947,8 +956,8 @@ impl Network {
         self.inner.lock().network_needs_restart
     }
 
-    pub fn is_started(&self) -> Option<bool> {
-        self.inner.lock().network_started
+    pub fn is_started(&self) -> bool {
+        self.unlocked_inner.startup_lock.is_started()
     }
 
     #[instrument(level = "debug", skip_all)]
@@ -957,11 +966,7 @@ impl Network {
     }
 
     #[instrument(level = "debug", skip_all)]
-    pub async fn shutdown(&self) {
-        log_net!(debug "starting low level network shutdown");
-
-        self.inner.lock().network_started = None;
-
+    async fn shutdown_internal(&self) {
         let routing_table = self.routing_table();
 
         // Stop all tasks
@@ -1005,7 +1010,19 @@ impl Network {
 
         // Reset state including network class
         *self.inner.lock() = Self::new_inner();
+    }
 
+    #[instrument(level = "debug", skip_all)]
+    pub async fn shutdown(&self) {
+        log_net!(debug "starting low level network shutdown");
+        let Ok(guard) = self.unlocked_inner.startup_lock.shutdown().await else {
+            log_net!(debug "low level network is already shut down");
+            return;
+        };
+
+        self.shutdown_internal().await;
+
+        guard.success();
         log_net!(debug "finished low level network shutdown");
     }
 
@@ -1014,12 +1031,20 @@ impl Network {
         &self,
         punishment: Option<Box<dyn FnOnce() + Send + 'static>>,
     ) {
+        let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
+            log_net!(debug "ignoring due to not started up");
+            return;
+        };
         let mut inner = self.inner.lock();
         inner.needs_public_dial_info_check = true;
         inner.public_dial_info_check_punishment = punishment;
     }
 
     pub fn needs_public_dial_info_check(&self) -> bool {
+        let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
+            log_net!(debug "ignoring due to not started up");
+            return false;
+        };
         let inner = self.inner.lock();
         inner.needs_public_dial_info_check
     }
@@ -1027,7 +1052,7 @@ impl Network {
     //////////////////////////////////////////
 
     #[instrument(level = "trace", target = "net", skip_all, err)]
-    pub async fn network_interfaces_task_routine(
+    async fn network_interfaces_task_routine(
         self,
         _stop_token: StopToken,
         _l: u64,
@@ -1038,13 +1063,8 @@ impl Network {
         Ok(())
     }
 
-    #[instrument(level = "trace", target = "net", skip_all, err)]
-    pub async fn upnp_task_routine(
-        self,
-        _stop_token: StopToken,
-        _l: u64,
-        _t: u64,
-    ) -> EyreResult<()> {
+    #[instrument(parent = None, level = "trace", target = "net", skip_all, err)]
+    async fn upnp_task_routine(self, _stop_token: StopToken, _l: u64, _t: u64) -> EyreResult<()> {
         if !self.unlocked_inner.igd_manager.tick().await? {
             info!("upnp failed, restarting local network");
             let mut inner = self.inner.lock();
@@ -1054,8 +1074,13 @@ impl Network {
         Ok(())
     }
 
-    #[instrument(level = "trace", target = "net", skip_all, err)]
-    pub async fn tick(&self) -> EyreResult<()> {
+    #[instrument(level = "trace", target = "net", name = "Network::tick", skip_all, err)]
+    pub(crate) async fn tick(&self) -> EyreResult<()> {
+        let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
+            log_net!(debug "ignoring due to not started up");
+            return Ok(());
+        };
+
         let (detect_address_changes, upnp) = {
             let config = self.network_manager().config();
             let c = config.get();

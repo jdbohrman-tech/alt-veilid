@@ -1,4 +1,5 @@
 use super::*;
+use stop_token::future::FutureExt as _;
 
 impl NetworkManager {
     /// Send raw data to a node
@@ -146,7 +147,7 @@ impl NetworkManager {
 
                 Ok(NetworkResult::value(send_data_method))
             }
-            .instrument(trace_span!("send_data")),
+            .in_current_span()
         )
     }
 
@@ -559,6 +560,12 @@ impl NetworkManager {
         target_nr: NodeRef,
         data: Vec<u8>,
     ) -> EyreResult<NetworkResult<UniqueFlow>> {
+
+        // Detect if network is stopping so we can break out of this
+        let Some(stop_token) = self.unlocked_inner.startup_lock.stop_token() else {
+            return Ok(NetworkResult::service_unavailable("network is stopping"));
+        };
+
         // Build a return receipt for the signal
         let receipt_timeout = ms_to_us(
             self.unlocked_inner
@@ -588,30 +595,38 @@ impl NetworkManager {
         let rpc = self.rpc_processor();
         network_result_try!(rpc
             .rpc_call_signal(
-                Destination::relay(relay_nr, target_nr.clone()),
+                Destination::relay(relay_nr.clone(), target_nr.clone()),
                 SignalInfo::ReverseConnect { receipt, peer_info },
             )
             .await
             .wrap_err("failed to send signal")?);
 
         // Wait for the return receipt
-        let inbound_nr = match eventual_value.await.take_value().unwrap() {
-            ReceiptEvent::ReturnedPrivate { private_route: _ }
-            | ReceiptEvent::ReturnedOutOfBand
-            | ReceiptEvent::ReturnedSafety => {
-                return Ok(NetworkResult::invalid_message(
-                    "reverse connect receipt should be returned in-band",
-                ));
+        let inbound_nr = match eventual_value.timeout_at(stop_token).in_current_span().await {
+            Err(_) => {
+                return Ok(NetworkResult::service_unavailable("network is stopping"));
             }
-            ReceiptEvent::ReturnedInBand { inbound_noderef } => inbound_noderef,
-            ReceiptEvent::Expired => {
-                return Ok(NetworkResult::timeout());
-            }
-            ReceiptEvent::Cancelled => {
-                return Ok(NetworkResult::no_connection_other(format!(
-                    "reverse connect receipt cancelled from {}",
-                    target_nr
-                )))
+            Ok(v) => {
+                let receipt_event = v.take_value().unwrap();
+                match receipt_event {
+                    ReceiptEvent::ReturnedPrivate { private_route: _ }
+                    | ReceiptEvent::ReturnedOutOfBand
+                    | ReceiptEvent::ReturnedSafety => {
+                        return Ok(NetworkResult::invalid_message(
+                            "reverse connect receipt should be returned in-band",
+                        ));
+                    }
+                    ReceiptEvent::ReturnedInBand { inbound_noderef } => inbound_noderef,
+                    ReceiptEvent::Expired => {
+                        return Ok(NetworkResult::timeout());
+                    }
+                    ReceiptEvent::Cancelled => {
+                        return Ok(NetworkResult::no_connection_other(format!(
+                            "reverse connect receipt cancelled from {}",
+                            target_nr
+                        )))
+                    }
+                }
             }
         };
 
@@ -634,7 +649,9 @@ impl NetworkManager {
                 )),
             }
         } else {
-            bail!("no reverse connection available")
+            return Ok(NetworkResult::no_connection_other(format!(
+                "reverse connection dropped from {}", target_nr)
+            ));
         }
     }
 
@@ -648,6 +665,11 @@ impl NetworkManager {
         target_nr: NodeRef,
         data: Vec<u8>,
     ) -> EyreResult<NetworkResult<UniqueFlow>> {
+        // Detect if network is stopping so we can break out of this
+        let Some(stop_token) = self.unlocked_inner.startup_lock.stop_token() else {
+            return Ok(NetworkResult::service_unavailable("network is stopping"));
+        };
+
         // Ensure we are filtered down to UDP (the only hole punch protocol supported today)
         assert!(target_nr
             .filter_ref()
@@ -706,23 +728,31 @@ impl NetworkManager {
             .wrap_err("failed to send signal")?);
 
         // Wait for the return receipt
-        let inbound_nr = match eventual_value.await.take_value().unwrap() {
-            ReceiptEvent::ReturnedPrivate { private_route: _ }
-            | ReceiptEvent::ReturnedOutOfBand
-            | ReceiptEvent::ReturnedSafety => {
-                return Ok(NetworkResult::invalid_message(
-                    "hole punch receipt should be returned in-band",
-                ));
+        let inbound_nr = match eventual_value.timeout_at(stop_token).in_current_span().await {
+            Err(_) => {
+                return Ok(NetworkResult::service_unavailable("network is stopping"));
             }
-            ReceiptEvent::ReturnedInBand { inbound_noderef } => inbound_noderef,
-            ReceiptEvent::Expired => {
-                return Ok(NetworkResult::timeout());
-            }
-            ReceiptEvent::Cancelled => {
-                return Ok(NetworkResult::no_connection_other(format!(
-                    "hole punch receipt cancelled from {}",
-                    target_nr
-                )))
+            Ok(v) => {
+                let receipt_event = v.take_value().unwrap();
+                match receipt_event {
+                    ReceiptEvent::ReturnedPrivate { private_route: _ }
+                    | ReceiptEvent::ReturnedOutOfBand
+                    | ReceiptEvent::ReturnedSafety => {
+                        return Ok(NetworkResult::invalid_message(
+                            "hole punch receipt should be returned in-band",
+                        ));
+                    }
+                    ReceiptEvent::ReturnedInBand { inbound_noderef } => inbound_noderef,
+                    ReceiptEvent::Expired => {
+                        return Ok(NetworkResult::timeout());
+                    }
+                    ReceiptEvent::Cancelled => {
+                        return Ok(NetworkResult::no_connection_other(format!(
+                            "hole punch receipt cancelled from {}",
+                            target_nr
+                        )))
+                    }
+                }
             }
         };
 
@@ -749,7 +779,9 @@ impl NetworkManager {
                 )),
             }
         } else {
-            bail!("no hole punch available")
+            return Ok(NetworkResult::no_connection_other(format!(
+                "hole punch dropped from {}", target_nr)
+            ));
         }
     }
 }

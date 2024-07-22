@@ -38,6 +38,7 @@ impl Network {
         Ok(acceptor)
     }
 
+    #[instrument(level = "trace", skip_all)]
     async fn try_tls_handlers(
         &self,
         tls_acceptor: &TlsAcceptor,
@@ -60,7 +61,7 @@ impl Network {
         // read a chunk of the stream
         timeout(
             tls_connection_initial_timeout_ms,
-            ps.peek_exact(&mut first_packet),
+            ps.peek_exact(&mut first_packet).in_current_span(),
         )
         .await
         .wrap_err("tls initial timeout")?
@@ -70,6 +71,7 @@ impl Network {
             .await
     }
 
+    #[instrument(level = "trace", skip_all)]
     async fn try_handlers(
         &self,
         stream: AsyncPeekStream,
@@ -90,6 +92,7 @@ impl Network {
         Ok(None)
     }
 
+    #[instrument(level = "trace", skip_all)]
     async fn tcp_acceptor(
         self,
         tcp_stream: io::Result<TcpStream>,
@@ -132,33 +135,33 @@ impl Network {
             }
         };
 
-        // #[cfg(all(feature = "rt-async-std", unix))]
-        // {
-        //     // async-std does not directly support linger on TcpStream yet
-        //     use std::os::fd::{AsRawFd, FromRawFd};
-        //     if let Err(e) = unsafe { socket2::Socket::from_raw_fd(tcp_stream.as_raw_fd()) }
-        //         .set_linger(Some(core::time::Duration::from_secs(0)))
-        //     {
-        //         log_net!(debug "Couldn't set TCP linger: {}", e);
-        //         return;
-        //     }
-        // }
-        // #[cfg(all(feature = "rt-async-std", windows))]
-        // {
-        //     // async-std does not directly support linger on TcpStream yet
-        //     use std::os::windows::io::{AsRawSocket, FromRawSocket};
-        //     if let Err(e) = unsafe { socket2::Socket::from_raw_socket(tcp_stream.as_raw_socket()) }
-        //         .set_linger(Some(core::time::Duration::from_secs(0)))
-        //     {
-        //         log_net!(debug "Couldn't set TCP linger: {}", e);
-        //         return;
-        //     }
-        // }
-        // #[cfg(not(feature = "rt-async-std"))]
-        // if let Err(e) = tcp_stream.set_linger(Some(core::time::Duration::from_secs(0))) {
-        //     log_net!(debug "Couldn't set TCP linger: {}", e);
-        //     return;
-        // }
+        #[cfg(all(feature = "rt-async-std", unix))]
+        {
+            // async-std does not directly support linger on TcpStream yet
+            use std::os::fd::{AsRawFd, FromRawFd};
+            if let Err(e) = unsafe { socket2::Socket::from_raw_fd(tcp_stream.as_raw_fd()) }
+                .set_linger(Some(core::time::Duration::from_secs(0)))
+            {
+                log_net!(debug "Couldn't set TCP linger: {}", e);
+                return;
+            }
+        }
+        #[cfg(all(feature = "rt-async-std", windows))]
+        {
+            // async-std does not directly support linger on TcpStream yet
+            use std::os::windows::io::{AsRawSocket, FromRawSocket};
+            if let Err(e) = unsafe { socket2::Socket::from_raw_socket(tcp_stream.as_raw_socket()) }
+                .set_linger(Some(core::time::Duration::from_secs(0)))
+            {
+                log_net!(debug "Couldn't set TCP linger: {}", e);
+                return;
+            }
+        }
+        #[cfg(not(feature = "rt-async-std"))]
+        if let Err(e) = tcp_stream.set_linger(Some(core::time::Duration::from_secs(0))) {
+            log_net!(debug "Couldn't set TCP linger: {}", e);
+            return;
+        }
         if let Err(e) = tcp_stream.set_nodelay(true) {
             log_net!(debug "Couldn't set TCP nodelay: {}", e);
             return;
@@ -180,7 +183,7 @@ impl Network {
         // read a chunk of the stream
         if timeout(
             connection_initial_timeout_ms,
-            ps.peek_exact(&mut first_packet),
+            ps.peek_exact(&mut first_packet).in_current_span(),
         )
         .await
         .is_err()
@@ -237,6 +240,7 @@ impl Network {
         }
     }
 
+    #[instrument(level = "trace", skip_all)]
     async fn spawn_socket_listener(&self, addr: SocketAddr) -> EyreResult<bool> {
         // Get config
         let (connection_initial_timeout_ms, tls_connection_initial_timeout_ms) = {
@@ -297,7 +301,7 @@ impl Network {
         let connection_manager = self.connection_manager();
 
         ////////////////////////////////////////////////////////////
-        let jh = spawn(async move {
+        let jh = spawn(&format!("TCP listener {}", addr), async move {
             // moves listener object in and get incoming iterator
             // when this task exists, the listener will close the socket
 
@@ -344,6 +348,7 @@ impl Network {
     /////////////////////////////////////////////////////////////////
 
     // TCP listener that multiplexes ports so multiple protocols can exist on a single port
+    #[instrument(level = "trace", skip_all)]
     pub(super) async fn start_tcp_listener(
         &self,
         bind_set: NetworkBindSet,

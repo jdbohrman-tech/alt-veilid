@@ -134,7 +134,7 @@ impl RawTcpProtocolHandler {
         let mut peekbuf: [u8; PEEK_DETECT_LEN] = [0u8; PEEK_DETECT_LEN];
         if (timeout(
             self.connection_initial_timeout_ms,
-            ps.peek_exact(&mut peekbuf),
+            ps.peek_exact(&mut peekbuf).in_current_span(),
         )
         .await)
             .is_err()

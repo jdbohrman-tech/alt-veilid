@@ -9,6 +9,12 @@ impl RPCProcessor {
         dest: Destination,
         receipt: D,
     ) -> RPCNetworkResult<()> {
+        let _guard = self
+            .unlocked_inner
+            .startup_lock
+            .enter()
+            .map_err(RPCError::map_try_again("not started up"))?;
+
         let receipt = receipt.as_ref().to_vec();
 
         let return_receipt = RPCOperationReturnReceipt::new(receipt)?;

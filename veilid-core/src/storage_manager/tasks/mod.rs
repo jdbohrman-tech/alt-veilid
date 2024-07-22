@@ -80,6 +80,7 @@ impl StorageManager {
         }
     }
 
+    #[instrument(parent = None, level = "trace", target = "stor", name = "StorageManager::tick", skip_all, err)]
     pub async fn tick(&self) -> EyreResult<()> {
         // Run the flush stores task
         self.unlocked_inner.flush_record_stores_task.tick().await?;
@@ -109,6 +110,7 @@ impl StorageManager {
         Ok(())
     }
 
+    #[instrument(level = "trace", target = "stor", skip_all)]
     pub(crate) async fn cancel_tasks(&self) {
         log_stor!(debug "stopping check watched records task");
         if let Err(e) = self.unlocked_inner.check_watched_records_task.stop().await {

@@ -84,9 +84,13 @@ pub struct CmdlineArgs {
     #[arg(long, value_name = "endpoint")]
     otlp: Option<String>,
 
-    /// Turn on flamegraph tracing (experimental, isn't terribly useful)
+    /// Turn on flamegraph tracing (experimental)
     #[arg(long, hide = true, value_name = "PATH", num_args=0..=1, require_equals=true, default_missing_value = "")]
     flame: Option<OsString>,
+
+    /// Turn on perfetto tracing (experimental)
+    #[arg(long, hide = true, value_name = "PATH", num_args=0..=1, require_equals=true, default_missing_value = "")]
+    perfetto: Option<OsString>,
 
     /// Run as an extra daemon on the same machine for testing purposes, specify a number greater than zero to offset the listening ports
     #[arg(long)]
@@ -222,6 +226,18 @@ fn main() -> EyreResult<()> {
         println!("Enabling flamegraph output to {}", flame);
         settingsrw.logging.flame.enabled = true;
         settingsrw.logging.flame.path = flame;
+    }
+    if let Some(perfetto) = args.perfetto {
+        let perfetto = if perfetto.is_empty() {
+            Settings::get_default_perfetto_path(settingsrw.testing.subnode_index)
+                .to_string_lossy()
+                .to_string()
+        } else {
+            perfetto.to_string_lossy().to_string()
+        };
+        println!("Enabling perfetto output to {}", perfetto);
+        settingsrw.logging.perfetto.enabled = true;
+        settingsrw.logging.perfetto.path = perfetto;
     }
 
     if args.no_attach {

@@ -91,9 +91,9 @@ pub fn new_default_tcp_socket(domain: Domain) -> io::Result<Socket> {
 #[instrument(level = "trace", ret)]
 pub fn new_shared_tcp_socket(domain: Domain) -> io::Result<Socket> {
     let socket = Socket::new(domain, Type::STREAM, Some(Protocol::TCP))?;
-    // if let Err(e) = socket.set_linger(Some(core::time::Duration::from_secs(0))) {
-    //     log_net!(error "Couldn't set TCP linger: {}", e);
-    // }
+    if let Err(e) = socket.set_linger(Some(core::time::Duration::from_secs(0))) {
+        log_net!(error "Couldn't set TCP linger: {}", e);
+    }
     if let Err(e) = socket.set_nodelay(true) {
         log_net!(error "Couldn't set TCP nodelay: {}", e);
     }
@@ -162,10 +162,12 @@ pub async fn nonblocking_connect(
     let async_stream = Async::new(std::net::TcpStream::from(socket))?;
 
     // The stream becomes writable when connected
-    timeout_or_try!(timeout(timeout_ms, async_stream.writable())
-        .await
-        .into_timeout_or()
-        .into_result()?);
+    timeout_or_try!(
+        timeout(timeout_ms, async_stream.writable().in_current_span())
+            .await
+            .into_timeout_or()
+            .into_result()?
+    );
 
     // Check low level error
     let async_stream = match async_stream.get_ref().take_error()? {

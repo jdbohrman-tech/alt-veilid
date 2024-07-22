@@ -211,7 +211,7 @@ impl AttachmentManager {
         }
     }
 
-    #[instrument(level = "debug", skip_all)]
+    #[instrument(parent = None, level = "debug", skip_all)]
     async fn attachment_maintainer(self) {
         log_net!(debug "attachment starting");
         self.update_attaching_detaching_state(AttachmentState::Attaching);
@@ -323,7 +323,10 @@ impl AttachmentManager {
             return false;
         }
         inner.maintain_peers = true;
-        inner.attachment_maintainer_jh = Some(spawn(self.clone().attachment_maintainer()));
+        inner.attachment_maintainer_jh = Some(spawn(
+            "attachment maintainer",
+            self.clone().attachment_maintainer(),
+        ));
 
         true
     }

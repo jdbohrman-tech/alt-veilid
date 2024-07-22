@@ -145,7 +145,11 @@ impl ClientApi {
             let t_awg = awg.clone();
 
             // Process the connection
-            spawn(self.clone().handle_ipc_connection(stream, t_awg)).detach();
+            spawn(
+                "client_api handle_ipc_connection",
+                self.clone().handle_ipc_connection(stream, t_awg),
+            )
+            .detach();
         }
 
         // Wait for all connections to terminate
@@ -183,7 +187,11 @@ impl ClientApi {
             let t_awg = awg.clone();
 
             // Process the connection
-            spawn(self.clone().handle_tcp_connection(stream, t_awg)).detach();
+            spawn(
+                "client_api handle_tcp_connection",
+                self.clone().handle_tcp_connection(stream, t_awg),
+            )
+            .detach();
         }
 
         // Wait for all connections to terminate
@@ -543,6 +551,6 @@ impl ClientApi {
         }
 
         let bind_futures_join = join_all(bind_futures);
-        self.inner.lock().join_handle = Some(spawn(bind_futures_join));
+        self.inner.lock().join_handle = Some(spawn("client_api bind_futures", bind_futures_join));
     }
 }

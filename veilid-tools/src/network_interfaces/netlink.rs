@@ -317,7 +317,7 @@ impl PlatformSupportNetlink {
         let (connection, handle, _) = new_connection_with_socket::<RTNetLinkSocket>()?;
 
         // Spawn a connection handler
-        let connection_jh = spawn(connection);
+        let connection_jh = spawn("rtnetlink connection", connection);
 
         // Save the connection
         self.connection_jh = Some(connection_jh);

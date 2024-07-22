@@ -9,6 +9,12 @@ impl RPCProcessor {
         dest: Destination,
         signal_info: SignalInfo,
     ) -> RPCNetworkResult<()> {
+        let _guard = self
+            .unlocked_inner
+            .startup_lock
+            .enter()
+            .map_err(RPCError::map_try_again("not started up"))?;
+
         // Ensure destination never has a private route
         if matches!(
             dest,

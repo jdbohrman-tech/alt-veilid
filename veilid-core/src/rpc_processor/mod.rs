@@ -277,7 +277,7 @@ enum RPCKind {
 /////////////////////////////////////////////////////////////////////
 
 struct RPCProcessorInner {
-    send_channel: Option<flume::Sender<(Option<Id>, RPCMessageEncoded)>>,
+    send_channel: Option<flume::Sender<(Span, RPCMessageEncoded)>>,
     stop_source: Option<StopSource>,
     worker_join_handles: Vec<MustJoinHandle<()>>,
 }
@@ -292,6 +292,7 @@ struct RPCProcessorUnlockedInner {
     update_callback: UpdateCallback,
     waiting_rpc_table: OperationWaiter<RPCMessage, Option<QuestionContext>>,
     waiting_app_call_table: OperationWaiter<Vec<u8>, ()>,
+    startup_lock: StartupLock,
 }
 
 #[derive(Clone)]
@@ -345,6 +346,7 @@ impl RPCProcessor {
             update_callback,
             waiting_rpc_table: OperationWaiter::new(),
             waiting_app_call_table: OperationWaiter::new(),
+            startup_lock: StartupLock::new(),
         }
     }
     pub fn new(network_manager: NetworkManager, update_callback: UpdateCallback) -> Self {
@@ -377,6 +379,7 @@ impl RPCProcessor {
     #[instrument(level = "debug", skip_all, err)]
     pub async fn startup(&self) -> EyreResult<()> {
         log_rpc!(debug "startup rpc processor");
+        let guard = self.unlocked_inner.startup_lock.startup()?;
         {
             let mut inner = self.inner.lock();
 
@@ -389,10 +392,10 @@ impl RPCProcessor {
                 "Spinning up {} RPC workers",
                 self.unlocked_inner.concurrency
             );
-            for _ in 0..self.unlocked_inner.concurrency {
+            for task_n in 0..self.unlocked_inner.concurrency {
                 let this = self.clone();
                 let receiver = channel.1.clone();
-                let jh = spawn(Self::rpc_worker(
+                let jh = spawn(&format!("rpc worker {}",task_n), Self::rpc_worker(
                     this,
                     inner.stop_source.as_ref().unwrap().token(),
                     receiver,
@@ -405,13 +408,18 @@ impl RPCProcessor {
         self.storage_manager
             .set_rpc_processor(Some(self.clone()))
             .await;
-
+        
+        guard.success();
         Ok(())
     }
 
     #[instrument(level = "debug", skip_all)]
     pub async fn shutdown(&self) {
         log_rpc!(debug "starting rpc processor shutdown");
+        let Ok(guard) = self.unlocked_inner.startup_lock.shutdown().await else {
+            log_rpc!(debug "rpc processor already shut down");
+            return;
+        };
 
         // Stop storage manager from using us
         self.storage_manager.set_rpc_processor(None).await;
@@ -437,6 +445,7 @@ impl RPCProcessor {
         // Release the rpc processor
         *self.inner.lock() = Self::new_inner();
 
+        guard.success();
         log_rpc!(debug "finished rpc processor shutdown");
     }
 
@@ -536,9 +545,11 @@ impl RPCProcessor {
         &self,
         node_id: TypedKey,
         safety_selection: SafetySelection,
-    ) -> SendPinBoxFuture<Result<Option<NodeRef>, RPCError>> {
+    ) -> SendPinBoxFuture<Result<Option<NodeRef>, RPCError>> {        
         let this = self.clone();
         Box::pin(async move {
+            let _guard = this.unlocked_inner.startup_lock.enter().map_err(RPCError::map_try_again("not started up"))?;
+
             let routing_table = this.routing_table();
 
             // First see if we have the node in our routing table already
@@ -579,7 +590,7 @@ impl RPCProcessor {
             };
 
             Ok(nr)
-        })
+        }.in_current_span())
     }
 
     #[instrument(level="trace", target="rpc", skip_all)]
@@ -1651,31 +1662,31 @@ impl RPCProcessor {
                 RPCStatementDetail::AppMessage(_) => self.process_app_message(msg).await,
             },
             RPCOperationKind::Answer(_) => {
-                self.unlocked_inner
+                let op_id = msg.operation.op_id();
+                if let Err(e) = self.unlocked_inner
                     .waiting_rpc_table
-                    .complete_op_waiter(msg.operation.op_id(), msg)
-                    .await?;
+                    .complete_op_waiter(op_id, msg) {
+                        log_rpc!(debug "Operation id {} did not complete: {}", op_id, e);
+                        // Don't throw an error here because it's okay if the original operation timed out
+                    }
                 Ok(NetworkResult::value(()))
             }
         }
     }
 
-    #[instrument(level="trace", target="rpc", skip_all)]
     async fn rpc_worker(
         self,
         stop_token: StopToken,
-        receiver: flume::Receiver<(Option<Id>, RPCMessageEncoded)>,
+        receiver: flume::Receiver<(Span, RPCMessageEncoded)>,
     ) {
-        while let Ok(Ok((_span_id, msg))) =
+        while let Ok(Ok((prev_span, msg))) =
             receiver.recv_async().timeout_at(stop_token.clone()).await
-        {
-            //let rpc_worker_span = span!(parent: None, Level::TRACE, "rpc_worker recv");
-            // xxx: causes crash (Missing otel data span extensions)
-            // rpc_worker_span.follows_from(span_id);
-                    
+        {                    
+            let rpc_message_span = tracing::trace_span!("rpc message");
+            rpc_message_span.follows_from(prev_span);
+            
             network_result_value_or_log!(match self
-                .process_rpc_message(msg).in_current_span()
-                //.instrument(rpc_worker_span)
+                .process_rpc_message(msg).instrument(rpc_message_span)
                 .await
             {
                 Err(e) => {
@@ -1699,6 +1710,8 @@ impl RPCProcessor {
         routing_domain: RoutingDomain,
         body: Vec<u8>,
     ) -> EyreResult<()> {
+        let _guard = self.unlocked_inner.startup_lock.enter().map_err(RPCError::map_try_again("not started up"))?;
+
         let header = RPCMessageHeader {
             detail: RPCMessageHeaderDetail::Direct(RPCMessageHeaderDetailDirect {
                 envelope,
@@ -1722,9 +1735,8 @@ impl RPCProcessor {
             };
             send_channel
         };
-        let span_id = Span::current().id();
         send_channel
-            .try_send((span_id, msg))
+            .try_send((Span::current(), msg))
             .map_err(|e| eyre!("failed to enqueue direct RPC message: {}", e))?;
         Ok(())
     }
@@ -1758,9 +1770,8 @@ impl RPCProcessor {
             };
             send_channel
         };
-        let span_id = Span::current().id();
         send_channel
-            .try_send((span_id, msg))
+            .try_send((Span::current(), msg))
             .map_err(|e| eyre!("failed to enqueue safety routed RPC message: {}", e))?;
         Ok(())
     }
@@ -1797,9 +1808,8 @@ impl RPCProcessor {
             };
             send_channel
         };
-        let span_id = Span::current().id();
         send_channel
-            .try_send((span_id, msg))
+            .try_send((Span::current(), msg))
             .map_err(|e| eyre!("failed to enqueue private routed RPC message: {}", e))?;
         Ok(())
     }

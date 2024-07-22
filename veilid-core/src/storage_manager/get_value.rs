@@ -182,7 +182,7 @@ impl StorageManager {
                     log_network_result!(debug "GetValue fanout call returned peers {}", gva.answer.peers.len());
 
                     Ok(NetworkResult::value(gva.answer.peers))
-                }.in_current_span()
+                }.instrument(tracing::trace_span!("outbound_get_value fanout routine"))
             }
         };
 
@@ -225,7 +225,7 @@ impl StorageManager {
         };
 
         // Call the fanout in a spawned task
-        spawn(Box::pin(async move {
+        spawn("outbound_get_value fanout", Box::pin(async move {
             let fanout_call = FanoutCall::new(
                 routing_table.clone(),
                 key,
@@ -271,7 +271,7 @@ impl StorageManager {
             })) {
                 log_dht!(debug "Sending GetValue result failed: {}", e);
             }
-        }.in_current_span()))
+        }.instrument(tracing::trace_span!("outbound_get_value result"))))
         .detach();
 
         Ok(out_rx)
@@ -319,7 +319,7 @@ impl StorageManager {
 
                         // Return done
                         false
-                    }.in_current_span())
+                    }.instrument(tracing::trace_span!("outbound_get_value deferred results")))
                 },
             ),
         );

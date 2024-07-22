@@ -337,6 +337,7 @@ impl AddressFilter {
             .or_insert(punishment);
     }
 
+    #[instrument(parent = None, level = "trace", skip_all, err)]
     pub async fn address_filter_task_routine(
         self,
         _stop_token: StopToken,

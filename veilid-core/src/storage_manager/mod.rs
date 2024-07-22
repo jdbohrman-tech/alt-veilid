@@ -89,11 +89,26 @@ impl StorageManager {
             table_store,
             #[cfg(feature = "unstable-blockstore")]
             block_store,
-            flush_record_stores_task: TickTask::new(FLUSH_RECORD_STORES_INTERVAL_SECS),
-            offline_subkey_writes_task: TickTask::new(OFFLINE_SUBKEY_WRITES_INTERVAL_SECS),
-            send_value_changes_task: TickTask::new(SEND_VALUE_CHANGES_INTERVAL_SECS),
-            check_active_watches_task: TickTask::new(CHECK_ACTIVE_WATCHES_INTERVAL_SECS),
-            check_watched_records_task: TickTask::new(CHECK_WATCHED_RECORDS_INTERVAL_SECS),
+            flush_record_stores_task: TickTask::new(
+                "flush_record_stores_task",
+                FLUSH_RECORD_STORES_INTERVAL_SECS,
+            ),
+            offline_subkey_writes_task: TickTask::new(
+                "offline_subkey_writes_task",
+                OFFLINE_SUBKEY_WRITES_INTERVAL_SECS,
+            ),
+            send_value_changes_task: TickTask::new(
+                "send_value_changes_task",
+                SEND_VALUE_CHANGES_INTERVAL_SECS,
+            ),
+            check_active_watches_task: TickTask::new(
+                "check_active_watches_task",
+                CHECK_ACTIVE_WATCHES_INTERVAL_SECS,
+            ),
+            check_watched_records_task: TickTask::new(
+                "check_watched_records_task",
+                CHECK_WATCHED_RECORDS_INTERVAL_SECS,
+            ),
 
             anonymous_watch_keys,
         }

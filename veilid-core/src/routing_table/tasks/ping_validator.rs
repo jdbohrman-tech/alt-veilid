@@ -114,7 +114,6 @@ impl RoutingTable {
                     rpc.rpc_call_status(Destination::direct(relay_nr_filtered))
                         .await
                 }
-                .instrument(Span::current())
                 .boxed(),
             );
         }
@@ -159,9 +158,7 @@ impl RoutingTable {
             log_rtab!("--> Watch ping to {:?}", watch_nr);
 
             futurequeue.push_back(
-                async move { rpc.rpc_call_status(Destination::direct(watch_nr)).await }
-                    .instrument(Span::current())
-                    .boxed(),
+                async move { rpc.rpc_call_status(Destination::direct(watch_nr)).await }.boxed(),
             );
         }
         Ok(())
@@ -198,9 +195,7 @@ impl RoutingTable {
             let rpc = rpc.clone();
             log_rtab!("--> Validator ping to {:?}", nr);
             futurequeue.push_back(
-                async move { rpc.rpc_call_status(Destination::direct(nr)).await }
-                    .instrument(Span::current())
-                    .boxed(),
+                async move { rpc.rpc_call_status(Destination::direct(nr)).await }.boxed(),
             );
         }
 
@@ -226,9 +221,7 @@ impl RoutingTable {
 
             // Just do a single ping with the best protocol for all the nodes
             futurequeue.push_back(
-                async move { rpc.rpc_call_status(Destination::direct(nr)).await }
-                    .instrument(Span::current())
-                    .boxed(),
+                async move { rpc.rpc_call_status(Destination::direct(nr)).await }.boxed(),
             );
         }
 
@@ -258,10 +251,19 @@ impl RoutingTable {
         let mut unord = FuturesUnordered::new();
 
         while !unord.is_empty() || !futurequeue.is_empty() {
-            #[cfg(feature = "verbose-tracing")]
-            log_rtab!(debug "Ping validation queue: {} remaining, {} in progress", futurequeue.len(), unord.len());
+            log_rtab!(
+                "Ping validation queue: {} remaining, {} in progress",
+                futurequeue.len(),
+                unord.len()
+            );
+
             // Process one unordered futures if we have some
-            match unord.next().timeout_at(stop_token.clone()).await {
+            match unord
+                .next()
+                .timeout_at(stop_token.clone())
+                .in_current_span()
+                .await
+            {
                 Ok(Some(_)) => {
                     // Some ping completed
                 }

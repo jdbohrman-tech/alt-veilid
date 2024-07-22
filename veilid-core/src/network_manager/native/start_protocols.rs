@@ -84,6 +84,7 @@ impl Network {
 
     // Returns a port, a set of ip addresses to bind to, and a
     // bool specifying if multiple ports should be tried
+    #[instrument(level = "trace", skip_all)]
     async fn convert_listen_address_to_bind_set(
         &self,
         listen_address: String,
@@ -136,6 +137,7 @@ impl Network {
 
     /////////////////////////////////////////////////////
 
+    #[instrument(level = "trace", skip_all)]
     pub(super) async fn bind_udp_protocol_handlers(
         &self,
         editor_public_internet: &mut RoutingDomainEditor,
@@ -249,6 +251,7 @@ impl Network {
         Ok(StartupDisposition::Success)
     }
 
+    #[instrument(level = "trace", skip_all)]
     pub(super) async fn start_ws_listeners(
         &self,
         editor_public_internet: &mut RoutingDomainEditor,
@@ -364,6 +367,7 @@ impl Network {
         Ok(StartupDisposition::Success)
     }
 
+    #[instrument(level = "trace", skip_all)]
     pub(super) async fn start_wss_listeners(
         &self,
         editor_public_internet: &mut RoutingDomainEditor,
@@ -463,6 +467,7 @@ impl Network {
         Ok(StartupDisposition::Success)
     }
 
+    #[instrument(level = "trace", skip_all)]
     pub(super) async fn start_tcp_listeners(
         &self,
         editor_public_internet: &mut RoutingDomainEditor,

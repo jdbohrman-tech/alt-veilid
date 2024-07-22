@@ -9,6 +9,12 @@ impl RPCProcessor {
         dest: Destination,
         message: Vec<u8>,
     ) -> RPCNetworkResult<Answer<Vec<u8>>> {
+        let _guard = self
+            .unlocked_inner
+            .startup_lock
+            .enter()
+            .map_err(RPCError::map_try_again("not started up"))?;
+
         let debug_string = format!("AppCall(message(len)={}) => {}", message.len(), dest);
 
         let app_call_q = RPCOperationAppCallQ::new(message)?;
@@ -147,14 +153,15 @@ impl RPCProcessor {
 
     /// Exposed to API for apps to return app call answers
     #[instrument(level = "trace", target = "rpc", skip_all)]
-    pub async fn app_call_reply(
-        &self,
-        call_id: OperationId,
-        message: Vec<u8>,
-    ) -> Result<(), RPCError> {
+    pub fn app_call_reply(&self, call_id: OperationId, message: Vec<u8>) -> Result<(), RPCError> {
+        let _guard = self
+            .unlocked_inner
+            .startup_lock
+            .enter()
+            .map_err(RPCError::map_try_again("not started up"))?;
         self.unlocked_inner
             .waiting_app_call_table
             .complete_op_waiter(call_id, message)
-            .await
+            .map_err(RPCError::ignore)
     }
 }

@@ -8,7 +8,9 @@ cfg_if! {
         where
             F: Future<Output = T>,
         {
-            match select(Box::pin(sleep(dur_ms)), Box::pin(f)).await {
+            let tout = select(Box::pin(sleep(dur_ms)), Box::pin(f));
+
+            match tout.await {
                 Either::Left((_x, _b)) => Err(TimeoutError()),
                 Either::Right((y, _a)) => Ok(y),
             }
@@ -22,11 +24,13 @@ cfg_if! {
         {
             cfg_if! {
                 if #[cfg(feature="rt-async-std")] {
-                    async_std::future::timeout(Duration::from_millis(dur_ms as u64), f).await.map_err(|e| e.into())
+                    let tout = async_std::future::timeout(Duration::from_millis(dur_ms as u64), f);
                 } else if #[cfg(feature="rt-tokio")] {
-                    tokio::time::timeout(Duration::from_millis(dur_ms as u64), f).await.map_err(|e| e.into())
+                    let tout = tokio::time::timeout(Duration::from_millis(dur_ms as u64), f);
                 }
             }
+
+            tout.await.map_err(|e| e.into())
         }
 
     }

@@ -104,7 +104,7 @@ where
         match out {
             None => task::Poll::<Self::Output>::Pending,
             Some(wakers) => {
-                // Wake all EventualResolvedFutures
+                // Wake all other instance futures
                 for w in wakers {
                     w.wake();
                 }
