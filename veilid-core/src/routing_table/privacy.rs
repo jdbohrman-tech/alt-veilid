@@ -33,6 +33,7 @@ impl RouteNode {
         &self,
         routing_table: RoutingTable,
         crypto_kind: CryptoKind,
+        safety_domain_set: SafetyDomainSet,
     ) -> Option<NodeRef> {
         match self {
             RouteNode::NodeId(id) => {
@@ -49,6 +50,7 @@ impl RouteNode {
                 //
                 match routing_table.register_node_with_peer_info(
                     RoutingDomain::PublicInternet,
+                    safety_domain_set,
                     *pi.clone(),
                     false,
                 ) {
@@ -116,7 +118,9 @@ impl PrivateRouteHops {
 pub(crate) struct PrivateRoute {
     /// The public key used for the entire route
     pub public_key: TypedKey,
+    /// The number of hops in the 'hops' structure
     pub hop_count: u8,
+    /// The encoded hops structure
     pub hops: PrivateRouteHops,
 }
 
@@ -130,6 +134,7 @@ impl PrivateRoute {
                 node,
                 next_hop: None,
             })),
+            safety_domain_set: SafetyDomainSet::all(),
         }
     }
 
@@ -193,7 +198,7 @@ impl fmt::Display for PrivateRoute {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "PR({:?}+{}{})",
+            "PR({:?}+{}{}{})",
             self.public_key,
             self.hop_count,
             match &self.hops {
@@ -211,7 +216,8 @@ impl fmt::Display for PrivateRoute {
                 PrivateRouteHops::Empty => {
                     "".to_owned()
                 }
-            }
+            },
+            SafetyDomain::print_set(self.safety_domain_set),
         )
     }
 }

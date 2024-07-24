@@ -225,7 +225,7 @@ impl StorageManager {
                 }
 
                 // Return peers if we have some
-                log_network_result!(debug "InspectValue fanout call returned peers {}", answer.peers.len());
+                log_network_result!(debug "InspectValue fanout call returned peers {}", answer.peers.peer_info_list.len());
 
                 Ok(NetworkResult::value(answer.peers))
             }.instrument(tracing::trace_span!("outbound_inspect_value fanout call"))

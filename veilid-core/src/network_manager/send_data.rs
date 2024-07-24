@@ -15,10 +15,14 @@ impl NetworkManager {
     #[instrument(level="trace", target="net", skip_all, err)]
     pub(crate) async fn send_data(
         &self,
+        safety_domain: SafetyDomain,
         destination_node_ref: NodeRef,
         data: Vec<u8>,
     ) -> EyreResult<NetworkResult<SendDataMethod>> {
+
         // First try to send data to the last flow we've seen this peer on
+        // If we have an existing flow, then we do not need to check the safety domain
+        // as a connection has already been established
         let data = if let Some(flow) = destination_node_ref.last_flow() {
             match self
                 .net()
@@ -52,11 +56,12 @@ impl NetworkManager {
         // Get the best way to contact this node
         let possibly_relayed_contact_method = self.get_node_contact_method(destination_node_ref.clone())?;
 
-        self.try_possibly_relayed_contact_method(possibly_relayed_contact_method, destination_node_ref, data).await
+        self.try_possibly_relayed_contact_method(safety_domain, possibly_relayed_contact_method, destination_node_ref, data).await
     }
 
     #[instrument(level="trace", target="net", skip_all)]
     pub(crate) fn try_possibly_relayed_contact_method(&self, 
+        safety_domain: SafetyDomain,
         possibly_relayed_contact_method: NodeContactMethod,
         destination_node_ref: NodeRef,
         data: Vec<u8>,
@@ -70,6 +75,7 @@ impl NetworkManager {
                     NodeContactMethod::OutboundRelay(relay_nr)
                     | NodeContactMethod::InboundRelay(relay_nr) => {
                         let cm = this.get_node_contact_method(relay_nr.clone())?;
+
                         (cm, relay_nr, Some(possibly_relayed_contact_method))
                     }
                     cm => (cm, destination_node_ref.clone(), None),
@@ -103,40 +109,61 @@ impl NetworkManager {
                         );
                     }
                     NodeContactMethod::Direct(dial_info) => {
+                        // Ensure we're not sending in an unsafe context to a safety-only node
+                        if !target_node_ref.safety_domains().contains(safety_domain) {
+                            bail!("should not be sending direct to invalid safety domain: target={}", target_node_ref);
+                        }
+
                         network_result_try!(
                             this.send_data_ncm_direct(target_node_ref, dial_info, data).await?
                         )
                     }
-                    NodeContactMethod::SignalReverse(relay_nr, target_node_ref) => {
+                    NodeContactMethod::SignalReverse(relay_node_ref, target_node_ref) => {
+
+                        // Ensure we're not sending in an unsafe context to a safety-only node
+                        if !target_node_ref.safety_domains().contains(safety_domain) || !relay_node_ref.safety_domains().contains(safety_domain) {
+                            bail!("should not be sending signal reverse to invalid safety domain: target={}, relay={}", target_node_ref, relay_node_ref);
+                        }
+
                         let nres = 
-                            this.send_data_ncm_signal_reverse(relay_nr.clone(), target_node_ref.clone(), data.clone())
+                            this.send_data_ncm_signal_reverse(relay_node_ref.clone(), target_node_ref.clone(), data.clone())
                                 .await?;
                         if matches!(nres, NetworkResult::Timeout) {
                             // Failed to holepunch, fallback to inbound relay
-                            log_network_result!(debug "Reverse connection failed to {}, falling back to inbound relay via {}", target_node_ref, relay_nr);
-                            network_result_try!(this.try_possibly_relayed_contact_method(NodeContactMethod::InboundRelay(relay_nr), destination_node_ref, data).await?)
+                            log_network_result!(debug "Reverse connection failed to {}, falling back to inbound relay via {}", target_node_ref, relay_node_ref);
+                            network_result_try!(this.try_possibly_relayed_contact_method(safety_domain, NodeContactMethod::InboundRelay(relay_node_ref), destination_node_ref, data).await?)
                         } else {
                             network_result_try!(nres)
                         }
                     }
-                    NodeContactMethod::SignalHolePunch(relay_nr, target_node_ref) => {
+                    NodeContactMethod::SignalHolePunch(relay_node_ref, target_node_ref) => {
+
+                        // Ensure we're not sending in an unsafe context to a safety-only node
+                        if !target_node_ref.safety_domains().contains(safety_domain) || !relay_node_ref.safety_domains().contains(safety_domain) {
+                            bail!("should not be sending signal hole punch to invalid safety domain: target={}, relay={}", target_node_ref, relay_node_ref);
+                        }
+
                         let nres = 
-                            this.send_data_ncm_signal_hole_punch(relay_nr.clone(), target_node_ref.clone(), data.clone())
+                            this.send_data_ncm_signal_hole_punch(relay_node_ref.clone(), target_node_ref.clone(), data.clone())
                                 .await?;
                         if matches!(nres, NetworkResult::Timeout) {
                             // Failed to holepunch, fallback to inbound relay
-                            log_network_result!(debug "Hole punch failed to {}, falling back to inbound relay via {}", target_node_ref, relay_nr);
-                            network_result_try!(this.try_possibly_relayed_contact_method(NodeContactMethod::InboundRelay(relay_nr), destination_node_ref, data).await?)
+                            log_network_result!(debug "Hole punch failed to {}, falling back to inbound relay via {}", target_node_ref, relay_node_ref);
+                            network_result_try!(this.try_possibly_relayed_contact_method(safety_domain, NodeContactMethod::InboundRelay(relay_node_ref), destination_node_ref, data).await?)
                         } else {
                             network_result_try!(nres)
                         }
                     }
                     NodeContactMethod::Existing => {
+                        // If we have an existing flow, then we do not need to check the safety domain
+                        // as a connection has already been established
                         network_result_try!(
                             this.send_data_ncm_existing(target_node_ref, data).await?
                         )
                     }
                     NodeContactMethod::Unreachable => {
+                        // If we have no way of reaching this node, try a last ditch effort to reach if over an existing
+                        // incoming connection
                         network_result_try!(
                             this.send_data_ncm_unreachable(target_node_ref, data)
                                 .await?

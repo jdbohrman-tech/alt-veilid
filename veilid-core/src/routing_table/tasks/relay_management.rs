@@ -111,6 +111,7 @@ impl RoutingTable {
                     // Register new outbound relay
                     match self.register_node_with_peer_info(
                         RoutingDomain::PublicInternet,
+                        SafetyDomainSet::all(),
                         outbound_relay_peerinfo,
                         false,
                     ) {
@@ -247,32 +248,38 @@ impl RoutingTable {
         let mut best_inbound_relay: Option<Arc<BucketEntry>> = None;
 
         // Iterate all known nodes for candidates
-        inner.with_entries(cur_ts, BucketEntryState::Unreliable, |rti, entry| {
-            let entry2 = entry.clone();
-            entry.with(rti, |rti, e| {
-                // Filter this node
-                if relay_node_filter(e) {
-                    // Compare against previous candidate
-                    if let Some(best_inbound_relay) = best_inbound_relay.as_mut() {
-                        // Less is faster
-                        let better = best_inbound_relay.with(rti, |_rti, best| {
-                            // choose low latency stability for relays
-                            BucketEntryInner::cmp_fastest_reliable(cur_ts, e, best)
-                                == std::cmp::Ordering::Less
-                        });
-                        // Now apply filter function and see if this node should be included
-                        if better {
-                            *best_inbound_relay = entry2;
+        // Only consider nodes that are in the SafetyDomain::Unsafe
+        inner.with_entries(
+            cur_ts,
+            SafetyDomain::Unsafe.into(),
+            BucketEntryState::Unreliable,
+            |rti, entry| {
+                let entry2 = entry.clone();
+                entry.with(rti, |rti, e| {
+                    // Filter this node
+                    if relay_node_filter(e) {
+                        // Compare against previous candidate
+                        if let Some(best_inbound_relay) = best_inbound_relay.as_mut() {
+                            // Less is faster
+                            let better = best_inbound_relay.with(rti, |_rti, best| {
+                                // choose low latency stability for relays
+                                BucketEntryInner::cmp_fastest_reliable(cur_ts, e, best)
+                                    == std::cmp::Ordering::Less
+                            });
+                            // Now apply filter function and see if this node should be included
+                            if better {
+                                *best_inbound_relay = entry2;
+                            }
+                        } else {
+                            // Always store the first candidate
+                            best_inbound_relay = Some(entry2);
                         }
-                    } else {
-                        // Always store the first candidate
-                        best_inbound_relay = Some(entry2);
                     }
-                }
-            });
-            // Don't end early, iterate through all entries
-            Option::<()>::None
-        });
+                });
+                // Don't end early, iterate through all entries
+                Option::<()>::None
+            },
+        );
         // Return the best inbound relay noderef
         best_inbound_relay.map(|e| NodeRef::new(self.clone(), e, None))
     }

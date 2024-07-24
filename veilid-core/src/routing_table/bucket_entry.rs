@@ -149,6 +149,10 @@ pub(crate) struct BucketEntryInner {
     /// If the entry is being punished and should be considered dead
     #[serde(skip)]
     punishment: Option<PunishmentReason>,
+    /// If this node is seen in an unsafe context it is safe to contact 
+    /// unsafely and use in the construction of safety routes
+    /// This tracks what domains this peer is safe to be contacted in
+    safety_domains: SafetyDomainSet,
     /// Tracking identifier for NodeRef debugging
     #[cfg(feature = "tracking")]
     #[serde(skip)]
@@ -404,6 +408,14 @@ impl BucketEntryInner {
             NodeRefFilter::from(routing_domain),
         );
         !last_flows.is_empty()
+    }
+
+    pub fn safety_domains(&self) -> SafetyDomainSet {
+        self.safety_domains
+    }
+
+    pub fn set_safety_domains<S: Into<SafetyDomainSet>>(&mut self, s: S)  {
+        self.safety_domains = s.into();
     }
 
     pub fn node_info(&self, routing_domain: RoutingDomain) -> Option<&NodeInfo> {
@@ -972,6 +984,7 @@ impl BucketEntry {
             latency_stats_accounting: LatencyStatsAccounting::new(),
             transfer_stats_accounting: TransferStatsAccounting::new(),
             punishment: None,
+            safety_domains: SafetyDomainSet::empty(),
             #[cfg(feature = "tracking")]
             next_track_id: 0,
             #[cfg(feature = "tracking")]

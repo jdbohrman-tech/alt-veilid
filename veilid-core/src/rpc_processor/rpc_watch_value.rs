@@ -4,7 +4,7 @@ use super::*;
 pub struct WatchValueAnswer {
     pub accepted: bool,
     pub expiration_ts: Timestamp,
-    pub peers: Vec<PeerInfo>,
+    pub peers: PeerInfoResponse,
     pub watch_id: u64,
 }
 
@@ -86,6 +86,12 @@ impl RPCProcessor {
 
         log_dht!(debug "{}", debug_string);
 
+        let safety_domain_set = if dest.has_safety_route() {
+            SafetyDomain::Safe.into()
+        } else {
+            SafetyDomainSet::all()
+        };
+
         let waitable_reply =
             network_result_try!(self.question(dest.clone(), question, None).await?);
 
@@ -108,7 +114,7 @@ impl RPCProcessor {
             _ => return Ok(NetworkResult::invalid_message("not an answer")),
         };
         let question_watch_id = watch_id;
-        let (accepted, expiration, peers, watch_id) = watch_value_a.destructure();
+        let (accepted, expiration, peer_info_list, watch_id) = watch_value_a.destructure();
         if debug_target_enabled!("dht") {
             let debug_string_answer = format!(
                 "OUT <== WatchValueA({}id={} {} #{:?}@{} peers={}) <= {}",
@@ -117,13 +123,13 @@ impl RPCProcessor {
                 key,
                 subkeys,
                 expiration,
-                peers.len(),
+                peer_info_list.len(),
                 dest
             );
 
             log_dht!(debug "{}", debug_string_answer);
 
-            let peer_ids: Vec<String> = peers
+            let peer_ids: Vec<String> = peer_info_list
                 .iter()
                 .filter_map(|p| p.node_ids().get(key.kind).map(|k| k.to_string()))
                 .collect();
@@ -150,7 +156,12 @@ impl RPCProcessor {
         }
 
         // Validate peers returned are, in fact, closer to the key than the node we sent this to
-        let valid = match RoutingTable::verify_peers_closer(vcrypto, target_node_id, key, &peers) {
+        let valid = match RoutingTable::verify_peers_closer(
+            vcrypto,
+            target_node_id,
+            key,
+            &peer_info_list,
+        ) {
             Ok(v) => v,
             Err(e) => {
                 return Ok(NetworkResult::invalid_message(format!(
@@ -168,7 +179,7 @@ impl RPCProcessor {
         #[cfg(feature = "verbose-tracing")]
         tracing::Span::current().record("ret.expiration", latency.as_u64());
         #[cfg(feature = "verbose-tracing")]
-        tracing::Span::current().record("ret.peers.len", peers.len());
+        tracing::Span::current().record("ret.peers.len", peer_info_list.len());
 
         Ok(NetworkResult::value(Answer::new(
             latency,
@@ -176,7 +187,10 @@ impl RPCProcessor {
             WatchValueAnswer {
                 accepted,
                 expiration_ts: Timestamp::new(expiration),
-                peers,
+                peers: PeerInfoResponse {
+                    safety_domain_set,
+                    peer_info_list,
+                },
                 watch_id,
             },
         )))

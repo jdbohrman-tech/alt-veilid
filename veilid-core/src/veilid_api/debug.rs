@@ -224,11 +224,20 @@ fn get_destination(
         let text = text.to_owned();
         Box::pin(async move {
             // Safety selection
-            let (text, ss) = if let Some((first, second)) = text.split_once('+') {
+            let (text, oss) = if let Some((first, second)) = text.split_once('+') {
                 let ss = get_safety_selection(routing_table.clone())(second)?;
                 (first, Some(ss))
             } else {
                 (text.as_str(), None)
+            };
+            if text.is_empty() {
+                return None;
+            }
+            // Override safety domain
+            let (text, osd) = if let Some(first) = text.strip_suffix("*SAFE") {
+                (first, Some(SafetyDomain::Safe))
+            } else {
+                (text, None)
             };
             if text.is_empty() {
                 return None;
@@ -254,11 +263,14 @@ fn get_destination(
                     };
                     private_route
                 };
-
-                Some(Destination::private_route(
+                let mut d = Destination::private_route(
                     private_route,
-                    ss.unwrap_or(SafetySelection::Unsafe(Sequencing::default())),
-                ))
+                    oss.unwrap_or(SafetySelection::Unsafe(Sequencing::default())),
+                );
+                if let Some(sd) = osd {
+                    d = d.with_override_safety_domain(sd);
+                }
+                Some(d)
             } else {
                 let (text, mods) = text
                     .split_once('/')
@@ -274,25 +286,29 @@ fn get_destination(
                     }
 
                     let mut d = Destination::relay(relay_nr, target_nr);
-                    if let Some(ss) = ss {
+                    if let Some(ss) = oss {
                         d = d.with_safety(ss)
                     }
-
+                    if let Some(sd) = osd {
+                        d = d.with_override_safety_domain(sd);
+                    }
                     Some(d)
                 } else {
                     // Direct
                     let mut target_nr =
-                        resolve_node_ref(routing_table, ss.unwrap_or_default())(text).await?;
+                        resolve_node_ref(routing_table, oss.unwrap_or_default())(text).await?;
 
                     if let Some(mods) = mods {
                         target_nr = get_node_ref_modifiers(target_nr)(mods)?;
                     }
 
                     let mut d = Destination::direct(target_nr);
-                    if let Some(ss) = ss {
+                    if let Some(ss) = oss {
                         d = d.with_safety(ss)
                     }
-
+                    if let Some(sd) = osd {
+                        d = d.with_override_safety_domain(sd);
+                    }
                     Some(d)
                 }
             }
@@ -968,6 +984,7 @@ impl VeilidAPI {
             Destination::Direct {
                 node: target,
                 safety_selection: _,
+                opt_override_safety_domain: _,
             } => Ok(format!(
                 "Destination: {:#?}\nTarget Entry:\n{}\n",
                 &dest,
@@ -977,6 +994,7 @@ impl VeilidAPI {
                 relay,
                 node: target,
                 safety_selection: _,
+                opt_override_safety_domain: _,
             } => Ok(format!(
                 "Destination: {:#?}\nTarget Entry:\n{}\nRelay Entry:\n{}\n",
                 &dest,
@@ -986,6 +1004,7 @@ impl VeilidAPI {
             Destination::PrivateRoute {
                 private_route: _,
                 safety_selection: _,
+                opt_override_safety_domain: _,
             } => Ok(format!("Destination: {:#?}", &dest)),
         }
     }

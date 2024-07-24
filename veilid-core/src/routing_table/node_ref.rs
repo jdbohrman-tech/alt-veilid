@@ -170,6 +170,15 @@ pub(crate) trait NodeRefBase: Sized {
     fn set_seen_our_node_info_ts(&self, routing_domain: RoutingDomain, seen_ts: Timestamp) {
         self.operate_mut(|_rti, e| e.set_seen_our_node_info_ts(routing_domain, seen_ts));
     }
+
+    fn safety_domains(&self) -> SafetyDomainSet {
+        self.operate(|_rti, e| e.safety_domains())
+    }
+
+    fn set_safety_domains<S: Into<SafetyDomainSet>>(&mut self, s: S) {
+        self.operate_mut(|_rti, e| e.set_safety_domains(s))
+    }
+
     // fn network_class(&self, routing_domain: RoutingDomain) -> Option<NetworkClass> {
     //     self.operate(|_rt, e| e.node_info(routing_domain).map(|n| n.network_class()))
     // }
@@ -204,8 +213,13 @@ pub(crate) trait NodeRefBase: Sized {
             }
 
             // Register relay node and return noderef
-            let nr =
-                rti.register_node_with_peer_info(self.routing_table(), routing_domain, rpi, false)?;
+            let nr = rti.register_node_with_peer_info(
+                self.routing_table(),
+                routing_domain,
+                e.safety_domains(),
+                rpi,
+                false,
+            )?;
             Ok(Some(nr))
         })
     }

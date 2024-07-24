@@ -15,14 +15,13 @@ impl RPCProcessor {
             .enter()
             .map_err(RPCError::map_try_again("not started up"))?;
 
-        // Ensure destination never has a private route
-        if matches!(
-            dest,
-            Destination::PrivateRoute {
-                private_route: _,
-                safety_selection: _
-            }
-        ) {
+        // Ensure destination is direct
+        if dest.has_safety_route() {
+            return Err(RPCError::internal(
+                "Never send signal requests over safety routes",
+            ));
+        }
+        if dest.is_private_route() {
             return Err(RPCError::internal(
                 "Never send signal requests over private routes",
             ));

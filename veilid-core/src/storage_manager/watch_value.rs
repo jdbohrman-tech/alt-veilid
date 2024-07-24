@@ -291,7 +291,7 @@ impl StorageManager {
                 }
 
                 // Return peers if we have some
-                log_network_result!(debug "WatchValue fanout call returned peers {} ({})", wva.answer.peers.len(), next_node);
+                log_network_result!(debug "WatchValue fanout call returned peers {} ({})", wva.answer.peers.peer_info_list.len(), next_node);
 
                 Ok(NetworkResult::value(wva.answer.peers))
             }.instrument(tracing::trace_span!("outbound_watch_value call routine"))

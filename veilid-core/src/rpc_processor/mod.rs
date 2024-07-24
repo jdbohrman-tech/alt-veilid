@@ -228,6 +228,8 @@ struct RenderedOperation {
     remote_private_route: Option<PublicKey>,
     /// The private route requested to receive the reply
     reply_private_route: Option<PublicKey>,
+    /// The safety domain we are sending in
+    safety_domain: SafetyDomain,
 }
 
 impl fmt::Debug for RenderedOperation {
@@ -240,6 +242,7 @@ impl fmt::Debug for RenderedOperation {
             .field("safety_route", &self.safety_route)
             .field("remote_private_route", &self.remote_private_route)
             .field("reply_private_route", &self.reply_private_route)
+            .field("safety_domain", &self.safety_domain)
             .finish()
     }
 }
@@ -732,6 +735,10 @@ impl RPCProcessor {
             safety_route: if sr_is_stub { None } else { Some(sr_pubkey) },
             remote_private_route: if pr_is_stub { None } else { Some(pr_pubkey) },
             reply_private_route,
+            // If we are choosing to send without a safety route, then we are in the unsafe domain
+            // If we are sending with a safety route, then our first hop should always be
+            // to a node in the unsafe domain since we allocated the safety route ourselves
+            safety_domain: SafetyDomain::Unsafe,
         };
 
         Ok(NetworkResult::value(out))
@@ -745,8 +752,7 @@ impl RPCProcessor {
         &self,
         dest: Destination,
         operation: &RPCOperation,
-    ) ->RPCNetworkResult<RenderedOperation> {
-        let out: NetworkResult<RenderedOperation>;
+    ) -> RPCNetworkResult<RenderedOperation> {
 
         // Encode message to a builder and make a message reader for it
         // Then produce the message as an unencrypted byte buffer
@@ -771,11 +777,13 @@ impl RPCProcessor {
             Destination::Direct {
                 node: ref node_ref,
                 safety_selection,
+                opt_override_safety_domain,
             }
             | Destination::Relay {
                 relay: ref node_ref,
                 node: _,
                 safety_selection,
+                opt_override_safety_domain,
             } => {
                 // Send to a node without a private route
                 // --------------------------------------
@@ -785,6 +793,7 @@ impl RPCProcessor {
                     relay: _,
                     node: ref target,
                     safety_selection: _,
+                    opt_override_safety_domain: _,
                 } = dest
                 {
                     (node_ref.clone(), target.clone())
@@ -810,7 +819,7 @@ impl RPCProcessor {
 
                         // If no safety route is being used, and we're not sending to a private
                         // route, we can use a direct envelope instead of routing
-                        out = NetworkResult::value(RenderedOperation {
+                        Ok(NetworkResult::value(RenderedOperation {
                             message,
                             destination_node_ref,
                             node_ref,
@@ -818,7 +827,8 @@ impl RPCProcessor {
                             safety_route: None,
                             remote_private_route: None,
                             reply_private_route: None,
-                        });
+                            safety_domain: opt_override_safety_domain.unwrap_or(SafetyDomain::Unsafe),
+                        }))
                     }
                     SafetySelection::Safe(_) => {
                         // No private route was specified for the request
@@ -840,32 +850,45 @@ impl RPCProcessor {
                         );
 
                         // Wrap with safety route
-                        out = self.wrap_with_route(
+                        let mut rendered_operation = network_result_try!(self.wrap_with_route(
                             safety_selection,
                             private_route,
                             reply_private_route,
                             message,
-                        )?;
+                        )?);
+        
+                        // Override safety domain if we requested it
+                        if let Some(override_safety_domain) = opt_override_safety_domain {
+                            rendered_operation.safety_domain = override_safety_domain;
+                        }
+        
+                        Ok(NetworkResult::value(rendered_operation))
                     }
-                };
+                }
             }
             Destination::PrivateRoute {
                 private_route,
                 safety_selection,
+                opt_override_safety_domain,
             } => {
                 // Send to private route
                 // ---------------------
                 // Reply with 'route' operation
-                out = self.wrap_with_route(
+                let mut rendered_operation = network_result_try!(self.wrap_with_route(
                     safety_selection,
                     private_route,
                     reply_private_route,
                     message,
-                )?;
+                )?);
+
+                // Override safety domain if we requested it
+                if let Some(override_safety_domain) = opt_override_safety_domain {
+                    rendered_operation.safety_domain = override_safety_domain;
+                }
+
+                Ok(NetworkResult::value(rendered_operation))
             }
         }
-
-        Ok(out)
     }
 
     /// Get signed node info to package with RPC messages to improve
@@ -878,7 +901,7 @@ impl RPCProcessor {
         // Otherwise we would be attaching the original sender's identity to the final destination,
         // thus defeating the purpose of the safety route entirely :P
         let Some(UnsafeRoutingInfo {
-            opt_node, opt_relay: _, opt_routing_domain
+            opt_node, opt_relay: _, opt_routing_domain, opt_override_safety_domain:_
         }) = dest.get_unsafe_routing_info(self.routing_table.clone()) else {
             return SenderPeerInfo::default();
         };
@@ -1194,6 +1217,7 @@ impl RPCProcessor {
             safety_route,
             remote_private_route,
             reply_private_route,
+            safety_domain,
         } = network_result_try!(self.render_operation(dest.clone(), &operation)?);
 
         // Calculate answer timeout
@@ -1214,6 +1238,7 @@ impl RPCProcessor {
         let res = self
             .network_manager()
             .send_envelope(
+                safety_domain,
                 node_ref.clone(),
                 Some(destination_node_ref.clone()),
                 message,
@@ -1283,7 +1308,7 @@ impl RPCProcessor {
 
         // Log rpc send
         #[cfg(feature = "verbose-tracing")]
-        debug!(target: "rpc_message", dir = "send", kind = "statement", op_id = operation.op_id().as_u64(), desc = operation.kind().desc(), ?dest);
+        debug!(target: "rpc_message", dir = "send", kind = "statement", op_id = operation.op_id().as_u64(), desc = operation.kind().desc(), ?dest, override_safety_domain = override_safety_domain);
 
         // Produce rendered operation
         let RenderedOperation {
@@ -1294,6 +1319,7 @@ impl RPCProcessor {
             safety_route,
             remote_private_route,
             reply_private_route: _,
+            safety_domain,
         } = network_result_try!(self.render_operation(dest, &operation)?);
 
         // Send statement
@@ -1304,6 +1330,7 @@ impl RPCProcessor {
         let res = self
             .network_manager()
             .send_envelope(
+                safety_domain,
                 node_ref.clone(),
                 Some(destination_node_ref.clone()),
                 message,
@@ -1370,6 +1397,7 @@ impl RPCProcessor {
             safety_route,
             remote_private_route,
             reply_private_route: _,
+            safety_domain,
         } = network_result_try!(self.render_operation(dest, &operation)?);
 
         // Send the reply
@@ -1380,6 +1408,7 @@ impl RPCProcessor {
         let res = self
             .network_manager()
             .send_envelope(
+                safety_domain,
                 node_ref.clone(),
                 Some(destination_node_ref.clone()),
                 message,
@@ -1539,6 +1568,7 @@ impl RPCProcessor {
                     }
                     opt_sender_nr = match self.routing_table().register_node_with_peer_info(
                         routing_domain,
+                        SafetyDomainSet::all(),
                         sender_peer_info.clone(),
                         false,
                     ) {

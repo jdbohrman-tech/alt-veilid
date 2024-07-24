@@ -653,27 +653,39 @@ impl RoutingTable {
     }
 
     /// Resolve an existing routing table entry using any crypto kind and return a reference to it
-    pub fn lookup_any_node_ref(&self, node_id_key: PublicKey) -> EyreResult<Option<NodeRef>> {
+    pub fn lookup_any_node_ref(
+        &self,
+        safety_domain: SafetyDomain,
+        node_id_key: PublicKey,
+    ) -> EyreResult<Option<NodeRef>> {
         self.inner
             .read()
-            .lookup_any_node_ref(self.clone(), node_id_key)
+            .lookup_any_node_ref(self.clone(), safety_domain, node_id_key)
     }
 
     /// Resolve an existing routing table entry and return a reference to it
-    pub fn lookup_node_ref(&self, node_id: TypedKey) -> EyreResult<Option<NodeRef>> {
-        self.inner.read().lookup_node_ref(self.clone(), node_id)
+    pub fn lookup_node_ref(
+        &self,
+        safety_domain: SafetyDomain,
+        node_id: TypedKey,
+    ) -> EyreResult<Option<NodeRef>> {
+        self.inner
+            .read()
+            .lookup_node_ref(self.clone(), safety_domain, node_id)
     }
 
     /// Resolve an existing routing table entry and return a filtered reference to it
     #[instrument(level = "trace", skip_all)]
     pub fn lookup_and_filter_noderef(
         &self,
+        safety_domain: SafetyDomain,
         node_id: TypedKey,
         routing_domain_set: RoutingDomainSet,
         dial_info_filter: DialInfoFilter,
     ) -> EyreResult<Option<NodeRef>> {
         self.inner.read().lookup_and_filter_noderef(
             self.clone(),
+            safety_domain,
             node_id,
             routing_domain_set,
             dial_info_filter,
@@ -687,12 +699,14 @@ impl RoutingTable {
     pub fn register_node_with_peer_info(
         &self,
         routing_domain: RoutingDomain,
+        safety_domain: SafetyDomain,
         peer_info: PeerInfo,
         allow_invalid: bool,
     ) -> EyreResult<NodeRef> {
         self.inner.write().register_node_with_peer_info(
             self.clone(),
             routing_domain,
+            safety_domain,
             peer_info,
             allow_invalid,
         )
@@ -700,6 +714,8 @@ impl RoutingTable {
 
     /// Shortcut function to add a node to our routing table if it doesn't exist
     /// and add the last peer address we have for it, since that's pretty common
+    /// This always gets added to the SafetyDomain::Unsafe because direct connections
+    /// are inherently Unsafe.
     #[instrument(level = "trace", skip_all, err)]
     pub fn register_node_with_existing_connection(
         &self,
@@ -764,12 +780,15 @@ impl RoutingTable {
 
     pub fn clear_punishments(&self) {
         let cur_ts = get_aligned_timestamp();
-        self.inner
-            .write()
-            .with_entries_mut(cur_ts, BucketEntryState::Punished, |rti, e| {
+        self.inner.write().with_entries_mut(
+            cur_ts,
+            SafetyDomainSet::all(),
+            BucketEntryState::Punished,
+            |rti, e| {
                 e.with_mut(rti, |_rti, ei| ei.set_punished(None));
                 Option::<()>::None
-            });
+            },
+        );
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -949,7 +968,7 @@ impl RoutingTable {
 
         let filters = VecDeque::from([filter]);
 
-        self.find_preferred_fastest_nodes(
+        self.find_preferred_fastest_unsafe_nodes(
             protocol_types_len * 2 * max_per_type,
             filters,
             |_rti, entry: Option<Arc<BucketEntry>>| {
@@ -979,7 +998,7 @@ impl RoutingTable {
         out
     }
 
-    pub fn find_preferred_fastest_nodes<'a, T, O>(
+    pub fn find_preferred_fastest_unsafe_nodes<'a, T, O>(
         &self,
         node_count: usize,
         filters: VecDeque<RoutingTableEntryFilter>,
@@ -990,10 +1009,10 @@ impl RoutingTable {
     {
         self.inner
             .read()
-            .find_preferred_fastest_nodes(node_count, filters, transform)
+            .find_preferred_fastest_unsafe_nodes(node_count, filters, transform)
     }
 
-    pub fn find_preferred_closest_nodes<'a, T, O>(
+    pub fn find_preferred_closest_unsafe_nodes<'a, T, O>(
         &self,
         node_count: usize,
         node_id: TypedKey,
@@ -1005,7 +1024,7 @@ impl RoutingTable {
     {
         self.inner
             .read()
-            .find_preferred_closest_nodes(node_count, node_id, filters, transform)
+            .find_preferred_closest_unsafe_nodes(node_count, node_id, filters, transform)
     }
 
     pub fn sort_and_clean_closest_noderefs(
@@ -1022,11 +1041,11 @@ impl RoutingTable {
     pub fn register_find_node_answer(
         &self,
         crypto_kind: CryptoKind,
-        peers: Vec<PeerInfo>,
+        peers: PeerInfoResponse,
     ) -> Vec<NodeRef> {
         // Register nodes we'd found
-        let mut out = Vec::<NodeRef>::with_capacity(peers.len());
-        for p in peers {
+        let mut out = Vec::<NodeRef>::with_capacity(peers.peer_info_list.len());
+        for p in peers.peer_info_list {
             // Ensure we're getting back nodes we asked for
             if !p.node_ids().kinds().contains(&crypto_kind) {
                 continue;
@@ -1038,7 +1057,12 @@ impl RoutingTable {
             }
 
             // Register the node if it's new
-            match self.register_node_with_peer_info(RoutingDomain::PublicInternet, p, false) {
+            match self.register_node_with_peer_info(
+                RoutingDomain::PublicInternet,
+                peers.safety_domain_set,
+                p,
+                false,
+            ) {
                 Ok(nr) => out.push(nr),
                 Err(e) => {
                     log_rtab!(debug "failed to register node with peer info from find node answer: {}", e);

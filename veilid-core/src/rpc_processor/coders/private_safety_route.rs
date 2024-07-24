@@ -122,11 +122,15 @@ pub(crate) fn encode_private_route(
             h_builder.set_empty(());
         }
     };
+
+    // We don't encode safety domain set, it will be set by the decoder based on how it was received
+
     Ok(())
 }
 
 pub(crate) fn decode_private_route(
     reader: &veilid_capnp::private_route::Reader,
+    safety_domain_set: SafetyDomainSet,
 ) -> Result<PrivateRoute, RPCError> {
     let public_key = decode_typed_key(&reader.get_public_key().map_err(
         RPCError::map_protocol("invalid public key in private route"),
@@ -149,6 +153,7 @@ pub(crate) fn decode_private_route(
         public_key,
         hop_count,
         hops,
+        safety_domain_set,
     })
 }
 

@@ -263,7 +263,7 @@ impl RoutingTable {
         );
 
         let nr =
-        match self.register_node_with_peer_info(RoutingDomain::PublicInternet, pi, true) {
+        match self.register_node_with_peer_info(RoutingDomain::PublicInternet, SafetyDomainSet::all(), pi, true) {
             Ok(nr) => nr,
             Err(e) => {
                 log_rtab!(error "failed to register bootstrap peer info: {}", e);

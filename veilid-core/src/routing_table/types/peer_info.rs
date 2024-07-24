@@ -46,3 +46,9 @@ impl PeerInfo {
         }
     }
 }
+
+#[derive(Clone, Debug)]
+pub struct PeerInfoResponse {
+    pub safety_domain_set: SafetyDomainSet,
+    pub peer_info_list: Vec<PeerInfo>,
+}

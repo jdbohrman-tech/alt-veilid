@@ -20,7 +20,7 @@ impl RPCProcessor {
             .map_err(RPCError::map_try_again("not started up"))?;
 
         // Ensure destination is never using a safety route
-        if matches!(dest.get_safety_selection(), SafetySelection::Safe(_)) {
+        if dest.has_safety_route() {
             return Err(RPCError::internal(
                 "Never send value changes over safety routes",
             ));

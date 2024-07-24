@@ -421,9 +421,15 @@ impl RouteSpecStore {
             NodeRef::new(routing_table.clone(), entry.unwrap(), None)
         };
 
-        // Pull the whole routing table in sorted order
-        let nodes: Vec<NodeRef> =
-            rti.find_peers_with_sort_and_filter(usize::MAX, cur_ts, filters, compare, transform);
+        // Pull the unsafe domain peers in sorted order
+        let nodes: Vec<NodeRef> = rti.find_peers_with_sort_and_filter(
+            usize::MAX,
+            cur_ts,
+            SafetyDomain::Unsafe.into(),
+            filters,
+            compare,
+            transform,
+        );
 
         // If we couldn't find enough nodes, wait until we have more nodes in the routing table
         if nodes.len() < hop_count {
@@ -749,10 +755,7 @@ impl RouteSpecStore {
             let safety_selection = SafetySelection::Safe(safety_spec);
 
             (
-                Destination::PrivateRoute {
-                    private_route,
-                    safety_selection,
-                },
+                Destination::private_route(private_route, safety_selection),
                 hops,
             )
         };
@@ -799,10 +802,7 @@ impl RouteSpecStore {
 
             let safety_selection = SafetySelection::Safe(safety_spec);
 
-            Destination::PrivateRoute {
-                private_route,
-                safety_selection,
-            }
+            Destination::private_route(private_route, safety_selection)
         };
 
         // Test with double-round trip ping to self
@@ -1042,6 +1042,7 @@ impl RouteSpecStore {
                         rti.register_node_with_peer_info(
                             routing_table.clone(),
                             RoutingDomain::PublicInternet,
+                            private_route.safety_domain_set,
                             *pi,
                             false,
                         )
@@ -1459,6 +1460,8 @@ impl RouteSpecStore {
             // add hop for 'FirstHop'
             hop_count: (hop_count + 1).try_into().unwrap(),
             hops: PrivateRouteHops::FirstHop(Box::new(route_hop)),
+            // routes we allocate ourselves are safe in all domains
+            safety_domain_set: SafetyDomainSet::all(),
         };
         Ok(private_route)
     }

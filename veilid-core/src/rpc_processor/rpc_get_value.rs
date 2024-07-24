@@ -4,7 +4,7 @@ use crate::storage_manager::{SignedValueData, SignedValueDescriptor};
 #[derive(Clone, Debug)]
 pub struct GetValueAnswer {
     pub value: Option<SignedValueData>,
-    pub peers: Vec<PeerInfo>,
+    pub peers: PeerInfoResponse,
     pub descriptor: Option<SignedValueDescriptor>,
 }
 
@@ -77,6 +77,12 @@ impl RPCProcessor {
             vcrypto: vcrypto.clone(),
         });
 
+        let safety_domain_set = if dest.has_safety_route() {
+            SafetyDomain::Safe.into()
+        } else {
+            SafetyDomainSet::all()
+        };
+
         log_dht!(debug "{}", debug_string);
 
         let waitable_reply = network_result_try!(
@@ -103,7 +109,7 @@ impl RPCProcessor {
             _ => return Ok(NetworkResult::invalid_message("not an answer")),
         };
 
-        let (value, peers, descriptor) = get_value_a.destructure();
+        let (value, peer_info_list, descriptor) = get_value_a.destructure();
         if debug_target_enabled!("dht") {
             let debug_string_value = value.as_ref().map(|v| {
                 format!(" len={} seq={} writer={}",
@@ -123,18 +129,18 @@ impl RPCProcessor {
                 } else {
                     ""
                 },
-                peers.len(),
+                peer_info_list.len(),
                 dest
             );
 
             log_dht!(debug "{}", debug_string_answer);
             
-            let peer_ids:Vec<String> = peers.iter().filter_map(|p| p.node_ids().get(key.kind).map(|k| k.to_string())).collect();
+            let peer_ids:Vec<String> = peer_info_list.iter().filter_map(|p| p.node_ids().get(key.kind).map(|k| k.to_string())).collect();
             log_dht!(debug "Peers: {:#?}", peer_ids);
         }
 
         // Validate peers returned are, in fact, closer to the key than the node we sent this to
-        let valid = match RoutingTable::verify_peers_closer(vcrypto, target_node_id, key, &peers) {
+        let valid = match RoutingTable::verify_peers_closer(vcrypto, target_node_id, key, &peer_info_list) {
             Ok(v) => v,
             Err(e) => {
                 return Ok(NetworkResult::invalid_message(format!(
@@ -156,14 +162,14 @@ impl RPCProcessor {
             tracing::Span::current().record("ret.value.data.writer", value.value_data().writer().to_string());
         }
         #[cfg(feature = "verbose-tracing")]
-        tracing::Span::current().record("ret.peers.len", peers.len());
+        tracing::Span::current().record("ret.peers.len", peer_info_list.len());
 
         Ok(NetworkResult::value(Answer::new(
             latency,
             reply_private_route,
             GetValueAnswer {
                 value,
-                peers,
+                peers: PeerInfoResponse{ safety_domain_set, peer_info_list },
                 descriptor,
             },
         )))

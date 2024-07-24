@@ -4,7 +4,7 @@ use crate::storage_manager::SignedValueDescriptor;
 #[derive(Clone, Debug)]
 pub struct InspectValueAnswer {
     pub seqs: Vec<ValueSeqNum>,
-    pub peers: Vec<PeerInfo>,
+    pub peers: PeerInfoResponse,
     pub descriptor: Option<SignedValueDescriptor>,
 }
 
@@ -80,6 +80,12 @@ impl RPCProcessor {
             vcrypto: vcrypto.clone(),
         });
 
+        let safety_domain_set = if dest.has_safety_route() {
+            SafetyDomain::Safe.into()
+        } else {
+            SafetyDomainSet::all()
+        };
+
         log_dht!(debug "{}", debug_string);
 
         let waitable_reply = network_result_try!(
@@ -106,20 +112,20 @@ impl RPCProcessor {
             _ => return Ok(NetworkResult::invalid_message("not an answer")),
         };
 
-        let (seqs, peers, descriptor) = inspect_value_a.destructure();
+        let (seqs, peer_info_list, descriptor) = inspect_value_a.destructure();
         if debug_target_enabled!("dht") {
             let debug_string_answer = format!(
                 "OUT <== InspectValueA({} {} peers={}) <= {} seqs:\n{}",
                 key,
                 if descriptor.is_some() { " +desc" } else { "" },
-                peers.len(),
+                peer_info_list.len(),
                 dest,
                 debug_seqs(&seqs)
             );
 
             log_dht!(debug "{}", debug_string_answer);
 
-            let peer_ids: Vec<String> = peers
+            let peer_ids: Vec<String> = peer_info_list
                 .iter()
                 .filter_map(|p| p.node_ids().get(key.kind).map(|k| k.to_string()))
                 .collect();
@@ -127,7 +133,7 @@ impl RPCProcessor {
         }
 
         // Validate peers returned are, in fact, closer to the key than the node we sent this to
-        let valid = match RoutingTable::verify_peers_closer(vcrypto, target_node_id, key, &peers) {
+        let valid = match RoutingTable::verify_peers_closer(vcrypto, target_node_id, key, &peer_info_list) {
             Ok(v) => v,
             Err(e) => {
                 return Ok(NetworkResult::invalid_message(format!(
@@ -150,7 +156,7 @@ impl RPCProcessor {
             reply_private_route,
             InspectValueAnswer {
                 seqs,
-                peers,
+                peers: PeerInfoResponse{ safety_domain_set, peer_info_list },
                 descriptor,
             },
         )))

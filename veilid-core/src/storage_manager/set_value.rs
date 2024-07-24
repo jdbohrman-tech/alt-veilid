@@ -107,7 +107,7 @@ impl StorageManager {
                         ctx.missed_since_last_set += 1;
 
                         // Return peers if we have some
-                        log_network_result!(debug "SetValue missed: {}, fanout call returned peers {}", ctx.missed_since_last_set, sva.answer.peers.len());
+                        log_network_result!(debug "SetValue missed: {}, fanout call returned peers {}", ctx.missed_since_last_set, sva.answer.peers.peer_info_list.len());
                         return Ok(NetworkResult::value(sva.answer.peers));
                     }
 
@@ -122,7 +122,7 @@ impl StorageManager {
                         }
 
                         // Return peers if we have some
-                        log_network_result!(debug "SetValue returned no value, fanout call returned peers {}", sva.answer.peers.len());
+                        log_network_result!(debug "SetValue returned no value, fanout call returned peers {}", sva.answer.peers.peer_info_list.len());
                         return Ok(NetworkResult::value(sva.answer.peers));
                     };
 

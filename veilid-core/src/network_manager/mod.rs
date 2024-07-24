@@ -781,6 +781,7 @@ impl NetworkManager {
                 // Add the peer info to our routing table
                 let mut peer_nr = match routing_table.register_node_with_peer_info(
                     RoutingDomain::PublicInternet,
+                    SafetyDomainSet::all(),
                     peer_info,
                     false,
                 ) {
@@ -810,6 +811,7 @@ impl NetworkManager {
                 // Add the peer info to our routing table
                 let mut peer_nr = match routing_table.register_node_with_peer_info(
                     RoutingDomain::PublicInternet,
+                    SafetyDomainSet::all(),
                     peer_info,
                     false,
                 ) {
@@ -906,12 +908,15 @@ impl NetworkManager {
     }
 
     /// Called by the RPC handler when we want to issue an RPC request or response
+    /// safety_domain is used to determine if this is being sent in an unsafe context
+    /// and should reject attempts to send to safety-only nodes
     /// node_ref is the direct destination to which the envelope will be sent
     /// If 'destination_node_ref' is specified, it can be different than the node_ref being sent to
     /// which will cause the envelope to be relayed
     #[instrument(level = "trace", target = "net", skip_all)]
     pub async fn send_envelope<B: AsRef<[u8]>>(
         &self,
+        safety_domain: SafetyDomain,
         node_ref: NodeRef,
         destination_node_ref: Option<NodeRef>,
         body: B,
@@ -947,7 +952,7 @@ impl NetworkManager {
         }
 
         // Send the envelope via whatever means necessary
-        self.send_data(node_ref, out).await
+        self.send_data(safety_domain, node_ref, out).await
     }
 
     /// Called by the RPC handler when we want to issue an direct receipt
@@ -1141,9 +1146,10 @@ impl NetworkManager {
                 };
 
                 // Relay the packet to the desired destination
+                // Relayed packets are never received over a safety route so they are implicitly
+                // in the SafetyDomain::Unsafe
                 log_net!("relaying {} bytes to {}", data.len(), relay_nr);
-
-                network_result_value_or_log!(match self.send_data(relay_nr, data.to_vec())
+                network_result_value_or_log!(match self.send_data(SafetyDomain::Unsafe, relay_nr, data.to_vec())
                     .await {
                         Ok(v) => v,
                         Err(e) => {

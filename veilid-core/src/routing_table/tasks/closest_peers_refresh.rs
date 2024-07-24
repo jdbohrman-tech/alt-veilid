@@ -51,7 +51,7 @@ impl RoutingTable {
             filters.push_front(filter);
 
             let noderefs = routing_table
-                .find_preferred_closest_nodes(
+                .find_preferred_closest_unsafe_nodes(
                     CLOSEST_PEERS_REQUEST_COUNT,
                     self_node_id,
                     filters,

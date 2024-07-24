@@ -51,7 +51,7 @@ impl RoutingTable {
             c.network.dht.max_find_node_count as usize
         };
 
-        let closest_nodes = match self.find_preferred_closest_nodes(
+        let closest_nodes = match self.find_preferred_closest_unsafe_nodes(
             node_count,
             key,
             filters,
@@ -132,7 +132,7 @@ impl RoutingTable {
         };
 
         //
-        let closest_nodes = match self.find_preferred_closest_nodes(
+        let closest_nodes = match self.find_preferred_closest_unsafe_nodes(
             node_count,
             key,
             filters,

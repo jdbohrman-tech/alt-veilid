@@ -13,7 +13,7 @@ impl RPCProcessor {
         dest: Destination,
         node_id: TypedKey,
         capabilities: Vec<Capability>,
-    ) -> RPCNetworkResult<Answer<Vec<PeerInfo>>> {
+    ) -> RPCNetworkResult<Answer<PeerInfoResponse>> {
         let _guard = self
             .unlocked_inner
             .startup_lock
@@ -21,13 +21,7 @@ impl RPCProcessor {
             .map_err(RPCError::map_try_again("not started up"))?;
 
         // Ensure destination never has a private route
-        if matches!(
-            dest,
-            Destination::PrivateRoute {
-                private_route: _,
-                safety_selection: _
-            }
-        ) {
+        if dest.is_private_route() {
             return Err(RPCError::internal(
                 "Never send find node requests over private routes",
             ));
@@ -42,6 +36,12 @@ impl RPCProcessor {
         );
 
         let debug_string = format!("FindNode(node_id={}) => {}", node_id, dest);
+
+        let safety_domain_set = if dest.has_safety_route() {
+            SafetyDomain::Safe.into()
+        } else {
+            SafetyDomainSet::all()
+        };
 
         // Send the find_node request
         let waitable_reply = network_result_try!(self.question(dest, find_node_q, None).await?);
@@ -66,9 +66,9 @@ impl RPCProcessor {
         };
 
         // Verify peers are in the correct peer scope
-        let peers = find_node_a.destructure();
+        let peer_info_list = find_node_a.destructure();
 
-        for peer_info in &peers {
+        for peer_info in &peer_info_list {
             if !self.verify_node_info(
                 RoutingDomain::PublicInternet,
                 peer_info.signed_node_info(),
@@ -80,10 +80,15 @@ impl RPCProcessor {
             }
         }
 
+        let peer_info_response = PeerInfoResponse {
+            safety_domain_set,
+            peer_info_list,
+        };
+
         Ok(NetworkResult::value(Answer::new(
             latency,
             reply_private_route,
-            peers,
+            peer_info_response,
         )))
     }
 

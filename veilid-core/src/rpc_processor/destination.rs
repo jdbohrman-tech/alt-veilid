@@ -9,6 +9,8 @@ pub(crate) enum Destination {
         node: NodeRef,
         /// Require safety route or not
         safety_selection: SafetySelection,
+        /// Override safety domain
+        opt_override_safety_domain: Option<SafetyDomain>,
     },
     /// Send to node for relay purposes
     Relay {
@@ -18,6 +20,8 @@ pub(crate) enum Destination {
         node: NodeRef,
         /// Require safety route or not
         safety_selection: SafetySelection,
+        /// Override safety domain
+        opt_override_safety_domain: Option<SafetyDomain>,
     },
     /// Send to private route
     PrivateRoute {
@@ -25,6 +29,8 @@ pub(crate) enum Destination {
         private_route: PrivateRoute,
         /// Require safety route or not
         safety_selection: SafetySelection,
+        /// Override safety domain
+        opt_override_safety_domain: Option<SafetyDomain>,
     },
 }
 
@@ -34,6 +40,7 @@ pub struct UnsafeRoutingInfo {
     pub opt_node: Option<NodeRef>,
     pub opt_relay: Option<NodeRef>,
     pub opt_routing_domain: Option<RoutingDomain>,
+    pub opt_override_safety_domain: Option<SafetyDomain>,
 }
 
 impl Destination {
@@ -42,15 +49,18 @@ impl Destination {
             Destination::Direct {
                 node: target,
                 safety_selection: _,
+                opt_override_safety_domain: _,
             } => Some(target.clone()),
             Destination::Relay {
                 relay: _,
                 node: target,
                 safety_selection: _,
+                opt_override_safety_domain: _,
             } => Some(target.clone()),
             Destination::PrivateRoute {
                 private_route: _,
                 safety_selection: _,
+                opt_override_safety_domain: _,
             } => None,
         }
     }
@@ -59,6 +69,7 @@ impl Destination {
         Self::Direct {
             node,
             safety_selection: SafetySelection::Unsafe(sequencing),
+            opt_override_safety_domain: None,
         }
     }
     pub fn relay(relay: NodeRef, node: NodeRef) -> Self {
@@ -67,12 +78,14 @@ impl Destination {
             relay,
             node,
             safety_selection: SafetySelection::Unsafe(sequencing),
+            opt_override_safety_domain: None,
         }
     }
     pub fn private_route(private_route: PrivateRoute, safety_selection: SafetySelection) -> Self {
         Self::PrivateRoute {
             private_route,
             safety_selection,
+            opt_override_safety_domain: None,
         }
     }
 
@@ -81,27 +94,71 @@ impl Destination {
             Destination::Direct {
                 node,
                 safety_selection: _,
+                opt_override_safety_domain,
             } => Self::Direct {
                 node,
                 safety_selection,
+                opt_override_safety_domain,
             },
             Destination::Relay {
                 relay,
                 node,
                 safety_selection: _,
+                opt_override_safety_domain,
             } => Self::Relay {
                 relay,
                 node,
                 safety_selection,
+                opt_override_safety_domain,
             },
             Destination::PrivateRoute {
                 private_route,
                 safety_selection: _,
+                opt_override_safety_domain,
             } => Self::PrivateRoute {
                 private_route,
                 safety_selection,
+                opt_override_safety_domain,
             },
         }
+    }
+
+    pub fn is_direct(&self) -> bool {
+        matches!(
+            self,
+            Destination::Direct {
+                node: _,
+                safety_selection: _,
+                opt_override_safety_domain: _
+            }
+        )
+    }
+
+    pub fn is_relay(&self) -> bool {
+        matches!(
+            self,
+            Destination::Relay {
+                relay: _,
+                node: _,
+                safety_selection: _,
+                opt_override_safety_domain: _
+            }
+        )
+    }
+
+    pub fn is_private_route(&self) -> bool {
+        matches!(
+            self,
+            Destination::PrivateRoute {
+                private_route: _,
+                safety_selection: _,
+                opt_override_safety_domain: _,
+            }
+        )
+    }
+
+    pub fn has_safety_route(&self) -> bool {
+        matches!(self.get_safety_selection(), SafetySelection::Safe(_))
     }
 
     pub fn get_safety_selection(&self) -> &SafetySelection {
@@ -109,15 +166,18 @@ impl Destination {
             Destination::Direct {
                 node: _,
                 safety_selection,
+                opt_override_safety_domain: _,
             } => safety_selection,
             Destination::Relay {
                 relay: _,
                 node: _,
                 safety_selection,
+                opt_override_safety_domain: _,
             } => safety_selection,
             Destination::PrivateRoute {
                 private_route: _,
                 safety_selection,
+                opt_override_safety_domain: _,
             } => safety_selection,
         }
     }
@@ -127,15 +187,18 @@ impl Destination {
             Destination::Direct {
                 node,
                 safety_selection: _,
+                opt_override_safety_domain: _,
             }
             | Destination::Relay {
                 relay: _,
                 node,
                 safety_selection: _,
+                opt_override_safety_domain: _,
             } => Ok(Target::NodeId(node.best_node_id())),
             Destination::PrivateRoute {
                 private_route,
                 safety_selection: _,
+                opt_override_safety_domain: _,
             } => {
                 // Add the remote private route if we're going to keep the id
                 let route_id = rss
@@ -144,6 +207,40 @@ impl Destination {
 
                 Ok(Target::PrivateRoute(route_id))
             }
+        }
+    }
+
+    pub fn with_override_safety_domain(self, safety_domain: SafetyDomain) -> Self {
+        match self {
+            Destination::Direct {
+                node,
+                safety_selection,
+                opt_override_safety_domain: _,
+            } => Self::Direct {
+                node,
+                safety_selection,
+                opt_override_safety_domain: Some(safety_domain),
+            },
+            Destination::Relay {
+                relay,
+                node,
+                safety_selection,
+                opt_override_safety_domain: _,
+            } => Self::Relay {
+                relay,
+                node,
+                safety_selection,
+                opt_override_safety_domain: Some(safety_domain),
+            },
+            Destination::PrivateRoute {
+                private_route,
+                safety_selection,
+                opt_override_safety_domain: _,
+            } => Self::PrivateRoute {
+                private_route,
+                safety_selection,
+                opt_override_safety_domain: Some(safety_domain),
+            },
         }
     }
 
@@ -162,10 +259,12 @@ impl Destination {
         // Get:
         // * The target node (possibly relayed)
         // * The routing domain we are sending to if we can determine it
-        let (opt_node, opt_relay, opt_routing_domain) = match self {
+        // * The safety domain override if one was specified
+        let (opt_node, opt_relay, opt_routing_domain, opt_override_safety_domain) = match self {
             Destination::Direct {
                 node,
                 safety_selection: _,
+                opt_override_safety_domain: override_safety_domain,
             } => {
                 let opt_routing_domain = node.best_routing_domain();
                 if opt_routing_domain.is_none() {
@@ -173,12 +272,18 @@ impl Destination {
                     // Only a stale connection or no connection exists
                     log_rpc!(debug "No routing domain for node: node={}", node);
                 };
-                (Some(node.clone()), None, opt_routing_domain)
+                (
+                    Some(node.clone()),
+                    None,
+                    opt_routing_domain,
+                    *override_safety_domain,
+                )
             }
             Destination::Relay {
                 relay,
                 node,
                 safety_selection: _,
+                opt_override_safety_domain: override_safety_domain,
             } => {
                 // Outbound relays are defined as routing to and from PublicInternet only right now
 
@@ -207,18 +312,30 @@ impl Destination {
                     log_rpc!(debug "Unexpected relay used for node: relay={}, node={}", relay, node);
                 };
 
-                (Some(node.clone()), Some(relay.clone()), opt_routing_domain)
+                (
+                    Some(node.clone()),
+                    Some(relay.clone()),
+                    opt_routing_domain,
+                    *override_safety_domain,
+                )
             }
             Destination::PrivateRoute {
                 private_route: _,
                 safety_selection: _,
-            } => (None, None, Some(RoutingDomain::PublicInternet)),
+                opt_override_safety_domain: override_safety_domain,
+            } => (
+                None,
+                None,
+                Some(RoutingDomain::PublicInternet),
+                *override_safety_domain,
+            ),
         };
 
         Some(UnsafeRoutingInfo {
             opt_node,
             opt_relay,
             opt_routing_domain,
+            opt_override_safety_domain,
         })
     }
 }
@@ -229,6 +346,7 @@ impl fmt::Display for Destination {
             Destination::Direct {
                 node,
                 safety_selection,
+                opt_override_safety_domain,
             } => {
                 let sr = if matches!(safety_selection, SafetySelection::Safe(_)) {
                     "+SR"
@@ -236,12 +354,19 @@ impl fmt::Display for Destination {
                     ""
                 };
 
-                write!(f, "{}{}", node, sr)
+                let osd = if let Some(override_safety_domain) = opt_override_safety_domain {
+                    format!("*{:?}", override_safety_domain)
+                } else {
+                    "".to_string()
+                };
+
+                write!(f, "{}{}{}", node, sr, osd)
             }
             Destination::Relay {
                 relay,
                 node,
                 safety_selection,
+                opt_override_safety_domain,
             } => {
                 let sr = if matches!(safety_selection, SafetySelection::Safe(_)) {
                     "+SR"
@@ -249,11 +374,18 @@ impl fmt::Display for Destination {
                     ""
                 };
 
-                write!(f, "{}@{}{}", node, relay, sr)
+                let osd = if let Some(override_safety_domain) = opt_override_safety_domain {
+                    format!("*{:?}", override_safety_domain)
+                } else {
+                    "".to_string()
+                };
+
+                write!(f, "{}@{}{}{}", node, relay, sr, osd)
             }
             Destination::PrivateRoute {
                 private_route,
                 safety_selection,
+                opt_override_safety_domain,
             } => {
                 let sr = if matches!(safety_selection, SafetySelection::Safe(_)) {
                     "+SR"
@@ -261,7 +393,13 @@ impl fmt::Display for Destination {
                     ""
                 };
 
-                write!(f, "{}{}", private_route.public_key, sr)
+                let osd = if let Some(override_safety_domain) = opt_override_safety_domain {
+                    format!("*{:?}", override_safety_domain)
+                } else {
+                    "".to_string()
+                };
+
+                write!(f, "{}{}{}", private_route.public_key, sr, osd)
             }
         }
     }
@@ -289,6 +427,7 @@ impl RPCProcessor {
                 Ok(rpc_processor::Destination::Direct {
                     node: nr,
                     safety_selection,
+                    opt_override_safety_domain: None,
                 })
             }
             Target::PrivateRoute(rsid) => {
@@ -302,6 +441,7 @@ impl RPCProcessor {
                 Ok(rpc_processor::Destination::PrivateRoute {
                     private_route,
                     safety_selection,
+                    opt_override_safety_domain: None,
                 })
             }
         }
@@ -319,6 +459,7 @@ impl RPCProcessor {
             Destination::Direct {
                 node: target,
                 safety_selection,
+                opt_override_safety_domain: _,
             } => match safety_selection {
                 SafetySelection::Unsafe(_) => {
                     // Sent directly with no safety route, can respond directly
@@ -347,6 +488,7 @@ impl RPCProcessor {
                 relay,
                 node: target,
                 safety_selection,
+                opt_override_safety_domain: _,
             } => match safety_selection {
                 SafetySelection::Unsafe(_) => {
                     // Sent via a relay with no safety route, can respond directly
@@ -373,6 +515,7 @@ impl RPCProcessor {
             Destination::PrivateRoute {
                 private_route,
                 safety_selection,
+                opt_override_safety_domain: _,
             } => {
                 let Some(avoid_node_id) = private_route.first_hop_node_id() else {
                     return Err(RPCError::internal(

@@ -113,7 +113,7 @@ impl StorageManager {
                     // Keep the value if we got one and it is newer and it passes schema validation
                     let Some(value) = gva.answer.value else {
                         // Return peers if we have some
-                        log_network_result!(debug "GetValue returned no value, fanout call returned peers {}", gva.answer.peers.len());
+                        log_network_result!(debug "GetValue returned no value, fanout call returned peers {}", gva.answer.peers.peer_info_list.len());
 
                         return Ok(NetworkResult::value(gva.answer.peers))
                     };
@@ -179,7 +179,7 @@ impl StorageManager {
                     }
                     
                     // Return peers if we have some
-                    log_network_result!(debug "GetValue fanout call returned peers {}", gva.answer.peers.len());
+                    log_network_result!(debug "GetValue fanout call returned peers {}", gva.answer.peers.peer_info_list.len());
 
                     Ok(NetworkResult::value(gva.answer.peers))
                 }.instrument(tracing::trace_span!("outbound_get_value fanout routine"))

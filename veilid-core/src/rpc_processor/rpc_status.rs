@@ -31,6 +31,7 @@ impl RPCProcessor {
             opt_node,
             opt_relay,
             opt_routing_domain,
+            opt_override_safety_domain: _,
         }) =
             dest.get_unsafe_routing_info(self.routing_table.clone())
         {
@@ -109,6 +110,7 @@ impl RPCProcessor {
             Destination::Direct {
                 node: target,
                 safety_selection,
+                opt_override_safety_domain: _,
             } => {
                 if matches!(safety_selection, SafetySelection::Unsafe(_)) {
                     if let Some(sender_info) = sender_info {
@@ -145,10 +147,12 @@ impl RPCProcessor {
                 relay: _,
                 node: _,
                 safety_selection: _,
+                opt_override_safety_domain: _,
             }
             | Destination::PrivateRoute {
                 private_route: _,
                 safety_selection: _,
+                opt_override_safety_domain: _,
             } => {
                 // sender info is irrelevant over relays and routes
             }

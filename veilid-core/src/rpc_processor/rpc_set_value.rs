@@ -4,7 +4,7 @@ use super::*;
 pub struct SetValueAnswer {
     pub set: bool,
     pub value: Option<SignedValueData>,
-    pub peers: Vec<PeerInfo>,
+    pub peers: PeerInfoResponse,
 }
 
 impl RPCProcessor {
@@ -95,6 +95,12 @@ impl RPCProcessor {
             log_dht!(debug "{}", debug_string);
         }
 
+        let safety_domain_set = if dest.has_safety_route() {
+            SafetyDomain::Safe.into()
+        } else {
+            SafetyDomainSet::all()
+        };
+
         let waitable_reply = network_result_try!(
             self.question(dest.clone(), question, Some(question_context))
                 .await?
@@ -119,7 +125,7 @@ impl RPCProcessor {
             _ => return Ok(NetworkResult::invalid_message("not an answer")),
         };
 
-        let (set, value, peers) = set_value_a.destructure();
+        let (set, value, peer_info_list) = set_value_a.destructure();
 
         if debug_target_enabled!("dht") {
             let debug_string_value = value.as_ref().map(|v| {
@@ -140,18 +146,18 @@ impl RPCProcessor {
                     ""
                 },
                 debug_string_value,
-                peers.len(),
+                peer_info_list.len(),
                 dest,
             );
 
             log_dht!(debug "{}", debug_string_answer);
             
-            let peer_ids:Vec<String> = peers.iter().filter_map(|p| p.node_ids().get(key.kind).map(|k| k.to_string())).collect();
+            let peer_ids:Vec<String> = peer_info_list.iter().filter_map(|p| p.node_ids().get(key.kind).map(|k| k.to_string())).collect();
             log_dht!(debug "Peers: {:#?}", peer_ids);
         }
 
         // Validate peers returned are, in fact, closer to the key than the node we sent this to
-        let valid = match RoutingTable::verify_peers_closer(vcrypto, target_node_id, key, &peers) {
+        let valid = match RoutingTable::verify_peers_closer(vcrypto, target_node_id, key, &peer_info_list) {
             Ok(v) => v,
             Err(e) => {
                 return Ok(NetworkResult::invalid_message(format!(
@@ -180,7 +186,7 @@ impl RPCProcessor {
         Ok(NetworkResult::value(Answer::new(
             latency,
             reply_private_route,
-            SetValueAnswer { set, value, peers },
+            SetValueAnswer { set, value, peers: PeerInfoResponse { safety_domain_set, peer_info_list } }
         )))
     }
 

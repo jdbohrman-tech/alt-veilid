@@ -58,7 +58,7 @@ pub(crate) fn debug_fanout_results(results: &[FanoutResult]) -> String {
     out
 }
 
-pub(crate) type FanoutCallReturnType = RPCNetworkResult<Vec<PeerInfo>>;
+pub(crate) type FanoutCallReturnType = RPCNetworkResult<PeerInfoResponse>;
 pub(crate) type FanoutNodeInfoFilter = Arc<dyn Fn(&[TypedKey], &NodeInfo) -> bool + Send + Sync>;
 
 pub(crate) fn empty_fanout_node_info_filter() -> FanoutNodeInfoFilter {
@@ -196,7 +196,8 @@ where
             match (self.call_routine)(next_node.clone()).await {
                 Ok(NetworkResult::Value(v)) => {
                     // Filter returned nodes
-                    let filtered_v: Vec<PeerInfo> = v
+                    let filtered_peer_info_list: Vec<PeerInfo> = v
+                        .peer_info_list
                         .into_iter()
                         .filter(|pi| {
                             let node_ids = pi.node_ids().to_vec();
@@ -212,9 +213,13 @@ where
 
                     // Call succeeded
                     // Register the returned nodes and add them to the fanout queue in sorted order
-                    let new_nodes = self
-                        .routing_table
-                        .register_find_node_answer(self.crypto_kind, filtered_v);
+                    let new_nodes = self.routing_table.register_find_node_answer(
+                        self.crypto_kind,
+                        PeerInfoResponse {
+                            safety_domain_set: v.safety_domain_set,
+                            peer_info_list: filtered_peer_info_list,
+                        },
+                    );
                     self.clone().add_to_fanout_queue(&new_nodes);
                 }
                 #[allow(unused_variables)]
@@ -275,7 +280,12 @@ where
             };
 
             routing_table
-                .find_preferred_closest_nodes(self.node_count, self.node_id, filters, transform)
+                .find_preferred_closest_unsafe_nodes(
+                    self.node_count,
+                    self.node_id,
+                    filters,
+                    transform,
+                )
                 .map_err(RPCError::invalid_format)?
         };
         self.clone().add_to_fanout_queue(&closest_nodes);
