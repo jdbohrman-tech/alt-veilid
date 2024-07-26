@@ -321,11 +321,12 @@ pub fn listen_address_to_socket_addrs(listen_address: &str) -> Result<Vec<Socket
     })
 }
 
-pub trait Dedup<T: PartialEq + Clone> {
+/// Dedup, but doesn't require a sorted vec, and keeps the element order
+pub trait RemoveDuplicates<T: PartialEq + Clone> {
     fn remove_duplicates(&mut self);
 }
 
-impl<T: PartialEq + Clone> Dedup<T> for Vec<T> {
+impl<T: PartialEq + Clone> RemoveDuplicates<T> for Vec<T> {
     fn remove_duplicates(&mut self) {
         let mut already_seen = Vec::new();
         self.retain(|item| match already_seen.contains(item) {

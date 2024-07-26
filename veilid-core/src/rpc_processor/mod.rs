@@ -629,6 +629,17 @@ impl RPCProcessor {
                 // Reply received
                 let recv_ts = get_aligned_timestamp();
 
+                // Record answer received
+                self.record_answer_received(
+                    waitable_reply.send_ts,
+                    recv_ts,
+                    rpcreader.header.body_len,
+                    waitable_reply.node_ref.clone(),
+                    waitable_reply.safety_route,
+                    waitable_reply.remote_private_route,
+                    waitable_reply.reply_private_route,
+                );
+
                 // Ensure the reply comes over the private route that was requested
                 if let Some(reply_private_route) = waitable_reply.reply_private_route {
                     match &rpcreader.header.detail {
@@ -648,17 +659,6 @@ impl RPCProcessor {
                         }
                     };
                 }
-
-                // Record answer received
-                self.record_answer_received(
-                    waitable_reply.send_ts,
-                    recv_ts,
-                    rpcreader.header.body_len,
-                    waitable_reply.node_ref.clone(),
-                    waitable_reply.safety_route,
-                    waitable_reply.remote_private_route,
-                    waitable_reply.reply_private_route,
-                )
             }
         };
         out

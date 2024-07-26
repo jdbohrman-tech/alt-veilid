@@ -93,6 +93,7 @@ pub fn decode_node_info(reader: &veilid_capnp::node_info::Reader) -> Result<Node
     // Unsorted is okay, some nodes may have a different envelope order preference
     // But nothing should show up more than once
     let mut eversions = envelope_support.clone();
+    eversions.sort();
     eversions.dedup();
     if eversions.len() != envelope_support.len() {
         return Err(RPCError::protocol("duplicate envelope versions"));
@@ -122,6 +123,7 @@ pub fn decode_node_info(reader: &veilid_capnp::node_info::Reader) -> Result<Node
     // Unsorted is okay, some nodes may have a different crypto order preference
     // But nothing should show up more than once
     let mut ckinds = crypto_support.clone();
+    ckinds.sort();
     ckinds.dedup();
     if ckinds.len() != crypto_support.len() {
         return Err(RPCError::protocol("duplicate crypto kinds"));

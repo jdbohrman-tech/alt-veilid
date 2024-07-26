@@ -351,6 +351,7 @@ impl Network {
             })
             .collect();
         addrs.sort();
+        addrs.dedup();
         addrs
     }
 

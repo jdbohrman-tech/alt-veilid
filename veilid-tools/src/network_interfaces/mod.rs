@@ -427,9 +427,15 @@ impl NetworkInterfaces {
         }
 
         // Sort one more time to get the best interface addresses overall
-        intf_addrs.sort();
+        let mut addresses = intf_addrs
+            .iter()
+            .map(|x| x.if_addr().ip())
+            .collect::<Vec<_>>();
+
+        addresses.sort();
+        addresses.dedup();
 
         // Now export just the addresses
-        inner.interface_address_cache = intf_addrs.iter().map(|x| x.if_addr().ip()).collect()
+        inner.interface_address_cache = addresses;
     }
 }

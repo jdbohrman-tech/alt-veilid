@@ -1,4 +1,5 @@
 #!/bin/bash
+
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 pushd $SCRIPTDIR >/dev/null
 
@@ -23,6 +24,9 @@ ARCHS=${ARCHS:=arm64}
 
 LIPO_OUT_NAME="lipo-darwin"
 
+set -euxo pipefail
+
+LIPOS=""
 for arch in $ARCHS
 do
     if [ "$arch" == "arm64" ]; then

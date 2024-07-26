@@ -112,7 +112,7 @@ impl Network {
 
     #[instrument(level = "trace", skip_all)]
     async fn create_udp_protocol_handler(&self, addr: SocketAddr) -> EyreResult<bool> {
-        log_net!("create_udp_protocol_handler on {:?}", &addr);
+        log_net!(debug "create_udp_protocol_handler on {:?}", &addr);
 
         // Create a reusable socket
         let Some(socket) = new_bound_default_udp_socket(addr)? else {

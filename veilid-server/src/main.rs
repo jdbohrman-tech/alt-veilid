@@ -153,6 +153,10 @@ pub struct CmdlineArgs {
     #[cfg(feature = "rt-tokio")]
     #[arg(long)]
     console: bool,
+
+    /// change ingore_log_targets
+    #[arg(long)]
+    ignore_log_targets: Option<Vec<String>>,
 }
 
 #[instrument(level = "trace", skip_all, err)]
@@ -306,6 +310,11 @@ fn main() -> EyreResult<()> {
     #[cfg(feature = "rt-tokio")]
     if args.console {
         settingsrw.logging.console.enabled = true;
+    }
+
+    if let Some(ignore_log_targets) = args.ignore_log_targets {
+        println!("Changing ignored log targets: {:?}", ignore_log_targets);
+        settingsrw.logging.terminal.ignore_log_targets = ignore_log_targets
     }
 
     drop(settingsrw);

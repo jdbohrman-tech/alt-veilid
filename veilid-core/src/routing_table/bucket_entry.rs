@@ -599,13 +599,13 @@ impl BucketEntryInner {
             return;
         }
         self.envelope_support.push(envelope_version);
-        self.envelope_support.dedup();
         self.envelope_support.sort();
+        self.envelope_support.dedup();
     }
 
     pub fn set_envelope_support(&mut self, mut envelope_support: Vec<u8>) {
-        envelope_support.dedup();
         envelope_support.sort();
+        envelope_support.dedup();
         self.envelope_support = envelope_support;
     }
 

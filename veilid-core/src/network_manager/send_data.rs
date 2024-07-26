@@ -116,6 +116,7 @@ impl NetworkManager {
                             log_network_result!(debug "Reverse connection failed to {}, falling back to inbound relay via {}", target_node_ref, relay_nr);
                             network_result_try!(this.try_possibly_relayed_contact_method(NodeContactMethod::InboundRelay(relay_nr), destination_node_ref, data).await?)
                         } else {
+                            log_network_result!(debug "Reverse connection successful to {} via {}", target_node_ref, relay_nr);
                             network_result_try!(nres)
                         }
                     }
@@ -128,6 +129,7 @@ impl NetworkManager {
                             log_network_result!(debug "Hole punch failed to {}, falling back to inbound relay via {}", target_node_ref, relay_nr);
                             network_result_try!(this.try_possibly_relayed_contact_method(NodeContactMethod::InboundRelay(relay_nr), destination_node_ref, data).await?)
                         } else {
+                            log_network_result!(debug "Hole punch successful to {} via {}", target_node_ref, relay_nr);
                             network_result_try!(nres)
                         }
                     }

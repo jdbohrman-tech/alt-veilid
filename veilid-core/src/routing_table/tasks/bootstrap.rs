@@ -60,8 +60,8 @@ impl RoutingTable {
             };
             envelope_support.push(es);
         }
-        envelope_support.dedup();
         envelope_support.sort();
+        envelope_support.dedup();
 
         // Node Id
         let mut node_ids = TypedKeyGroup::new();

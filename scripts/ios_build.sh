@@ -27,6 +27,9 @@ else
     LIPO_OUT_NAME="lipo-ios"
 fi
 
+set -euxo pipefail
+
+LIPOS=""
 for arch in $ARCHS
 do
     if [ "$arch" == "arm64" ]; then
