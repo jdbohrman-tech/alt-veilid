@@ -52,6 +52,8 @@ crypto-test-none = ["enable-crypto-none"]
 veilid_core_android_tests = ["dep:paranoid-android"]
 veilid_core_ios_tests = ["dep:tracing-oslog"]
 debug-locks = ["veilid-tools/debug-locks"]
+unstable-blockstore = []
+unstable-tunnels = []
 
 ### DEPENDENCIES
 

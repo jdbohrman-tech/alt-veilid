@@ -77,9 +77,11 @@ pub(crate) fn capability_fanout_node_info_filter(caps: Vec<Capability>) -> Fanou
 /// If has pluggable callbacks:
 ///  * 'check_done' - for checking for a termination condition
 ///  * 'call_routine' - routine to call for each node that performs an operation and may add more nodes to our closest_nodes set
+///
 /// The algorithm is parameterized by:
 ///  * 'node_count' - the number of nodes to keep in the closest_nodes set
 ///  * 'fanout' - the number of concurrent calls being processed at the same time
+///
 /// The algorithm returns early if 'check_done' returns some value, or if an error is found during the process.
 /// If the algorithm times out, a Timeout result is returned, however operations will still have been performed and a
 /// timeout is not necessarily indicative of an algorithmic 'failure', just that no definitive stopping condition was found

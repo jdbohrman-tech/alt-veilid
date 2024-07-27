@@ -93,9 +93,11 @@ impl DeferredStreamProcessor {
     }
 
     /// Queue a stream to process in the background
+    ///
     /// * 'receiver' is the stream to process
     /// * 'handler' is the callback to handle each item from the stream
-    /// Returns 'true' if the stream was added for processing, and 'false' if the stream could not be added, possibly due to not being initialized
+    ///
+    /// Returns 'true' if the stream was added for processing, and 'false' if the stream could not be added, possibly due to not being initialized.
     pub fn add<T: Send + 'static>(
         &mut self,
         receiver: flume::Receiver<T>,

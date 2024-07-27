@@ -28,20 +28,20 @@ impl<T> IoNetworkResultExt<T> for io::Result<T> {
     fn into_network_result(self) -> io::Result<NetworkResult<T>> {
         match self {
             Ok(v) => Ok(NetworkResult::Value(v)),
-            #[cfg(feature = "io_error_more")]
-            Err(e) => match e.kind() {
-                io::ErrorKind::TimedOut => Ok(NetworkResult::Timeout),
-                io::ErrorKind::UnexpectedEof
-                | io::ErrorKind::BrokenPipe
-                | io::ErrorKind::ConnectionAborted
-                | io::ErrorKind::ConnectionRefused
-                | io::ErrorKind::ConnectionReset
-                | io::ErrorKind::HostUnreachable
-                | io::ErrorKind::NetworkUnreachable => Ok(NetworkResult::NoConnection(e)),
-                io::ErrorKind::AddrNotAvailable => Ok(NetworkResult::AlreadyExists(e)),
-                _ => Err(e),
-            },
-            #[cfg(not(feature = "io_error_more"))]
+            // #[cfg(feature = "io_error_more")]
+            // Err(e) => match e.kind() {
+            //     io::ErrorKind::TimedOut => Ok(NetworkResult::Timeout),
+            //     io::ErrorKind::UnexpectedEof
+            //     | io::ErrorKind::BrokenPipe
+            //     | io::ErrorKind::ConnectionAborted
+            //     | io::ErrorKind::ConnectionRefused
+            //     | io::ErrorKind::ConnectionReset
+            //     | io::ErrorKind::HostUnreachable
+            //     | io::ErrorKind::NetworkUnreachable => Ok(NetworkResult::NoConnection(e)),
+            //     io::ErrorKind::AddrNotAvailable => Ok(NetworkResult::AlreadyExists(e)),
+            //     _ => Err(e),
+            // },
+            // #[cfg(not(feature = "io_error_more"))]
             Err(e) => {
                 #[cfg(not(target_arch = "wasm32"))]
                 if let Some(os_err) = e.raw_os_error() {
@@ -91,18 +91,18 @@ impl<T> FoldedNetworkResultExt<T> for io::Result<TimeoutOr<T>> {
         match self {
             Ok(TimeoutOr::Timeout) => Ok(NetworkResult::Timeout),
             Ok(TimeoutOr::Value(v)) => Ok(NetworkResult::Value(v)),
-            #[cfg(feature = "io_error_more")]
-            Err(e) => match e.kind() {
-                io::ErrorKind::TimedOut => Ok(NetworkResult::Timeout),
-                io::ErrorKind::ConnectionAborted
-                | io::ErrorKind::ConnectionRefused
-                | io::ErrorKind::ConnectionReset
-                | io::ErrorKind::HostUnreachable
-                | io::ErrorKind::NetworkUnreachable => Ok(NetworkResult::NoConnection(e)),
-                io::ErrorKind::AddrNotAvailable => Ok(NetworkResult::AlreadyExists(e)),
-                _ => Err(e),
-            },
-            #[cfg(not(feature = "io_error_more"))]
+            // #[cfg(feature = "io_error_more")]
+            // Err(e) => match e.kind() {
+            //     io::ErrorKind::TimedOut => Ok(NetworkResult::Timeout),
+            //     io::ErrorKind::ConnectionAborted
+            //     | io::ErrorKind::ConnectionRefused
+            //     | io::ErrorKind::ConnectionReset
+            //     | io::ErrorKind::HostUnreachable
+            //     | io::ErrorKind::NetworkUnreachable => Ok(NetworkResult::NoConnection(e)),
+            //     io::ErrorKind::AddrNotAvailable => Ok(NetworkResult::AlreadyExists(e)),
+            //     _ => Err(e),
+            // },
+            // #[cfg(not(feature = "io_error_more"))]
             Err(e) => {
                 #[cfg(not(target_arch = "wasm32"))]
                 if let Some(os_err) = e.raw_os_error() {
@@ -127,18 +127,18 @@ impl<T> FoldedNetworkResultExt<T> for io::Result<NetworkResult<T>> {
     fn folded(self) -> io::Result<NetworkResult<T>> {
         match self {
             Ok(v) => Ok(v),
-            #[cfg(feature = "io_error_more")]
-            Err(e) => match e.kind() {
-                io::ErrorKind::TimedOut => Ok(NetworkResult::Timeout),
-                io::ErrorKind::ConnectionAborted
-                | io::ErrorKind::ConnectionRefused
-                | io::ErrorKind::ConnectionReset
-                | io::ErrorKind::HostUnreachable
-                | io::ErrorKind::NetworkUnreachable => Ok(NetworkResult::NoConnection(e)),
-                io::ErrorKind::AddrNotAvailable => Ok(NetworkResult::AlreadyExists(e)),
-                _ => Err(e),
-            },
-            #[cfg(not(feature = "io_error_more"))]
+            // #[cfg(feature = "io_error_more")]
+            // Err(e) => match e.kind() {
+            //     io::ErrorKind::TimedOut => Ok(NetworkResult::Timeout),
+            //     io::ErrorKind::ConnectionAborted
+            //     | io::ErrorKind::ConnectionRefused
+            //     | io::ErrorKind::ConnectionReset
+            //     | io::ErrorKind::HostUnreachable
+            //     | io::ErrorKind::NetworkUnreachable => Ok(NetworkResult::NoConnection(e)),
+            //     io::ErrorKind::AddrNotAvailable => Ok(NetworkResult::AlreadyExists(e)),
+            //     _ => Err(e),
+            // },
+            // #[cfg(not(feature = "io_error_more"))]
             Err(e) => {
                 #[cfg(not(target_arch = "wasm32"))]
                 if let Some(os_err) = e.raw_os_error() {
