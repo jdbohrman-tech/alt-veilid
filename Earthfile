@@ -136,6 +136,7 @@ code-android:
 clippy:
     FROM +code-linux
     RUN cargo clippy
+    RUN cargo clippy --manifest-path=veilid-wasm/Cargo.toml --target wasm32-unknown-unknown
 
 # Build
 build-release:
@@ -181,7 +182,10 @@ build-android:
 unit-tests-clippy-linux:
     FROM +code-linux
     RUN cargo clippy
-    RUN cargo clippy --target=wasm32-unknown-unknown
+
+unit-tests-clippy-wasm-linux:
+    FROM +code-linux
+    RUN cargo clippy --manifest-path=veilid-wasm/Cargo.toml --target wasm32-unknown-unknown
 
 unit-tests-docs-linux:
     FROM +code-linux
@@ -200,6 +204,9 @@ unit-tests-wasm-linux:
 unit-tests-linux:
     WAIT
         BUILD +unit-tests-clippy-linux
+    END
+    WAIT
+        BUILD +unit-tests-clippy-wasm-linux
     END
     WAIT
         BUILD +unit-tests-docs-linux
