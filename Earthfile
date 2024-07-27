@@ -181,6 +181,7 @@ build-android:
 unit-tests-clippy-linux:
     FROM +code-linux
     RUN cargo clippy
+    RUN cargo clippy --target=wasm32-unknown-unknown
 
 unit-tests-docs-linux:
     FROM +code-linux

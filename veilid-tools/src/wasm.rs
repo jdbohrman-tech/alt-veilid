@@ -1,5 +1,3 @@
-#![cfg(target_arch = "wasm32")]
-
 use super::*;
 use core::sync::atomic::{AtomicI8, AtomicU32, Ordering};
 use js_sys::{global, Reflect};

@@ -116,7 +116,6 @@ impl WebsocketNetworkConnection {
 }
 
 ///////////////////////////////////////////////////////////
-///
 
 pub(in crate::network_manager) struct WebsocketProtocolHandler {}
 
