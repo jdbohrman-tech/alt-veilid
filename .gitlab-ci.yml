@@ -143,6 +143,8 @@ package_amd64_rpm:
 
 publish_crates:
   stage: build_packages
+  needs:
+    - package_amd64_deb
   tags:
     - build-amd64-deb
   script:
@@ -156,6 +158,8 @@ publish_crates:
 
 publish_python:
   stage: build_packages
+  needs:
+    - package_amd64_deb
   tags:
     - build-amd64-deb
   script:
@@ -167,8 +171,8 @@ publish_python:
 
 build_repositories:
   stage: distribute
-  needs:
-    - publish_python
+  #needs:
+  #  - publish_python
   tags:
     - build-orchestration
   variables:
