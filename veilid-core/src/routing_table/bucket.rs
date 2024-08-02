@@ -127,7 +127,7 @@ impl Bucket {
         // Get the sorted list of entries by their kick order
         let mut sorted_entries: Vec<(PublicKey, Arc<BucketEntry>)> =
             self.entries.iter().map(|(k, v)| (*k, v.clone())).collect();
-        let cur_ts = get_aligned_timestamp();
+        let cur_ts = Timestamp::now();
         sorted_entries.sort_by(|a, b| -> core::cmp::Ordering {
             if a.0 == b.0 {
                 return core::cmp::Ordering::Equal;

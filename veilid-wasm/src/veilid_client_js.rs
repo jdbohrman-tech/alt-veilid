@@ -178,7 +178,7 @@ impl VeilidClient {
 
     /// Get the current timestamp, in string format
     pub fn now() -> String {
-        veilid_core::get_aligned_timestamp().as_u64().to_string()
+        veilid_core::Timestamp::now().as_u64().to_string()
     }
 
     /// Execute an 'internal debug command'.

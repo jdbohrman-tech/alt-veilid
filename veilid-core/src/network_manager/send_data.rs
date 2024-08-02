@@ -28,7 +28,7 @@ impl NetworkManager {
                 SendDataToExistingFlowResult::Sent(unique_flow) => {
                     // Update timestamp for this last flow since we just sent to it
                     destination_node_ref
-                        .set_last_flow(unique_flow.flow, get_aligned_timestamp());
+                        .set_last_flow(unique_flow.flow, Timestamp::now());
 
                     return Ok(NetworkResult::value(SendDataMethod {
                         opt_relayed_contact_method: None,
@@ -181,7 +181,7 @@ impl NetworkManager {
         };
 
         // Update timestamp for this last connection since we just sent to it
-        target_node_ref.set_last_flow(flow, get_aligned_timestamp());
+        target_node_ref.set_last_flow(flow, Timestamp::now());
 
         Ok(NetworkResult::value(SendDataMethod{
             contact_method: NodeContactMethod::Existing,
@@ -218,7 +218,7 @@ impl NetworkManager {
         };
 
         // Update timestamp for this last connection since we just sent to it
-        target_node_ref.set_last_flow(flow, get_aligned_timestamp());
+        target_node_ref.set_last_flow(flow, Timestamp::now());
 
         Ok(NetworkResult::value(SendDataMethod {
             contact_method: NodeContactMethod::Existing,
@@ -245,7 +245,7 @@ impl NetworkManager {
                 SendDataToExistingFlowResult::Sent(unique_flow) => {
                     // Update timestamp for this last connection since we just sent to it
                     target_node_ref
-                        .set_last_flow(flow, get_aligned_timestamp());
+                        .set_last_flow(flow, Timestamp::now());
 
                     return Ok(NetworkResult::value(SendDataMethod{
                         contact_method: NodeContactMethod::Existing,
@@ -293,7 +293,7 @@ impl NetworkManager {
                 SendDataToExistingFlowResult::Sent(unique_flow) => {
                     // Update timestamp for this last connection since we just sent to it
                     target_node_ref
-                        .set_last_flow(flow, get_aligned_timestamp());
+                        .set_last_flow(flow, Timestamp::now());
 
                     return Ok(NetworkResult::value(SendDataMethod{
                         contact_method: NodeContactMethod::Existing,
@@ -347,7 +347,7 @@ impl NetworkManager {
             {
                 SendDataToExistingFlowResult::Sent(unique_flow) => {
                     // Update timestamp for this last connection since we just sent to it
-                    node_ref.set_last_flow(flow, get_aligned_timestamp());
+                    node_ref.set_last_flow(flow, Timestamp::now());
 
                     return Ok(NetworkResult::value(SendDataMethod{
                         contact_method: NodeContactMethod::Existing,
@@ -370,7 +370,7 @@ impl NetworkManager {
             network_result_try!(self.net().send_data_to_dial_info(dial_info.clone(), data).await?);
 
         // If we connected to this node directly, save off the last connection so we can use it again
-        node_ref.set_last_flow(unique_flow.flow, get_aligned_timestamp());
+        node_ref.set_last_flow(unique_flow.flow, Timestamp::now());
 
         Ok(NetworkResult::value(SendDataMethod {
             contact_method: NodeContactMethod::Direct(dial_info),
@@ -569,12 +569,12 @@ impl NetworkManager {
         };
 
         // Build a return receipt for the signal
-        let receipt_timeout = ms_to_us(
+        let receipt_timeout = TimestampDuration::new_ms(
             self.unlocked_inner
                 .config
                 .get()
                 .network
-                .reverse_connection_receipt_time_ms,
+                .reverse_connection_receipt_time_ms as u64,
         );
         let (receipt, eventual_value) = self.generate_single_shot_receipt(receipt_timeout, [])?;
 
@@ -680,12 +680,12 @@ impl NetworkManager {
             .unwrap_or_default());
 
         // Build a return receipt for the signal
-        let receipt_timeout = ms_to_us(
+        let receipt_timeout = TimestampDuration::new_ms(
             self.unlocked_inner
                 .config
                 .get()
                 .network
-                .hole_punch_receipt_time_ms,
+                .hole_punch_receipt_time_ms as u64,
         );
         let (receipt, eventual_value) = self.generate_single_shot_receipt(receipt_timeout, [])?;
 

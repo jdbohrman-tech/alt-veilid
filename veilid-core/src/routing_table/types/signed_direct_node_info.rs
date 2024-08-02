@@ -44,7 +44,7 @@ impl SignedDirectNodeInfo {
         typed_key_pairs: Vec<TypedKeyPair>,
         node_info: NodeInfo,
     ) -> VeilidAPIResult<Self> {
-        let timestamp = get_aligned_timestamp();
+        let timestamp = Timestamp::now();
         let node_info_bytes = Self::make_signature_bytes(&node_info, timestamp)?;
         let typed_signatures =
             crypto.generate_signatures(&node_info_bytes, &typed_key_pairs, |kp, s| {
@@ -78,7 +78,7 @@ impl SignedDirectNodeInfo {
     pub fn with_no_signature(node_info: NodeInfo) -> Self {
         Self {
             node_info,
-            timestamp: get_aligned_timestamp(),
+            timestamp: Timestamp::now(),
             signatures: Vec::new(),
         }
     }

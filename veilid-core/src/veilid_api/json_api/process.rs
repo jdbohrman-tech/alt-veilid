@@ -816,7 +816,7 @@ impl JsonRequestProcessor {
                 result: to_json_api_result_with_string(Crypto::generate_keypair(kind)),
             },
             RequestOp::Now => ResponseOp::Now {
-                value: get_aligned_timestamp(),
+                value: Timestamp::now(),
             },
             RequestOp::Debug { command } => ResponseOp::Debug {
                 result: to_json_api_result(self.api.debug(command).await),

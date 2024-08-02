@@ -18,7 +18,7 @@ impl StorageManager {
 
             let opt_update_callback = inner.update_callback.clone();
 
-            let cur_ts = get_aligned_timestamp();
+            let cur_ts = Timestamp::now();
             for (k, v) in inner.opened_records.iter_mut() {
                 // If no active watch, then skip this
                 let Some(active_watch) = v.active_watch() else {

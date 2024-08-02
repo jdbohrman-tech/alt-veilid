@@ -1969,7 +1969,7 @@ pub extern "C" fn crypto_crypt_no_auth(
 #[no_mangle]
 #[instrument(level = "trace", target = "ffi", skip_all)]
 pub extern "C" fn now() -> u64 {
-    veilid_core::get_aligned_timestamp().as_u64()
+    veilid_core::Timestamp::now().as_u64()
 }
 
 #[no_mangle]

@@ -114,7 +114,7 @@ impl NetworkConnection {
             connection_id: id,
             flow,
             processor: None,
-            established_time: get_aligned_timestamp(),
+            established_time: Timestamp::now(),
             stats: Arc::new(Mutex::new(NetworkConnectionStats {
                 last_message_sent_time: None,
                 last_message_recv_time: None,
@@ -165,7 +165,7 @@ impl NetworkConnection {
             connection_id,
             flow,
             processor: Some(processor),
-            established_time: get_aligned_timestamp(),
+            established_time: Timestamp::now(),
             stats,
             sender,
             stop_source: Some(stop_source),
@@ -227,7 +227,7 @@ impl NetworkConnection {
         stats: Arc<Mutex<NetworkConnectionStats>>,
         message: Vec<u8>,
     ) -> io::Result<NetworkResult<()>> {
-        let ts = get_aligned_timestamp();
+        let ts = Timestamp::now();
         network_result_try!(protocol_connection.send(message).await?);
 
         let mut stats = stats.lock();
@@ -241,7 +241,7 @@ impl NetworkConnection {
         protocol_connection: &ProtocolNetworkConnection,
         stats: Arc<Mutex<NetworkConnectionStats>>,
     ) -> io::Result<NetworkResult<Vec<u8>>> {
-        let ts = get_aligned_timestamp();
+        let ts = Timestamp::now();
         let out = network_result_try!(protocol_connection.recv().await?);
 
         let mut stats = stats.lock();

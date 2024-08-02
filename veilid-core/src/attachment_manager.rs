@@ -188,7 +188,7 @@ impl AttachmentManager {
 
             // Set timestamps
             if state == AttachmentState::Attaching {
-                inner.attach_ts = Some(get_aligned_timestamp());
+                inner.attach_ts = Some(Timestamp::now());
             } else if state == AttachmentState::Detached {
                 inner.attach_ts = None;
             } else if state == AttachmentState::Detaching {

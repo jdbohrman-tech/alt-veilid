@@ -388,7 +388,7 @@ impl ConnectionTable {
     pub fn debug_print_table(&self) -> String {
         let mut out = String::new();
         let inner = self.inner.lock();
-        let cur_ts = get_aligned_timestamp();
+        let cur_ts = Timestamp::now();
         for t in 0..inner.conn_by_id.len() {
             out += &format!(
                 "  {} Connections: ({}/{})\n",

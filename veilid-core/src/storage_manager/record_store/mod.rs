@@ -464,7 +464,7 @@ where
             out = Some(f(record));
 
             // Touch
-            record.touch(get_aligned_timestamp());
+            record.touch(Timestamp::now());
         }
         if out.is_some() {
             // Marks as changed because the record was touched and we want to keep the
@@ -503,7 +503,7 @@ where
             out = Some(f(record));
 
             // Touch
-            record.touch(get_aligned_timestamp());
+            record.touch(Timestamp::now());
         }
         if out.is_some() {
             // Marks as changed because the record was touched and we want to keep the
@@ -1133,7 +1133,7 @@ where
     /// See if any watched records have expired and clear them out
     #[instrument(level = "trace", target = "stor", skip_all)]
     pub fn check_watched_records(&mut self) {
-        let now = get_aligned_timestamp();
+        let now = Timestamp::now();
         self.watched_records.retain(|key, watch_list| {
             watch_list.watches.retain(|w| {
                 w.params.count != 0 && w.params.expiration > now && !w.params.subkeys.is_empty()

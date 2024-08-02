@@ -140,7 +140,7 @@ impl RoutingTable {
     ) -> String {
         let inner = self.inner.read();
         let inner = &*inner;
-        let cur_ts = get_aligned_timestamp();
+        let cur_ts = Timestamp::now();
 
         let mut out = String::new();
 
@@ -211,15 +211,24 @@ impl RoutingTable {
     }
 
     pub(crate) fn debug_info_entry(&self, node_ref: NodeRef) -> String {
+        let cur_ts = Timestamp::now();
+
         let mut out = String::new();
-        out += &node_ref.operate(|_rt, e| format!("{:#?}\n", e));
+        out += &node_ref.operate(|_rti, e| {
+            let state_reason = e.state_reason(cur_ts);
+            format!(
+                "state: {}\n{:#?}\n",
+                Self::format_state_reason(state_reason),
+                e
+            )
+        });
         out
     }
 
     pub(crate) fn debug_info_buckets(&self, min_state: BucketEntryState) -> String {
         let inner = self.inner.read();
         let inner = &*inner;
-        let cur_ts = get_aligned_timestamp();
+        let cur_ts = Timestamp::now();
 
         let mut out = String::new();
         const COLS: usize = 16;

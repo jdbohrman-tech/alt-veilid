@@ -763,7 +763,7 @@ impl RoutingTable {
     }
 
     pub fn clear_punishments(&self) {
-        let cur_ts = get_aligned_timestamp();
+        let cur_ts = Timestamp::now();
         self.inner
             .write()
             .with_entries_mut(cur_ts, BucketEntryState::Punished, |rti, e| {

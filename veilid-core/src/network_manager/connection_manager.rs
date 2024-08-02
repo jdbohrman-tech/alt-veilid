@@ -232,7 +232,7 @@ impl ConnectionManager {
 
         // See if this should be a protected connection
         if let Some(protect_nr) = self.should_protect_connection(&conn) {
-            log_net!(debug "== PROTECTING connection: {} -> {} for node {}", id, conn.debug_print(get_aligned_timestamp()), protect_nr);
+            log_net!(debug "== PROTECTING connection: {} -> {} for node {}", id, conn.debug_print(Timestamp::now()), protect_nr);
             conn.protect(protect_nr);
         }
 
@@ -244,7 +244,7 @@ impl ConnectionManager {
             Ok(Some(conn)) => {
                 // Connection added and a different one LRU'd out
                 // Send it to be terminated
-                log_net!(debug "== LRU kill connection due to limit: {:?}", conn.debug_print(get_aligned_timestamp()));
+                log_net!(debug "== LRU kill connection due to limit: {:?}", conn.debug_print(Timestamp::now()));
                 let _ = inner.sender.send(ConnectionManagerEvent::Dead(conn));
             }
             Err(ConnectionTableAddError::AddressFilter(conn, e)) => {
@@ -259,7 +259,7 @@ impl ConnectionManager {
             Err(ConnectionTableAddError::AlreadyExists(conn)) => {
                 // Connection already exists
                 let desc = conn.flow();
-                log_net!(debug "== Connection already exists: {:?}", conn.debug_print(get_aligned_timestamp()));
+                log_net!(debug "== Connection already exists: {:?}", conn.debug_print(Timestamp::now()));
                 let _ = inner.sender.send(ConnectionManagerEvent::Dead(conn));
                 return Ok(NetworkResult::no_connection_other(format!(
                     "connection already exists: {:?}",
@@ -269,7 +269,7 @@ impl ConnectionManager {
             Err(ConnectionTableAddError::TableFull(conn)) => {
                 // Connection table is full
                 let desc = conn.flow();
-                log_net!(debug "== Connection table full: {:?}", conn.debug_print(get_aligned_timestamp()));
+                log_net!(debug "== Connection table full: {:?}", conn.debug_print(Timestamp::now()));
                 let _ = inner.sender.send(ConnectionManagerEvent::Dead(conn));
                 return Ok(NetworkResult::no_connection_other(format!(
                     "connection table is full: {:?}",

@@ -28,7 +28,7 @@ pub async fn test_veilidappcall() {
         Some(fix_typedkey()),
         Some(fix_cryptokey()),
         b"Well, hello!".to_vec(),
-        AlignedU64::from(123),
+        OperationId::from(123),
     );
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();
 
@@ -229,8 +229,8 @@ pub async fn test_peertabledata() {
 pub async fn test_veilidstatenetwork() {
     let orig = VeilidStateNetwork {
         started: true,
-        bps_down: AlignedU64::from(14_400),
-        bps_up: AlignedU64::from(1200),
+        bps_down: ByteCount::from(14_400),
+        bps_up: ByteCount::from(1200),
         peers: vec![fix_peertabledata()],
     };
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();
@@ -280,8 +280,8 @@ pub async fn test_veilidstate() {
         }),
         network: Box::new(VeilidStateNetwork {
             started: true,
-            bps_down: AlignedU64::from(14_400),
-            bps_up: AlignedU64::from(1200),
+            bps_down: ByteCount::from(14_400),
+            bps_up: ByteCount::from(1200),
             peers: vec![fix_peertabledata()],
         }),
         config: Box::new(VeilidStateConfig {
