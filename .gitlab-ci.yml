@@ -189,7 +189,7 @@ build_repositories:
 delete_build_machines:
   stage: distribute
   needs:
-    - deploy_repos
+    - build_repositories
   tags:
     - build-orchestration
   script:
