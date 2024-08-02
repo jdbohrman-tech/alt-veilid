@@ -78,8 +78,13 @@ Go to [Start headless node](#start-headless-node)
 
 Invoke the Veilid CLI utility.
 
+Either add your user to the _veilid_ group and invoke the command
 ```shell
 veilid-cli
+```
+Or use _sudo_ to invoke as the _veilid_ user
+```shell
+sudo -u veilid veilid-cli
 ```
 
 ### RPM-based
@@ -116,8 +121,13 @@ Go to [Start headless node](#start-headless-node)
 
 Invoke the Veilid CLI utility.
 
+Either add your user to the _veilid_ group and invoke the command
 ```shell
 veilid-cli
+```
+Or use _sudo_ to invoke as the _veilid_ user
+```shell
+sudo -u veilid veilid-cli
 ```
 
 ### macOS
