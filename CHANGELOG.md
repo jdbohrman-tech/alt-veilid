@@ -1,4 +1,17 @@
 **Changed in Veilid 0.3.3**
+- Crates updates
+  - Update crates to newer versions
+  - Remove veilid-async-tungstenite and veilid-async-tls crates as they are no longer needed
+- Fix startup/shutdown/attach/detach
+  - Improved resource accounting
+  - Locked startup/shutdown mechanism
+  - Perfetto profiler output for ui.perfetto.dev
+  - SO_LINGER(0) re-enabled to eliminate TIME_WAIT on restart/detach/attach
+  (this may cause noise for WASM in browsers when websockets are RST dropped rather than handshake closed, we will deal with this later)
+- _Community Contributions_
+  - prototype script to install / run a veilid-server node within a unifyos device (tested on a unify dream machine pro SE) @Vyrus-001
+
+**Changed in Veilid 0.3.3**
 - Fix set_dht_value and watch_value
   - Watching values incorrectly categorized 'owner' keys as anonymous watchers
   - Setting a dht value with the same sequence number as what is on the network, but with a conflicting value, did not result in the current value being returned to the api caller as it should have been
