@@ -27,7 +27,7 @@ cat dists/stable/main/binary-amd64/Packages | gzip -9 > dists/stable/main/binary
 cat dists/stable/main/binary-arm64/Packages | gzip -9 > dists/stable/main/binary-arm64/Packages.gz
 echo "Creating Release file"
 cd $HOME/srv/apt/dists/stable
-$HOME/generate-release.sh > Release
+bash $HOME/generate-stable-release.sh > Release
 echo "Signing Release file and creating InRelease"
 cat $HOME/srv/apt/dists/stable/Release | gpg --default-key admin@veilid.org -abs > $HOME/srv/apt/dists/stable/Release.gpg
 cat $HOME/srv/apt/dists/stable/Release | gpg --default-key admin@veilid.org -abs --clearsign > $HOME/srv/apt/dists/stable/InRelease
