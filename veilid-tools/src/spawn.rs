@@ -54,8 +54,10 @@ cfg_if! {
             cfg_if! {
                 if #[cfg(feature="rt-async-std")] {
                     MustJoinHandle::new(async_std::task::Builder::new().name(name.to_string()).spawn(future).unwrap())
-                } else if #[cfg(feature="rt-tokio")] {
+                } else if #[cfg(all(feature="rt-tokio", feature="tracing"))] {
                     MustJoinHandle::new(tokio::task::Builder::new().name(name).spawn(future).unwrap())
+                } else if #[cfg(feature="rt-tokio")] {
+                    MustJoinHandle::new(tokio::task::spawn(future))
                 }
             }
         }
@@ -67,8 +69,10 @@ cfg_if! {
             cfg_if! {
                 if #[cfg(feature="rt-async-std")] {
                     MustJoinHandle::new(async_std::task::Builder::new().name(name.to_string()).local(future).unwrap())
-                } else if #[cfg(feature="rt-tokio")] {
+                } else if #[cfg(all(feature="rt-tokio", feature="tracing"))] {
                     MustJoinHandle::new(tokio::task::Builder::new().name(name).spawn_local(future).unwrap())
+                } else if #[cfg(feature="rt-tokio")] {
+                    MustJoinHandle::new(tokio::task::spawn_local(future))
                 }
             }
         }
@@ -80,8 +84,10 @@ cfg_if! {
             cfg_if! {
                 if #[cfg(feature="rt-async-std")] {
                     drop(async_std::task::Builder::new().name(name.to_string()).spawn(future).unwrap());
-                } else if #[cfg(feature="rt-tokio")] {
+                } else if #[cfg(all(feature="rt-tokio", feature="tracing"))] {
                     drop(tokio::task::Builder::new().name(name).spawn(future).unwrap());
+                } else if #[cfg(feature="rt-tokio")] {
+                    drop(tokio::task::spawn(future))
                 }
             }
         }
@@ -93,8 +99,10 @@ cfg_if! {
             cfg_if! {
                 if #[cfg(feature="rt-async-std")] {
                     drop(async_std::task::Builder::new().name(name.to_string()).local(future).unwrap());
-                } else if #[cfg(feature="rt-tokio")] {
+                } else if #[cfg(all(feature="rt-tokio", feature="tracing"))] {
                     drop(tokio::task::Builder::new().name(name).spawn_local(future).unwrap());
+                } else if #[cfg(feature="rt-tokio")] {
+                    drop(tokio::task::spawn_local(future))
                 }
             }
         }
@@ -111,8 +119,10 @@ cfg_if! {
                     let _name = name;
                     // async_std::task::Builder blocking doesn't work like spawn_blocking()
                     async_std::task::spawn_blocking(blocking_task).await
-                } else if #[cfg(feature="rt-tokio")] {
+                } else if #[cfg(all(feature="rt-tokio", feature="tracing"))] {
                     tokio::task::Builder::new().name(name).spawn_blocking(blocking_task).unwrap().await.unwrap_or(err_result)
+                } else if #[cfg(feature="rt-tokio")] {
+                    tokio::task::spawn_blocking(blocking_task).await.unwrap_or(err_result)
                 } else {
                     #[compile_error("must use an executor")]
                 }
