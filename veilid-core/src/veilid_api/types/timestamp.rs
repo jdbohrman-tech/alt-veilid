@@ -2,12 +2,7 @@
 use super::*;
 
 aligned_u64_type!(Timestamp);
-
-impl fmt::Display for Timestamp {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", debug_ts(self.as_u64()))
-    }
-}
+aligned_u64_type_default_display_impl!(Timestamp);
 
 impl fmt::Debug for Timestamp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
