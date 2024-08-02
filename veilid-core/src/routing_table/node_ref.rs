@@ -325,14 +325,14 @@ pub(crate) trait NodeRefBase: Sized {
     }
 
     fn report_protected_connection_dropped(&self) {
-        self.stats_failed_to_send(get_aligned_timestamp(), false);
+        self.stats_failed_to_send(Timestamp::now(), false);
     }
 
     fn report_failed_route_test(&self) {
-        self.stats_failed_to_send(get_aligned_timestamp(), false);
+        self.stats_failed_to_send(Timestamp::now(), false);
     }
 
-    fn stats_question_sent(&self, ts: Timestamp, bytes: Timestamp, expects_answer: bool) {
+    fn stats_question_sent(&self, ts: Timestamp, bytes: ByteCount, expects_answer: bool) {
         self.operate_mut(|rti, e| {
             rti.transfer_stats_accounting().add_up(bytes);
             e.question_sent(ts, bytes, expects_answer);

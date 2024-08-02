@@ -256,7 +256,7 @@ impl StorageManagerInner {
         )?);
 
         // Add new local value record
-        let cur_ts = get_aligned_timestamp();
+        let cur_ts = Timestamp::now();
         let local_record_detail = LocalRecordDetail::new(safety_selection);
         let record =
             Record::<LocalRecordDetail>::new(cur_ts, signed_value_descriptor, local_record_detail)?;
@@ -293,7 +293,7 @@ impl StorageManagerInner {
         };
 
         // Make local record
-        let cur_ts = get_aligned_timestamp();
+        let cur_ts = Timestamp::now();
         let local_record = Record::new(
             cur_ts,
             remote_record.descriptor().clone(),
@@ -435,7 +435,7 @@ impl StorageManagerInner {
 
         // Make and store a new record for this descriptor
         let record = Record::<LocalRecordDetail>::new(
-            get_aligned_timestamp(),
+            Timestamp::now(),
             signed_value_descriptor,
             LocalRecordDetail::new(safety_selection),
         )?;
@@ -500,7 +500,7 @@ impl StorageManagerInner {
         // Get local record store
         let local_record_store = self.local_record_store.as_mut().unwrap();
 
-        let cur_ts = get_aligned_timestamp();
+        let cur_ts = Timestamp::now();
         local_record_store.with_record_mut(key, |r| {
             let d = r.detail_mut();
 
@@ -655,7 +655,7 @@ impl StorageManagerInner {
         // See if we have a remote record already or not
         if remote_record_store.with_record(key, |_| {}).is_none() {
             // record didn't exist, make it
-            let cur_ts = get_aligned_timestamp();
+            let cur_ts = Timestamp::now();
             let remote_record_detail = RemoteRecordDetail {};
             let record = Record::<RemoteRecordDetail>::new(
                 cur_ts,

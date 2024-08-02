@@ -83,7 +83,7 @@ where
         let (result_sender, result_receiver) = flume::bounded(1);
         let waiting_op = OperationWaitingOp {
             context,
-            timestamp: get_aligned_timestamp(),
+            timestamp: Timestamp::now(),
             result_sender,
         };
         if inner.waiting_op_table.insert(op_id, waiting_op).is_some() {
@@ -166,7 +166,7 @@ where
         let result_fut = result_receiver.recv_async().in_current_span();
 
         // wait for eventualvalue
-        let start_ts = get_aligned_timestamp();
+        let start_ts = Timestamp::now();
         let res = timeout(timeout_ms, result_fut).await.into_timeout_or();
 
         match res {
@@ -175,7 +175,7 @@ where
                 Ok(TimeoutOr::Timeout)
             }
             TimeoutOr::Value(Ok((_span_id, ret))) => {
-                let end_ts = get_aligned_timestamp();
+                let end_ts = Timestamp::now();
 
                 //xxx: causes crash (Missing otel data span extensions)
                 // Span::current().follows_from(span_id);

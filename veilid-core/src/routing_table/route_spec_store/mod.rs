@@ -254,7 +254,7 @@ impl RouteSpecStore {
             .map(|nr| nr.locked(rti));
 
         // Get list of all nodes, and sort them for selection
-        let cur_ts = get_aligned_timestamp();
+        let cur_ts = Timestamp::now();
         let filter = Box::new(
             |_rti: &RoutingTableInner, entry: Option<Arc<BucketEntry>>| -> bool {
                 // Exclude our own node from routes
@@ -838,7 +838,7 @@ impl RouteSpecStore {
     /// Check if a route id is remote or not
     pub fn is_route_id_remote(&self, id: &RouteId) -> bool {
         let inner = &mut *self.inner.lock();
-        let cur_ts = get_aligned_timestamp();
+        let cur_ts = Timestamp::now();
         inner
             .cache
             .peek_remote_private_route_mut(cur_ts, id)
@@ -881,7 +881,7 @@ impl RouteSpecStore {
         directions: DirectionSet,
         avoid_nodes: &[TypedKey],
     ) -> Option<RouteId> {
-        let cur_ts = get_aligned_timestamp();
+        let cur_ts = Timestamp::now();
 
         let mut routes = Vec::new();
 
@@ -954,7 +954,7 @@ impl RouteSpecStore {
         F: FnMut(&RouteId, &RemotePrivateRouteInfo) -> Option<R>,
     {
         let inner = self.inner.lock();
-        let cur_ts = get_aligned_timestamp();
+        let cur_ts = Timestamp::now();
         let remote_route_ids = inner.cache.get_remote_private_route_ids(cur_ts);
         let mut out = Vec::with_capacity(remote_route_ids.len());
         for id in remote_route_ids {
@@ -970,7 +970,7 @@ impl RouteSpecStore {
     /// Get the debug description of a route
     pub fn debug_route(&self, id: &RouteId) -> Option<String> {
         let inner = &mut *self.inner.lock();
-        let cur_ts = get_aligned_timestamp();
+        let cur_ts = Timestamp::now();
         if let Some(rpri) = inner.cache.peek_remote_private_route(cur_ts, id) {
             return Some(format!("{:#?}", rpri));
         }
@@ -985,7 +985,7 @@ impl RouteSpecStore {
     /// Choose the best private route from a private route set to communicate with
     pub fn best_remote_private_route(&self, id: &RouteId) -> Option<PrivateRoute> {
         let inner = &mut *self.inner.lock();
-        let cur_ts = get_aligned_timestamp();
+        let cur_ts = Timestamp::now();
         let rpri = inner.cache.get_remote_private_route(cur_ts, id)?;
         rpri.best_private_route()
     }
@@ -1525,7 +1525,7 @@ impl RouteSpecStore {
     /// Returns a route set id
     #[instrument(level = "trace", target = "route", skip_all)]
     pub fn import_remote_private_route_blob(&self, blob: Vec<u8>) -> VeilidAPIResult<RouteId> {
-        let cur_ts = get_aligned_timestamp();
+        let cur_ts = Timestamp::now();
 
         // decode the pr blob
         let private_routes = RouteSpecStore::blob_to_private_routes(
@@ -1565,7 +1565,7 @@ impl RouteSpecStore {
         &self,
         private_route: PrivateRoute,
     ) -> VeilidAPIResult<RouteId> {
-        let cur_ts = get_aligned_timestamp();
+        let cur_ts = Timestamp::now();
 
         // Make a single route set
         let private_routes = vec![private_route];
@@ -1630,7 +1630,7 @@ impl RouteSpecStore {
         }
 
         if let Some(rrid) = inner.cache.get_remote_private_route_id_by_key(key) {
-            let cur_ts = get_aligned_timestamp();
+            let cur_ts = Timestamp::now();
             if let Some(rpri) = inner.cache.peek_remote_private_route(cur_ts, &rrid) {
                 let our_node_info_ts = self
                     .unlocked_inner

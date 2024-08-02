@@ -4,18 +4,18 @@ use crate::*;
 
 pub fn fix_latencystats() -> LatencyStats {
     LatencyStats {
-        fastest: AlignedU64::from(1234),
-        average: AlignedU64::from(2345),
-        slowest: AlignedU64::from(3456),
+        fastest: TimestampDuration::from(1234),
+        average: TimestampDuration::from(2345),
+        slowest: TimestampDuration::from(3456),
     }
 }
 
 pub fn fix_transferstats() -> TransferStats {
     TransferStats {
-        total: AlignedU64::from(1_000_000),
-        maximum: AlignedU64::from(3456),
-        average: AlignedU64::from(2345),
-        minimum: AlignedU64::from(1234),
+        total: ByteCount::from(1_000_000),
+        maximum: ByteCount::from(3456),
+        average: ByteCount::from(2345),
+        minimum: ByteCount::from(1234),
     }
 }
 
@@ -31,9 +31,9 @@ pub fn fix_rpcstats() -> RPCStats {
         messages_sent: 1_000_000,
         messages_rcvd: 2_000_000,
         questions_in_flight: 42,
-        last_question_ts: Some(AlignedU64::from(1685569084280)),
-        last_seen_ts: Some(AlignedU64::from(1685569101256)),
-        first_consecutive_seen_ts: Some(AlignedU64::from(1685569111851)),
+        last_question_ts: Some(Timestamp::from(1685569084280)),
+        last_seen_ts: Some(Timestamp::from(1685569101256)),
+        first_consecutive_seen_ts: Some(Timestamp::from(1685569111851)),
         recent_lost_answers: 5,
         failed_to_send: 3,
     }
@@ -41,7 +41,7 @@ pub fn fix_rpcstats() -> RPCStats {
 
 pub fn fix_peerstats() -> PeerStats {
     PeerStats {
-        time_added: AlignedU64::from(1685569176894),
+        time_added: Timestamp::from(1685569176894),
         rpc_stats: fix_rpcstats(),
         latency: Some(fix_latencystats()),
         transfer: fix_transferstatsdownup(),

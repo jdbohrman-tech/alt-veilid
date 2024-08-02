@@ -529,11 +529,11 @@ impl NetworkManager {
         let mut inner = self.inner.lock();
         match inner.client_allowlist.entry(client) {
             hashlink::lru_cache::Entry::Occupied(mut entry) => {
-                entry.get_mut().last_seen_ts = get_aligned_timestamp()
+                entry.get_mut().last_seen_ts = Timestamp::now()
             }
             hashlink::lru_cache::Entry::Vacant(entry) => {
                 entry.insert(ClientAllowlistEntry {
-                    last_seen_ts: get_aligned_timestamp(),
+                    last_seen_ts: Timestamp::now(),
                 });
             }
         }
@@ -545,7 +545,7 @@ impl NetworkManager {
 
         match inner.client_allowlist.entry(client) {
             hashlink::lru_cache::Entry::Occupied(mut entry) => {
-                entry.get_mut().last_seen_ts = get_aligned_timestamp();
+                entry.get_mut().last_seen_ts = Timestamp::now();
                 true
             }
             hashlink::lru_cache::Entry::Vacant(_) => false,
@@ -556,7 +556,7 @@ impl NetworkManager {
         let timeout_ms = self.with_config(|c| c.network.client_allowlist_timeout_ms);
         let mut inner = self.inner.lock();
         let cutoff_timestamp =
-            get_aligned_timestamp() - TimestampDuration::new((timeout_ms as u64) * 1000u64);
+            Timestamp::now() - TimestampDuration::new((timeout_ms as u64) * 1000u64);
         // Remove clients from the allowlist that haven't been since since our allowlist timeout
         while inner
             .client_allowlist
@@ -587,7 +587,7 @@ impl NetworkManager {
     #[instrument(level = "trace", skip(self, extra_data, callback))]
     pub fn generate_receipt<D: AsRef<[u8]>>(
         &self,
-        expiration_us: u64,
+        expiration_us: TimestampDuration,
         expected_returns: u32,
         extra_data: D,
         callback: impl ReceiptCallback,
@@ -617,7 +617,7 @@ impl NetworkManager {
             .wrap_err("failed to generate signed receipt")?;
 
         // Record the receipt for later
-        let exp_ts = get_aligned_timestamp() + expiration_us;
+        let exp_ts = Timestamp::now() + expiration_us;
         receipt_manager.record_receipt(receipt, exp_ts, expected_returns, callback);
 
         Ok(out)
@@ -627,7 +627,7 @@ impl NetworkManager {
     #[instrument(level = "trace", skip(self, extra_data))]
     pub fn generate_single_shot_receipt<D: AsRef<[u8]>>(
         &self,
-        expiration_us: u64,
+        expiration_us: TimestampDuration,
         extra_data: D,
     ) -> EyreResult<(Vec<u8>, EventualValueFuture<ReceiptEvent>)> {
         let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
@@ -656,7 +656,7 @@ impl NetworkManager {
             .wrap_err("failed to generate signed receipt")?;
 
         // Record the receipt for later
-        let exp_ts = get_aligned_timestamp() + expiration_us;
+        let exp_ts = Timestamp::now() + expiration_us;
         let eventual = SingleShotEventual::new(Some(ReceiptEvent::Cancelled));
         let instance = eventual.instance();
         receipt_manager.record_single_shot_receipt(receipt, exp_ts, eventual);
@@ -855,7 +855,7 @@ impl NetworkManager {
                 // XXX: do we need a delay here? or another hole punch packet?
 
                 // Set the hole punch as our 'last connection' to ensure we return the receipt over the direct hole punch
-                peer_nr.set_last_flow(unique_flow.flow, get_aligned_timestamp());
+                peer_nr.set_last_flow(unique_flow.flow, Timestamp::now());
 
                 // Return the receipt using the same dial info send the receipt to it
                 rpc.rpc_call_return_receipt(Destination::direct(peer_nr), receipt)
@@ -883,7 +883,7 @@ impl NetworkManager {
         let node_id_secret = routing_table.node_id_secret_key(vcrypto.kind());
 
         // Get timestamp, nonce
-        let ts = get_aligned_timestamp();
+        let ts = Timestamp::now();
         let nonce = vcrypto.random_nonce();
 
         // Encode envelope
@@ -1064,7 +1064,7 @@ impl NetworkManager {
         });
 
         // Validate timestamp isn't too old
-        let ts = get_aligned_timestamp();
+        let ts = Timestamp::now();
         let ets = envelope.get_timestamp();
         if let Some(tsbehind) = tsbehind {
             if tsbehind.as_u64() != 0 && (ts > ets && ts.saturating_sub(ets) > tsbehind) {

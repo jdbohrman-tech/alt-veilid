@@ -38,11 +38,11 @@ pub struct IOStatsInfo {
     /// Number of write operations.
     pub writes: AlignedU64,
     /// Number of bytes read
-    pub bytes_read: AlignedU64,
+    pub bytes_read: ByteCount,
     /// Number of bytes read from cache
-    pub cache_read_bytes: AlignedU64,
+    pub cache_read_bytes: ByteCount,
     /// Number of bytes write
-    pub bytes_written: AlignedU64,
+    pub bytes_written: ByteCount,
     /// Start of the statistic period.
     pub started: Timestamp,
     /// Total duration of the statistic period.
@@ -672,9 +672,9 @@ impl TableStore {
                 reads: AlignedU64::new(io_stats_since_previous.reads),
                 cache_reads: AlignedU64::new(io_stats_since_previous.cache_reads),
                 writes: AlignedU64::new(io_stats_since_previous.writes),
-                bytes_read: AlignedU64::new(io_stats_since_previous.bytes_read),
-                cache_read_bytes: AlignedU64::new(io_stats_since_previous.cache_read_bytes),
-                bytes_written: AlignedU64::new(io_stats_since_previous.bytes_written),
+                bytes_read: ByteCount::new(io_stats_since_previous.bytes_read),
+                cache_read_bytes: ByteCount::new(io_stats_since_previous.cache_read_bytes),
+                bytes_written: ByteCount::new(io_stats_since_previous.bytes_written),
                 started: Timestamp::new(
                     io_stats_since_previous
                         .started
@@ -689,9 +689,9 @@ impl TableStore {
                 reads: AlignedU64::new(io_stats_overall.reads),
                 cache_reads: AlignedU64::new(io_stats_overall.cache_reads),
                 writes: AlignedU64::new(io_stats_overall.writes),
-                bytes_read: AlignedU64::new(io_stats_overall.bytes_read),
-                cache_read_bytes: AlignedU64::new(io_stats_overall.cache_read_bytes),
-                bytes_written: AlignedU64::new(io_stats_overall.bytes_written),
+                bytes_read: ByteCount::new(io_stats_overall.bytes_read),
+                cache_read_bytes: ByteCount::new(io_stats_overall.cache_read_bytes),
+                bytes_written: ByteCount::new(io_stats_overall.bytes_written),
                 started: Timestamp::new(
                     io_stats_overall
                         .started

@@ -341,7 +341,7 @@ impl BucketEntryInner {
                         // No need to update the signednodeinfo though since the timestamp is the same
                         // Let the node try to live again but don't mark it as seen yet
                         self.updated_since_last_network_change = true;
-                        self.make_not_dead(get_aligned_timestamp());
+                        self.make_not_dead(Timestamp::now());
                     }
                     return;
                 }
@@ -361,7 +361,7 @@ impl BucketEntryInner {
         *opt_current_sni = Some(Box::new(signed_node_info));
         self.set_envelope_support(envelope_support);
         self.updated_since_last_network_change = true;
-        self.make_not_dead(get_aligned_timestamp());
+        self.make_not_dead(Timestamp::now());
 
         // If we're updating an entry's node info, purge all 
         // but the last connection in our last connections list
@@ -576,7 +576,7 @@ impl BucketEntryInner {
                     } else {
                         // If this is not connection oriented, then we check our last seen time
                         // to see if this mapping has expired (beyond our timeout)
-                        let cur_ts = get_aligned_timestamp();
+                        let cur_ts = Timestamp::now();
                         (v.1 + TimestampDuration::new(CONNECTIONLESS_TIMEOUT_SECS as u64 * 1_000_000u64)) >= cur_ts
                     };
 
@@ -809,8 +809,7 @@ impl BucketEntryInner {
                         let first_consecutive_seen_ts =
                             self.peer_stats.rpc_stats.first_consecutive_seen_ts.unwrap();
                         let start_of_reliable_time = first_consecutive_seen_ts
-                            + ((UNRELIABLE_PING_SPAN_SECS - UNRELIABLE_PING_INTERVAL_SECS) as u64
-                                * 1_000_000u64);
+                            + TimestampDuration::new_secs(UNRELIABLE_PING_SPAN_SECS - UNRELIABLE_PING_INTERVAL_SECS);
                         let reliable_cur = cur_ts.saturating_sub(start_of_reliable_time);
                         let reliable_last =
                             latest_contact_time.saturating_sub(start_of_reliable_time);
@@ -946,7 +945,7 @@ impl BucketEntry {
         // First node id should always be one we support since TypedKeySets are sorted and we must have at least one supported key
         assert!(VALID_CRYPTO_KINDS.contains(&first_node_id.kind));
 
-        let now = get_aligned_timestamp();
+        let now = Timestamp::now();
         let inner = BucketEntryInner {
             validated_node_ids: TypedKeyGroup::from(first_node_id),
             unsupported_node_ids: TypedKeyGroup::new(),

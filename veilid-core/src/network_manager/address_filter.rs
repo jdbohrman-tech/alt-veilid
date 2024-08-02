@@ -255,7 +255,7 @@ impl AddressFilter {
     }
 
     pub fn set_dial_info_failed(&self, dial_info: DialInfo) {
-        let ts = get_aligned_timestamp();
+        let ts = Timestamp::now();
 
         let mut inner = self.inner.lock();
         if inner.dial_info_failures.len() >= MAX_DIAL_INFO_FAILURES {
@@ -280,7 +280,7 @@ impl AddressFilter {
 
     pub fn punish_ip_addr(&self, addr: IpAddr, reason: PunishmentReason) {
         log_net!(debug ">>> PUNISHED: {} for {:?}", addr, reason);
-        let timestamp = get_aligned_timestamp();
+        let timestamp = Timestamp::now();
         let punishment = Punishment { reason, timestamp };
 
         let ipblock = ip_to_ipblock(
@@ -321,7 +321,7 @@ impl AddressFilter {
             nr.operate_mut(|_rti, e| e.set_punished(Some(reason)));
         }
 
-        let timestamp = get_aligned_timestamp();
+        let timestamp = Timestamp::now();
         let punishment = Punishment { reason, timestamp };
 
         let mut inner = self.inner.lock();
@@ -363,7 +363,7 @@ impl AddressFilter {
             return Err(AddressFilterError::Punished);
         }
 
-        let ts = get_aligned_timestamp();
+        let ts = Timestamp::now();
         self.purge_old_timestamps(inner, ts);
 
         match ipblock {
@@ -423,7 +423,7 @@ impl AddressFilter {
             addr,
         );
 
-        let ts = get_aligned_timestamp();
+        let ts = Timestamp::now();
         self.purge_old_timestamps(&mut inner, ts);
 
         match ipblock {

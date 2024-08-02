@@ -291,7 +291,7 @@ impl IGDManager {
             };
 
             // Add to mapping list to keep alive
-            let timestamp = get_aligned_timestamp();
+            let timestamp = Timestamp::now();
             inner.port_maps.insert(PortMapKey {
                 llpt,
                 at,
@@ -318,7 +318,7 @@ impl IGDManager {
         let mut renews: Vec<(PortMapKey, PortMapValue)> = Vec::new();
         {
             let inner = self.inner.lock();
-            let now = get_aligned_timestamp();
+            let now = Timestamp::now();
 
             for (k, v) in &inner.port_maps {
                 let mapping_lifetime = now.saturating_sub(v.timestamp);
@@ -373,7 +373,7 @@ impl IGDManager {
                         inner.port_maps.insert(k, PortMapValue {
                             ext_ip: v.ext_ip,
                             mapped_port, 
-                            timestamp: get_aligned_timestamp(), 
+                            timestamp: Timestamp::now(), 
                             renewal_lifetime: TimestampDuration::new((UPNP_MAPPING_LIFETIME_MS / 2) as u64 * 1000u64), 
                             renewal_attempts: 0,
                         });
@@ -414,7 +414,7 @@ impl IGDManager {
                         inner.port_maps.insert(k, PortMapValue {
                             ext_ip: v.ext_ip,
                             mapped_port: v.mapped_port, 
-                            timestamp: get_aligned_timestamp(), 
+                            timestamp: Timestamp::now(), 
                             renewal_lifetime: ((UPNP_MAPPING_LIFETIME_MS / 2) as u64 * 1000u64).into(), 
                             renewal_attempts: 0,
                         });

@@ -71,7 +71,7 @@ impl SignedRelayedNodeInfo {
         relay_ids: TypedKeyGroup,
         relay_info: SignedDirectNodeInfo,
     ) -> VeilidAPIResult<Self> {
-        let timestamp = get_aligned_timestamp();
+        let timestamp = Timestamp::now();
         let node_info_bytes =
             Self::make_signature_bytes(&node_info, &relay_ids, &relay_info, timestamp)?;
         let typed_signatures =

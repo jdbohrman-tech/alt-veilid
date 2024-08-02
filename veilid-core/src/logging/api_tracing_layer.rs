@@ -133,7 +133,7 @@ impl<S: Subscriber + for<'a> registry::LookupSpan<'a>> Layer<S> for ApiTracingLa
                     span_ref
                         .extensions_mut()
                         .insert::<SpanDuration>(SpanDuration {
-                            start: get_aligned_timestamp(),
+                            start: Timestamp::now(),
                             end: Timestamp::default(),
                         });
                 }
@@ -145,7 +145,7 @@ impl<S: Subscriber + for<'a> registry::LookupSpan<'a>> Layer<S> for ApiTracingLa
         if let Some(inner) = &mut *self.inner.lock() {
             if let Some(span_ref) = ctx.span(&id) {
                 if let Some(span_duration) = span_ref.extensions_mut().get_mut::<SpanDuration>() {
-                    span_duration.end = get_aligned_timestamp();
+                    span_duration.end = Timestamp::now();
                     let duration = span_duration.end.saturating_sub(span_duration.start);
                     let meta = span_ref.metadata();
                     self.emit_log(

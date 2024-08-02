@@ -515,7 +515,7 @@ impl RPCProcessor {
             // ensure we have some dial info for the entry already,
             // and that the node is still alive
             // if not, we should keep looking for better info
-            if nr.state(get_aligned_timestamp()).is_alive() &&
+            if nr.state(Timestamp::now()).is_alive() &&
                 nr.has_any_dial_info() {
                 return Some(nr);
             }
@@ -560,7 +560,7 @@ impl RPCProcessor {
                 // ensure we have some dial info for the entry already,
                 // and that the node is still alive
                 // if not, we should do the find_node anyway
-                if nr.state(get_aligned_timestamp()).is_alive() &&
+                if nr.state(Timestamp::now()).is_alive() &&
                     nr.has_any_dial_info() {
                     return Ok(Some(nr));
                 }
@@ -627,7 +627,7 @@ impl RPCProcessor {
             }
             Ok(TimeoutOr::Value((rpcreader, _))) => {
                 // Reply received
-                let recv_ts = get_aligned_timestamp();
+                let recv_ts = Timestamp::now();
 
                 // Record answer received
                 self.record_answer_received(
@@ -1208,7 +1208,7 @@ impl RPCProcessor {
 
         // Send question
         let bytes: ByteCount = (message.len() as u64).into();
-        let send_ts = get_aligned_timestamp();
+        let send_ts = Timestamp::now();
         #[allow(unused_variables)]
         let message_len = message.len();
         let res = self
@@ -1298,7 +1298,7 @@ impl RPCProcessor {
 
         // Send statement
         let bytes: ByteCount = (message.len() as u64).into();
-        let send_ts = get_aligned_timestamp();
+        let send_ts = Timestamp::now();
         #[allow(unused_variables)]
         let message_len = message.len();
         let res = self
@@ -1374,7 +1374,7 @@ impl RPCProcessor {
 
         // Send the reply
         let bytes: ByteCount = (message.len() as u64).into();
-        let send_ts = get_aligned_timestamp();
+        let send_ts = Timestamp::now();
         #[allow(unused_variables)]
         let message_len = message.len();
         let res = self
@@ -1719,7 +1719,7 @@ impl RPCProcessor {
                 flow,
                 routing_domain,
             }),
-            timestamp: get_aligned_timestamp(),
+            timestamp: Timestamp::now(),
             body_len: ByteCount::new(body.len() as u64),
         };
 
@@ -1755,7 +1755,7 @@ impl RPCProcessor {
                 remote_safety_route,
                 sequencing,
             }),
-            timestamp: get_aligned_timestamp(),
+            timestamp: Timestamp::now(),
             body_len: (body.len() as u64).into(),
         };
 
@@ -1792,7 +1792,7 @@ impl RPCProcessor {
                 private_route,
                 safety_spec,
             }),
-            timestamp: get_aligned_timestamp(),
+            timestamp: Timestamp::now(),
             body_len: (body.len() as u64).into(),
         };
 

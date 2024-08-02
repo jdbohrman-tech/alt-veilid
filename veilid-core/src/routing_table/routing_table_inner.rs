@@ -235,7 +235,7 @@ impl RoutingTableInner {
     }
 
     pub fn reset_all_updated_since_last_network_change(&mut self) {
-        let cur_ts = get_aligned_timestamp();
+        let cur_ts = Timestamp::now();
         self.with_entries_mut(cur_ts, BucketEntryState::Dead, |rti, v| {
             v.with_mut(rti, |_rti, e| {
                 e.reset_updated_since_last_network_change();
@@ -340,7 +340,7 @@ impl RoutingTableInner {
 
         // If the local network topology has changed, nuke the existing local node info and let new local discovery happen
         if changed {
-            let cur_ts = get_aligned_timestamp();
+            let cur_ts = Timestamp::now();
             self.with_entries_mut(cur_ts, BucketEntryState::Dead, |rti, e| {
                 e.with_mut(rti, |_rti, e| {
                     e.clear_signed_node_info(RoutingDomain::LocalNetwork);
@@ -420,7 +420,7 @@ impl RoutingTableInner {
     /// Only considers entries that have valid signed node info
     pub fn refresh_cached_entry_counts(&mut self) -> EntryCounts {
         self.live_entry_count.clear();
-        let cur_ts = get_aligned_timestamp();
+        let cur_ts = Timestamp::now();
         self.with_entries_mut(cur_ts, BucketEntryState::Unreliable, |rti, entry| {
             entry.with_inner(|e| {
                 // Tally per routing domain and crypto kind
@@ -458,7 +458,7 @@ impl RoutingTableInner {
         crypto_kinds: &[CryptoKind],
     ) -> usize {
         let mut count = 0usize;
-        let cur_ts = get_aligned_timestamp();
+        let cur_ts = Timestamp::now();
         self.with_entries(cur_ts, min_state, |rti, e| {
             if e.with_inner(|e| {
                 e.best_routing_domain(rti, routing_domain_set).is_some()
@@ -884,7 +884,7 @@ impl RoutingTableInner {
         let mut unreliable_entry_count: usize = 0;
         let mut dead_entry_count: usize = 0;
 
-        let cur_ts = get_aligned_timestamp();
+        let cur_ts = Timestamp::now();
         for entry in self.all_entries.iter() {
             match entry.with_inner(|e| e.state(cur_ts)) {
                 BucketEntryState::Reliable => {
@@ -1078,7 +1078,7 @@ impl RoutingTableInner {
     where
         T: for<'r> FnMut(&'r RoutingTableInner, Option<Arc<BucketEntry>>) -> O,
     {
-        let cur_ts = get_aligned_timestamp();
+        let cur_ts = Timestamp::now();
 
         // always filter out self peer, as it is irrelevant to the 'fastest nodes' search
         let filter_self =
@@ -1158,7 +1158,7 @@ impl RoutingTableInner {
     where
         T: for<'r> FnMut(&'r RoutingTableInner, Option<Arc<BucketEntry>>) -> O,
     {
-        let cur_ts = get_aligned_timestamp();
+        let cur_ts = Timestamp::now();
 
         // Get the crypto kind
         let crypto_kind = node_id.kind;

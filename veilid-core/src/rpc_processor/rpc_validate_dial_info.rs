@@ -22,7 +22,9 @@ impl RPCProcessor {
             .ok_or(RPCError::try_again("not started up"))?;
 
         let network_manager = self.network_manager();
-        let receipt_time = ms_to_us(self.unlocked_inner.validate_dial_info_receipt_time_ms);
+        let receipt_time = TimestampDuration::new_ms(
+            self.unlocked_inner.validate_dial_info_receipt_time_ms as u64,
+        );
 
         // Generate receipt and waitable eventual so we can see if we get the receipt back
         let (receipt, eventual_value) = network_manager

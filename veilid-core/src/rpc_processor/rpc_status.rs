@@ -38,7 +38,7 @@ impl RPCProcessor {
                 // Because this exits before calling 'question()',
                 // a failure to find a routing domain constitutes a send failure
                 // Record the send failure on both the node and its relay
-                let send_ts = get_aligned_timestamp();
+                let send_ts = Timestamp::now();
                 if let Some(node) = &opt_node {
                     self.record_send_failure(RPCKind::Question, send_ts, node.clone(), None, None);
                 }
