@@ -57,6 +57,7 @@ cfg_if! {
                 } else if #[cfg(all(feature="rt-tokio", feature="tracing"))] {
                     MustJoinHandle::new(tokio::task::Builder::new().name(name).spawn(future).unwrap())
                 } else if #[cfg(feature="rt-tokio")] {
+                    let _name = name;
                     MustJoinHandle::new(tokio::task::spawn(future))
                 }
             }
@@ -72,6 +73,7 @@ cfg_if! {
                 } else if #[cfg(all(feature="rt-tokio", feature="tracing"))] {
                     MustJoinHandle::new(tokio::task::Builder::new().name(name).spawn_local(future).unwrap())
                 } else if #[cfg(feature="rt-tokio")] {
+                    let _name = name;
                     MustJoinHandle::new(tokio::task::spawn_local(future))
                 }
             }
@@ -87,6 +89,7 @@ cfg_if! {
                 } else if #[cfg(all(feature="rt-tokio", feature="tracing"))] {
                     drop(tokio::task::Builder::new().name(name).spawn(future).unwrap());
                 } else if #[cfg(feature="rt-tokio")] {
+                    let _name = name;
                     drop(tokio::task::spawn(future))
                 }
             }
@@ -102,6 +105,7 @@ cfg_if! {
                 } else if #[cfg(all(feature="rt-tokio", feature="tracing"))] {
                     drop(tokio::task::Builder::new().name(name).spawn_local(future).unwrap());
                 } else if #[cfg(feature="rt-tokio")] {
+                    let _name = name;
                     drop(tokio::task::spawn_local(future))
                 }
             }
@@ -122,6 +126,7 @@ cfg_if! {
                 } else if #[cfg(all(feature="rt-tokio", feature="tracing"))] {
                     tokio::task::Builder::new().name(name).spawn_blocking(blocking_task).unwrap().await.unwrap_or(err_result)
                 } else if #[cfg(feature="rt-tokio")] {
+                    let _name = name;
                     tokio::task::spawn_blocking(blocking_task).await.unwrap_or(err_result)
                 } else {
                     #[compile_error("must use an executor")]
