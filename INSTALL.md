@@ -70,11 +70,11 @@ sudo apt update
 sudo apt install veilid-server veilid-cli
 ```
 
-***Step 6***: Start veilid-server.service
+**Step 6**: Start veilid-server.service
 
 Go to [Start headless node](#start-headless-node)
 
-***Step 7***: View Node Activity
+**Step 7**: View Node Activity
 
 Invoke the Veilid CLI utility.
 
@@ -113,11 +113,11 @@ sudo dnf config-manager --add-repo https://packages.veilid.net/rpm/nightly/x86_6
 sudo dnf install veilid-server veilid-cli
 ```
 
-***Step 3***: Start veilid-server.service
+**Step 3**: Start veilid-server.service
 
 Go to [Start headless node](#start-headless-node)
 
-***Step 4***: View Node Activity
+**Step 4**: View Node Activity
 
 Invoke the Veilid CLI utility.
 
@@ -130,7 +130,44 @@ Or use _sudo_ to invoke as the _veilid_ user
 sudo -u veilid veilid-cli
 ```
 
+### Setup Auto Updates
+
+**Stable Releases**
+
+We set the bootstrap nodes to check for updates every hour by using crontab
+
+On a Debian based machine:
+
+```shell
+sudo crontab -e
+```
+
+In the editor that opens append:
+```shell
+0 * * * * apt -y update && apt -y upgrade veilid-cli veilid-server > ~/auto_updates.log 2>&1
+```
+
+**Nightly Releases**
+
+The nightly auto release triggers at 11PM US Central Time. The following crontab exmaple will
+trigger at 6AM for your machine's local time which should give plenty of time for the auto release
+to complete no matter where you are in the world.
+
+```shell
+sudo crontab -e
+```
+
+In the editor that opens append:
+```shell
+* 6 * * * apt -y update && apt -y upgrade veilid-cli veilid-server > ~/auto_updates.log 2>&1
+```
+
+**Fedora Based Machines**
+
+The above steps should work, replace the apt commands with appropriate dnf commands.
+
 ### macOS
+***Not maintained by the Veilid team. Seek assistance in the Discord community.***
 
 Veilid is available [via Homebrew](https://formulae.brew.sh/formula/veilid).
 
