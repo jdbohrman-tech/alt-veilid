@@ -263,7 +263,7 @@ pub fn load_config(cfg: config::Config, config_file: &Path) -> EyreResult<config
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, ValueEnum)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]
 pub enum LogLevel {
     Off,
     Error,
@@ -320,7 +320,7 @@ pub fn convert_loglevel(log_level: LogLevel) -> veilid_core::VeilidConfigLogLeve
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ParsedUrl {
     pub urlstring: String,
     pub url: Url,
@@ -376,7 +376,7 @@ impl serde::Serialize for ParsedUrl {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct NamedSocketAddrs {
     pub name: String,
     pub addrs: Vec<SocketAddr>,

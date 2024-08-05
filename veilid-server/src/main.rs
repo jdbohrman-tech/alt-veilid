@@ -136,11 +136,11 @@ pub struct CmdlineArgs {
     #[arg(long, value_name = "BOOTSTRAP_LIST")]
     bootstrap: Option<String>,
 
-    /// panic on ctrl-c instead of graceful shutdown
+    /// Panic on ctrl-c instead of graceful shutdown
     #[arg(long)]
     panic: bool,
 
-    /// password override to use for network isolation
+    /// Password override to use for network isolation
     #[arg(long, value_name = "KEY")]
     network_key: Option<String>,
 
@@ -149,14 +149,18 @@ pub struct CmdlineArgs {
     #[arg(long)]
     wait_for_debug: bool,
 
-    /// enable tokio console
+    /// Enable tokio console
     #[cfg(feature = "rt-tokio")]
     #[arg(long)]
     console: bool,
 
-    /// change ingore_log_targets
+    /// Change targets to ignore for logging
     #[arg(long)]
     ignore_log_targets: Option<Vec<String>>,
+
+    /// Override all network listen addresses with ':port'
+    #[arg(long)]
+    port: Option<u16>,
 }
 
 #[instrument(level = "trace", skip_all, err)]
@@ -315,6 +319,15 @@ fn main() -> EyreResult<()> {
     if let Some(ignore_log_targets) = args.ignore_log_targets {
         println!("Changing ignored log targets: {:?}", ignore_log_targets);
         settingsrw.logging.terminal.ignore_log_targets = ignore_log_targets
+    }
+
+    if let Some(port) = args.port {
+        let listen_address =
+            NamedSocketAddrs::from_str(&format!(":{}", port)).wrap_err("invalid port")?;
+        settingsrw.core.network.protocol.udp.listen_address = listen_address.clone();
+        settingsrw.core.network.protocol.tcp.listen_address = listen_address.clone();
+        settingsrw.core.network.protocol.ws.listen_address = listen_address.clone();
+        settingsrw.core.network.protocol.wss.listen_address = listen_address;
     }
 
     drop(settingsrw);
