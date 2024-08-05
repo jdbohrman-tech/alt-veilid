@@ -279,7 +279,7 @@ impl NetworkConnection {
     ) -> SendPinBoxFuture<()> {
         Box::pin(async move {
             log_net!(
-                "== Starting process_connection loop for id={}, {:?}", connection_id,
+                "Starting process_connection loop for id={}, {:?}", connection_id,
                 flow
             );
 
@@ -294,7 +294,7 @@ impl NetworkConnection {
             let new_timer = || {
                 sleep(connection_manager.connection_inactivity_timeout_ms()).then(|_| async {
                     // timeout
-                    log_net!("== Connection timeout on {:?}", flow);
+                    log_net!("Connection timeout on {:?}", flow);
                     RecvLoopAction::Timeout
                 })
             };
@@ -354,7 +354,7 @@ impl NetworkConnection {
 
                                     // Check for connection close
                                     if v.is_no_connection() {
-                                        log_net!(debug "Connection closed from: {} ({})", peer_address.socket_addr(), peer_address.protocol_type());
+                                        log_net!("Connection closed from: {} ({})", peer_address.socket_addr(), peer_address.protocol_type());
                                         return RecvLoopAction::Finish;
                                     }
 
@@ -428,7 +428,7 @@ impl NetworkConnection {
             }
 
             log_net!(
-                "== Connection loop finished flow={:?}",
+                "Connection loop finished flow={:?}",
                 flow
             );
 

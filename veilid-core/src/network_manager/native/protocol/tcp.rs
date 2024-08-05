@@ -151,7 +151,7 @@ impl RawTcpProtocolHandler {
             ps,
         ));
 
-        log_net!(debug "Connection accepted from: {} (TCP)", socket_addr);
+        log_net!("Connection accepted from: {} (TCP)", socket_addr);
 
         Ok(Some(conn))
     }

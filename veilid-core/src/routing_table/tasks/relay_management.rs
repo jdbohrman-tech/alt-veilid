@@ -172,6 +172,12 @@ impl RoutingTable {
                 return false;
             };
 
+            // Exclude any nodes that have 'failed to send' state indicating a
+            // connection drop or inability to reach the node
+            if e.peer_stats().rpc_stats.failed_to_send > 0 {
+                return false;
+            }
+
             // Until we have a way of reducing a SignedRelayedNodeInfo to a SignedDirectNodeInfo
             // See https://gitlab.com/veilid/veilid/-/issues/381
             // We should consider nodes with allocated relays as disqualified from being a relay themselves

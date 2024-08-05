@@ -924,7 +924,7 @@ impl RPCProcessor {
         remote_private_route: Option<PublicKey>,
     ) {
         let wants_answer = matches!(rpc_kind, RPCKind::Question);
-
+        
         // Record for node if this was not sent via a route
         if safety_route.is_none() && remote_private_route.is_none() {
             node_ref.stats_failed_to_send(send_ts, wants_answer);
@@ -1500,7 +1500,7 @@ impl RPCProcessor {
                             },
                             // Ignored messages that should be dropped
                             RPCError::Ignore(_) | RPCError::Network(_) | RPCError::TryAgain(_) => {
-                                log_rpc!(debug "Dropping RPC Operation: {}", e);
+                                log_rpc!("Dropping RPC Operation: {}", e);
                             },
                             // Internal errors that deserve louder logging
                             RPCError::Unimplemented(_) | RPCError::Internal(_) => {
@@ -1582,7 +1582,7 @@ impl RPCProcessor {
                     Ok(v) => v,
                     Err(e) => {
                         // Debug on error
-                        log_rpc!(debug "Dropping RPC operation: {}", e);
+                        log_rpc!(debug "Dropping routed RPC: {}", e);
 
                         // XXX: Punish routes that send routed undecodable crap
                         // address_filter.punish_route_id(xxx, PunishmentReason::FailedToDecodeRoutedMessage);
@@ -1666,7 +1666,21 @@ impl RPCProcessor {
                 if let Err(e) = self.unlocked_inner
                     .waiting_rpc_table
                     .complete_op_waiter(op_id, msg) {
-                        log_rpc!(debug "Operation id {} did not complete: {}", op_id, e);
+                        match e {
+                            RPCError::Unimplemented(_) |
+                            RPCError::Internal(_) => {
+                                log_rpc!(error "Could not complete rpc operation: id = {}: {}", op_id, e);
+                            },
+                            RPCError::InvalidFormat(_) |
+                            RPCError::Protocol(_) |
+                            RPCError::Network(_) |
+                            RPCError::TryAgain(_) => {
+                                log_rpc!(debug "Could not complete rpc operation: id = {}: {}", op_id, e);
+                            },
+                            RPCError::Ignore(_) => {
+                                log_rpc!("Answer late: id = {}", op_id);
+                            },
+                        };
                         // Don't throw an error here because it's okay if the original operation timed out
                     }
                 Ok(NetworkResult::value(()))

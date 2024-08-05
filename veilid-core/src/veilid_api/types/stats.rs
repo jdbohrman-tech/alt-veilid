@@ -34,7 +34,7 @@ pub struct RPCStats {
     pub last_seen_ts: Option<Timestamp>, // when the peer was last seen for any reason, including when we first attempted to reach out to it
     pub first_consecutive_seen_ts: Option<Timestamp>, // the timestamp of the first consecutive proof-of-life for this node (an answer or received question)
     pub recent_lost_answers: u32, // number of answers that have been lost since we lost reliability
-    pub failed_to_send: u32, // number of messages that have failed to send since we last successfully sent one
+    pub failed_to_send: u32, // number of messages that have failed to send or connections dropped since we last successfully sent one
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

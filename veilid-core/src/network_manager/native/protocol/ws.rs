@@ -286,7 +286,11 @@ impl WebsocketProtocolHandler {
             ws_stream,
         ));
 
-        log_net!(debug "Connection accepted from: {} ({})", socket_addr, if self.arc.tls { "WSS" } else { "WS" });
+        log_net!(
+            "Connection accepted from: {} ({})",
+            socket_addr,
+            if self.arc.tls { "WSS" } else { "WS" }
+        );
 
         Ok(Some(conn))
     }
