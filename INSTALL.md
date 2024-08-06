@@ -144,7 +144,7 @@ sudo crontab -e
 
 In the editor that opens append:
 ```shell
-0 * * * * apt -y update && apt -y upgrade veilid-cli veilid-server > ~/auto_updates.log 2>&1
+0 * * * * apt -y update && apt -y upgrade --only-upgrade veilid-cli veilid-server > ~/auto_updates.log 2>&1
 ```
 
 **Nightly Releases**
