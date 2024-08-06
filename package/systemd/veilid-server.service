@@ -15,6 +15,7 @@ TimeoutStopSec=5
 WorkingDirectory=/
 User=veilid
 Group=veilid
+UMask=0002
 
 CapabilityBoundingSet=
 SystemCallFilter=@system-service
