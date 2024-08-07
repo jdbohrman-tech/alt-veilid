@@ -463,8 +463,8 @@ impl DiscoveryContext {
             )
         };
 
-        // If we have two different external addresses, then this is a symmetric NAT
-        if external_2.address.address() != external_1.address.address() {
+        // If we have two different external address/port combinations, then this is a symmetric NAT
+        if external_2.address != external_1.address {
             let this = self.clone();
             let do_symmetric_nat_fut: SendPinBoxFuture<Option<DetectionResult>> =
                 Box::pin(async move {
