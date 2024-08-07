@@ -599,6 +599,7 @@ impl RPCProcessor {
         waitable_reply: WaitableReply,
         debug_string: String,
     ) -> Result<TimeoutOr<(RPCMessage, TimestampDuration)>, RPCError> {
+        let id = waitable_reply.handle.id();
         let out = self
             .unlocked_inner
             .waiting_rpc_table
@@ -606,7 +607,7 @@ impl RPCProcessor {
             .await;
         match &out {
             Err(e) => {
-                log_rpc!(debug "RPC Lost ({}): {}", debug_string, e);
+                log_rpc!(debug "RPC Lost (id={} {}): {}", id, debug_string, e);
                 self.record_question_lost(
                     waitable_reply.send_ts,
                     waitable_reply.node_ref.clone(),
@@ -616,7 +617,7 @@ impl RPCProcessor {
                 );
             }
             Ok(TimeoutOr::Timeout) => {
-                log_rpc!(debug "RPC Lost ({}): Timeout", debug_string);
+                log_rpc!(debug "RPC Lost (id={} {}): Timeout", id, debug_string);
                 self.record_question_lost(
                     waitable_reply.send_ts,
                     waitable_reply.node_ref.clone(),

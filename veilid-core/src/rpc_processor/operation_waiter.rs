@@ -11,6 +11,16 @@ where
     result_receiver: Option<flume::Receiver<(Span, T)>>,
 }
 
+impl<T, C> OperationWaitHandle<T, C>
+where
+    T: Unpin,
+    C: Unpin + Clone,
+{
+    pub fn id(&self) -> OperationId {
+        self.op_id
+    }
+}
+
 impl<T, C> Drop for OperationWaitHandle<T, C>
 where
     T: Unpin,
