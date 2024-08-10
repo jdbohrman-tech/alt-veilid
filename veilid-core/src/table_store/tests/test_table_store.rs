@@ -210,6 +210,7 @@ pub async fn test_protect_unprotect(vcrypto: CryptoSystemVersion, ts: TableStore
             0, 0, 0,
         ]),
     );
+
     let dek2 = TypedSharedSecret::new(
         vcrypto.kind(),
         SharedSecret::new([
@@ -217,13 +218,22 @@ pub async fn test_protect_unprotect(vcrypto: CryptoSystemVersion, ts: TableStore
             0, 0, 0xFF,
         ]),
     );
+
     let dek3 = TypedSharedSecret::new(
         vcrypto.kind(),
         SharedSecret::new([0x80u8; SHARED_SECRET_LENGTH]),
     );
 
     let deks = [dek1, dek2, dek3];
-    let passwords = ["", " ", "  ", "12345678", "|/\\!@#$%^&*()_+", "Ⓜ️", "🔥🔥♾️"];
+    let passwords = [
+        "",
+        " ",
+        "  ",
+        "12345678",
+        "|/\\!@#$%^&*()_+",
+        "Ⓜ️",
+        "🔥🔥♾️",
+    ];
 
     for dek in deks {
         for password in passwords {

@@ -263,7 +263,7 @@ impl VeilidAPI {
     }
 
     /// Allocate a new private route and specify a specific cryptosystem, stability and sequencing preference.
-    /// Faster connections may be possible with [Stability::LowLatency], and [Sequencing::NoPreference] at the 
+    /// Faster connections may be possible with [Stability::LowLatency], and [Sequencing::NoPreference] at the
     /// expense of some loss of messages.
     /// Returns a route id and a publishable 'blob' with the route encrypted with each crypto kind.
     /// Those nodes importing the blob will have their choice of which crypto kind to use.
@@ -278,9 +278,9 @@ impl VeilidAPI {
         sequencing: Sequencing,
     ) -> VeilidAPIResult<(RouteId, Vec<u8>)> {
         event!(target: "veilid_api", Level::DEBUG, 
-            "VeilidAPI::new_custom_private_route(crypto_kinds: {:?}, stability: {:?}, sequencing: {:?})", 
-            crypto_kinds, 
-            stability, 
+            "VeilidAPI::new_custom_private_route(crypto_kinds: {:?}, stability: {:?}, sequencing: {:?})",
+            crypto_kinds,
+            stability,
             sequencing);
 
         for kind in crypto_kinds {

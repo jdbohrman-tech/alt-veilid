@@ -9,7 +9,7 @@ cfg_if! {
         pub use tokio::net::{TcpStream, TcpListener, UdpSocket};
         pub use tokio_util::compat::*;
     } else {
-        compile_error!("needs executor implementation")
+        compile_error!("needs executor implementation");
     }
 }
 

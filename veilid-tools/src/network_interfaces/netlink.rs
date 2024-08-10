@@ -20,7 +20,7 @@ cfg_if! {
     } else if #[cfg(feature="rt-tokio")] {
         use netlink_sys::{TokioSocket as RTNetLinkSocket};
     } else {
-        compile_error!("needs executor implementation")
+        compile_error!("needs executor implementation");
     }
 }
 use std::convert::TryInto;

@@ -1384,7 +1384,6 @@ impl UISender for CursiveUISender {
             ),
         );
     }
-
 }
 impl CursiveUISender {
     pub fn push_styled(&self, styled_string: StyledString) -> std::io::Result<()> {

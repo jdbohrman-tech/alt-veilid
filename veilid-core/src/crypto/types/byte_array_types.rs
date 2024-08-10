@@ -267,7 +267,7 @@ macro_rules! byte_array_type {
                 Self::new(value)
             }
         }
-        
+
         impl From<$name> for [u8; $size] {
             fn from(value: $name) -> Self {
                 value.bytes

@@ -145,7 +145,6 @@ impl StorageManager {
                     // If we got a value back it should be different than the one we are setting
                     // But in the case of a benign bug, we can just move to the next node
                     if ctx.value.value_data() == value.value_data() {
-                        
                         ctx.value_nodes.push(next_node);
                         ctx.missed_since_last_set = 0;
 
@@ -197,9 +196,10 @@ impl StorageManager {
                         kind: FanoutResultKind::Partial,
                         value_nodes: ctx.value_nodes.clone(),
                     };
-                    let out=OutboundSetValueResult {
+                    let out = OutboundSetValueResult {
                         fanout_result,
-                        signed_value_data: ctx.value.clone()};
+                        signed_value_data: ctx.value.clone(),
+                    };
                     log_dht!(debug "Sending partial SetValue result: {:?}", out);
 
                     if let Err(e) = out_tx.send(Ok(out)) {
@@ -224,59 +224,71 @@ impl StorageManager {
         };
 
         // Call the fanout in a spawned task
-        spawn("outbound_set_value fanout", Box::pin(async move {
-            let fanout_call = FanoutCall::new(
-                routing_table.clone(),
-                key,
-                key_count,
-                fanout,
-                timeout_us,
-                capability_fanout_node_info_filter(vec![CAP_DHT]),
-                call_routine,
-                check_done,
-            );
+        spawn(
+            "outbound_set_value fanout",
+            Box::pin(
+                async move {
+                    let fanout_call = FanoutCall::new(
+                        routing_table.clone(),
+                        key,
+                        key_count,
+                        fanout,
+                        timeout_us,
+                        capability_fanout_node_info_filter(vec![CAP_DHT]),
+                        call_routine,
+                        check_done,
+                    );
 
-            let kind = match fanout_call.run(init_fanout_queue).await {
-                // If we don't finish in the timeout (too much time passed checking for consensus)
-                TimeoutOr::Timeout => FanoutResultKind::Timeout,
-                // If we finished with or without consensus (enough nodes returning the same value)
-                TimeoutOr::Value(Ok(Some(()))) => FanoutResultKind::Finished,
-                // If we ran out of nodes before getting consensus)
-                TimeoutOr::Value(Ok(None)) => FanoutResultKind::Exhausted,
-                // Failed
-                TimeoutOr::Value(Err(e)) => {
-                    // If we finished with an error, return that
-                    log_dht!(debug "SetValue fanout error: {}", e);
-                    if let Err(e) = out_tx.send(Err(e.into())) {
-                        log_dht!(debug "Sending SetValue fanout error failed: {}", e);
+                    let kind = match fanout_call.run(init_fanout_queue).await {
+                        // If we don't finish in the timeout (too much time passed checking for consensus)
+                        TimeoutOr::Timeout => FanoutResultKind::Timeout,
+                        // If we finished with or without consensus (enough nodes returning the same value)
+                        TimeoutOr::Value(Ok(Some(()))) => FanoutResultKind::Finished,
+                        // If we ran out of nodes before getting consensus)
+                        TimeoutOr::Value(Ok(None)) => FanoutResultKind::Exhausted,
+                        // Failed
+                        TimeoutOr::Value(Err(e)) => {
+                            // If we finished with an error, return that
+                            log_dht!(debug "SetValue fanout error: {}", e);
+                            if let Err(e) = out_tx.send(Err(e.into())) {
+                                log_dht!(debug "Sending SetValue fanout error failed: {}", e);
+                            }
+                            return;
+                        }
+                    };
+
+                    let ctx = context.lock();
+                    let fanout_result = FanoutResult {
+                        kind,
+                        value_nodes: ctx.value_nodes.clone(),
+                    };
+                    log_network_result!(debug "SetValue Fanout: {:?}", fanout_result);
+
+                    if let Err(e) = out_tx.send(Ok(OutboundSetValueResult {
+                        fanout_result,
+                        signed_value_data: ctx.value.clone(),
+                    })) {
+                        log_dht!(debug "Sending SetValue result failed: {}", e);
                     }
-                    return;
                 }
-            };
-
-            let ctx = context.lock();
-            let fanout_result = FanoutResult {
-                kind,
-                value_nodes: ctx.value_nodes.clone(),
-            };
-            log_network_result!(debug "SetValue Fanout: {:?}", fanout_result);
-
-            if let Err(e) = out_tx.send(Ok(OutboundSetValueResult {
-                fanout_result,
-                signed_value_data: ctx.value.clone(),
-            })) {
-                log_dht!(debug "Sending SetValue result failed: {}", e);
-            }
-        }.instrument(tracing::trace_span!("outbound_set_value fanout routine"))))
+                .instrument(tracing::trace_span!("outbound_set_value fanout routine")),
+            ),
+        )
         .detach();
 
         Ok(out_rx)
     }
 
     #[instrument(level = "trace", target = "dht", skip_all)]
-    pub(super) fn process_deferred_outbound_set_value_result_inner(&self, inner: &mut StorageManagerInner, 
-        res_rx: flume::Receiver<Result<set_value::OutboundSetValueResult, VeilidAPIError>>, 
-        key: TypedKey, subkey: ValueSubkey, last_value_data: ValueData, safety_selection: SafetySelection, ) {
+    pub(super) fn process_deferred_outbound_set_value_result_inner(
+        &self,
+        inner: &mut StorageManagerInner,
+        res_rx: flume::Receiver<Result<set_value::OutboundSetValueResult, VeilidAPIError>>,
+        key: TypedKey,
+        subkey: ValueSubkey,
+        last_value_data: ValueData,
+        safety_selection: SafetySelection,
+    ) {
         let this = self.clone();
         let last_value_data = Arc::new(Mutex::new(last_value_data));
         inner.process_deferred_results(
@@ -285,7 +297,7 @@ impl StorageManager {
                 move |result: VeilidAPIResult<set_value::OutboundSetValueResult>| -> SendPinBoxFuture<bool> {
                     let this = this.clone();
                     let last_value_data = last_value_data.clone();
-                    Box::pin(async move { 
+                    Box::pin(async move {
                         let result = match result {
                             Ok(v) => v,
                             Err(e) => {
@@ -336,8 +348,14 @@ impl StorageManager {
     }
 
     #[instrument(level = "trace", target = "stor", skip_all, err)]
-    pub(super) async fn process_outbound_set_value_result(&self, key: TypedKey, subkey: ValueSubkey, last_value_data: ValueData, safety_selection: SafetySelection, result: set_value::OutboundSetValueResult) -> Result<Option<ValueData>, VeilidAPIError> {
-
+    pub(super) async fn process_outbound_set_value_result(
+        &self,
+        key: TypedKey,
+        subkey: ValueSubkey,
+        last_value_data: ValueData,
+        safety_selection: SafetySelection,
+        result: set_value::OutboundSetValueResult,
+    ) -> Result<Option<ValueData>, VeilidAPIError> {
         // Regain the lock after network access
         let mut inner = self.lock().await?;
 

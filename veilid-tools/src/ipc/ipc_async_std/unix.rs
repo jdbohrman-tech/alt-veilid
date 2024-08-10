@@ -109,7 +109,7 @@ impl IpcListener {
         if self.path.is_none() {
             return Box::pin(std::future::ready(Err(io::Error::from(
                 io::ErrorKind::NotConnected,
-            ))));        
+            ))));
         }
         let this = IpcListener {
             path: self.path.clone(),

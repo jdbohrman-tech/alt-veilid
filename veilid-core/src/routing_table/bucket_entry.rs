@@ -1,7 +1,6 @@
 use super::*;
 use core::sync::atomic::{AtomicU32, Ordering};
 
-
 /// Reliable pings are done with increased spacing between pings
 
 /// - Start secs is the number of seconds between the first two pings
@@ -75,12 +74,10 @@ impl BucketEntryState {
             BucketEntryState::Reliable => 3,
         }
     }
-    
 }
 
 impl From<BucketEntryStateReason> for BucketEntryState {
-    fn from(value: BucketEntryStateReason) -> Self
-    {
+    fn from(value: BucketEntryStateReason) -> Self {
         match value {
             BucketEntryStateReason::Punished(_) => BucketEntryState::Punished,
             BucketEntryStateReason::Dead(_) => BucketEntryState::Dead,
@@ -89,7 +86,6 @@ impl From<BucketEntryStateReason> for BucketEntryState {
         }
     }
 }
-
 
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub(crate) struct LastFlowKey(ProtocolType, AddressType);
@@ -199,7 +195,7 @@ impl BucketEntryInner {
                 return Ok(None);
             }
             // Won't change number of crypto kinds
-            node_ids.add(node_id);    
+            node_ids.add(node_id);
             return Ok(Some(old_node_id));
         }
         // Check to ensure we aren't adding more crypto kinds than we support
@@ -223,7 +219,11 @@ impl BucketEntryInner {
     }
 
     /// All-of capability check
-    pub fn has_all_capabilities(&self, routing_domain: RoutingDomain, capabilities: &[Capability]) -> bool {
+    pub fn has_all_capabilities(
+        &self,
+        routing_domain: RoutingDomain,
+        capabilities: &[Capability],
+    ) -> bool {
         let Some(ni) = self.node_info(routing_domain) else {
             return false;
         };
@@ -231,7 +231,11 @@ impl BucketEntryInner {
     }
 
     /// Any-of capability check
-    pub fn has_any_capabilities(&self, routing_domain: RoutingDomain, capabilities: &[Capability]) -> bool {
+    pub fn has_any_capabilities(
+        &self,
+        routing_domain: RoutingDomain,
+        capabilities: &[Capability],
+    ) -> bool {
         let Some(ni) = self.node_info(routing_domain) else {
             return false;
         };
@@ -300,7 +304,9 @@ impl BucketEntryInner {
     }
 
     #[allow(dead_code)]
-    pub fn sort_fastest_reliable_fn(cur_ts: Timestamp) -> impl FnMut(&Self, &Self) -> std::cmp::Ordering {
+    pub fn sort_fastest_reliable_fn(
+        cur_ts: Timestamp,
+    ) -> impl FnMut(&Self, &Self) -> std::cmp::Ordering {
         move |e1, e2| Self::cmp_fastest_reliable(cur_ts, e1, e2)
     }
 
@@ -355,7 +361,7 @@ impl BucketEntryInner {
 
         // Update the envelope version support we have to use
         let envelope_support = signed_node_info.node_info().envelope_support().to_vec();
-        
+
         // Update the signed node info
         // Let the node try to live again but don't mark it as seen yet
         *opt_current_sni = Some(Box::new(signed_node_info));
@@ -363,7 +369,7 @@ impl BucketEntryInner {
         self.updated_since_last_network_change = true;
         self.make_not_dead(Timestamp::now());
 
-        // If we're updating an entry's node info, purge all 
+        // If we're updating an entry's node info, purge all
         // but the last connection in our last connections list
         // because the dial info could have changed and it's safer to just reconnect.
         // The latest connection would have been the one we got the new node info
@@ -398,11 +404,7 @@ impl BucketEntryInner {
         }
 
         // Check connections
-        let last_flows = self.last_flows(
-            rti,
-            true,
-            NodeRefFilter::from(routing_domain),
-        );
+        let last_flows = self.last_flows(rti, true, NodeRefFilter::from(routing_domain));
         !last_flows.is_empty()
     }
 
@@ -429,10 +431,9 @@ impl BucketEntryInner {
         };
         // Peer info includes all node ids, even unvalidated ones
         let node_ids = self.node_ids();
-        opt_current_sni.as_ref().map(|s| PeerInfo::new(
-            node_ids,
-            *s.clone(),
-        ))
+        opt_current_sni
+            .as_ref()
+            .map(|s| PeerInfo::new(node_ids, *s.clone()))
     }
 
     pub fn best_routing_domain(
@@ -452,15 +453,9 @@ impl BucketEntryInner {
         }
         // Check connections
         let mut best_routing_domain: Option<RoutingDomain> = None;
-        let last_connections = self.last_flows(
-            rti,
-            true,
-            NodeRefFilter::from(routing_domain_set),
-        );
+        let last_connections = self.last_flows(rti, true, NodeRefFilter::from(routing_domain_set));
         for lc in last_connections {
-            if let Some(rd) =
-                rti.routing_domain_for_address(lc.0.remote_address().address())
-            {
+            if let Some(rd) = rti.routing_domain_for_address(lc.0.remote_address().address()) {
                 if let Some(brd) = best_routing_domain {
                     if rd < brd {
                         best_routing_domain = Some(rd);
@@ -474,10 +469,7 @@ impl BucketEntryInner {
     }
 
     fn flow_to_key(&self, last_flow: Flow) -> LastFlowKey {
-        LastFlowKey(
-            last_flow.protocol_type(),
-            last_flow.address_type(),
-        )
+        LastFlowKey(last_flow.protocol_type(), last_flow.address_type())
     }
 
     // Stores a flow in this entry's table of last flows
@@ -487,15 +479,13 @@ impl BucketEntryInner {
             return;
         }
         let key = self.flow_to_key(last_flow);
-        self.last_flows
-            .insert(key, (last_flow, timestamp));
+        self.last_flows.insert(key, (last_flow, timestamp));
     }
 
-     // Removes a flow in this entry's table of last flows
+    // Removes a flow in this entry's table of last flows
     pub fn remove_last_flow(&mut self, last_flow: Flow) {
         let key = self.flow_to_key(last_flow);
-        self.last_flows
-            .remove(&key);
+        self.last_flows.remove(&key);
     }
 
     // Clears the table of last flows to ensure we create new ones and drop any existing ones
@@ -509,7 +499,7 @@ impl BucketEntryInner {
             // No last_connections
             return;
         }
-        let mut dead_keys = Vec::with_capacity(self.last_flows.len()-1);
+        let mut dead_keys = Vec::with_capacity(self.last_flows.len() - 1);
         let mut most_recent_flow = None;
         let mut most_recent_flow_time = 0u64;
         for (k, v) in &self.last_flows {
@@ -539,8 +529,7 @@ impl BucketEntryInner {
         only_live: bool,
         filter: NodeRefFilter,
     ) -> Vec<(Flow, Timestamp)> {
-        let opt_connection_manager =
-            rti.unlocked_inner.network_manager.opt_connection_manager();
+        let opt_connection_manager = rti.unlocked_inner.network_manager.opt_connection_manager();
 
         let mut out: Vec<(Flow, Timestamp)> = self
             .last_flows
@@ -564,7 +553,7 @@ impl BucketEntryInner {
                 }
 
                 // Check if the connection is still considered live
-                let alive = 
+                let alive =
                     // Should we check the connection table?
                     if v.0.protocol_type().is_ordered() {
                         // Look the connection up in the connection manager and see if it's still there
@@ -588,9 +577,7 @@ impl BucketEntryInner {
             })
             .collect();
         // Sort with newest timestamps
-        out.sort_by(|a, b| {
-            b.1.cmp(&a.1)
-        });
+        out.sort_by(|a, b| b.1.cmp(&a.1));
         out
     }
 
@@ -615,7 +602,11 @@ impl BucketEntryInner {
     }
 
     pub fn best_envelope_version(&self) -> Option<u8> {
-        self.envelope_support.iter().rev().find(|x| VALID_ENVELOPE_VERSIONS.contains(x)).copied()
+        self.envelope_support
+            .iter()
+            .rev()
+            .find(|x| VALID_ENVELOPE_VERSIONS.contains(x))
+            .copied()
     }
 
     pub fn state_reason(&self, cur_ts: Timestamp) -> BucketEntryStateReason {
@@ -657,14 +648,8 @@ impl BucketEntryInner {
     }
     pub fn node_status(&self, routing_domain: RoutingDomain) -> Option<NodeStatus> {
         match routing_domain {
-            RoutingDomain::LocalNetwork => self
-                .local_network
-                .node_status
-                .as_ref().cloned(),
-            RoutingDomain::PublicInternet => self
-                .public_internet
-                .node_status
-                .as_ref().cloned()
+            RoutingDomain::LocalNetwork => self.local_network.node_status.as_ref().cloned(),
+            RoutingDomain::PublicInternet => self.public_internet.node_status.as_ref().cloned(),
         }
     }
 
@@ -714,7 +699,10 @@ impl BucketEntryInner {
     }
 
     ///// state machine handling
-    pub(super) fn check_unreliable(&self, cur_ts: Timestamp) -> Option<BucketEntryUnreliableReason> {
+    pub(super) fn check_unreliable(
+        &self,
+        cur_ts: Timestamp,
+    ) -> Option<BucketEntryUnreliableReason> {
         // If we have had any failures to send, this is not reliable
         if self.peer_stats.rpc_stats.failed_to_send > 0 {
             return Some(BucketEntryUnreliableReason::FailedToSend);
@@ -730,7 +718,8 @@ impl BucketEntryInner {
             None => return Some(BucketEntryUnreliableReason::NotSeenConsecutively),
             // If not have seen the node consistently for longer than UNRELIABLE_PING_SPAN_SECS then it is unreliable
             Some(ts) => {
-                let seen_consecutively = cur_ts.saturating_sub(ts) >= TimestampDuration::new(UNRELIABLE_PING_SPAN_SECS as u64 * 1_000_000u64);
+                let seen_consecutively = cur_ts.saturating_sub(ts)
+                    >= TimestampDuration::new(UNRELIABLE_PING_SPAN_SECS as u64 * 1_000_000u64);
                 if !seen_consecutively {
                     return Some(BucketEntryUnreliableReason::InUnreliablePingSpan);
                 }
@@ -749,20 +738,23 @@ impl BucketEntryInner {
             // a node is not dead if we haven't heard from it yet,
             // but we give it NEVER_REACHED_PING_COUNT chances to ping before we say it's dead
             None => {
-                let no_answers = self.peer_stats.rpc_stats.recent_lost_answers >= NEVER_SEEN_PING_COUNT;
+                let no_answers =
+                    self.peer_stats.rpc_stats.recent_lost_answers >= NEVER_SEEN_PING_COUNT;
                 if no_answers {
-                    return Some(BucketEntryDeadReason::TooManyLostAnswers)
+                    return Some(BucketEntryDeadReason::TooManyLostAnswers);
                 }
             }
-            
+
             // return dead if we have not heard from the node at all for the duration of the unreliable ping span
             // and we have tried to reach it and failed the entire time of unreliable ping span
             Some(ts) => {
-                let not_seen = cur_ts.saturating_sub(ts) >= TimestampDuration::new(UNRELIABLE_PING_SPAN_SECS as u64 * 1_000_000u64);
-                let no_answers = self.peer_stats.rpc_stats.recent_lost_answers >= (UNRELIABLE_PING_SPAN_SECS / UNRELIABLE_PING_INTERVAL_SECS);
+                let not_seen = cur_ts.saturating_sub(ts)
+                    >= TimestampDuration::new(UNRELIABLE_PING_SPAN_SECS as u64 * 1_000_000u64);
+                let no_answers = self.peer_stats.rpc_stats.recent_lost_answers
+                    >= (UNRELIABLE_PING_SPAN_SECS / UNRELIABLE_PING_INTERVAL_SECS);
                 if not_seen && no_answers {
-                    return Some(BucketEntryDeadReason::NoPingResponse)
-                } 
+                    return Some(BucketEntryDeadReason::NoPingResponse);
+                }
             }
         }
 
@@ -794,7 +786,7 @@ impl BucketEntryInner {
     pub(super) fn needs_ping(&self, cur_ts: Timestamp) -> bool {
         // See which ping pattern we are to use
         let state = self.state(cur_ts);
-    
+
         match state {
             BucketEntryState::Reliable => {
                 // If we are in a reliable state, we need a ping on an exponential scale
@@ -809,7 +801,9 @@ impl BucketEntryInner {
                         let first_consecutive_seen_ts =
                             self.peer_stats.rpc_stats.first_consecutive_seen_ts.unwrap();
                         let start_of_reliable_time = first_consecutive_seen_ts
-                            + TimestampDuration::new_secs(UNRELIABLE_PING_SPAN_SECS - UNRELIABLE_PING_INTERVAL_SECS);
+                            + TimestampDuration::new_secs(
+                                UNRELIABLE_PING_SPAN_SECS - UNRELIABLE_PING_INTERVAL_SECS,
+                            );
                         let reliable_cur = cur_ts.saturating_sub(start_of_reliable_time);
                         let reliable_last =
                             latest_contact_time.saturating_sub(start_of_reliable_time);
@@ -826,7 +820,10 @@ impl BucketEntryInner {
             }
             BucketEntryState::Unreliable => {
                 // If we are in an unreliable state, we need a ping every UNRELIABLE_PING_INTERVAL_SECS seconds
-                self.needs_constant_ping(cur_ts, TimestampDuration::new(UNRELIABLE_PING_INTERVAL_SECS as u64 * 1_000_000u64))
+                self.needs_constant_ping(
+                    cur_ts,
+                    TimestampDuration::new(UNRELIABLE_PING_INTERVAL_SECS as u64 * 1_000_000u64),
+                )
             }
             BucketEntryState::Dead => {
                 error!("Should not be asking this for dead nodes");
@@ -836,7 +833,6 @@ impl BucketEntryInner {
                 error!("Should not be asking this for punished nodes");
                 false
             }
-
         }
     }
 
@@ -941,7 +937,6 @@ pub(crate) struct BucketEntry {
 
 impl BucketEntry {
     pub(super) fn new(first_node_id: TypedKey) -> Self {
-
         // First node id should always be one we support since TypedKeySets are sorted and we must have at least one supported key
         assert!(VALID_CRYPTO_KINDS.contains(&first_node_id.kind));
 
