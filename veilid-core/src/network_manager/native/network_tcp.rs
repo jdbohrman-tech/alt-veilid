@@ -138,10 +138,13 @@ impl Network {
         #[cfg(all(feature = "rt-async-std", unix))]
         {
             // async-std does not directly support linger on TcpStream yet
-            use std::os::fd::{AsRawFd, FromRawFd};
-            if let Err(e) = unsafe { socket2::Socket::from_raw_fd(tcp_stream.as_raw_fd()) }
-                .set_linger(Some(core::time::Duration::from_secs(0)))
-            {
+            use std::os::fd::{AsRawFd, FromRawFd, IntoRawFd};
+            if let Err(e) = unsafe {
+                let s = socket2::Socket::from_raw_fd(tcp_stream.as_raw_fd());
+                let res = s.set_linger(Some(core::time::Duration::from_secs(0)));
+                s.into_raw_fd();
+                res
+            } {
                 log_net!(debug "Couldn't set TCP linger: {}", e);
                 return;
             }
@@ -149,10 +152,13 @@ impl Network {
         #[cfg(all(feature = "rt-async-std", windows))]
         {
             // async-std does not directly support linger on TcpStream yet
-            use std::os::windows::io::{AsRawSocket, FromRawSocket};
-            if let Err(e) = unsafe { socket2::Socket::from_raw_socket(tcp_stream.as_raw_socket()) }
-                .set_linger(Some(core::time::Duration::from_secs(0)))
-            {
+            use std::os::windows::io::{AsRawSocket, FromRawSocket, IntoRawSocket};
+            if let Err(e) = unsafe {
+                let s = socket2::Socket::from_raw_socket(tcp_stream.as_raw_socket());
+                let res = s.set_linger(Some(core::time::Duration::from_secs(0)));
+                s.into_raw_socket();
+                res
+            } {
                 log_net!(debug "Couldn't set TCP linger: {}", e);
                 return;
             }

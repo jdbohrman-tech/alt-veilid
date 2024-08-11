@@ -17,62 +17,67 @@ cfg_if! {
     if #[cfg(not(target_os = "windows"))] {
         cfg_if! {
             if #[cfg(feature="rt-async-std")] {
-                use async_std_resolver::{config, resolver, resolver_from_system_conf, AsyncStdResolver as AsyncResolver};
-                use hickory_resolver::error::ResolveErrorKind;
+                use async_std_resolver::{config, resolver, AsyncStdResolver as AsyncResolver};
+                use hickory_resolver::system_conf::read_system_conf;
             } else if #[cfg(feature="rt-tokio")] {
-                use hickory_resolver::{config, TokioAsyncResolver as AsyncResolver, error::ResolveError, error::ResolveErrorKind};
+                use hickory_resolver::{config, TokioAsyncResolver as AsyncResolver, system_conf::read_system_conf};
 
-                pub async fn resolver(
+                async fn resolver(
                     config: config::ResolverConfig,
                     options: config::ResolverOpts,
                 ) -> AsyncResolver {
                     AsyncResolver::tokio(config, options)
-                }
-
-                /// Constructs a new async-std based Resolver with the system configuration.
-                ///
-                /// This will use `/etc/resolv.conf` on Unix OSes and the registry on Windows.
-                #[cfg(any(unix, target_os = "windows"))]
-                pub async fn resolver_from_system_conf() -> Result<AsyncResolver, ResolveError> {
-                    AsyncResolver::tokio_from_system_conf()
                 }
             } else {
                 compile_error!("needs executor implementation")
             }
         }
 
+        struct Resolvers {
+            system: Option<Arc<AsyncResolver>>,
+            default: Arc<AsyncResolver>,
+        }
+
 
         lazy_static::lazy_static! {
-            static ref RESOLVER: Arc<AsyncMutex<Option<AsyncResolver>>> = Arc::new(AsyncMutex::new(None));
+            static ref RESOLVERS: AsyncMutex<Option<Arc<Resolvers>>> = AsyncMutex::new(None);
         }
     }
 }
 
 cfg_if! {
     if #[cfg(not(target_os = "windows"))] {
-        async fn get_resolver() -> EyreResult<AsyncResolver> {
-            let mut resolver_lock = RESOLVER.lock().await;
-            if let Some(r) = &*resolver_lock {
-                Ok(r.clone())
-            } else {
-                let resolver = match resolver_from_system_conf().await {
-                    Ok(v) => v,
-                    Err(_) => resolver(
-                        config::ResolverConfig::default(),
-                        config::ResolverOpts::default(),
-                    )
-                    .await
-                };
 
-                *resolver_lock = Some(resolver.clone());
-                Ok(resolver)
+        async fn with_resolvers<R, F: FnOnce(Arc<Resolvers>) -> SendPinBoxFuture<R>>(closure: F) -> R {
+            let mut resolvers_lock = RESOLVERS.lock().await;
+            if let Some(r) = &*resolvers_lock {
+                return closure(r.clone()).await;
             }
+
+            let (config, mut options) = (config::ResolverConfig::default(), config::ResolverOpts::default());
+            options.try_tcp_on_error = true;
+            let default = Arc::new(resolver(config, options).await);
+
+            let system = if let Ok((config, options)) = read_system_conf() {
+                Some(Arc::new(resolver(config, options).await))
+            } else {
+                None
+            };
+            let resolvers = Arc::new(Resolvers {
+                system, default
+            });
+            *resolvers_lock = Some(resolvers.clone());
+            closure(resolvers).await
         }
 
-        async fn reset_resolver() {
-            let mut resolver_lock = RESOLVER.lock().await;
-            *resolver_lock = None;
-        }
+        // async fn reset_resolver(use_default: bool) {
+        //     let mut resolver_lock = if use_default {
+        //         DEFAULT_RESOLVER.lock().await
+        //     } else {
+        //         SYSTEM_RESOLVER.lock().await
+        //     };
+        //     *resolver_lock = None;
+        // }
 
     }
 }
@@ -112,18 +117,32 @@ pub async fn txt_lookup<S: AsRef<str>>(host: S) -> EyreResult<Vec<String>> {
             Ok(out)
 
         } else {
-            let resolver = get_resolver().await?;
-            let txt_result = match resolver
-                .txt_lookup(host.as_ref())
-                .await {
-                    Ok(v) => v,
-                    Err(e) => {
-                        if !matches!(e.kind(), ResolveErrorKind::NoRecordsFound { query:_, soa:_, negative_ttl:_, response_code:_, trusted:_ }) {
-                            reset_resolver().await;
+            let host = host.as_ref().to_string();
+            let txt_result = with_resolvers(|resolvers| Box::pin(async move {
+                // Try the default resolver config
+                match resolvers.default
+                    .txt_lookup(&host)
+                    .await {
+                        Ok(v) => Ok(v),
+                        Err(e) => {
+                            // Try the system resolver config if we have it
+                            if let Some(system_resolver) = &resolvers.system {
+                                debug!("default resolver txt_lookup error: {}", e);
+
+                                match system_resolver
+                                .txt_lookup(&host)
+                                .await {
+                                    Ok(v) => Ok(v),
+                                    Err(e) => {
+                                        bail!("system resolver txt_lookup error: {}", e);
+                                    }
+                                }
+                            } else {
+                                bail!("default resolver txt_lookup error: {}", e);
+                            }
                         }
-                        bail!("txt_lookup error: {}", e);
                     }
-                };
+                })).await?;
             let mut out = Vec::new();
             for x in txt_result.iter() {
                 for s in x.txt_data() {
@@ -179,11 +198,31 @@ pub async fn ptr_lookup(ip_addr: IpAddr) -> EyreResult<String> {
             }
             bail!("No records returned");
         } else {
-            let resolver = get_resolver().await?;
-            let ptr_result = resolver
-                .reverse_lookup(ip_addr)
-                .await
-                .wrap_err("resolver error")?;
+            let ptr_result = with_resolvers(|resolvers| Box::pin(async move {
+                // Try the default resolver config
+                match resolvers.default
+                    .reverse_lookup(ip_addr)
+                    .await {
+                        Ok(v) => Ok(v),
+                        Err(e) => {
+                            // Try the system resolver config if we have it
+                            if let Some(system_resolver) = &resolvers.system {
+                                debug!("default resolver ptr_lookup error: {}", e);
+
+                                match system_resolver
+                                .reverse_lookup(ip_addr)
+                                .await {
+                                    Ok(v) => Ok(v),
+                                    Err(e) => {
+                                        bail!("system resolver ptr_lookup error: {}", e);
+                                    }
+                                }
+                            } else {
+                                bail!("default resolver ptr_lookup error: {}", e);
+                            }
+                        }
+                    }
+                })).await?;
             if let Some(r) = ptr_result.iter().next() {
                 Ok(r.to_string().trim_end_matches('.').to_string())
             } else {
