@@ -308,7 +308,7 @@ impl RoutingTable {
                     if !nr.signed_node_info_has_valid_signature(RoutingDomain::PublicInternet) {
                         log_rtab!(warn "bootstrap server is not responding");
                         log_rtab!(debug "bootstrap server is not responding for dialinfo: {}", bsdi);
-                        
+
                         // Try a different dialinfo next time
                         routing_table.network_manager().address_filter().set_dial_info_failed(bsdi);
                     } else {

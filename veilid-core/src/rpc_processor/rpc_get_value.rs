@@ -17,9 +17,9 @@ impl RPCProcessor {
     /// the identity of the node and defeat the private route.
 
     #[instrument(level = "trace", target = "rpc", skip(self, last_descriptor), 
-            fields(ret.value.data.len, 
-                ret.value.data.seq, 
-                ret.value.data.writer, 
+            fields(ret.value.data.len,
+                ret.value.data.seq,
+                ret.value.data.writer,
                 ret.peers.len,
                 ret.latency
             ),err)]

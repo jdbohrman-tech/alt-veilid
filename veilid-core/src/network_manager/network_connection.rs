@@ -310,7 +310,6 @@ impl NetworkConnection {
                     let sender_fut = receiver.recv_async().then(|res| async {
                         match res {
                             Ok((_span_id, message)) => {
-                                
                                 // Touch the LRU for this connection
                                 connection_manager.touch_connection_by_id(connection_id);
 
@@ -378,7 +377,6 @@ impl NetworkConnection {
                                         log_net!(debug "failed to process received envelope: {}", e);
                                         RecvLoopAction::Finish
                                     } else {
-                                        
                                         // Touch the LRU for this connection
                                         connection_manager.touch_connection_by_id(connection_id);
 
@@ -442,7 +440,6 @@ impl NetworkConnection {
             if let Err(e) = protocol_connection.close().await {
                 log_net!(debug "Protocol connection close error: {}", e);
             }
-            
         }.in_current_span())
     }
 

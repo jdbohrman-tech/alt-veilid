@@ -93,7 +93,6 @@ impl NetworkManager {
                             target_node_ref,
                             relay_nr,
                         );
-                
                     }
                     | NodeContactMethod::InboundRelay(relay_nr) => {
                         // Relay loop or multiple relays
@@ -110,7 +109,7 @@ impl NetworkManager {
                         )
                     }
                     NodeContactMethod::SignalReverse(relay_nr, target_node_ref) => {
-                        let nres = 
+                        let nres =
                             this.send_data_ncm_signal_reverse(relay_nr.clone(), target_node_ref.clone(), data.clone())
                                 .await?;
                         if matches!(nres, NetworkResult::Timeout) {
@@ -123,7 +122,7 @@ impl NetworkManager {
                         }
                     }
                     NodeContactMethod::SignalHolePunch(relay_nr, target_node_ref) => {
-                        let nres = 
+                        let nres =
                             this.send_data_ncm_signal_hole_punch(relay_nr.clone(), target_node_ref.clone(), data.clone())
                                 .await?;
                         if matches!(nres, NetworkResult::Timeout) {

@@ -14,14 +14,14 @@ impl RPCProcessor {
     /// Because this leaks information about the identity of the node itself,
     /// replying to this request received over a private route will leak
     /// the identity of the node and defeat the private route.
-    #[instrument(level = "trace", target = "rpc", skip(self, value, descriptor), 
-        fields(value.data.len = value.value_data().data().len(), 
-            value.data.seq = value.value_data().seq(), 
-            value.data.writer = value.value_data().writer().to_string(), 
+    #[instrument(level = "trace", target = "rpc", skip(self, value, descriptor),
+        fields(value.data.len = value.value_data().data().len(),
+            value.data.seq = value.value_data().seq(),
+            value.data.writer = value.value_data().writer().to_string(),
             ret.set,
-            ret.value.data.len, 
-            ret.value.data.seq, 
-            ret.value.data.writer, 
+            ret.value.data.len,
+            ret.value.data.seq,
+            ret.value.data.writer,
             ret.peers.len,
             ret.latency
         ), err)]

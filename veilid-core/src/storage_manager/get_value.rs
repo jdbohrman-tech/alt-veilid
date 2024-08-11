@@ -177,7 +177,6 @@ impl StorageManager {
                         // Send an update since the value changed
                         ctx.send_partial_update = true;
                     }
-                    
                     // Return peers if we have some
                     log_network_result!(debug "GetValue fanout call returned peers {}", gva.answer.peers.len());
 
@@ -298,7 +297,7 @@ impl StorageManager {
             Box::new(
                 move |result: VeilidAPIResult<get_value::OutboundGetValueResult>| -> SendPinBoxFuture<bool> {
                     let this = this.clone();
-                    Box::pin(async move { 
+                    Box::pin(async move {
                         let result = match result {
                             Ok(v) => v,
                             Err(e) => {

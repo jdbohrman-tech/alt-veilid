@@ -1738,7 +1738,7 @@ impl RPCProcessor {
                     continue;
                 }
 
-                Ok(v) => { 
+                Ok(v) => {
                     v
                 }
             } => [ format!(": msg.header={:?}", msg.header) ] {});

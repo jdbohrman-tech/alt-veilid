@@ -278,9 +278,9 @@ impl VeilidAPI {
         sequencing: Sequencing,
     ) -> VeilidAPIResult<(RouteId, Vec<u8>)> {
         event!(target: "veilid_api", Level::DEBUG, 
-            "VeilidAPI::new_custom_private_route(crypto_kinds: {:?}, stability: {:?}, sequencing: {:?})", 
-            crypto_kinds, 
-            stability, 
+            "VeilidAPI::new_custom_private_route(crypto_kinds: {:?}, stability: {:?}, sequencing: {:?})",
+            crypto_kinds,
+            stability,
             sequencing);
 
         for kind in crypto_kinds {

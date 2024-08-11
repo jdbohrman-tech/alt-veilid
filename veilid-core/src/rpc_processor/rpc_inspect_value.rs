@@ -19,7 +19,7 @@ impl RPCProcessor {
     ///  * the amount requested
     ///  * an amount truncated to MAX_INSPECT_VALUE_A_SEQS_LEN subkeys
     ///  * zero if nothing was found
-    #[  
+    #[
         instrument(level = "trace", target = "rpc", skip(self, last_descriptor), 
             fields(ret.peers.len,
                 ret.latency

@@ -293,10 +293,10 @@ impl IGDManager {
                 at,
                 local_port,
             }, PortMapValue {
-                ext_ip, 
-                mapped_port, 
-                timestamp, 
-                renewal_lifetime: ((UPNP_MAPPING_LIFETIME_MS / 2) as u64 * 1000u64).into(), 
+                ext_ip,
+                mapped_port,
+                timestamp,
+                renewal_lifetime: ((UPNP_MAPPING_LIFETIME_MS / 2) as u64 * 1000u64).into(),
                 renewal_attempts: 0,
             });
 

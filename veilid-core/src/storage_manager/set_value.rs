@@ -145,7 +145,6 @@ impl StorageManager {
                     // If we got a value back it should be different than the one we are setting
                     // But in the case of a benign bug, we can just move to the next node
                     if ctx.value.value_data() == value.value_data() {
-                        
                         ctx.value_nodes.push(next_node);
                         ctx.missed_since_last_set = 0;
 
@@ -298,7 +297,7 @@ impl StorageManager {
                 move |result: VeilidAPIResult<set_value::OutboundSetValueResult>| -> SendPinBoxFuture<bool> {
                     let this = this.clone();
                     let last_value_data = last_value_data.clone();
-                    Box::pin(async move { 
+                    Box::pin(async move {
                         let result = match result {
                             Ok(v) => v,
                             Err(e) => {
