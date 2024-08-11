@@ -5,7 +5,7 @@
 #![recursion_limit = "256"]
 
 #[cfg(all(feature = "rt-async-std", windows))]
-compile_error! {"async-std compilation for windows is currently unsupportedg"}
+compile_error!("async-std compilation for windows is currently unsupported");
 
 mod client_api;
 mod server;

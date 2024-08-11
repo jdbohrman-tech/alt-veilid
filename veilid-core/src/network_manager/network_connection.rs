@@ -82,7 +82,6 @@ pub struct NetworkConnectionStats {
     last_message_recv_time: Option<Timestamp>,
 }
 
-
 #[derive(Debug)]
 pub(in crate::network_manager) struct NetworkConnection {
     connection_id: NetworkConnectionId,
@@ -103,7 +102,6 @@ impl Drop for NetworkConnection {
         }
     }
 }
-
 
 impl NetworkConnection {
     pub(super) fn dummy(id: NetworkConnectionId, flow: Flow) -> Self {
@@ -149,16 +147,19 @@ impl NetworkConnection {
         let local_stop_token = stop_source.token();
 
         // Spawn connection processor and pass in protocol connection
-        let processor = spawn("connection processor", Self::process_connection(
-            connection_manager,
-            local_stop_token,
-            manager_stop_token,
-            connection_id,
-            flow,
-            receiver,
-            protocol_connection,
-            stats.clone(),
-        ));
+        let processor = spawn(
+            "connection processor",
+            Self::process_connection(
+                connection_manager,
+                local_stop_token,
+                manager_stop_token,
+                connection_id,
+                flow,
+                receiver,
+                protocol_connection,
+                stats.clone(),
+            ),
+        );
 
         // Return the connection
         Self {
@@ -198,7 +199,7 @@ impl NetworkConnection {
         self.ref_count > 0
     }
 
-    pub fn protected_node_ref(&self) -> Option<NodeRef>{
+    pub fn protected_node_ref(&self) -> Option<NodeRef> {
         self.protected_nr.clone()
     }
 
@@ -221,7 +222,7 @@ impl NetworkConnection {
         }
     }
 
-    #[instrument(level="trace", target="net", skip_all)]
+    #[instrument(level = "trace", target = "net", skip_all)]
     async fn send_internal(
         protocol_connection: &ProtocolNetworkConnection,
         stats: Arc<Mutex<NetworkConnectionStats>>,
@@ -236,7 +237,7 @@ impl NetworkConnection {
         Ok(NetworkResult::Value(()))
     }
 
-    #[instrument(level="trace", target="net", skip_all)]
+    #[instrument(level = "trace", target = "net", skip_all)]
     async fn recv_internal(
         protocol_connection: &ProtocolNetworkConnection,
         stats: Arc<Mutex<NetworkConnectionStats>>,
@@ -446,16 +447,30 @@ impl NetworkConnection {
     }
 
     pub fn debug_print(&self, cur_ts: Timestamp) -> String {
-        format!("{} <- {} | {} | est {} sent {} rcvd {} refcount {}{}",
-            self.flow.remote_address(), 
-            self.flow.local().map(|x| x.to_string()).unwrap_or("---".to_owned()),
+        format!(
+            "{} <- {} | {} | est {} sent {} rcvd {} refcount {}{}",
+            self.flow.remote_address(),
+            self.flow
+                .local()
+                .map(|x| x.to_string())
+                .unwrap_or("---".to_owned()),
             self.connection_id.as_u64(),
-            debug_duration(cur_ts.as_u64().saturating_sub(self.established_time.as_u64())),
-            self.stats().last_message_sent_time.map(|ts| debug_duration(cur_ts.as_u64().saturating_sub(ts.as_u64())) ).unwrap_or("---".to_owned()),
-            self.stats().last_message_recv_time.map(|ts| debug_duration(cur_ts.as_u64().saturating_sub(ts.as_u64())) ).unwrap_or("---".to_owned()),
-            self.ref_count, 
+            debug_duration(
+                cur_ts
+                    .as_u64()
+                    .saturating_sub(self.established_time.as_u64())
+            ),
+            self.stats()
+                .last_message_sent_time
+                .map(|ts| debug_duration(cur_ts.as_u64().saturating_sub(ts.as_u64())))
+                .unwrap_or("---".to_owned()),
+            self.stats()
+                .last_message_recv_time
+                .map(|ts| debug_duration(cur_ts.as_u64().saturating_sub(ts.as_u64())))
+                .unwrap_or("---".to_owned()),
+            self.ref_count,
             if let Some(pnr) = &self.protected_nr {
-                format!(" PROTECTED:{}",pnr)
+                format!(" PROTECTED:{}", pnr)
             } else {
                 "".to_owned()
             }

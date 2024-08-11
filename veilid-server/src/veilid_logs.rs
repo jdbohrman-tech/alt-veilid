@@ -132,7 +132,7 @@ impl VeilidLogs {
                         .with_endpoint(format!("http://{}", grpc_endpoint));
                     let batch = opentelemetry_sdk::runtime::Tokio;
                 } else {
-                    compile_error!("needs executor implementation")
+                    compile_error!("needs executor implementation");
                 }
             }
 

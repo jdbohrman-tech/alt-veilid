@@ -27,7 +27,7 @@ impl<T> MustJoinHandle<T> {
                     jh.detach();
                 }
             } else {
-                compile_error!("needs executor implementation")
+                compile_error!("needs executor implementation");
             }
         }
         self.completed = true;
@@ -52,7 +52,7 @@ impl<T> MustJoinHandle<T> {
                     drop(self.join_handle.take());
                     self.completed = true;
                 } else {
-                    compile_error!("needs executor implementation")
+                    compile_error!("needs executor implementation");
                 }
 
             }
@@ -97,7 +97,7 @@ impl<T: 'static> Future for MustJoinHandle<T> {
                     } else if #[cfg(target_arch = "wasm32")] {
                         Poll::Ready(t)
                     } else {
-                        compile_error!("needs executor implementation")
+                        compile_error!("needs executor implementation");
                     }
                 }
             }

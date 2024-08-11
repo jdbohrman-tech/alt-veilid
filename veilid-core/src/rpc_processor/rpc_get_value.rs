@@ -15,7 +15,7 @@ impl RPCProcessor {
     /// Because this leaks information about the identity of the node itself,
     /// replying to this request received over a private route will leak
     /// the identity of the node and defeat the private route.
-    
+
     #[instrument(level = "trace", target = "rpc", skip(self, last_descriptor), 
             fields(ret.value.data.len, 
                 ret.value.data.seq, 
@@ -29,7 +29,7 @@ impl RPCProcessor {
         key: TypedKey,
         subkey: ValueSubkey,
         last_descriptor: Option<SignedValueDescriptor>,
-    ) ->RPCNetworkResult<Answer<GetValueAnswer>> {
+    ) -> RPCNetworkResult<Answer<GetValueAnswer>> {
         let _guard = self
             .unlocked_inner
             .startup_lock
@@ -105,31 +105,34 @@ impl RPCProcessor {
 
         let (value, peers, descriptor) = get_value_a.destructure();
         if debug_target_enabled!("dht") {
-            let debug_string_value = value.as_ref().map(|v| {
-                format!(" len={} seq={} writer={}",
-                    v.value_data().data().len(),
-                    v.value_data().seq(),
-                    v.value_data().writer(),
-                )
-            }).unwrap_or_default();
-            
+            let debug_string_value = value
+                .as_ref()
+                .map(|v| {
+                    format!(
+                        " len={} seq={} writer={}",
+                        v.value_data().data().len(),
+                        v.value_data().seq(),
+                        v.value_data().writer(),
+                    )
+                })
+                .unwrap_or_default();
+
             let debug_string_answer = format!(
                 "OUT <== GetValueA({} #{}{}{} peers={}) <= {}",
                 key,
                 subkey,
                 debug_string_value,
-                if descriptor.is_some() {
-                    " +desc"
-                } else {
-                    ""
-                },
+                if descriptor.is_some() { " +desc" } else { "" },
                 peers.len(),
                 dest
             );
 
             log_dht!(debug "{}", debug_string_answer);
-            
-            let peer_ids:Vec<String> = peers.iter().filter_map(|p| p.node_ids().get(key.kind).map(|k| k.to_string())).collect();
+
+            let peer_ids: Vec<String> = peers
+                .iter()
+                .filter_map(|p| p.node_ids().get(key.kind).map(|k| k.to_string()))
+                .collect();
             log_dht!(debug "Peers: {:#?}", peer_ids);
         }
 
@@ -153,7 +156,10 @@ impl RPCProcessor {
         if let Some(value) = &value {
             tracing::Span::current().record("ret.value.data.len", value.value_data().data().len());
             tracing::Span::current().record("ret.value.data.seq", value.value_data().seq());
-            tracing::Span::current().record("ret.value.data.writer", value.value_data().writer().to_string());
+            tracing::Span::current().record(
+                "ret.value.data.writer",
+                value.value_data().writer().to_string(),
+            );
         }
         #[cfg(feature = "verbose-tracing")]
         tracing::Span::current().record("ret.peers.len", peers.len());
@@ -172,11 +178,7 @@ impl RPCProcessor {
     ////////////////////////////////////////////////////////////////////////////////////////////////
 
     #[instrument(level = "trace", target = "rpc", skip(self, msg), fields(msg.operation.op_id), ret, err)]
-    pub(crate) async fn process_get_value_q(
-        &self,
-        msg: RPCMessage,
-    ) ->RPCNetworkResult<()> {
-
+    pub(crate) async fn process_get_value_q(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
         // Ensure this never came over a private route, safety route is okay though
         match &msg.header.detail {
             RPCMessageHeaderDetail::Direct(_) | RPCMessageHeaderDetail::SafetyRouted(_) => {}
@@ -189,14 +191,8 @@ impl RPCProcessor {
         // Ignore if disabled
         let routing_table = self.routing_table();
         let opi = routing_table.get_own_peer_info(msg.header.routing_domain());
-        if !opi
-            .signed_node_info()
-            .node_info()
-            .has_capability(CAP_DHT)
-        {
-            return Ok(NetworkResult::service_unavailable(
-                "dht is not available",
-            ));
+        if !opi.signed_node_info().node_info().has_capability(CAP_DHT) {
+            return Ok(NetworkResult::service_unavailable("dht is not available"));
         }
 
         // Get the question
@@ -214,18 +210,16 @@ impl RPCProcessor {
 
         // Get the nodes that we know about that are closer to the the key than our own node
         let routing_table = self.routing_table();
-        let closer_to_key_peers = network_result_try!(routing_table.find_preferred_peers_closer_to_key(key, vec![CAP_DHT]));
+        let closer_to_key_peers = network_result_try!(
+            routing_table.find_preferred_peers_closer_to_key(key, vec![CAP_DHT])
+        );
 
         if debug_target_enabled!("dht") {
             let debug_string = format!(
                 "IN <=== GetValueQ({} #{}{}) <== {}",
                 key,
                 subkey,
-                if want_descriptor {
-                    " +wantdesc"
-                } else {
-                    ""
-                },
+                if want_descriptor { " +wantdesc" } else { "" },
                 msg.header.direct_sender_node_id()
             );
 
@@ -237,29 +231,34 @@ impl RPCProcessor {
             let c = self.config.get();
             c.network.dht.set_value_count as usize
         };
-        let (get_result_value, get_result_descriptor) = if closer_to_key_peers.len() >= set_value_count {
-            // Not close enough
-            (None, None)
-        } else {
-            // Close enough, lets get it
+        let (get_result_value, get_result_descriptor) =
+            if closer_to_key_peers.len() >= set_value_count {
+                // Not close enough
+                (None, None)
+            } else {
+                // Close enough, lets get it
 
-            // See if we have this record ourselves
-            let storage_manager = self.storage_manager();
-            let get_result = network_result_try!(storage_manager
-                .inbound_get_value(key, subkey, want_descriptor)
-                .await
-                .map_err(RPCError::internal)?);
-            (get_result.opt_value, get_result.opt_descriptor)
-        };
+                // See if we have this record ourselves
+                let storage_manager = self.storage_manager();
+                let get_result = network_result_try!(storage_manager
+                    .inbound_get_value(key, subkey, want_descriptor)
+                    .await
+                    .map_err(RPCError::internal)?);
+                (get_result.opt_value, get_result.opt_descriptor)
+            };
 
         if debug_target_enabled!("dht") {
-            let debug_string_value = get_result_value.as_ref().map(|v| {
-                format!(" len={} seq={} writer={}",
-                    v.value_data().data().len(),
-                    v.value_data().seq(),
-                    v.value_data().writer(),
-                )
-            }).unwrap_or_default();
+            let debug_string_value = get_result_value
+                .as_ref()
+                .map(|v| {
+                    format!(
+                        " len={} seq={} writer={}",
+                        v.value_data().data().len(),
+                        v.value_data().seq(),
+                        v.value_data().writer(),
+                    )
+                })
+                .unwrap_or_default();
 
             let debug_string_answer = format!(
                 "IN ===> GetValueA({} #{}{}{} peers={}) ==> {}",
@@ -274,10 +273,10 @@ impl RPCProcessor {
                 closer_to_key_peers.len(),
                 msg.header.direct_sender_node_id()
             );
-        
+
             log_dht!(debug "{}", debug_string_answer);
         }
-            
+
         // Make GetValue answer
         let get_value_a = RPCOperationGetValueA::new(
             get_result_value.map(|x| (*x).clone()),
@@ -286,7 +285,10 @@ impl RPCProcessor {
         )?;
 
         // Send GetValue answer
-        self.answer(msg, RPCAnswer::new(RPCAnswerDetail::GetValueA(Box::new(get_value_a))))
-            .await
+        self.answer(
+            msg,
+            RPCAnswer::new(RPCAnswerDetail::GetValueA(Box::new(get_value_a))),
+        )
+        .await
     }
 }

@@ -175,7 +175,7 @@ cfg_if! {
                 #[doc(no_inline)]
                 pub use tokio::task::JoinHandle as LowLevelJoinHandle;
             } else {
-                compile_error!("needs executor implementation")
+                compile_error!("needs executor implementation");
             }
         }
     }

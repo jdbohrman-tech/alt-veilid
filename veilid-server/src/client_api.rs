@@ -27,7 +27,7 @@ cfg_if! {
         use tokio::io::AsyncBufReadExt;
         use tokio::io::AsyncWriteExt;
     } else {
-        compile_error!("needs executor implementation")
+        compile_error!("needs executor implementation");
     }
 }
 

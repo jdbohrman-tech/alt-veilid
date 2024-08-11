@@ -263,7 +263,7 @@ impl VeilidAPI {
     }
 
     /// Allocate a new private route and specify a specific cryptosystem, stability and sequencing preference.
-    /// Faster connections may be possible with [Stability::LowLatency], and [Sequencing::NoPreference] at the 
+    /// Faster connections may be possible with [Stability::LowLatency], and [Sequencing::NoPreference] at the
     /// expense of some loss of messages.
     /// Returns a route id and a publishable 'blob' with the route encrypted with each crypto kind.
     /// Those nodes importing the blob will have their choice of which crypto kind to use.

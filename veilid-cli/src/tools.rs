@@ -20,7 +20,7 @@ cfg_if! {
             local.block_on(&rt, f)
         }
     } else {
-        compile_error!("needs executor implementation")
+        compile_error!("needs executor implementation");
     }
 }
 

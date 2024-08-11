@@ -10,9 +10,9 @@ impl NetworkManager {
     /// in this case, if it matches the node ref's filters and no more permissive flow
     /// could be established.
     ///
-    /// Sending to a node requires determining a NetworkClass compatible contact method 
+    /// Sending to a node requires determining a NetworkClass compatible contact method
     /// between the source and destination node
-    #[instrument(level="trace", target="net", skip_all, err)]
+    #[instrument(level = "trace", target = "net", skip_all, err)]
     pub(crate) async fn send_data(
         &self,
         destination_node_ref: NodeRef,
@@ -20,15 +20,10 @@ impl NetworkManager {
     ) -> EyreResult<NetworkResult<SendDataMethod>> {
         // First try to send data to the last flow we've seen this peer on
         let data = if let Some(flow) = destination_node_ref.last_flow() {
-            match self
-                .net()
-                .send_data_to_existing_flow(flow, data)
-                .await?
-            {
+            match self.net().send_data_to_existing_flow(flow, data).await? {
                 SendDataToExistingFlowResult::Sent(unique_flow) => {
                     // Update timestamp for this last flow since we just sent to it
-                    destination_node_ref
-                        .set_last_flow(unique_flow.flow, Timestamp::now());
+                    destination_node_ref.set_last_flow(unique_flow.flow, Timestamp::now());
 
                     return Ok(NetworkResult::value(SendDataMethod {
                         opt_relayed_contact_method: None,
@@ -48,15 +43,22 @@ impl NetworkManager {
         };
 
         // No existing connection was found or usable, so we proceed to see how to make a new one
-        
-        // Get the best way to contact this node
-        let possibly_relayed_contact_method = self.get_node_contact_method(destination_node_ref.clone())?;
 
-        self.try_possibly_relayed_contact_method(possibly_relayed_contact_method, destination_node_ref, data).await
+        // Get the best way to contact this node
+        let possibly_relayed_contact_method =
+            self.get_node_contact_method(destination_node_ref.clone())?;
+
+        self.try_possibly_relayed_contact_method(
+            possibly_relayed_contact_method,
+            destination_node_ref,
+            data,
+        )
+        .await
     }
 
-    #[instrument(level="trace", target="net", skip_all)]
-    pub(crate) fn try_possibly_relayed_contact_method(&self, 
+    #[instrument(level = "trace", target = "net", skip_all)]
+    pub(crate) fn try_possibly_relayed_contact_method(
+        &self,
         possibly_relayed_contact_method: NodeContactMethod,
         destination_node_ref: NodeRef,
         data: Vec<u8>,
@@ -74,9 +76,9 @@ impl NetworkManager {
                     }
                     cm => (cm, destination_node_ref.clone(), None),
                 };
-                
+
                 #[cfg(feature = "verbose-tracing")]
-                log_net!(debug 
+                log_net!(debug
                     "ContactMethod: {:?} for {:?}",
                     contact_method, destination_node_ref
                 );
@@ -154,7 +156,7 @@ impl NetworkManager {
     }
 
     /// Send data using NodeContactMethod::Existing
-    #[instrument(level="trace", target="net", skip_all, err)]
+    #[instrument(level = "trace", target = "net", skip_all, err)]
     async fn send_data_ncm_existing(
         &self,
         target_node_ref: NodeRef,
@@ -162,57 +164,17 @@ impl NetworkManager {
     ) -> EyreResult<NetworkResult<SendDataMethod>> {
         // First try to send data to the last connection we've seen this peer on
         let Some(flow) = target_node_ref.last_flow() else {
-            return Ok(NetworkResult::no_connection_other(
-                format!("should have found an existing connection: {}", target_node_ref)
-            ));
+            return Ok(NetworkResult::no_connection_other(format!(
+                "should have found an existing connection: {}",
+                target_node_ref
+            )));
         };
 
-        let unique_flow = match self
-            .net()
-            .send_data_to_existing_flow(flow, data)
-            .await?
-        {
+        let unique_flow = match self.net().send_data_to_existing_flow(flow, data).await? {
             SendDataToExistingFlowResult::Sent(unique_flow) => unique_flow,
             SendDataToExistingFlowResult::NotSent(_) => {
                 return Ok(NetworkResult::no_connection_other(
                     "failed to send to existing flow",
-                ));
-            }
-        };
-
-        // Update timestamp for this last connection since we just sent to it
-        target_node_ref.set_last_flow(flow, Timestamp::now());
-
-        Ok(NetworkResult::value(SendDataMethod{
-            contact_method: NodeContactMethod::Existing,
-            opt_relayed_contact_method: None,
-            unique_flow 
-        }))
-    }
-
-    /// Send data using NodeContactMethod::Unreachable
-    #[instrument(level="trace", target="net", skip_all, err)]
-    async fn send_data_ncm_unreachable(
-        &self,
-        target_node_ref: NodeRef,
-        data: Vec<u8>,
-    ) -> EyreResult<NetworkResult<SendDataMethod>> {
-        // Try to send data to the last socket we've seen this peer on
-        let Some(flow) = target_node_ref.last_flow() else {
-            return Ok(NetworkResult::no_connection_other(
-                format!("Node is not reachable and has no existing connection: {}", target_node_ref)
-            ));
-        };
-
-        let unique_flow = match self
-            .net()
-            .send_data_to_existing_flow(flow, data)
-            .await?   
-        {
-            SendDataToExistingFlowResult::Sent(unique_flow) => unique_flow,
-            SendDataToExistingFlowResult::NotSent(_) => {
-                return Ok(NetworkResult::no_connection_other(
-                    format!("failed to send to unreachable node over existing connection: {:?}", flow)
                 ));
             }
         };
@@ -227,8 +189,43 @@ impl NetworkManager {
         }))
     }
 
+    /// Send data using NodeContactMethod::Unreachable
+    #[instrument(level = "trace", target = "net", skip_all, err)]
+    async fn send_data_ncm_unreachable(
+        &self,
+        target_node_ref: NodeRef,
+        data: Vec<u8>,
+    ) -> EyreResult<NetworkResult<SendDataMethod>> {
+        // Try to send data to the last socket we've seen this peer on
+        let Some(flow) = target_node_ref.last_flow() else {
+            return Ok(NetworkResult::no_connection_other(format!(
+                "Node is not reachable and has no existing connection: {}",
+                target_node_ref
+            )));
+        };
+
+        let unique_flow = match self.net().send_data_to_existing_flow(flow, data).await? {
+            SendDataToExistingFlowResult::Sent(unique_flow) => unique_flow,
+            SendDataToExistingFlowResult::NotSent(_) => {
+                return Ok(NetworkResult::no_connection_other(format!(
+                    "failed to send to unreachable node over existing connection: {:?}",
+                    flow
+                )));
+            }
+        };
+
+        // Update timestamp for this last connection since we just sent to it
+        target_node_ref.set_last_flow(flow, Timestamp::now());
+
+        Ok(NetworkResult::value(SendDataMethod {
+            contact_method: NodeContactMethod::Existing,
+            opt_relayed_contact_method: None,
+            unique_flow,
+        }))
+    }
+
     /// Send data using NodeContactMethod::SignalReverse
-    #[instrument(level="trace", target="net", skip_all, err)]
+    #[instrument(level = "trace", target = "net", skip_all, err)]
     async fn send_data_ncm_signal_reverse(
         &self,
         relay_nr: NodeRef,
@@ -237,20 +234,15 @@ impl NetworkManager {
     ) -> EyreResult<NetworkResult<SendDataMethod>> {
         // First try to send data to the last socket we've seen this peer on
         let data = if let Some(flow) = target_node_ref.last_flow() {
-            match self
-                .net()
-                .send_data_to_existing_flow(flow, data)
-                .await?
-            {
+            match self.net().send_data_to_existing_flow(flow, data).await? {
                 SendDataToExistingFlowResult::Sent(unique_flow) => {
                     // Update timestamp for this last connection since we just sent to it
-                    target_node_ref
-                        .set_last_flow(flow, Timestamp::now());
+                    target_node_ref.set_last_flow(flow, Timestamp::now());
 
-                    return Ok(NetworkResult::value(SendDataMethod{
+                    return Ok(NetworkResult::value(SendDataMethod {
                         contact_method: NodeContactMethod::Existing,
                         opt_relayed_contact_method: None,
-                        unique_flow
+                        unique_flow,
                     }));
                 }
                 SendDataToExistingFlowResult::NotSent(data) => {
@@ -276,7 +268,7 @@ impl NetworkManager {
     }
 
     /// Send data using NodeContactMethod::SignalHolePunch
-    #[instrument(level="trace", target="net", skip_all, err)]
+    #[instrument(level = "trace", target = "net", skip_all, err)]
     async fn send_data_ncm_signal_hole_punch(
         &self,
         relay_nr: NodeRef,
@@ -285,20 +277,15 @@ impl NetworkManager {
     ) -> EyreResult<NetworkResult<SendDataMethod>> {
         // First try to send data to the last socket we've seen this peer on
         let data = if let Some(flow) = target_node_ref.last_flow() {
-            match self
-                .net()
-                .send_data_to_existing_flow(flow, data)
-                .await?
-            {
+            match self.net().send_data_to_existing_flow(flow, data).await? {
                 SendDataToExistingFlowResult::Sent(unique_flow) => {
                     // Update timestamp for this last connection since we just sent to it
-                    target_node_ref
-                        .set_last_flow(flow, Timestamp::now());
+                    target_node_ref.set_last_flow(flow, Timestamp::now());
 
-                    return Ok(NetworkResult::value(SendDataMethod{
+                    return Ok(NetworkResult::value(SendDataMethod {
                         contact_method: NodeContactMethod::Existing,
                         opt_relayed_contact_method: None,
-                        unique_flow 
+                        unique_flow,
                     }));
                 }
                 SendDataToExistingFlowResult::NotSent(data) => {
@@ -312,8 +299,10 @@ impl NetworkManager {
             data
         };
 
-        let unique_flow =
-            network_result_try!(self.do_hole_punch(relay_nr.clone(), target_node_ref.clone(), data).await?);
+        let unique_flow = network_result_try!(
+            self.do_hole_punch(relay_nr.clone(), target_node_ref.clone(), data)
+                .await?
+        );
         Ok(NetworkResult::value(SendDataMethod {
             contact_method: NodeContactMethod::SignalHolePunch(relay_nr, target_node_ref),
             opt_relayed_contact_method: None,
@@ -322,7 +311,7 @@ impl NetworkManager {
     }
 
     /// Send data using NodeContactMethod::Direct
-    #[instrument(level="trace", target="net", skip_all, err)]
+    #[instrument(level = "trace", target = "net", skip_all, err)]
     async fn send_data_ncm_direct(
         &self,
         node_ref: NodeRef,
@@ -335,24 +324,20 @@ impl NetworkManager {
         // First try to send data to the last socket we've seen this peer on
         let data = if let Some(flow) = node_ref.last_flow() {
             #[cfg(feature = "verbose-tracing")]
-            log_net!(debug 
+            log_net!(debug
                 "ExistingConnection: {:?} for {:?}",
                 flow, node_ref
             );
 
-            match self
-                .net()
-                .send_data_to_existing_flow(flow, data)
-                .await?
-            {
+            match self.net().send_data_to_existing_flow(flow, data).await? {
                 SendDataToExistingFlowResult::Sent(unique_flow) => {
                     // Update timestamp for this last connection since we just sent to it
                     node_ref.set_last_flow(flow, Timestamp::now());
 
-                    return Ok(NetworkResult::value(SendDataMethod{
+                    return Ok(NetworkResult::value(SendDataMethod {
                         contact_method: NodeContactMethod::Existing,
                         opt_relayed_contact_method: None,
-                        unique_flow 
+                        unique_flow,
                     }));
                 }
                 SendDataToExistingFlowResult::NotSent(d) => {
@@ -366,8 +351,11 @@ impl NetworkManager {
         };
 
         // New direct connection was necessary for this dial info
-        let unique_flow =
-            network_result_try!(self.net().send_data_to_dial_info(dial_info.clone(), data).await?);
+        let unique_flow = network_result_try!(
+            self.net()
+                .send_data_to_dial_info(dial_info.clone(), data)
+                .await?
+        );
 
         // If we connected to this node directly, save off the last connection so we can use it again
         node_ref.set_last_flow(unique_flow.flow, Timestamp::now());
@@ -376,13 +364,13 @@ impl NetworkManager {
             contact_method: NodeContactMethod::Direct(dial_info),
             opt_relayed_contact_method: None,
             unique_flow,
-        }))    
+        }))
     }
 
     /// Figure out how to reach a node from our own node over the best routing domain and reference the nodes we want to access
     /// Uses NodeRefs to ensure nodes are referenced, this is not a part of 'RoutingTable' because RoutingTable is not
     /// allowed to use NodeRefs due to recursive locking
-    #[instrument(level="trace", target="net", skip_all, err)]
+    #[instrument(level = "trace", target = "net", skip_all, err)]
     pub(crate) fn get_node_contact_method(
         &self,
         target_node_ref: NodeRef,
@@ -390,7 +378,11 @@ impl NetworkManager {
         let routing_table = self.routing_table();
 
         // If a node is punished, then don't try to contact it
-        if target_node_ref.node_ids().iter().any(|nid| self.address_filter().is_node_id_punished(*nid)) {
+        if target_node_ref
+            .node_ids()
+            .iter()
+            .any(|nid| self.address_filter().is_node_id_punished(*nid))
+        {
             return Ok(NodeContactMethod::Unreachable);
         }
 
@@ -432,9 +424,10 @@ impl NetworkManager {
         let dial_info_filter = target_node_ref.dial_info_filter().filtered(
             &DialInfoFilter::all()
                 .with_address_type_set(peer_a.signed_node_info().node_info().address_types())
-                .with_protocol_type_set(peer_a.signed_node_info().node_info().outbound_protocols()));
+                .with_protocol_type_set(peer_a.signed_node_info().node_info().outbound_protocols()),
+        );
         let sequencing = target_node_ref.sequencing();
-        
+
         // If the node has had lost questions or failures to send, prefer sequencing
         // to improve reliability. The node may be experiencing UDP fragmentation drops
         // or other firewalling issues and may perform better with TCP.
@@ -443,11 +436,15 @@ impl NetworkManager {
         //     log_net!(debug "Node contact failing over to Ordered for {}", target_node_ref.to_string().cyan());
         //     sequencing = Sequencing::PreferOrdered;
         // }
-    
+
         // Deprioritize dial info that have recently failed
         let address_filter = self.address_filter();
         let mut dial_info_failures_map = BTreeMap::<DialInfo, Timestamp>::new();
-        for did in peer_b.signed_node_info().node_info().all_filtered_dial_info_details(DialInfoDetail::NO_SORT, |_| true) {
+        for did in peer_b
+            .signed_node_info()
+            .node_info()
+            .all_filtered_dial_info_details(DialInfoDetail::NO_SORT, |_| true)
+        {
             if let Some(ts) = address_filter.get_dial_info_failed_ts(&did.dial_info) {
                 dial_info_failures_map.insert(did.dial_info, ts);
             }
@@ -455,9 +452,15 @@ impl NetworkManager {
         let dif_sort: Option<Arc<DialInfoDetailSort>> = if dial_info_failures_map.is_empty() {
             None
         } else {
-            Some(Arc::new(move |a: &DialInfoDetail, b: &DialInfoDetail| {    
-                let ats = dial_info_failures_map.get(&a.dial_info).copied().unwrap_or_default();
-                let bts = dial_info_failures_map.get(&b.dial_info).copied().unwrap_or_default();
+            Some(Arc::new(move |a: &DialInfoDetail, b: &DialInfoDetail| {
+                let ats = dial_info_failures_map
+                    .get(&a.dial_info)
+                    .copied()
+                    .unwrap_or_default();
+                let bts = dial_info_failures_map
+                    .get(&b.dial_info)
+                    .copied()
+                    .unwrap_or_default();
                 ats.cmp(&bts)
             }))
         };
@@ -491,7 +494,8 @@ impl NetworkManager {
                     bail!("signalreverse target noderef didn't match target key: {:?} != {} for relay {}", target_node_ref, target_key, relay_key );
                 }
                 relay_nr.set_sequencing(sequencing);
-                let target_node_ref = target_node_ref.filtered_clone(NodeRefFilter::from(dial_info_filter));
+                let target_node_ref =
+                    target_node_ref.filtered_clone(NodeRefFilter::from(dial_info_filter));
                 NodeContactMethod::SignalReverse(relay_nr, target_node_ref)
             }
             ContactMethod::SignalHolePunch(relay_key, target_key) => {
@@ -511,8 +515,11 @@ impl NetworkManager {
 
                 // if any other protocol were possible here we could update this and do_hole_punch
                 // but tcp hole punch is very very unreliable it seems
-                let udp_target_node_ref = target_node_ref
-                    .filtered_clone(NodeRefFilter::new().with_dial_info_filter(dial_info_filter).with_protocol_type(ProtocolType::UDP));
+                let udp_target_node_ref = target_node_ref.filtered_clone(
+                    NodeRefFilter::new()
+                        .with_dial_info_filter(dial_info_filter)
+                        .with_protocol_type(ProtocolType::UDP),
+                );
 
                 NodeContactMethod::SignalHolePunch(relay_nr, udp_target_node_ref)
             }
@@ -555,14 +562,13 @@ impl NetworkManager {
     /// Send a reverse connection signal and wait for the return receipt over it
     /// Then send the data across the new connection
     /// Only usable for PublicInternet routing domain
-    #[instrument(level="trace", target="net", skip_all, err)]
+    #[instrument(level = "trace", target = "net", skip_all, err)]
     async fn do_reverse_connect(
         &self,
         relay_nr: NodeRef,
         target_nr: NodeRef,
         data: Vec<u8>,
     ) -> EyreResult<NetworkResult<UniqueFlow>> {
-
         // Detect if network is stopping so we can break out of this
         let Some(stop_token) = self.unlocked_inner.startup_lock.stop_token() else {
             return Ok(NetworkResult::service_unavailable("network is stopping"));
@@ -580,18 +586,20 @@ impl NetworkManager {
 
         // Get target routing domain
         let Some(routing_domain) = target_nr.best_routing_domain() else {
-            return Ok(NetworkResult::no_connection_other("No routing domain for target for reverse connect"));
+            return Ok(NetworkResult::no_connection_other(
+                "No routing domain for target for reverse connect",
+            ));
         };
 
         // Ensure we have a valid network class so our peer info is useful
-        if !self.routing_table().has_valid_network_class(routing_domain){
-            return Ok(NetworkResult::no_connection_other("Network class not yet valid for reverse connect"));
+        if !self.routing_table().has_valid_network_class(routing_domain) {
+            return Ok(NetworkResult::no_connection_other(
+                "Network class not yet valid for reverse connect",
+            ));
         };
 
         // Get our peer info
-        let peer_info = self
-            .routing_table()
-            .get_own_peer_info(routing_domain);
+        let peer_info = self.routing_table().get_own_peer_info(routing_domain);
 
         // Issue the signal
         let rpc = self.rpc_processor();
@@ -604,7 +612,11 @@ impl NetworkManager {
             .wrap_err("failed to send signal")?);
 
         // Wait for the return receipt
-        let inbound_nr = match eventual_value.timeout_at(stop_token).in_current_span().await {
+        let inbound_nr = match eventual_value
+            .timeout_at(stop_token)
+            .in_current_span()
+            .await
+        {
             Err(_) => {
                 return Ok(NetworkResult::service_unavailable("network is stopping"));
             }
@@ -640,27 +652,26 @@ impl NetworkManager {
 
         // And now use the existing connection to send over
         if let Some(flow) = inbound_nr.last_flow() {
-            match self
-                .net()
-                .send_data_to_existing_flow(flow, data)
-                .await?
-            {
-                SendDataToExistingFlowResult::Sent(unique_flow) => Ok(NetworkResult::value(unique_flow)),
+            match self.net().send_data_to_existing_flow(flow, data).await? {
+                SendDataToExistingFlowResult::Sent(unique_flow) => {
+                    Ok(NetworkResult::value(unique_flow))
+                }
                 SendDataToExistingFlowResult::NotSent(_) => Ok(NetworkResult::no_connection_other(
                     "unable to send over reverse connection",
                 )),
             }
         } else {
             return Ok(NetworkResult::no_connection_other(format!(
-                "reverse connection dropped from {}", target_nr)
-            ));
+                "reverse connection dropped from {}",
+                target_nr
+            )));
         }
     }
 
     /// Send a hole punch signal and do a negotiating ping and wait for the return receipt
     /// Then send the data across the new connection
     /// Only usable for PublicInternet routing domain
-    #[instrument(level="trace", target="net", skip_all, err)]
+    #[instrument(level = "trace", target = "net", skip_all, err)]
     async fn do_hole_punch(
         &self,
         relay_nr: NodeRef,
@@ -691,18 +702,20 @@ impl NetworkManager {
 
         // Get target routing domain
         let Some(routing_domain) = target_nr.best_routing_domain() else {
-            return Ok(NetworkResult::no_connection_other("No routing domain for target for hole punch"));
+            return Ok(NetworkResult::no_connection_other(
+                "No routing domain for target for hole punch",
+            ));
         };
 
         // Ensure we have a valid network class so our peer info is useful
-        if !self.routing_table().has_valid_network_class(routing_domain){
-            return Ok(NetworkResult::no_connection_other("Network class not yet valid for hole punch"));
+        if !self.routing_table().has_valid_network_class(routing_domain) {
+            return Ok(NetworkResult::no_connection_other(
+                "Network class not yet valid for hole punch",
+            ));
         };
 
         // Get our peer info
-        let peer_info = self
-            .routing_table()
-            .get_own_peer_info(routing_domain);
+        let peer_info = self.routing_table().get_own_peer_info(routing_domain);
 
         // Get the udp direct dialinfo for the hole punch
         let hole_punch_did = target_nr
@@ -730,7 +743,11 @@ impl NetworkManager {
             .wrap_err("failed to send signal")?);
 
         // Wait for the return receipt
-        let inbound_nr = match eventual_value.timeout_at(stop_token).in_current_span().await {
+        let inbound_nr = match eventual_value
+            .timeout_at(stop_token)
+            .in_current_span()
+            .await
+        {
             Err(_) => {
                 return Ok(NetworkResult::service_unavailable("network is stopping"));
             }
@@ -770,20 +787,19 @@ impl NetworkManager {
 
         // And now use the existing connection to send over
         if let Some(flow) = inbound_nr.last_flow() {
-            match self
-                .net()
-                .send_data_to_existing_flow(flow, data)
-                .await?
-            {
-                SendDataToExistingFlowResult::Sent(unique_flow) => Ok(NetworkResult::value(unique_flow)),
+            match self.net().send_data_to_existing_flow(flow, data).await? {
+                SendDataToExistingFlowResult::Sent(unique_flow) => {
+                    Ok(NetworkResult::value(unique_flow))
+                }
                 SendDataToExistingFlowResult::NotSent(_) => Ok(NetworkResult::no_connection_other(
                     "unable to send over hole punch",
                 )),
             }
         } else {
             return Ok(NetworkResult::no_connection_other(format!(
-                "hole punch dropped from {}", target_nr)
-            ));
+                "hole punch dropped from {}",
+                target_nr
+            )));
         }
     }
 }

@@ -223,7 +223,15 @@ pub async fn test_protect_unprotect(vcrypto: CryptoSystemVersion, ts: TableStore
     );
 
     let deks = [dek1, dek2, dek3];
-    let passwords = ["", " ", "  ", "12345678", "|/\\!@#$%^&*()_+", "Ⓜ️", "🔥🔥♾️"];
+    let passwords = [
+        "",
+        " ",
+        "  ",
+        "12345678",
+        "|/\\!@#$%^&*()_+",
+        "Ⓜ️",
+        "🔥🔥♾️",
+    ];
 
     for dek in deks {
         for password in passwords {

@@ -288,7 +288,7 @@ impl Network {
                 std_listener.set_nonblocking(true).expect("failed to set nonblocking");
                 let listener = TcpListener::from_std(std_listener).wrap_err("failed to create tokio tcp listener")?;
             } else {
-                compile_error!("needs executor implementation")
+                compile_error!("needs executor implementation");
             }
         }
 
@@ -317,7 +317,7 @@ impl Network {
                 } else if #[cfg(feature="rt-tokio")] {
                     let incoming_stream = tokio_stream::wrappers::TcpListenerStream::new(listener);
                 } else {
-                    compile_error!("needs executor implementation")
+                    compile_error!("needs executor implementation");
                 }
             }
 

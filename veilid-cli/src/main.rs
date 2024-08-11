@@ -152,7 +152,7 @@ fn main() -> Result<(), String> {
                             (Box::pin(f.compat()) as Pin<Box<dyn futures::AsyncRead + Send>>, tokio::io::stdout().compat_write())
                         };
                 } else {
-                    compile_error!("needs executor implementation")
+                    compile_error!("needs executor implementation");
                 }
             }
 
@@ -171,7 +171,7 @@ fn main() -> Result<(), String> {
                     let in_str = format!("{}\n", evaluate);
                     let (in_obj, out_obj) = (futures::io::Cursor::new(in_str), tokio::io::stdout().compat_write());
                 } else {
-                    compile_error!("needs executor implementation")
+                    compile_error!("needs executor implementation");
                 }
             }
 
@@ -347,7 +347,7 @@ fn main() -> Result<(), String> {
                 // Wait for ui and connection to complete
                 let _ = tokio::join!(ui_future, connection_future);
             } else {
-                compile_error!("needs executor implementation")
+                compile_error!("needs executor implementation");
             }
         }
         Ok(())

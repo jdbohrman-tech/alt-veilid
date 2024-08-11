@@ -33,7 +33,7 @@ impl RPCProcessor {
         value: SignedValueData,
         descriptor: SignedValueDescriptor,
         send_descriptor: bool,
-    ) ->RPCNetworkResult<Answer<SetValueAnswer>> {
+    ) -> RPCNetworkResult<Answer<SetValueAnswer>> {
         let _guard = self
             .unlocked_inner
             .startup_lock
@@ -62,11 +62,7 @@ impl RPCProcessor {
             subkey,
             value.value_data().data().len(),
             value.value_data().writer(),
-            if send_descriptor {
-                " +senddesc"
-            } else {
-                ""
-            },
+            if send_descriptor { " +senddesc" } else { "" },
             dest
         );
 
@@ -122,31 +118,33 @@ impl RPCProcessor {
         let (set, value, peers) = set_value_a.destructure();
 
         if debug_target_enabled!("dht") {
-            let debug_string_value = value.as_ref().map(|v| {
-                format!(" len={} writer={}",
-                    v.value_data().data().len(),
-                    v.value_data().writer(),
-                )
-            }).unwrap_or_default();
-            
+            let debug_string_value = value
+                .as_ref()
+                .map(|v| {
+                    format!(
+                        " len={} writer={}",
+                        v.value_data().data().len(),
+                        v.value_data().writer(),
+                    )
+                })
+                .unwrap_or_default();
 
             let debug_string_answer = format!(
                 "OUT <== SetValueA({} #{}{}{} peers={}) <= {}",
                 key,
                 subkey,
-                if set {
-                    " +set"
-                } else {
-                    ""
-                },
+                if set { " +set" } else { "" },
                 debug_string_value,
                 peers.len(),
                 dest,
             );
 
             log_dht!(debug "{}", debug_string_answer);
-            
-            let peer_ids:Vec<String> = peers.iter().filter_map(|p| p.node_ids().get(key.kind).map(|k| k.to_string())).collect();
+
+            let peer_ids: Vec<String> = peers
+                .iter()
+                .filter_map(|p| p.node_ids().get(key.kind).map(|k| k.to_string()))
+                .collect();
             log_dht!(debug "Peers: {:#?}", peer_ids);
         }
 
@@ -172,7 +170,10 @@ impl RPCProcessor {
         if let Some(value) = &value {
             tracing::Span::current().record("ret.value.data.len", value.value_data().data().len());
             tracing::Span::current().record("ret.value.data.seq", value.value_data().seq());
-            tracing::Span::current().record("ret.value.data.writer", value.value_data().writer().to_string());
+            tracing::Span::current().record(
+                "ret.value.data.writer",
+                value.value_data().writer().to_string(),
+            );
         }
         #[cfg(feature = "verbose-tracing")]
         tracing::Span::current().record("ret.peers.len", peers.len());
@@ -187,25 +188,16 @@ impl RPCProcessor {
     ////////////////////////////////////////////////////////////////////////////////////////////////
 
     #[instrument(level = "trace", target = "rpc", skip(self, msg), fields(msg.operation.op_id), ret, err)]
-    pub(crate) async fn process_set_value_q(
-        &self,
-        msg: RPCMessage,
-    ) ->RPCNetworkResult<()> {
+    pub(crate) async fn process_set_value_q(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
         // Ignore if disabled
         let routing_table = self.routing_table();
         let rss = routing_table.route_spec_store();
-        
+
         let opi = routing_table.get_own_peer_info(msg.header.routing_domain());
-        if !opi
-            .signed_node_info()
-            .node_info()
-            .has_capability(CAP_DHT)
-        {
-            return Ok(NetworkResult::service_unavailable(
-                "dht is not available",
-            ));
+        if !opi.signed_node_info().node_info().has_capability(CAP_DHT) {
+            return Ok(NetworkResult::service_unavailable("dht is not available"));
         }
-        
+
         // Ensure this never came over a private route, safety route is okay though
         match &msg.header.detail {
             RPCMessageHeaderDetail::Direct(_) | RPCMessageHeaderDetail::SafetyRouted(_) => {}
@@ -232,10 +224,12 @@ impl RPCProcessor {
         // Get target for ValueChanged notifications
         let dest = network_result_try!(self.get_respond_to_destination(&msg));
         let target = dest.get_target(rss)?;
-        
+
         // Get the nodes that we know about that are closer to the the key than our own node
         let routing_table = self.routing_table();
-        let closer_to_key_peers = network_result_try!(routing_table.find_preferred_peers_closer_to_key(key, vec![CAP_DHT]));
+        let closer_to_key_peers = network_result_try!(
+            routing_table.find_preferred_peers_closer_to_key(key, vec![CAP_DHT])
+        );
 
         let debug_string = format!(
             "IN <=== SetValueQ({} #{} len={} seq={} writer={}{}) <== {}",
@@ -244,11 +238,7 @@ impl RPCProcessor {
             value.value_data().data().len(),
             value.value_data().seq(),
             value.value_data().writer(),
-            if descriptor.is_some() {
-                " +desc"
-            } else {
-                ""
-            },
+            if descriptor.is_some() { " +desc" } else { "" },
             msg.header.direct_sender_node_id()
         );
 
@@ -268,7 +258,13 @@ impl RPCProcessor {
             // Save the subkey, creating a new record if necessary
             let storage_manager = self.storage_manager();
             let new_value = network_result_try!(storage_manager
-                .inbound_set_value(key, subkey, Arc::new(value), descriptor.map(Arc::new), target)
+                .inbound_set_value(
+                    key,
+                    subkey,
+                    Arc::new(value),
+                    descriptor.map(Arc::new),
+                    target
+                )
                 .await
                 .map_err(RPCError::internal)?);
 
@@ -276,23 +272,23 @@ impl RPCProcessor {
         };
 
         if debug_target_enabled!("dht") {
-            let debug_string_value = new_value.as_ref().map(|v| {
-                format!(" len={} seq={} writer={}",
-                    v.value_data().data().len(),
-                    v.value_data().seq(),
-                    v.value_data().writer(),
-                )
-            }).unwrap_or_default();
+            let debug_string_value = new_value
+                .as_ref()
+                .map(|v| {
+                    format!(
+                        " len={} seq={} writer={}",
+                        v.value_data().data().len(),
+                        v.value_data().seq(),
+                        v.value_data().writer(),
+                    )
+                })
+                .unwrap_or_default();
 
             let debug_string_answer = format!(
                 "IN ===> SetValueA({} #{}{}{} peers={}) ==> {}",
                 key,
                 subkey,
-                if set {
-                    " +set"
-                } else {
-                    ""
-                },
+                if set { " +set" } else { "" },
                 debug_string_value,
                 closer_to_key_peers.len(),
                 msg.header.direct_sender_node_id()
@@ -302,10 +298,14 @@ impl RPCProcessor {
         }
 
         // Make SetValue answer
-        let set_value_a = RPCOperationSetValueA::new(set, new_value.map(|x| (*x).clone()), closer_to_key_peers)?;
+        let set_value_a =
+            RPCOperationSetValueA::new(set, new_value.map(|x| (*x).clone()), closer_to_key_peers)?;
 
         // Send SetValue answer
-        self.answer(msg, RPCAnswer::new(RPCAnswerDetail::SetValueA(Box::new(set_value_a))))
-            .await
+        self.answer(
+            msg,
+            RPCAnswer::new(RPCAnswerDetail::SetValueA(Box::new(set_value_a))),
+        )
+        .await
     }
 }

@@ -128,7 +128,7 @@ impl Network {
                 std_udp_socket.set_nonblocking(true).expect("failed to set nonblocking");
                 let udp_socket = UdpSocket::from_std(std_udp_socket).wrap_err("failed to make inbound tokio udpsocket")?;
             } else {
-                compile_error!("needs executor implementation")
+                compile_error!("needs executor implementation");
             }
         }
         let socket_arc = Arc::new(udp_socket);

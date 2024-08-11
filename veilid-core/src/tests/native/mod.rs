@@ -49,7 +49,7 @@ cfg_if::cfg_if! {
             rt.block_on(f)
         }
     } else {
-        compile_error!("needs executor implementation")
+        compile_error!("needs executor implementation");
     }
 }
 

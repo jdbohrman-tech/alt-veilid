@@ -283,7 +283,7 @@ pub extern "C" fn initialize_veilid_core(platform_config: FfiStr) {
                     .with_endpoint(format!("http://{}", grpc_endpoint));
                 let batch = opentelemetry::runtime::Tokio;
             } else {
-                compile_error!("needs executor implementation")
+                compile_error!("needs executor implementation");
             }
         }
 

@@ -29,7 +29,7 @@ cfg_if! {
                     AsyncResolver::tokio(config, options)
                 }
             } else {
-                compile_error!("needs executor implementation")
+                compile_error!("needs executor implementation");
             }
         }
 
