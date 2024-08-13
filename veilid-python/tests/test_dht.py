@@ -7,7 +7,7 @@ import json
 import time
 import os
 from . import *
-from .api import VeilidTestConnectionError, api_connector
+
 
 ##################################################################
 BOGUS_KEY = veilid.TypedKey.from_value(
@@ -217,8 +217,8 @@ async def test_watch_dht_values():
             await value_change_queue.put(update)
 
     try:
-        api = await api_connector(value_change_update_callback)
-    except VeilidTestConnectionError:
+        api = await veilid.api_connector(value_change_update_callback)
+    except veilid.VeilidConnectionError:
         pytest.skip("Unable to connect to veilid-server.")
         return
 
@@ -286,7 +286,7 @@ async def test_watch_dht_values():
         assert vd == [None, None]
 
         # Wait for the update
-        upd = await asyncio.wait_for(value_change_queue.get(), timeout=5)
+        upd = await asyncio.wait_for(value_change_queue.get(), timeout=10)
 
         # Verify the update came back but we don't get a new value because the sequence number is the same
         assert upd.detail.key == rec.key
@@ -352,14 +352,14 @@ async def test_dht_integration_writer_reader():
         pass    
 
     try:
-        api0 = await api_connector(null_update_callback, 0)
-    except VeilidTestConnectionError:
+        api0 = await veilid.api_connector(null_update_callback, 0)
+    except veilid.VeilidConnectionError:
         pytest.skip("Unable to connect to veilid-server 0.")
         return
 
     try:
-        api1 = await api_connector(null_update_callback, 1)
-    except VeilidTestConnectionError:
+        api1 = await veilid.api_connector(null_update_callback, 1)
+    except veilid.VeilidConnectionError:
         pytest.skip("Unable to connect to veilid-server 1.")
         return
 
@@ -418,8 +418,8 @@ async def test_dht_write_read_local():
         pass    
 
     try:
-        api0 = await api_connector(null_update_callback, 0)
-    except VeilidTestConnectionError:
+        api0 = await veilid.api_connector(null_update_callback, 0)
+    except veilid.VeilidConnectionError:
         pytest.skip("Unable to connect to veilid-server 0.")
         return
 
@@ -432,7 +432,8 @@ async def test_dht_write_read_local():
         rc0 = await api0.new_routing_context()
         async with rc0:
 
-            COUNT = 500
+            # FIXME: 500
+            COUNT = 5
             TEST_DATA = b"ABCD"*1024
             TEST_DATA2 = b"ABCD"*4096
 

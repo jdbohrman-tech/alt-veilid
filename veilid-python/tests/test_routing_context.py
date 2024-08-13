@@ -9,8 +9,6 @@ import pytest
 
 import veilid
 
-from .api import VeilidTestConnectionError, api_connector
-
 ##################################################################
 
 
@@ -53,8 +51,8 @@ async def test_routing_context_app_message_loopback():
             await app_message_queue.put(update)
 
     try:
-        api = await api_connector(app_message_queue_update_callback)
-    except VeilidTestConnectionError:
+        api = await veilid.api_connector(app_message_queue_update_callback)
+    except veilid.VeilidConnectionError:
         pytest.skip("Unable to connect to veilid-server.")
         return
 
@@ -101,8 +99,8 @@ async def test_routing_context_app_call_loopback():
             await app_call_queue.put(update)
 
     try:
-        api = await api_connector(app_call_queue_update_callback)
-    except VeilidTestConnectionError:
+        api = await veilid.api_connector(app_call_queue_update_callback)
+    except veilid.VeilidConnectionError:
         pytest.skip("Unable to connect to veilid-server.")
         return
 
@@ -162,8 +160,8 @@ async def test_routing_context_app_message_loopback_big_packets():
     sent_messages: set[bytes] = set()
 
     try:
-        api = await api_connector(app_message_queue_update_callback)
-    except VeilidTestConnectionError:
+        api = await veilid.api_connector(app_message_queue_update_callback)
+    except veilid.VeilidConnectionError:
         pytest.skip("Unable to connect to veilid-server.")
         return
 
@@ -227,8 +225,8 @@ async def test_routing_context_app_call_loopback_big_packets():
             await api.app_call_reply(update.detail.call_id, update.detail.message)
 
     try:
-        api = await api_connector(app_call_queue_update_callback)
-    except VeilidTestConnectionError:
+        api = await veilid.api_connector(app_call_queue_update_callback)
+    except veilid.VeilidConnectionError:
         pytest.skip("Unable to connect to veilid-server.")
         return
 
@@ -277,8 +275,8 @@ async def test_routing_context_app_message_loopback_bandwidth():
             await app_message_queue.put(True)
 
     try:
-        api = await api_connector(app_message_queue_update_callback)
-    except VeilidTestConnectionError:
+        api = await veilid.api_connector(app_message_queue_update_callback)
+    except veilid.VeilidConnectionError:
         pytest.skip("Unable to connect to veilid-server.")
         return
 
