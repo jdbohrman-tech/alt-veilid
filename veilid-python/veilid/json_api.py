@@ -2,7 +2,6 @@ import asyncio
 import importlib.resources as importlib_resources
 import json
 import os
-import socket
 from typing import Awaitable, Callable, Optional, Self
 
 from jsonschema import exceptions, validators

@@ -3,7 +3,6 @@
 import pytest
 import veilid
 from veilid.api import CryptoSystem
-import gc
 
 
 @pytest.mark.asyncio
@@ -42,8 +41,9 @@ async def test_hash_and_verify_password(api_connection: veilid.VeilidAPI):
         assert await cs.verify_password(b"abc123", phash)
 
         # Password mismatch
-        phash2 = await cs.hash_password(b"abc1234", salt)
+        await cs.hash_password(b"abc1234", salt)
         assert not await cs.verify_password(b"abc12345", phash)
+
 
 @pytest.mark.asyncio
 async def test_sign_and_verify_signature(api_connection: veilid.VeilidAPI):
