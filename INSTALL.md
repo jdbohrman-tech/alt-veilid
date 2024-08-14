@@ -205,6 +205,22 @@ To start your headless Veilid node without systemd, run:
 sudo -u veilid veilid-server
 ```
 
+## Configuration
+
+You can find the default location of the server configuration for your platform in the help text:
+
+```shell
+/path/to/veilid-server -h
+```
+
+Information on configuring veilid-server can be found in the [Developer Book](https://veilid.gitlab.io/developer-book/admin/config.html) and examples are available in [the doc directory](https://gitlab.com/veilid/veilid/-/tree/main/doc/config) of this repository. 
+
+### Logging
+veilid-server has extensive logging functionality that can be configured via the configuration file or changed while running using veilid-cli's `change_log_level` command. The default log settings for veilid-server packages are:
+
+- Linux - `INFO` log level to syslog (usually `/var/log/syslog`)
+- Mac OS - `INFO` log level to syslog (usually `/var/log/system.log`)
+
 ## Network Considerations
 
 > **note:** if you're interested in using a veilid-server node for local development, you're better off reading the [Developer Book](https://veilid.gitlab.io/developer-book/), though the implementation to enable local development using a veilid-server node is still forthcoming.
