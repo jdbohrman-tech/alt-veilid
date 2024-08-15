@@ -20,14 +20,6 @@ format:
   script:
     - cargo fmt --all -- --check --verbose
 
-  cache:
-    key: fmt-cache
-    paths:
-      - ~/.cargo/bin/
-      - ~/.cargo/git/db/
-      - ~/.cargo/registry/cache/
-      - ~/.cargo/registry/index/
-
 # base earthly setup for jobs
 .base:
   tags: [ saas-linux-medium-amd64 ]
