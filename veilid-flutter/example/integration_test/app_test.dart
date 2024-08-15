@@ -73,8 +73,9 @@ void main() {
         test('get dht value nonexistent', testGetDHTValueNonexistent);
         test('set get dht value', testSetGetDHTValue);
         test('open writer dht value', testOpenWriterDHTValue);
-        test('watch dht values',
-            () async => testWatchDHTValues(fixture.updateStream));
+        // xxx: needs to be a multi-server integration test
+        // test('watch dht values',
+        //     () async => testWatchDHTValues(fixture.updateStream));
         test('inspect dht record', testInspectDHTRecord);
       });
     });

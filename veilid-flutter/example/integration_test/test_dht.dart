@@ -235,6 +235,37 @@ Future<void> settle(VeilidRoutingContext rc, TypedKey key, int subkey) async {
       (await rc.inspectDHTRecord(key)).offlineSubkeys.containsSubkey(subkey));
 }
 
+Future<VeilidUpdateValueChange?> waitForValueChange(
+    Stream<VeilidUpdateValueChange> stream,
+    Duration duration,
+    Future<void> Function() closure) async {
+  final valueChangeQueueIterator = StreamIterator(stream);
+
+  try {
+    // Subscribe before call
+    final iterfut = valueChangeQueueIterator.moveNext();
+
+    // Call thing that might generate a value change
+    await closure();
+
+    // Wait for the first change
+    final hasChange =
+        await iterfut.timeout(duration, onTimeout: () async => false);
+
+    if (!hasChange) {
+      return null;
+    }
+    return valueChangeQueueIterator.current;
+  } finally {
+    // Stop waiting for changes
+    await valueChangeQueueIterator.cancel();
+  }
+}
+
+// XXX: Currently does not work because ValueChanged updates are suppressed
+// for records that are the same sequence number locally as they are in the
+// update. To properly test, you need two servers. Revisit this when we can
+// make multiple veilid-core instantiations in a single process.
 Future<void> testWatchDHTValues(Stream<VeilidUpdate> updateStream) async {
   final valueChangeQueue =
       StreamController<VeilidUpdateValueChange>.broadcast();
@@ -244,7 +275,6 @@ Future<void> testWatchDHTValues(Stream<VeilidUpdate> updateStream) async {
       valueChangeQueue.sink.add(update);
     }
   });
-  var valueChangeQueueIterator = StreamIterator(valueChangeQueue.stream);
 
   try {
     // Make two routing contexts, one with and one without safety
@@ -252,8 +282,8 @@ Future<void> testWatchDHTValues(Stream<VeilidUpdate> updateStream) async {
     // Normally they would not get sent if the set comes from the same target
     // as the watch's target
 
-    final rcWatch = await Veilid.instance.routingContext();
-    final rcSet = await Veilid.instance
+    final rcSet = await Veilid.instance.routingContext();
+    final rcWatch = await Veilid.instance
         .unsafeRoutingContext(sequencing: Sequencing.ensureOrdered);
     try {
       // Make a DHT record
@@ -264,6 +294,9 @@ Future<void> testWatchDHTValues(Stream<VeilidUpdate> updateStream) async {
           await rcWatch.setDHTValue(rec.key, 3, utf8.encode('BLAH BLAH BLAH')),
           isNull);
 
+      // Wait for set to settle
+      await settle(rcWatch, rec.key, 3);
+
       // Make a watch on that subkey
       expect(await rcWatch.watchDHTValues(rec.key),
           isNot(equals(Timestamp.zero())));
@@ -271,46 +304,39 @@ Future<void> testWatchDHTValues(Stream<VeilidUpdate> updateStream) async {
       // Reopen without closing to change routing context and not lose watch
       rec = await rcSet.openDHTRecord(rec.key, writer: rec.ownerKeyPair());
 
-      // Now set the subkey and trigger an update
-      expect(await rcSet.setDHTValue(rec.key, 3, utf8.encode('BLAH')), isNull);
-
-      // Wait for set to settle
-      await settle(rcSet, rec.key, 3);
-
       // Now we should NOT get an update because the update
       // is the same as our local copy
-      if (await valueChangeQueueIterator
-          .moveNext()
-          .timeout(const Duration(seconds: 5), onTimeout: () => false)) {
+      final update1 = await waitForValueChange(
+          valueChangeQueue.stream, const Duration(seconds: 10), () async {
+        // Now set the subkey and trigger an update
+        expect(await rcSet.setDHTValue(rec.key, 3, utf8.encode('BLAH BLAH')),
+            isNull);
+
+        // Wait for set to settle
+        await settle(rcSet, rec.key, 3);
+      });
+      if (update1 != null) {
         fail('should not have a change');
       }
-      await valueChangeQueueIterator.cancel();
-      valueChangeQueueIterator = StreamIterator(valueChangeQueue.stream);
-
-      // Now set multiple subkeys and trigger an update
-      expect(
-          await [
-            rcSet.setDHTValue(rec.key, 3, utf8.encode('BLAH BLAH')),
-            rcSet.setDHTValue(rec.key, 4, utf8.encode('BZORT'))
-          ].wait,
-          equals([null, null]));
-
-      await settle(rcSet, rec.key, 3);
-      await settle(rcSet, rec.key, 4);
 
       // Wait for the update
-      await valueChangeQueueIterator
-          .moveNext()
-          .timeout(const Duration(seconds: 10), onTimeout: () {
-        fail('should have a change');
+      final update2 = await waitForValueChange(
+          valueChangeQueue.stream, const Duration(seconds: 10), () async {
+        // Now set a subkey and trigger an update
+        expect(
+            await rcSet.setDHTValue(rec.key, 3, utf8.encode('BLAH')), isNull);
+
+        await settle(rcSet, rec.key, 3);
       });
+      if (update2 == null) {
+        fail('should have a change');
+      }
 
       // Verify the update
-      expect(valueChangeQueueIterator.current.key, equals(rec.key));
-      expect(valueChangeQueueIterator.current.count, equals(0xFFFFFFFD));
-      expect(valueChangeQueueIterator.current.subkeys,
-          equals([ValueSubkeyRange.make(3, 4)]));
-      expect(valueChangeQueueIterator.current.value, isNull);
+      expect(update2.key, equals(rec.key));
+      expect(update2.count, equals(0xFFFFFFFD));
+      expect(update2.subkeys, equals([ValueSubkeyRange.single(3)]));
+      expect(update2.value, isNull);
 
       // Reopen without closing to change routing context and not lose watch
       rec = await rcWatch.openDHTRecord(rec.key, writer: rec.ownerKeyPair());
@@ -324,31 +350,30 @@ Future<void> testWatchDHTValues(Stream<VeilidUpdate> updateStream) async {
       // Reopen without closing to change routing context and not lose watch
       rec = await rcSet.openDHTRecord(rec.key, writer: rec.ownerKeyPair());
 
-      // Now set multiple subkeys and trigger an update
-      expect(
-          await [
-            rcSet.setDHTValue(rec.key, 3, utf8.encode('BLAH BLAH BLAH')),
-            rcSet.setDHTValue(rec.key, 5, utf8.encode('BZORT BZORT'))
-          ].wait,
-          equals([null, null]));
-
-      await settle(rcSet, rec.key, 3);
-      await settle(rcSet, rec.key, 5);
-
       // Wait for the update
-      await valueChangeQueueIterator
-          .moveNext()
-          .timeout(const Duration(seconds: 10), onTimeout: () {
-        fail('should have a change');
+      final update3 = await waitForValueChange(
+          valueChangeQueue.stream, const Duration(seconds: 10), () async {
+        // Now set multiple subkeys and trigger an update on one of them
+        expect(
+            await [
+              rcSet.setDHTValue(rec.key, 3, utf8.encode('BLART')),
+              rcSet.setDHTValue(rec.key, 1, utf8.encode('BZORT BZORT'))
+            ].wait,
+            equals([null, null]));
+
+        await settle(rcSet, rec.key, 3);
+        await settle(rcSet, rec.key, 1);
       });
+      if (update3 == null) {
+        fail('should have a change');
+      }
 
       // Verify the update came back but we don't get a new value because the
       // sequence number is the same
-      expect(valueChangeQueueIterator.current.key, equals(rec.key));
-      expect(valueChangeQueueIterator.current.count, equals(0xFFFFFFFC));
-      expect(valueChangeQueueIterator.current.subkeys,
-          equals([ValueSubkeyRange.single(3), ValueSubkeyRange.single(5)]));
-      expect(valueChangeQueueIterator.current.value, isNull);
+      expect(update3.key, equals(rec.key));
+      expect(update3.count, equals(0xFFFFFFFC));
+      expect(update3.subkeys, equals([ValueSubkeyRange.single(3)]));
+      expect(update3.value, isNull);
 
       // Reopen without closing to change routing context and not lose watch
       rec = await rcWatch.openDHTRecord(rec.key, writer: rec.ownerKeyPair());
@@ -362,21 +387,21 @@ Future<void> testWatchDHTValues(Stream<VeilidUpdate> updateStream) async {
       // Reopen without closing to change routing context and not lose watch
       rec = await rcSet.openDHTRecord(rec.key, writer: rec.ownerKeyPair());
 
-      // Now set multiple subkeys and trigger an update
-      expect(
-          await [
-            rcSet.setDHTValue(rec.key, 3, utf8.encode('BLAH BLAH BLAH BLAH')),
-            rcSet.setDHTValue(rec.key, 5, utf8.encode('BZORT BZORT BZORT'))
-          ].wait,
-          equals([null, null]));
+      // Wait for the update
+      final update4 = await waitForValueChange(
+          valueChangeQueue.stream, const Duration(seconds: 10), () async {
+        // Now set multiple subkeys that should not trigger an update
+        expect(
+            await [
+              rcSet.setDHTValue(rec.key, 3, utf8.encode('BLAH BLAH BLAH BLAH')),
+              rcSet.setDHTValue(rec.key, 5, utf8.encode('BZORT BZORT BZORT'))
+            ].wait,
+            equals([null, null]));
 
-      await settle(rcSet, rec.key, 3);
-      await settle(rcSet, rec.key, 5);
-
-      // Now we should NOT get an update
-      if (await valueChangeQueueIterator
-          .moveNext()
-          .timeout(const Duration(seconds: 10), onTimeout: () => false)) {
+        await settle(rcSet, rec.key, 3);
+        await settle(rcSet, rec.key, 5);
+      });
+      if (update4 != null) {
         fail('should not have a change');
       }
 
@@ -388,7 +413,6 @@ Future<void> testWatchDHTValues(Stream<VeilidUpdate> updateStream) async {
       rcSet.close();
     }
   } finally {
-    await valueChangeQueueIterator.cancel();
     await valueChangeSubscription.cancel();
     await valueChangeQueue.close();
   }
