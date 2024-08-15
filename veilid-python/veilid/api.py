@@ -187,7 +187,7 @@ class CryptoSystem(ABC):
             await self.release()
 
     @abstractmethod
-    def kind(self) -> types.CryptoKind:
+    async def kind(self) -> types.CryptoKind:
         pass
 
     @abstractmethod

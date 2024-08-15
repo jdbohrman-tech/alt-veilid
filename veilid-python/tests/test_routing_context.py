@@ -3,13 +3,10 @@
 import asyncio
 import os
 import random
-import sys
-
 import pytest
 
 import veilid
 
-from .api import VeilidTestConnectionError, api_connector
 
 ##################################################################
 
@@ -53,10 +50,9 @@ async def test_routing_context_app_message_loopback():
             await app_message_queue.put(update)
 
     try:
-        api = await api_connector(app_message_queue_update_callback)
-    except VeilidTestConnectionError:
+        api = await veilid.api_connector(app_message_queue_update_callback)
+    except veilid.VeilidConnectionError:
         pytest.skip("Unable to connect to veilid-server.")
-        return
 
     async with api:
         # purge routes to ensure we start fresh
@@ -101,10 +97,9 @@ async def test_routing_context_app_call_loopback():
             await app_call_queue.put(update)
 
     try:
-        api = await api_connector(app_call_queue_update_callback)
-    except VeilidTestConnectionError:
+        api = await veilid.api_connector(app_call_queue_update_callback)
+    except veilid.VeilidConnectionError:
         pytest.skip("Unable to connect to veilid-server.")
-        return
 
     async with api:
         # purge routes to ensure we start fresh
@@ -162,10 +157,9 @@ async def test_routing_context_app_message_loopback_big_packets():
     sent_messages: set[bytes] = set()
 
     try:
-        api = await api_connector(app_message_queue_update_callback)
-    except VeilidTestConnectionError:
+        api = await veilid.api_connector(app_message_queue_update_callback)
+    except veilid.VeilidConnectionError:
         pytest.skip("Unable to connect to veilid-server.")
-        return
 
     async with api:
         # purge routes to ensure we start fresh
@@ -206,9 +200,9 @@ async def test_routing_context_app_message_loopback_big_packets():
                 await api.release_private_route(prl)
 
 
-
 @pytest.mark.asyncio
 async def test_routing_context_app_call_loopback_big_packets():
+    # This test has a tendency to timeout on slow connections
     count_hack = [0]
 
     app_call_queue: asyncio.Queue = asyncio.Queue()
@@ -227,10 +221,9 @@ async def test_routing_context_app_call_loopback_big_packets():
             await api.app_call_reply(update.detail.call_id, update.detail.message)
 
     try:
-        api = await api_connector(app_call_queue_update_callback)
-    except VeilidTestConnectionError:
+        api = await veilid.api_connector(app_call_queue_update_callback)
+    except veilid.VeilidConnectionError:
         pytest.skip("Unable to connect to veilid-server.")
-        return
 
     async with api:
         # purge routes to ensure we start fresh
@@ -277,10 +270,9 @@ async def test_routing_context_app_message_loopback_bandwidth():
             await app_message_queue.put(True)
 
     try:
-        api = await api_connector(app_message_queue_update_callback)
-    except VeilidTestConnectionError:
+        api = await veilid.api_connector(app_message_queue_update_callback)
+    except veilid.VeilidConnectionError:
         pytest.skip("Unable to connect to veilid-server.")
-        return
 
     async with api:
         # purge routes to ensure we start fresh
@@ -295,7 +287,7 @@ async def test_routing_context_app_message_loopback_bandwidth():
                 # import it as a remote route as well so we can send to it
                 prr = await api.import_remote_private_route(blob)
                 try:
-                # do this test 1000 times
+                    # do this test 10000 times
                     message = random.randbytes(16384)
                     for _ in range(10000):
                         # send a random sized random app message to our own private route

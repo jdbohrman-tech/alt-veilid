@@ -1,28 +1,27 @@
 import appdirs
 import errno
 import os
-import socket
 import sys
 import re
 from collections.abc import Callable
 from functools import cache
 
+import veilid
 from veilid.json_api import _JsonVeilidAPI
 
-import veilid
 
 ERRNO_PATTERN = re.compile(r"errno (\d+)", re.IGNORECASE)
 
 
-class VeilidTestConnectionError(Exception):
-    """The test client could not connect to the veilid-server."""
+class VeilidConnectionError(Exception):
+    """The client could not connect to the veilid-server."""
 
     pass
 
 
 @cache
 def server_info(subindex: int = 0) -> tuple[str, int]:
-    """Return the hostname and port of the test server."""
+    """Return the hostname and port of the server."""
     VEILID_SERVER_NETWORK = os.getenv("VEILID_SERVER_NETWORK")
     if VEILID_SERVER_NETWORK is None:
         return "localhost", 5959 + subindex
@@ -32,6 +31,7 @@ def server_info(subindex: int = 0) -> tuple[str, int]:
         return hostname, int(rest[0]) + subindex
     return hostname, 5959 + subindex
 
+
 def ipc_path_exists(path: str) -> bool:
     """Determine if an IPC socket exists in a platform independent way."""
     if os.name == 'nt':
@@ -40,17 +40,18 @@ def ipc_path_exists(path: str) -> bool:
         return path[9:] in os.listdir("\\\\.\\PIPE")
     else:
         return os.path.exists(path)
-        
+
+
 @cache
 def ipc_info(subindex: int = 0) -> str:
-    """Return the path of the ipc socket of the test server."""
+    """Return the path of the ipc socket of the server."""
     VEILID_SERVER_IPC = os.getenv("VEILID_SERVER_IPC")
     if VEILID_SERVER_IPC is not None:
         return VEILID_SERVER_IPC
 
     if os.name == 'nt':
         return f'\\\\.\\PIPE\\veilid-server\\{subindex}'
-    
+
     ipc_path = f"/var/db/veilid-server/ipc/{subindex}"
     if os.path.exists(ipc_path):
         return ipc_path
@@ -59,7 +60,7 @@ def ipc_info(subindex: int = 0) -> str:
     if sys.platform.startswith('darwin'):
         data_dir = appdirs.user_data_dir("org.Veilid.Veilid")
     else:
-        data_dir = appdirs.user_data_dir("veilid","veilid")
+        data_dir = appdirs.user_data_dir("veilid", "veilid")
     ipc_path = os.path.join(data_dir, "ipc", str(subindex))
     return ipc_path
 
@@ -68,10 +69,10 @@ async def api_connector(callback: Callable, subindex: int = 0) -> _JsonVeilidAPI
     """Return an API connection if possible.
 
     If the connection fails due to an inability to connect to the
-    server's socket, raise an easy-to-catch VeilidTestConnectionError.
+    server's socket, raise an easy-to-catch VeilidConnectionError.
     """
 
-    ipc_path = ipc_info(subindex)    
+    ipc_path = ipc_info(subindex)
 
     try:
         if ipc_path_exists(ipc_path):
@@ -96,7 +97,7 @@ async def api_connector(callback: Callable, subindex: int = 0) -> _JsonVeilidAPI
         # it's the code we expected.
         if exc.errno is not None:
             if exc.errno == errno.ECONNREFUSED:
-                raise VeilidTestConnectionError
+                raise VeilidConnectionError
             raise
 
         # If not, use a regular expression to find all the errno values
@@ -104,6 +105,6 @@ async def api_connector(callback: Callable, subindex: int = 0) -> _JsonVeilidAPI
         # code we're looking for.
         errnos = ERRNO_PATTERN.findall(str(exc))
         if all(int(err) == errno.ECONNREFUSED for err in errnos):
-            raise VeilidTestConnectionError
+            raise VeilidConnectionError
 
         raise
