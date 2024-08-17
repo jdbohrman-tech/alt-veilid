@@ -3,6 +3,7 @@
 name = "veilid-wasm"
 version = "0.3.4"
 # ---
+description = "Veilid bindings for WebAssembly"
 authors = ["Veilid Team <contact@veilid.com>"]
 license = "MPL-2.0"
 edition = "2021"

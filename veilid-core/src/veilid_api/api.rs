@@ -2,8 +2,9 @@ use super::*;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct VeilidAPIInner {
+pub(super) struct VeilidAPIInner {
     context: Option<VeilidCoreContext>,
+    pub(super) debug_cache: DebugCache,
 }
 
 impl fmt::Debug for VeilidAPIInner {
@@ -35,7 +36,7 @@ impl Drop for VeilidAPIInner {
 /// * Reply to `AppCall` RPCs.
 #[derive(Clone, Debug)]
 pub struct VeilidAPI {
-    inner: Arc<Mutex<VeilidAPIInner>>,
+    pub(super) inner: Arc<Mutex<VeilidAPIInner>>,
 }
 
 impl VeilidAPI {
@@ -46,6 +47,12 @@ impl VeilidAPI {
         Self {
             inner: Arc::new(Mutex::new(VeilidAPIInner {
                 context: Some(context),
+                debug_cache: DebugCache {
+                    imported_routes: Vec::new(),
+                    opened_record_contexts: once_cell::sync::Lazy::new(
+                        hashlink::LinkedHashMap::new,
+                    ),
+                },
             })),
         }
     }

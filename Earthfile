@@ -18,6 +18,7 @@ FROM ubuntu:18.04
 ENV ZIG_VERSION=0.13.0-dev.46+3648d7df1
 ENV CMAKE_VERSION_MINOR=3.30
 ENV CMAKE_VERSION_PATCH=3.30.1
+ENV WASM_BINDGEN_CLI_VERSION=0.2.93
 ENV RUSTUP_HOME=/usr/local/rustup
 ENV RUSTUP_DIST_SERVER=https://static.rust-lang.org
 ENV CARGO_HOME=/usr/local/cargo
@@ -54,7 +55,8 @@ deps-rust:
     RUN rustup target add x86_64-linux-android
     # WASM
     RUN rustup target add wasm32-unknown-unknown
-    RUN cargo install wasm-pack wasm-bindgen-cli
+    RUN cargo install wasm-pack
+    RUN cargo install -f wasm-bindgen-cli --version $WASM_BINDGEN_CLI_VERSION
     # Caching tool
     RUN cargo install cargo-chef
     # Install Linux cross-platform tooling
