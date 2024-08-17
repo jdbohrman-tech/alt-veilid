@@ -162,6 +162,21 @@ pub fn setup_veilid_core() -> (UpdateCallback, ConfigCallback) {
     (Arc::new(update_callback), Arc::new(config_callback))
 }
 
+pub fn setup_veilid_core_with_namespace<S: AsRef<str>>(
+    namespace: S,
+) -> (UpdateCallback, ConfigCallback) {
+    let namespace = namespace.as_ref().to_string();
+    (
+        Arc::new(update_callback),
+        Arc::new(move |key| {
+            if key.as_str() == "namespace" {
+                return Ok(Box::new(namespace.clone()));
+            }
+            config_callback(key)
+        }),
+    )
+}
+
 pub fn config_callback(key: String) -> ConfigCallbackReturn {
     match key.as_str() {
         "program_name" => Ok(Box::new(String::from("VeilidCoreTests"))),
@@ -172,7 +187,7 @@ pub fn config_callback(key: String) -> ConfigCallbackReturn {
         "block_store.directory" => Ok(Box::new(get_block_store_path())),
         "block_store.delete" => Ok(Box::new(true)),
         "protected_store.allow_insecure_fallback" => Ok(Box::new(true)),
-        "protected_store.always_use_insecure_storage" => Ok(Box::new(false)),
+        "protected_store.always_use_insecure_storage" => Ok(Box::new(true)),
         "protected_store.directory" => Ok(Box::new(get_protected_store_path())),
         "protected_store.delete" => Ok(Box::new(true)),
         "protected_store.device_encryption_key_password" => Ok(Box::new("".to_owned())),
@@ -306,7 +321,7 @@ pub async fn test_config() {
     assert_eq!(inner.block_store.directory, get_block_store_path());
     assert!(inner.block_store.delete);
     assert!(inner.protected_store.allow_insecure_fallback);
-    assert!(!inner.protected_store.always_use_insecure_storage);
+    assert!(inner.protected_store.always_use_insecure_storage);
     assert_eq!(inner.protected_store.directory, get_protected_store_path());
     assert!(inner.protected_store.delete);
     assert_eq!(

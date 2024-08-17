@@ -3,6 +3,8 @@
 name = "veilid-cli"
 version = "0.3.4"
 # ---
+description = "Client application for connecting to a Veilid headless node"
+repository = "https://gitlab.com/veilid/veilid"
 authors = ["Veilid Team <contact@veilid.com>"]
 edition = "2021"
 license = "MPL-2.0"

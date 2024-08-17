@@ -6,8 +6,19 @@ use once_cell::sync::OnceCell;
 use tracing_subscriber::*;
 
 struct ApiTracingLayerInner {
-    update_callback: UpdateCallback,
+    update_callbacks: HashMap<(String, String), UpdateCallback>,
 }
+
+/// API Tracing layer for 'tracing' subscribers
+///
+/// For normal application use one should call ApiTracingLayer::init() and insert the
+/// layer into your subscriber before calling api_startup() or api_startup_json().
+///
+/// For apps that call api_startup() many times concurrently with different 'namespace' or
+/// 'program_name', you may want to disable api tracing as it can slow the system down
+/// considerably. In those cases, deferring to buffered disk-based logging files is probably a better idea.
+/// At the very least, no more verbose than info-level logging is recommended when using API tracing
+/// with many copies of Veilid running.
 
 #[derive(Clone)]
 pub struct ApiTracingLayer {
@@ -17,33 +28,76 @@ pub struct ApiTracingLayer {
 static API_LOGGER: OnceCell<ApiTracingLayer> = OnceCell::new();
 
 impl ApiTracingLayer {
-    fn new_inner(update_callback: UpdateCallback) -> ApiTracingLayerInner {
-        ApiTracingLayerInner { update_callback }
-    }
-
-    #[instrument(level = "debug", skip(update_callback))]
-    pub async fn init(update_callback: UpdateCallback) {
-        let api_logger = API_LOGGER.get_or_init(|| ApiTracingLayer {
-            inner: Arc::new(Mutex::new(None)),
-        });
-        let apilogger_inner = Some(Self::new_inner(update_callback));
-        *api_logger.inner.lock() = apilogger_inner;
-    }
-
-    #[instrument(level = "debug")]
-    pub async fn terminate() {
-        if let Some(api_logger) = API_LOGGER.get() {
-            let mut inner = api_logger.inner.lock();
-            *inner = None;
-        }
-    }
-
-    pub fn get() -> ApiTracingLayer {
+    /// Initialize an ApiTracingLayer singleton
+    ///
+    /// This must be inserted into your tracing subscriber before you
+    /// call api_startup() or api_startup_json() if you are going to use api tracing.
+    pub fn init() -> ApiTracingLayer {
         API_LOGGER
             .get_or_init(|| ApiTracingLayer {
                 inner: Arc::new(Mutex::new(None)),
             })
             .clone()
+    }
+
+    fn new_inner() -> ApiTracingLayerInner {
+        ApiTracingLayerInner {
+            update_callbacks: HashMap::new(),
+        }
+    }
+
+    #[instrument(level = "debug", skip(update_callback))]
+    pub(crate) async fn add_callback(
+        program_name: String,
+        namespace: String,
+        update_callback: UpdateCallback,
+    ) -> VeilidAPIResult<()> {
+        let Some(api_logger) = API_LOGGER.get() else {
+            // Did not init, so skip this
+            return Ok(());
+        };
+
+        let mut inner = api_logger.inner.lock();
+        if inner.is_none() {
+            *inner = Some(Self::new_inner());
+        }
+        let key = (program_name, namespace);
+        if inner.as_ref().unwrap().update_callbacks.contains_key(&key) {
+            apibail_already_initialized!();
+        }
+        inner
+            .as_mut()
+            .unwrap()
+            .update_callbacks
+            .insert(key, update_callback);
+        return Ok(());
+    }
+
+    #[instrument(level = "debug")]
+    pub(crate) async fn remove_callback(
+        program_name: String,
+        namespace: String,
+    ) -> VeilidAPIResult<()> {
+        let key = (program_name, namespace);
+        if let Some(api_logger) = API_LOGGER.get() {
+            let mut inner = api_logger.inner.lock();
+            if inner.is_none() {
+                apibail_not_initialized!();
+            }
+            if inner
+                .as_mut()
+                .unwrap()
+                .update_callbacks
+                .remove(&key)
+                .is_none()
+            {
+                apibail_not_initialized!();
+            }
+            if inner.as_mut().unwrap().update_callbacks.is_empty() {
+                *inner = None;
+            }
+        }
+        Ok(())
     }
 
     fn emit_log(&self, inner: &mut ApiTracingLayerInner, meta: &Metadata<'_>, message: String) {
@@ -88,11 +142,15 @@ impl ApiTracingLayer {
             None
         };
 
-        (inner.update_callback)(VeilidUpdate::Log(Box::new(VeilidLog {
+        let log_update = VeilidUpdate::Log(Box::new(VeilidLog {
             log_level,
             message,
             backtrace,
-        })))
+        }));
+
+        for cb in inner.update_callbacks.values() {
+            (cb)(log_update.clone());
+        }
     }
 }
 

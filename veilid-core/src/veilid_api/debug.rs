@@ -9,15 +9,10 @@ use once_cell::sync::Lazy;
 use routing_table::*;
 
 #[derive(Default)]
-struct DebugCache {
-    imported_routes: Vec<RouteId>,
-    opened_record_contexts: Lazy<LinkedHashMap<TypedKey, RoutingContext>>,
+pub(crate) struct DebugCache {
+    pub imported_routes: Vec<RouteId>,
+    pub opened_record_contexts: Lazy<LinkedHashMap<TypedKey, RoutingContext>>,
 }
-
-static DEBUG_CACHE: Mutex<DebugCache> = Mutex::new(DebugCache {
-    imported_routes: Vec::new(),
-    opened_record_contexts: Lazy::new(LinkedHashMap::new),
-});
 
 pub fn format_opt_ts(ts: Option<TimestampDuration>) -> String {
     let Some(ts) = ts else {
@@ -214,89 +209,6 @@ fn get_node_ref_modifiers(mut node_ref: NodeRef) -> impl FnOnce(&str) -> Option<
             }
         }
         Some(node_ref)
-    }
-}
-
-fn get_destination(
-    routing_table: RoutingTable,
-) -> impl FnOnce(&str) -> SendPinBoxFuture<Option<Destination>> {
-    move |text| {
-        let text = text.to_owned();
-        Box::pin(async move {
-            // Safety selection
-            let (text, ss) = if let Some((first, second)) = text.split_once('+') {
-                let ss = get_safety_selection(routing_table.clone())(second)?;
-                (first, Some(ss))
-            } else {
-                (text.as_str(), None)
-            };
-            if text.is_empty() {
-                return None;
-            }
-            if &text[0..1] == "#" {
-                let rss = routing_table.route_spec_store();
-
-                // Private route
-                let text = &text[1..];
-
-                let private_route = if let Some(prid) = get_route_id(rss.clone(), false, true)(text)
-                {
-                    rss.best_remote_private_route(&prid)?
-                } else {
-                    let mut dc = DEBUG_CACHE.lock();
-                    let n = get_number(text)?;
-                    let prid = *dc.imported_routes.get(n)?;
-                    let Some(private_route) = rss.best_remote_private_route(&prid) else {
-                        // Remove imported route
-                        dc.imported_routes.remove(n);
-                        info!("removed dead imported route {}", n);
-                        return None;
-                    };
-                    private_route
-                };
-
-                Some(Destination::private_route(
-                    private_route,
-                    ss.unwrap_or(SafetySelection::Unsafe(Sequencing::default())),
-                ))
-            } else {
-                let (text, mods) = text
-                    .split_once('/')
-                    .map(|x| (x.0, Some(x.1)))
-                    .unwrap_or((text, None));
-                if let Some((first, second)) = text.split_once('@') {
-                    // Relay
-                    let mut relay_nr = get_node_ref(routing_table.clone())(second)?;
-                    let target_nr = get_node_ref(routing_table)(first)?;
-
-                    if let Some(mods) = mods {
-                        relay_nr = get_node_ref_modifiers(relay_nr)(mods)?;
-                    }
-
-                    let mut d = Destination::relay(relay_nr, target_nr);
-                    if let Some(ss) = ss {
-                        d = d.with_safety(ss)
-                    }
-
-                    Some(d)
-                } else {
-                    // Direct
-                    let mut target_nr =
-                        resolve_node_ref(routing_table, ss.unwrap_or_default())(text).await?;
-
-                    if let Some(mods) = mods {
-                        target_nr = get_node_ref_modifiers(target_nr)(mods)?;
-                    }
-
-                    let mut d = Destination::direct(target_nr);
-                    if let Some(ss) = ss {
-                        d = d.with_safety(ss)
-                    }
-
-                    Some(d)
-                }
-            }
-        })
     }
 }
 
@@ -546,34 +458,6 @@ async fn async_get_debug_argument_at<T, G: FnOnce(&str) -> SendPinBoxFuture<Opti
         apibail_invalid_argument!(context, argument, value);
     };
     Ok(val)
-}
-
-fn get_opened_dht_record_context(
-    args: &[String],
-    context: &str,
-    key: &str,
-    arg: usize,
-) -> VeilidAPIResult<(TypedKey, RoutingContext)> {
-    let dc = DEBUG_CACHE.lock();
-
-    let key = match get_debug_argument_at(args, arg, context, key, get_dht_key_no_safety)
-        .ok()
-        .or_else(|| {
-            // If unspecified, use the most recent key opened or created
-            dc.opened_record_contexts.back().map(|kv| kv.0).copied()
-        }) {
-        Some(k) => k,
-        None => {
-            apibail_missing_argument!("no keys are opened", "key");
-        }
-    };
-
-    // Get routing context for record
-    let Some(rc) = dc.opened_record_contexts.get(&key).cloned() else {
-        apibail_missing_argument!("key is not opened", "key");
-    };
-
-    Ok((key, rc))
 }
 
 pub fn print_data(data: &[u8], truncate_len: Option<usize>) -> String {
@@ -875,10 +759,7 @@ impl VeilidAPI {
                 Ok("Connections purged".to_owned())
             } else if args[0] == "routes" {
                 // Purge route spec store
-                {
-                    let mut dc = DEBUG_CACHE.lock();
-                    dc.imported_routes.clear();
-                }
+                self.inner.lock().debug_cache.imported_routes.clear();
                 let rss = self.network_manager()?.routing_table().route_spec_store();
                 match rss.purge().await {
                     Ok(_) => Ok("Routes purged".to_owned()),
@@ -960,7 +841,7 @@ impl VeilidAPI {
             0,
             "debug_resolve",
             "destination",
-            get_destination(routing_table.clone()),
+            self.clone().get_destination(routing_table.clone()),
         )
         .await?;
 
@@ -1004,7 +885,7 @@ impl VeilidAPI {
             0,
             "debug_ping",
             "destination",
-            get_destination(routing_table),
+            self.clone().get_destination(routing_table),
         )
         .await?;
 
@@ -1037,7 +918,7 @@ impl VeilidAPI {
             arg,
             "debug_app_message",
             "destination",
-            get_destination(routing_table),
+            self.clone().get_destination(routing_table),
         )
         .await?;
 
@@ -1073,7 +954,7 @@ impl VeilidAPI {
             arg,
             "debug_app_call",
             "destination",
-            get_destination(routing_table),
+            self.clone().get_destination(routing_table),
         )
         .await?;
 
@@ -1209,7 +1090,8 @@ impl VeilidAPI {
         let out = match rss.release_route(route_id) {
             true => {
                 // release imported
-                let mut dc = DEBUG_CACHE.lock();
+                let mut inner = self.inner.lock();
+                let dc = &mut inner.debug_cache;
                 for (n, ir) in dc.imported_routes.iter().enumerate() {
                     if *ir == route_id {
                         dc.imported_routes.remove(n);
@@ -1351,7 +1233,8 @@ impl VeilidAPI {
             .import_remote_private_route_blob(blob_dec)
             .map_err(VeilidAPIError::generic)?;
 
-        let mut dc = DEBUG_CACHE.lock();
+        let mut inner = self.inner.lock();
+        let dc = &mut inner.debug_cache;
         let n = dc.imported_routes.len();
         let out = format!("Private route #{} imported: {}", n, route_id);
         dc.imported_routes.push(route_id);
@@ -1508,7 +1391,8 @@ impl VeilidAPI {
         };
 
         // Save routing context for record
-        let mut dc = DEBUG_CACHE.lock();
+        let mut inner = self.inner.lock();
+        let dc = &mut inner.debug_cache;
         dc.opened_record_contexts.insert(*record.key(), rc);
 
         Ok(format!(
@@ -1552,14 +1436,17 @@ impl VeilidAPI {
         };
 
         // Save routing context for record
-        let mut dc = DEBUG_CACHE.lock();
+        let mut inner = self.inner.lock();
+        let dc = &mut inner.debug_cache;
         dc.opened_record_contexts.insert(*record.key(), rc);
 
         Ok(format!("Opened: {} : {:?}", key, record))
     }
 
     async fn debug_record_close(&self, args: Vec<String>) -> VeilidAPIResult<String> {
-        let (key, rc) = get_opened_dht_record_context(&args, "debug_record_close", "key", 1)?;
+        let (key, rc) =
+            self.clone()
+                .get_opened_dht_record_context(&args, "debug_record_close", "key", 1)?;
 
         // Do a record close
         if let Err(e) = rc.close_dht_record(key).await {
@@ -1575,7 +1462,9 @@ impl VeilidAPI {
         } else {
             0
         };
-        let (key, rc) = get_opened_dht_record_context(&args, "debug_record_set", "key", 1)?;
+        let (key, rc) =
+            self.clone()
+                .get_opened_dht_record_context(&args, "debug_record_set", "key", 1)?;
         let subkey = get_debug_argument_at(
             &args,
             1 + opt_arg_add,
@@ -1619,7 +1508,9 @@ impl VeilidAPI {
             0
         };
 
-        let (key, rc) = get_opened_dht_record_context(&args, "debug_record_get", "key", 1)?;
+        let (key, rc) =
+            self.clone()
+                .get_opened_dht_record_context(&args, "debug_record_get", "key", 1)?;
         let subkey = get_debug_argument_at(
             &args,
             1 + opt_arg_add,
@@ -1726,7 +1617,9 @@ impl VeilidAPI {
             0
         };
 
-        let (key, rc) = get_opened_dht_record_context(&args, "debug_record_watch", "key", 1)?;
+        let (key, rc) =
+            self.clone()
+                .get_opened_dht_record_context(&args, "debug_record_watch", "key", 1)?;
 
         let mut rest_defaults = false;
         let subkeys = get_debug_argument_at(
@@ -1799,7 +1692,9 @@ impl VeilidAPI {
             0
         };
 
-        let (key, rc) = get_opened_dht_record_context(&args, "debug_record_watch", "key", 1)?;
+        let (key, rc) =
+            self.clone()
+                .get_opened_dht_record_context(&args, "debug_record_watch", "key", 1)?;
         let subkeys = get_debug_argument_at(
             &args,
             1 + opt_arg_add,
@@ -1832,7 +1727,9 @@ impl VeilidAPI {
             0
         };
 
-        let (key, rc) = get_opened_dht_record_context(&args, "debug_record_watch", "key", 1)?;
+        let (key, rc) =
+            self.clone()
+                .get_opened_dht_record_context(&args, "debug_record_watch", "key", 1)?;
 
         let mut rest_defaults = false;
 
@@ -2158,5 +2055,120 @@ table list
             }
         };
         res
+    }
+
+    fn get_destination(
+        self,
+        routing_table: RoutingTable,
+    ) -> impl FnOnce(&str) -> SendPinBoxFuture<Option<Destination>> {
+        move |text| {
+            let text = text.to_owned();
+            Box::pin(async move {
+                // Safety selection
+                let (text, ss) = if let Some((first, second)) = text.split_once('+') {
+                    let ss = get_safety_selection(routing_table.clone())(second)?;
+                    (first, Some(ss))
+                } else {
+                    (text.as_str(), None)
+                };
+                if text.is_empty() {
+                    return None;
+                }
+                if &text[0..1] == "#" {
+                    let rss = routing_table.route_spec_store();
+
+                    // Private route
+                    let text = &text[1..];
+
+                    let private_route =
+                        if let Some(prid) = get_route_id(rss.clone(), false, true)(text) {
+                            rss.best_remote_private_route(&prid)?
+                        } else {
+                            let mut inner = self.inner.lock();
+                            let dc = &mut inner.debug_cache;
+                            let n = get_number(text)?;
+                            let prid = *dc.imported_routes.get(n)?;
+                            let Some(private_route) = rss.best_remote_private_route(&prid) else {
+                                // Remove imported route
+                                dc.imported_routes.remove(n);
+                                info!("removed dead imported route {}", n);
+                                return None;
+                            };
+                            private_route
+                        };
+
+                    Some(Destination::private_route(
+                        private_route,
+                        ss.unwrap_or(SafetySelection::Unsafe(Sequencing::default())),
+                    ))
+                } else {
+                    let (text, mods) = text
+                        .split_once('/')
+                        .map(|x| (x.0, Some(x.1)))
+                        .unwrap_or((text, None));
+                    if let Some((first, second)) = text.split_once('@') {
+                        // Relay
+                        let mut relay_nr = get_node_ref(routing_table.clone())(second)?;
+                        let target_nr = get_node_ref(routing_table)(first)?;
+
+                        if let Some(mods) = mods {
+                            relay_nr = get_node_ref_modifiers(relay_nr)(mods)?;
+                        }
+
+                        let mut d = Destination::relay(relay_nr, target_nr);
+                        if let Some(ss) = ss {
+                            d = d.with_safety(ss)
+                        }
+
+                        Some(d)
+                    } else {
+                        // Direct
+                        let mut target_nr =
+                            resolve_node_ref(routing_table, ss.unwrap_or_default())(text).await?;
+
+                        if let Some(mods) = mods {
+                            target_nr = get_node_ref_modifiers(target_nr)(mods)?;
+                        }
+
+                        let mut d = Destination::direct(target_nr);
+                        if let Some(ss) = ss {
+                            d = d.with_safety(ss)
+                        }
+
+                        Some(d)
+                    }
+                }
+            })
+        }
+    }
+
+    fn get_opened_dht_record_context(
+        self,
+        args: &[String],
+        context: &str,
+        key: &str,
+        arg: usize,
+    ) -> VeilidAPIResult<(TypedKey, RoutingContext)> {
+        let mut inner = self.inner.lock();
+        let dc = &mut inner.debug_cache;
+
+        let key = match get_debug_argument_at(args, arg, context, key, get_dht_key_no_safety)
+            .ok()
+            .or_else(|| {
+                // If unspecified, use the most recent key opened or created
+                dc.opened_record_contexts.back().map(|kv| kv.0).copied()
+            }) {
+            Some(k) => k,
+            None => {
+                apibail_missing_argument!("no keys are opened", "key");
+            }
+        };
+
+        // Get routing context for record
+        let Some(rc) = dc.opened_record_contexts.get(&key).cloned() else {
+            apibail_missing_argument!("key is not opened", "key");
+        };
+
+        Ok((key, rc))
     }
 }

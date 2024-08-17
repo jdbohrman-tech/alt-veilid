@@ -327,7 +327,9 @@ pub fn get_default_ssl_directory(sub_path: &str) -> String {
 }
 
 /// Configure the Distributed Hash Table (DHT).
-///
+/// Defaults should be used here unless you are absolutely sure you know what you're doing.
+/// If you change the count/fanout/timeout parameters, you may render your node inoperable
+/// for correct DHT operations.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidConfigDHT {
@@ -709,21 +711,40 @@ impl fmt::Display for VeilidConfigLogLevel {
     }
 }
 
+/// Top level of the Veilid configuration tree
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidConfigInner {
+    /// An identifier used to describe the program using veilid-core.
+    /// Used to partition storage locations in places like the ProtectedStore.
+    /// Must be non-empty and a valid filename for all Veilid-capable systems, which means
+    /// no backslashes or forward slashes in the name. Stick to a-z,0-9,_ and space and you should be fine.
+    ///
+    /// Caution: If you change this string, there is no migration support. Your app's protected store and
+    /// table store will very likely experience data loss. Pick a program name and stick with it. This is
+    /// not a 'visible' identifier and it should uniquely identify your application.
     pub program_name: String,
+    /// To run multiple Veilid nodes within the same application, either through a single process running
+    /// api_startup/api_startup_json multiple times, or your application running mulitple times side-by-side
+    /// there needs to be a key used to partition the application's storage (in the TableStore, ProtectedStore, etc).
+    /// An empty value here is the default, but if you run multiple veilid nodes concurrently, you should set this
+    /// to a string that uniquely identifies this -instance- within the same 'program_name'.
+    /// Must be a valid filename for all Veilid-capable systems, which means no backslashes or forward slashes
+    /// in the name. Stick to a-z,0-9,_ and space and you should be fine.
     pub namespace: String,
+    /// Capabilities to enable for your application/node
     pub capabilities: VeilidConfigCapabilities,
+    /// Configuring the protected store (keychain/keyring/etc)
     pub protected_store: VeilidConfigProtectedStore,
+    /// Configuring the table store (persistent encrypted database)
     pub table_store: VeilidConfigTableStore,
+    /// Configuring the block store (storage of large content-addressable content)
     pub block_store: VeilidConfigBlockStore,
+    /// Configuring how Veilid interacts with the low level network
     pub network: VeilidConfigNetwork,
 }
 
-/// The Veilid Configuration.
-///
-/// Veilid is configured.
+/// The configuration built for each Veilid node during API startup
 #[derive(Clone)]
 pub struct VeilidConfig {
     update_cb: Option<UpdateCallback>,
@@ -749,27 +770,14 @@ impl VeilidConfig {
         VeilidConfigInner::default()
     }
 
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             update_cb: None,
             inner: Arc::new(RwLock::new(Self::new_inner())),
         }
     }
 
-    pub fn setup_from_json(
-        &mut self,
-        config: String,
-        update_cb: UpdateCallback,
-    ) -> VeilidAPIResult<()> {
-        self.update_cb = Some(update_cb);
-
-        self.with_mut(|inner| {
-            *inner = serde_json::from_str(&config).map_err(VeilidAPIError::generic)?;
-            Ok(())
-        })
-    }
-
-    pub fn setup_from_config(
+    pub(crate) fn setup_from_config(
         &mut self,
         config: VeilidConfigInner,
         update_cb: UpdateCallback,
@@ -782,7 +790,11 @@ impl VeilidConfig {
         })
     }
 
-    pub fn setup(&mut self, cb: ConfigCallback, update_cb: UpdateCallback) -> VeilidAPIResult<()> {
+    pub(crate) fn setup(
+        &mut self,
+        cb: ConfigCallback,
+        update_cb: UpdateCallback,
+    ) -> VeilidAPIResult<()> {
         self.update_cb = Some(update_cb);
         self.with_mut(|inner| {
             // Simple config transformation
@@ -902,7 +914,7 @@ impl VeilidConfig {
         })
     }
 
-    pub fn get_veilid_state(&self) -> Box<VeilidStateConfig> {
+    pub(crate) fn get_veilid_state(&self) -> Box<VeilidStateConfig> {
         let inner = self.inner.read();
         Box::new(VeilidStateConfig {
             config: inner.clone(),
@@ -1039,10 +1051,42 @@ impl VeilidConfig {
         })
     }
 
-    fn validate(inner: &VeilidConfigInner) -> VeilidAPIResult<()> {
-        if inner.program_name.is_empty() {
+    fn validate_program_name(program_name: &str) -> VeilidAPIResult<()> {
+        if program_name.is_empty() {
             apibail_generic!("Program name must not be empty in 'program_name'");
         }
+        if !sanitize_filename::is_sanitized_with_options(
+            program_name,
+            sanitize_filename::OptionsForCheck {
+                windows: true,
+                truncate: true,
+            },
+        ) {
+            apibail_generic!("'program_name' must not be an invalid filename");
+        }
+        Ok(())
+    }
+
+    fn validate_namespace(namespace: &str) -> VeilidAPIResult<()> {
+        if namespace.is_empty() {
+            return Ok(());
+        }
+        if !sanitize_filename::is_sanitized_with_options(
+            namespace,
+            sanitize_filename::OptionsForCheck {
+                windows: true,
+                truncate: true,
+            },
+        ) {
+            apibail_generic!("'namespace' must not be an invalid filename");
+        }
+
+        Ok(())
+    }
+
+    fn validate(inner: &VeilidConfigInner) -> VeilidAPIResult<()> {
+        Self::validate_program_name(&inner.program_name)?;
+        Self::validate_namespace(&inner.namespace)?;
 
         // if inner.network.protocol.udp.enabled {
         //     // Validate UDP settings

@@ -3,7 +3,8 @@
 name = "veilid-server"
 version = "0.3.4"
 # ---
-description = "Veilid Server"
+description = "Veilid Headless Node"
+repository = "https://gitlab.com/veilid/veilid"
 authors = ["Veilid Team <contact@veilid.com>"]
 license = "MPL-2.0"
 edition = "2021"

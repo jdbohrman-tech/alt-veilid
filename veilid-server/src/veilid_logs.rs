@@ -208,7 +208,7 @@ impl VeilidLogs {
                 convert_loglevel(settingsr.logging.api.level),
                 &settingsr.logging.api.ignore_log_targets,
             );
-            let layer = veilid_core::ApiTracingLayer::get().with_filter(filter.clone());
+            let layer = veilid_core::ApiTracingLayer::init().with_filter(filter.clone());
             filters.insert("api", filter);
             layers.push(layer.boxed());
         }

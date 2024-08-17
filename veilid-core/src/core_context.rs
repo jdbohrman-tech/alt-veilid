@@ -67,7 +67,13 @@ impl ServicesContext {
         info!("Veilid API starting up");
 
         info!("init api tracing");
-        ApiTracingLayer::init(self.update_callback.clone()).await;
+        let (program_name, namespace) = {
+            let config = self.config.get();
+            (config.program_name.clone(), config.namespace.clone())
+        };
+
+        ApiTracingLayer::add_callback(program_name, namespace, self.update_callback.clone())
+            .await?;
 
         // Set up protected store
         let protected_store = ProtectedStore::new(self.config.clone());
@@ -178,7 +184,14 @@ impl ServicesContext {
         info!("Veilid API shutdown complete");
 
         // api logger terminate is idempotent
-        ApiTracingLayer::terminate().await;
+        let (program_name, namespace) = {
+            let config = self.config.get();
+            (config.program_name.clone(), config.namespace.clone())
+        };
+
+        if let Err(e) = ApiTracingLayer::remove_callback(program_name, namespace).await {
+            error!("Error removing callback from ApiTracingLayer: {}", e);
+        }
 
         // send final shutdown update
         (self.update_callback)(VeilidUpdate::Shutdown);
@@ -209,17 +222,6 @@ impl VeilidCoreContext {
         let mut config = VeilidConfig::new();
         config.setup(config_callback, update_callback.clone())?;
 
-        Self::new_common(update_callback, config).await
-    }
-
-    #[instrument(level = "trace", target = "core_context", err, skip_all)]
-    async fn new_with_config_json(
-        update_callback: UpdateCallback,
-        config_json: String,
-    ) -> VeilidAPIResult<VeilidCoreContext> {
-        // Set up config from json
-        let mut config = VeilidConfig::new();
-        config.setup_from_json(config_json, update_callback.clone())?;
         Self::new_common(update_callback, config).await
     }
 
@@ -283,12 +285,16 @@ impl VeilidCoreContext {
 /////////////////////////////////////////////////////////////////////////////
 
 lazy_static::lazy_static! {
-    static ref INITIALIZED: AsyncMutex<bool> = AsyncMutex::new(false);
+    static ref INITIALIZED: AsyncMutex<HashSet<(String,String)>> = AsyncMutex::new(HashSet::new());
 }
 
 /// Initialize a Veilid node.
 ///
-/// Must be called only once at the start of an application.
+/// Must be called only once per 'program_name + namespace' combination at the start of an application.
+/// The 'config_callback' must return a unique 'program_name + namespace' combination per simulataneous call to api_startup.
+/// You can use the same program_name multiple times to create separate storage locations.
+/// Multiple namespaces for the same program_name will use the same databases and on-disk locations, but will partition keys internally
+/// to keep the namespaces distict.
 ///
 /// * `update_callback` - called when internal state of the Veilid node changes, for example, when app-level messages are received, when private routes die and need to be reallocated, or when routing table states change.
 /// * `config_callback` - called at startup to supply a configuration object directly to Veilid.
@@ -299,9 +305,22 @@ pub async fn api_startup(
     update_callback: UpdateCallback,
     config_callback: ConfigCallback,
 ) -> VeilidAPIResult<VeilidAPI> {
+    // Get the program_name and namespace we're starting up in
+    let program_name = *config_callback("program_name".to_owned())?
+        .downcast::<String>()
+        .map_err(|_| {
+            VeilidAPIError::invalid_argument("api_startup", "config_callback", "program_name")
+        })?;
+    let namespace = *config_callback("namespace".to_owned())?
+        .downcast::<String>()
+        .map_err(|_| {
+            VeilidAPIError::invalid_argument("api_startup", "config_callback", "namespace")
+        })?;
+    let init_key = (program_name, namespace);
+
     // See if we have an API started up already
     let mut initialized_lock = INITIALIZED.lock().await;
-    if *initialized_lock {
+    if initialized_lock.contains(&init_key) {
         apibail_already_initialized!();
     }
 
@@ -312,14 +331,18 @@ pub async fn api_startup(
     // Return an API object around our context
     let veilid_api = VeilidAPI::new(context);
 
-    *initialized_lock = true;
+    initialized_lock.insert(init_key);
 
     Ok(veilid_api)
 }
 
 /// Initialize a Veilid node, with the configuration in JSON format.
 ///
-/// Must be called only once at the start of an application.
+/// Must be called only once per 'program_name + namespace' combination at the start of an application.
+/// The 'config_json' must specify a unique 'program_name + namespace' combination per simulataneous call to api_startup.
+/// You can use the same program_name multiple times to create separate storage locations.
+/// Multiple namespaces for the same program_name will use the same databases and on-disk locations, but will partition keys internally
+/// to keep the namespaces distict.
 ///
 /// * `update_callback` - called when internal state of the Veilid node changes, for example, when app-level messages are received, when private routes die and need to be reallocated, or when routing table states change.
 /// * `config_json` - called at startup to supply a JSON configuration object.
@@ -330,21 +353,11 @@ pub async fn api_startup_json(
     update_callback: UpdateCallback,
     config_json: String,
 ) -> VeilidAPIResult<VeilidAPI> {
-    // See if we have an API started up already
-    let mut initialized_lock = INITIALIZED.lock().await;
-    if *initialized_lock {
-        apibail_already_initialized!();
-    }
+    // Parse the JSON config
+    let config: VeilidConfigInner =
+        serde_json::from_str(&config_json).map_err(VeilidAPIError::generic)?;
 
-    // Create core context
-    let context = VeilidCoreContext::new_with_config_json(update_callback, config_json).await?;
-
-    // Return an API object around our context
-    let veilid_api = VeilidAPI::new(context);
-
-    *initialized_lock = true;
-
-    Ok(veilid_api)
+    api_startup_config(update_callback, config).await
 }
 
 /// Initialize a Veilid node, with the configuration object.
@@ -360,9 +373,15 @@ pub async fn api_startup_config(
     update_callback: UpdateCallback,
     config: VeilidConfigInner,
 ) -> VeilidAPIResult<VeilidAPI> {
+    // Get the program_name and namespace we're starting up in
+    let program_name = config.program_name.clone();
+    let namespace = config.namespace.clone();
+
+    let init_key = (program_name, namespace);
+
     // See if we have an API started up already
     let mut initialized_lock = INITIALIZED.lock().await;
-    if *initialized_lock {
+    if initialized_lock.contains(&init_key) {
         apibail_already_initialized!();
     }
 
@@ -372,7 +391,7 @@ pub async fn api_startup_config(
     // Return an API object around our context
     let veilid_api = VeilidAPI::new(context);
 
-    *initialized_lock = true;
+    initialized_lock.insert(init_key);
 
     Ok(veilid_api)
 }
@@ -380,6 +399,12 @@ pub async fn api_startup_config(
 #[instrument(level = "trace", target = "core_context", skip_all)]
 pub(crate) async fn api_shutdown(context: VeilidCoreContext) {
     let mut initialized_lock = INITIALIZED.lock().await;
+
+    let init_key = {
+        let config = context.config.get();
+        (config.program_name.clone(), config.namespace.clone())
+    };
+
     context.shutdown().await;
-    *initialized_lock = false;
+    initialized_lock.remove(&init_key);
 }

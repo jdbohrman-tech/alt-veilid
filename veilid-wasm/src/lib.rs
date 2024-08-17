@@ -234,7 +234,7 @@ pub fn initialize_veilid_core(platform_config: String) {
             platform_config.logging.api.level,
             &platform_config.logging.api.ignore_log_targets,
         );
-        let layer = veilid_core::ApiTracingLayer::get().with_filter(filter.clone());
+        let layer = veilid_core::ApiTracingLayer::init().with_filter(filter.clone());
         filters.insert("api", filter);
         layers.push(layer.boxed());
     }
