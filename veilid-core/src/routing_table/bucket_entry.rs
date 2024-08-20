@@ -268,17 +268,7 @@ impl BucketEntryInner {
         }
 
         // Lower latency to the front
-        if let Some(e1_latency) = &e1.peer_stats.latency {
-            if let Some(e2_latency) = &e2.peer_stats.latency {
-                e1_latency.average.cmp(&e2_latency.average)
-            } else {
-                std::cmp::Ordering::Less
-            }
-        } else if e2.peer_stats.latency.is_some() {
-            std::cmp::Ordering::Greater
-        } else {
-            std::cmp::Ordering::Equal
-        }
+        Self::cmp_fastest(e1, e2)
     }
 
     // Less is more reliable then older
@@ -290,6 +280,7 @@ impl BucketEntryInner {
         }
 
         // Lower timestamp to the front, recent or no timestamp is at the end
+        // First check consecutive-ping reliability timestamp
         if let Some(e1_ts) = &e1.peer_stats.rpc_stats.first_consecutive_seen_ts {
             if let Some(e2_ts) = &e2.peer_stats.rpc_stats.first_consecutive_seen_ts {
                 e1_ts.cmp(e2_ts)
@@ -299,7 +290,8 @@ impl BucketEntryInner {
         } else if e2.peer_stats.rpc_stats.first_consecutive_seen_ts.is_some() {
             std::cmp::Ordering::Greater
         } else {
-            std::cmp::Ordering::Equal
+            // Then check 'since added to routing table' timestamp
+            e1.peer_stats.time_added.cmp(&e2.peer_stats.time_added)
         }
     }
 

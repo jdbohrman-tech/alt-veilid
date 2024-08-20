@@ -283,8 +283,7 @@ Future<void> testWatchDHTValues(Stream<VeilidUpdate> updateStream) async {
     // as the watch's target
 
     final rcSet = await Veilid.instance.routingContext();
-    final rcWatch = await Veilid.instance
-        .unsafeRoutingContext(sequencing: Sequencing.ensureOrdered);
+    final rcWatch = await Veilid.instance.unsafeRoutingContext();
     try {
       // Make a DHT record
       var rec = await rcWatch.createDHTRecord(const DHTSchema.dflt(oCnt: 10));

@@ -506,7 +506,7 @@ class SafetySelection:
             setattr(self, k, v)
 
     @classmethod
-    def unsafe(cls, sequencing: Sequencing) -> Self:
+    def unsafe(cls, sequencing: Sequencing = Sequencing.PREFER_ORDERED) -> Self:
         return cls(SafetySelectionKind.UNSAFE, sequencing=sequencing)
 
     @classmethod
