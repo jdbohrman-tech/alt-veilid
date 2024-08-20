@@ -306,13 +306,11 @@ impl StorageManager {
             // No result
             apibail_key_not_found!(key);
         };
-        let last_seq = result
+        let opt_last_seq = result
             .get_result
             .opt_value
             .as_ref()
-            .unwrap()
-            .value_data()
-            .seq();
+            .map(|s| s.value_data().seq());
 
         // Reopen inner to store value we just got
         let mut inner = self.lock().await?;
@@ -334,9 +332,11 @@ impl StorageManager {
             .await;
 
         if out.is_ok() {
-            self.process_deferred_outbound_get_value_result_inner(
-                &mut inner, res_rx, key, subkey, last_seq,
-            );
+            if let Some(last_seq) = opt_last_seq {
+                self.process_deferred_outbound_get_value_result_inner(
+                    &mut inner, res_rx, key, subkey, last_seq,
+                );
+            }
         }
         out
     }
