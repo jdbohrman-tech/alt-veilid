@@ -58,6 +58,9 @@ impl<T> IoNetworkResultExt<T> for io::Result<T> {
                     | io::ErrorKind::ConnectionAborted
                     | io::ErrorKind::ConnectionRefused
                     | io::ErrorKind::ConnectionReset => Ok(NetworkResult::NoConnection(e)),
+                    io::ErrorKind::InvalidInput | io::ErrorKind::InvalidData => {
+                        Ok(NetworkResult::InvalidMessage(e.to_string()))
+                    }
                     io::ErrorKind::AddrNotAvailable => Ok(NetworkResult::AlreadyExists(e)),
                     _ => Err(e),
                 }

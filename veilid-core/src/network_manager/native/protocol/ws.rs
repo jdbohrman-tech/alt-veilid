@@ -347,7 +347,10 @@ impl WebsocketProtocolHandler {
         // Negotiate TLS if this is WSS
         if tls {
             let connector = TlsConnector::default();
-            let tls_stream = connector.connect(domain.to_string(), tcp_stream).await?;
+            let tls_stream = network_result_try!(connector
+                .connect(domain.to_string(), tcp_stream)
+                .await
+                .into_network_result()?);
             let (ws_stream, _response) = client_async(request, tls_stream)
                 .await
                 .map_err(to_io_error_other)?;

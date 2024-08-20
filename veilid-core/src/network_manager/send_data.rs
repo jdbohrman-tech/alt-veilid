@@ -19,11 +19,26 @@ impl NetworkManager {
         data: Vec<u8>,
     ) -> EyreResult<NetworkResult<SendDataMethod>> {
         // First try to send data to the last flow we've seen this peer on
+
         let data = if let Some(flow) = destination_node_ref.last_flow() {
+            #[cfg(feature = "verbose-tracing")]
+            log_net!(debug
+                "send_data: trying last flow ({:?}) for {:?}",
+                flow,
+                destination_node_ref
+            );
+
             match self.net().send_data_to_existing_flow(flow, data).await? {
                 SendDataToExistingFlowResult::Sent(unique_flow) => {
                     // Update timestamp for this last flow since we just sent to it
                     destination_node_ref.set_last_flow(unique_flow.flow, Timestamp::now());
+
+                    #[cfg(feature = "verbose-tracing")]
+                    log_net!(debug
+                        "send_data: sent to last flow ({:?}) for {:?}",
+                        unique_flow,
+                        destination_node_ref
+                    );
 
                     return Ok(NetworkResult::value(SendDataMethod {
                         opt_relayed_contact_method: None,
@@ -34,6 +49,12 @@ impl NetworkManager {
                 SendDataToExistingFlowResult::NotSent(data) => {
                     // Couldn't send data to existing flow
                     // so pass the data back out
+                    #[cfg(feature = "verbose-tracing")]
+                    log_net!(debug
+                        "send_data: did not send to last flow ({:?}) for {:?}",
+                        flow,
+                        destination_node_ref
+                    );
                     data
                 }
             }

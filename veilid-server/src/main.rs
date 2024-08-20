@@ -156,7 +156,7 @@ pub struct CmdlineArgs {
 
     /// Change targets to ignore for logging
     #[arg(long)]
-    ignore_log_targets: Option<Vec<String>>,
+    ignore_log_targets: Option<String>,
 
     /// Override all network listen addresses with ':port'
     #[arg(long)]
@@ -319,6 +319,9 @@ fn main() -> EyreResult<()> {
     if let Some(ignore_log_targets) = args.ignore_log_targets {
         println!("Changing ignored log targets: {:?}", ignore_log_targets);
         settingsrw.logging.terminal.ignore_log_targets = ignore_log_targets
+            .split(',')
+            .map(|x| x.to_owned())
+            .collect();
     }
 
     if let Some(port) = args.port {

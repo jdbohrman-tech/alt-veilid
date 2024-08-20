@@ -467,10 +467,10 @@ async def test_dht_write_read_local():
             for desc0 in records:
                 desc1 = await rc0.open_dht_record(desc0.key)
                 
-                vd0 = await rc0.get_dht_value(desc1.key, ValueSubkey(0))
+                vd0 = await rc0.get_dht_value(desc1.key, ValueSubkey(0), force_refresh=True)
                 assert vd0.data == TEST_DATA
                 
-                vd1 = await rc0.get_dht_value(desc1.key, ValueSubkey(1))
+                vd1 = await rc0.get_dht_value(desc1.key, ValueSubkey(1), force_refresh=True)
                 assert vd1.data == TEST_DATA2
                 await rc0.close_dht_record(desc1.key)
                 
