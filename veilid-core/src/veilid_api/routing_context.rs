@@ -56,7 +56,7 @@ impl RoutingContext {
                     preferred_route: None,
                     hop_count: c.network.rpc.default_route_hop_count as usize,
                     stability: Stability::Reliable,
-                    sequencing: Sequencing::EnsureOrdered,
+                    sequencing: Sequencing::PreferOrdered,
                 }),
             }),
         })
@@ -68,7 +68,7 @@ impl RoutingContext {
     /// Default values for hop count, stability and sequencing preferences are used.
     ///
     /// * Hop count default is dependent on config, but is set to 1 extra hop.
-    /// * Stability default is to choose 'low latency' routes, preferring them over long-term reliability.
+    /// * Stability default is to choose reliable routes, preferring them over low latency.
     /// * Sequencing default is to prefer ordered before unordered message delivery.
     ///
     /// To customize the safety selection in use, use [RoutingContext::with_safety()].
@@ -84,7 +84,7 @@ impl RoutingContext {
             preferred_route: None,
             hop_count: c.network.rpc.default_route_hop_count as usize,
             stability: Stability::Reliable,
-            sequencing: Sequencing::EnsureOrdered,
+            sequencing: Sequencing::PreferOrdered,
         }))
     }
 

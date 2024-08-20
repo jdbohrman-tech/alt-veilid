@@ -227,9 +227,7 @@ async def test_watch_dht_values():
     # as the watch's target
     rcWatch = await api.new_routing_context()
     
-    rcSet = await (await api.new_routing_context()).with_safety(
-        veilid.SafetySelection.unsafe(veilid.Sequencing.ENSURE_ORDERED)
-    )
+    rcSet = await (await api.new_routing_context()).with_safety(veilid.SafetySelection.unsafe())
     async with rcWatch, rcSet:
         # Make a DHT record
         rec = await rcWatch.create_dht_record(veilid.DHTSchema.dflt(10))

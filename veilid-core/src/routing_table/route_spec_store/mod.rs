@@ -362,7 +362,7 @@ impl RouteSpecStore {
                        entry1: &Option<Arc<BucketEntry>>,
                        entry2: &Option<Arc<BucketEntry>>|
          -> Ordering {
-            // Our own node is filtered out
+            // Our own node is filtered out, so it is safe to unwrap here
             let entry1 = entry1.as_ref().unwrap().clone();
             let entry2 = entry2.as_ref().unwrap().clone();
             let entry1_node_ids = entry1.with_inner(|e| e.node_ids());
@@ -398,6 +398,7 @@ impl RouteSpecStore {
                             .signed_node_info(RoutingDomain::PublicInternet)
                             .map(|sni| sni.has_sequencing_matched_dial_info(sequencing))
                             .unwrap_or(false);
+                        // Reverse this comparison because ordered is preferable (less)
                         e2_can_do_ordered.cmp(&e1_can_do_ordered)
                     })
                 });
@@ -406,8 +407,8 @@ impl RouteSpecStore {
                 }
             }
 
+            // apply stability preference
             // always prioritize reliable nodes, but sort by oldest or fastest
-
             entry1.with_inner(|e1| {
                 entry2.with_inner(|e2| match stability {
                     Stability::LowLatency => BucketEntryInner::cmp_fastest_reliable(cur_ts, e1, e2),

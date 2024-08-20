@@ -253,7 +253,7 @@ impl VeilidAPI {
     // Private route allocation
 
     /// Allocate a new private route set with default cryptography and network options.
-    /// Default settings are for [Stability::Reliable] and [Sequencing::EnsureOrdered].
+    /// Default settings are for [Stability::Reliable] and [Sequencing::PreferOrdered].
     /// Returns a route id and a publishable 'blob' with the route encrypted with each crypto kind.
     /// Those nodes importing the blob will have their choice of which crypto kind to use.
     ///
@@ -264,7 +264,7 @@ impl VeilidAPI {
         self.new_custom_private_route(
             &VALID_CRYPTO_KINDS,
             Stability::Reliable,
-            Sequencing::EnsureOrdered,
+            Sequencing::PreferOrdered,
         )
         .await
     }

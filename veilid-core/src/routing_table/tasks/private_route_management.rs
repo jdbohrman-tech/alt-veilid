@@ -213,8 +213,8 @@ impl RoutingTable {
                 // These will be used by test_remote_route as well
                 match rss.allocate_route(
                     &VALID_CRYPTO_KINDS,
-                    Stability::default(),
-                    Sequencing::EnsureOrdered,
+                    Stability::Reliable,
+                    Sequencing::PreferOrdered,
                     default_route_hop_count,
                     DirectionSet::all(),
                     &[],
