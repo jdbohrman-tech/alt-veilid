@@ -10,6 +10,7 @@ stages:
   - build_packages
   - release
   - distribute
+  - failed
 
 format:
   stage: test
@@ -404,3 +405,15 @@ nightly_delete_build_machines:
     - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh delete amd64-rpm
   rules:
     - if: $IS_NIGHTLY == "true"
+
+# If any steps fail this will run the build machine tear down scripts
+
+failed_pipeline_actions:
+  stage: failed
+  tags:
+    - build-orchestration
+  script:
+    - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh delete amd64-deb
+    - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh delete arm64-deb
+    - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh delete amd64-rpm
+  when: on_failure
