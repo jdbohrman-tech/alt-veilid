@@ -36,12 +36,14 @@ impl StorageManager {
         descriptor: Arc<SignedValueDescriptor>,
     ) -> VeilidAPIResult<flume::Receiver<VeilidAPIResult<OutboundSetValueResult>>> {
         let routing_table = rpc_processor.routing_table();
+        let routing_domain = RoutingDomain::PublicInternet;
 
         // Get the DHT parameters for 'SetValue'
-        let (key_count, consensus_count, fanout, timeout_us) = {
+        let (key_count, get_consensus_count, set_consensus_count, fanout, timeout_us) = {
             let c = self.unlocked_inner.config.get();
             (
                 c.network.dht.max_find_node_count as usize,
+                c.network.dht.get_value_count as usize,
                 c.network.dht.set_value_count as usize,
                 c.network.dht.set_value_fanout as usize,
                 TimestampDuration::from(ms_to_us(c.network.dht.set_value_timeout_ms)),
@@ -51,7 +53,16 @@ impl StorageManager {
         // Get the nodes we know are caching this value to seed the fanout
         let init_fanout_queue = {
             let inner = self.inner.lock().await;
-            inner.get_value_nodes(key)?.unwrap_or_default()
+            inner
+                .get_value_nodes(key)?
+                .unwrap_or_default()
+                .into_iter()
+                .filter(|x| {
+                    x.node_info(routing_domain)
+                        .map(|ni| ni.has_all_capabilities(&[CAP_DHT]))
+                        .unwrap_or_default()
+                })
+                .collect()
         };
 
         // Make the return channel
@@ -90,7 +101,7 @@ impl StorageManager {
                         rpc_processor
                             .clone()
                             .rpc_call_set_value(
-                                Destination::direct(next_node.clone())
+                                Destination::direct(next_node.routing_domain_filtered(routing_domain))
                                     .with_safety(safety_selection),
                                 key,
                                 subkey,
@@ -108,7 +119,7 @@ impl StorageManager {
 
                         // Return peers if we have some
                         log_network_result!(debug "SetValue missed: {}, fanout call returned peers {}", ctx.missed_since_last_set, sva.answer.peers.len());
-                        return Ok(NetworkResult::value(sva.answer.peers));
+                        return Ok(NetworkResult::value(FanoutCallOutput{peer_info_list:sva.answer.peers}));
                     }
 
                     // See if we got a value back
@@ -123,7 +134,7 @@ impl StorageManager {
 
                         // Return peers if we have some
                         log_network_result!(debug "SetValue returned no value, fanout call returned peers {}", sva.answer.peers.len());
-                        return Ok(NetworkResult::value(sva.answer.peers));
+                        return Ok(NetworkResult::value(FanoutCallOutput{peer_info_list:sva.answer.peers}));
                     };
 
                     // Keep the value if we got one and it is newer and it passes schema validation
@@ -153,7 +164,7 @@ impl StorageManager {
                             ctx.send_partial_update = true;
                         }
 
-                        return Ok(NetworkResult::value(sva.answer.peers));
+                        return Ok(NetworkResult::value(FanoutCallOutput{peer_info_list:sva.answer.peers}));
                     }
 
                     // We have a prior value, ensure this is a newer sequence number
@@ -175,7 +186,7 @@ impl StorageManager {
                     // Send an update since the value changed
                     ctx.send_partial_update = true;
 
-                    Ok(NetworkResult::value(sva.answer.peers))
+                    Ok(NetworkResult::value(FanoutCallOutput{peer_info_list:sva.answer.peers}))
                 }.instrument(tracing::trace_span!("fanout call_routine"))
             }
         };
@@ -207,15 +218,16 @@ impl StorageManager {
                     }
                 }
 
-                // If we have reached sufficient consensus, return done
-                if ctx.value_nodes.len() >= consensus_count {
+                // If we have reached set consensus (the max consensus we care about), return done
+                if ctx.value_nodes.len() >= set_consensus_count {
                     return Some(());
                 }
-                // If we have missed more than our consensus count since our last set, return done
+
+                // If we have missed get_consensus count (the minimum consensus we care about) or more since our last set, return done
                 // This keeps the traversal from searching too many nodes when we aren't converging
-                // Only do this if we have gotten at least half our desired sets.
-                if ctx.value_nodes.len() >= ((consensus_count + 1) / 2)
-                    && ctx.missed_since_last_set >= consensus_count
+                // Only do this if we have gotten at least the get_consensus (the minimum consensus we care about)
+                if ctx.value_nodes.len() >= get_consensus_count
+                    && ctx.missed_since_last_set >= get_consensus_count
                 {
                     return Some(());
                 }

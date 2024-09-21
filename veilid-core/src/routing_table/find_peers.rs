@@ -7,37 +7,33 @@ impl RoutingTable {
     #[instrument(level = "trace", target = "rtab", skip_all)]
     pub fn find_preferred_closest_peers(
         &self,
+        routing_domain: RoutingDomain,
         key: TypedKey,
         capabilities: &[Capability],
-    ) -> NetworkResult<Vec<PeerInfo>> {
-        if !self.has_valid_network_class(RoutingDomain::PublicInternet) {
-            // Our own node info is not yet available, drop this request.
-            return NetworkResult::service_unavailable(
-                "Not finding closest peers because our network class is still invalid",
-            );
-        }
+    ) -> NetworkResult<Vec<Arc<PeerInfo>>> {
         if Crypto::validate_crypto_kind(key.kind).is_err() {
             return NetworkResult::invalid_message("invalid crypto kind");
         }
 
+        let Some(published_peer_info) = self.get_published_peer_info(routing_domain) else {
+            return NetworkResult::service_unavailable(
+                "Not finding closest peers because our network class is still invalid",
+            );
+        };
+
         // find N nodes closest to the target node in our routing table
-        let own_peer_info = self.get_own_peer_info(RoutingDomain::PublicInternet);
         let filter = Box::new(
             |rti: &RoutingTableInner, opt_entry: Option<Arc<BucketEntry>>| {
-                // Ensure only things that are valid/signed in the PublicInternet domain are returned
-                if !rti.filter_has_valid_signed_node_info(
-                    RoutingDomain::PublicInternet,
-                    true,
-                    opt_entry.clone(),
-                ) {
+                // Ensure only things that are valid/signed in the chosen routing domain are returned
+                if !rti.filter_has_valid_signed_node_info(routing_domain, true, opt_entry.clone()) {
                     return false;
                 }
                 // Ensure capabilities are met
                 match opt_entry {
                     Some(entry) => entry.with(rti, |_rti, e| {
-                        e.has_all_capabilities(RoutingDomain::PublicInternet, capabilities)
+                        e.has_all_capabilities(routing_domain, capabilities)
                     }),
-                    None => own_peer_info
+                    None => published_peer_info
                         .signed_node_info()
                         .node_info()
                         .has_all_capabilities(capabilities),
@@ -57,7 +53,7 @@ impl RoutingTable {
             filters,
             // transform
             |rti, entry| {
-                rti.transform_to_peer_info(RoutingDomain::PublicInternet, &own_peer_info, entry)
+                rti.transform_to_peer_info(routing_domain, published_peer_info.clone(), entry)
             },
         ) {
             Ok(v) => v,
@@ -76,9 +72,10 @@ impl RoutingTable {
     #[instrument(level = "trace", target = "rtab", skip_all)]
     pub fn find_preferred_peers_closer_to_key(
         &self,
+        routing_domain: RoutingDomain,
         key: TypedKey,
         required_capabilities: Vec<Capability>,
-    ) -> NetworkResult<Vec<PeerInfo>> {
+    ) -> NetworkResult<Vec<Arc<PeerInfo>>> {
         // add node information for the requesting node to our routing table
         let crypto_kind = key.kind;
         let own_node_id = self.node_id(crypto_kind);
@@ -99,14 +96,12 @@ impl RoutingTable {
                 };
                 // Ensure only things that have a minimum set of capabilities are returned
                 entry.with(rti, |rti, e| {
-                    if !e
-                        .has_all_capabilities(RoutingDomain::PublicInternet, &required_capabilities)
-                    {
+                    if !e.has_all_capabilities(routing_domain, &required_capabilities) {
                         return false;
                     }
                     // Ensure only things that are valid/signed in the PublicInternet domain are returned
                     if !rti.filter_has_valid_signed_node_info(
-                        RoutingDomain::PublicInternet,
+                        routing_domain,
                         true,
                         Some(entry.clone()),
                     ) {
@@ -139,7 +134,7 @@ impl RoutingTable {
             // transform
             |rti, entry| {
                 entry.unwrap().with(rti, |_rti, e| {
-                    e.make_peer_info(RoutingDomain::PublicInternet).unwrap()
+                    Arc::new(e.make_peer_info(routing_domain).unwrap())
                 })
             },
         ) {
@@ -174,7 +169,7 @@ impl RoutingTable {
         vcrypto: CryptoSystemVersion,
         key_far: TypedKey,
         key_near: TypedKey,
-        peers: &[PeerInfo],
+        peers: &[Arc<PeerInfo>],
     ) -> EyreResult<bool> {
         let kind = vcrypto.kind();
 

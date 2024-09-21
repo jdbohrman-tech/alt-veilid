@@ -7,6 +7,8 @@ const OFFLINE_SUBKEY_WRITES: &[u8] = b"offline_subkey_writes";
 pub(super) struct OfflineSubkeyWrite {
     pub safety_selection: SafetySelection,
     pub subkeys: ValueSubkeyRangeSet,
+    #[serde(default)]
+    pub subkeys_in_flight: ValueSubkeyRangeSet,
 }
 
 /// Locked structure for storage manager
@@ -148,14 +150,16 @@ impl StorageManagerInner {
         Ok(())
     }
 
-    pub async fn terminate(&mut self) {
-        self.update_callback = None;
-
+    pub async fn stop_ticker(&mut self) {
         // Stop ticker
         let tick_future = self.tick_future.take();
         if let Some(f) = tick_future {
             f.await;
         }
+    }
+
+    pub async fn terminate(&mut self) {
+        self.update_callback = None;
 
         // Stop deferred result processor
         self.deferred_result_processor.terminate().await;
@@ -729,6 +733,7 @@ impl StorageManagerInner {
             .or_insert(OfflineSubkeyWrite {
                 safety_selection,
                 subkeys: ValueSubkeyRangeSet::single(subkey),
+                subkeys_in_flight: ValueSubkeyRangeSet::new(),
             });
     }
 

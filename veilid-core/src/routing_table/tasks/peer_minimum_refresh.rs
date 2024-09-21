@@ -71,7 +71,7 @@ impl RoutingTable {
                 min_peer_count,
                 filters,
                 |_rti, entry: Option<Arc<BucketEntry>>| {
-                    NodeRef::new(routing_table.clone(), entry.unwrap().clone(), None)
+                    NodeRef::new(routing_table.clone(), entry.unwrap().clone())
                 },
             );
 

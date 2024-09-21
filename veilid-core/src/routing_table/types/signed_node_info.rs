@@ -49,13 +49,14 @@ impl SignedNodeInfo {
             SignedNodeInfo::Relayed(r) => Some(r.relay_info().node_info()),
         }
     }
-    pub fn relay_peer_info(&self) -> Option<PeerInfo> {
+    pub fn relay_peer_info(&self, routing_domain: RoutingDomain) -> Option<Arc<PeerInfo>> {
         match self {
             SignedNodeInfo::Direct(_) => None,
-            SignedNodeInfo::Relayed(r) => Some(PeerInfo::new(
+            SignedNodeInfo::Relayed(r) => Some(Arc::new(PeerInfo::new(
+                routing_domain,
                 r.relay_ids().clone(),
                 SignedNodeInfo::Direct(r.relay_info().clone()),
-            )),
+            ))),
         }
     }
     pub fn has_any_dial_info(&self) -> bool {
@@ -95,5 +96,21 @@ impl SignedNodeInfo {
                 false
             })
             .unwrap_or_default();
+    }
+
+    /// Compare this SignedNodeInfo to another one
+    /// Exclude the signature and timestamp and any other fields that are not
+    /// semantically valuable
+    pub fn equivalent(&self, other: &SignedNodeInfo) -> bool {
+        match self {
+            SignedNodeInfo::Direct(d) => match other {
+                SignedNodeInfo::Direct(pd) => d.equivalent(pd),
+                SignedNodeInfo::Relayed(_) => true,
+            },
+            SignedNodeInfo::Relayed(r) => match other {
+                SignedNodeInfo::Direct(_) => true,
+                SignedNodeInfo::Relayed(pr) => r.equivalent(pr),
+            },
+        }
     }
 }

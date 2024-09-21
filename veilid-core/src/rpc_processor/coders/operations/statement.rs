@@ -15,16 +15,18 @@ impl RPCStatement {
     pub fn detail(&self) -> &RPCStatementDetail {
         &self.detail
     }
-    #[cfg(feature = "verbose-tracing")]
     pub fn desc(&self) -> &'static str {
         self.detail.desc()
     }
     pub fn destructure(self) -> RPCStatementDetail {
         self.detail
     }
-    pub fn decode(reader: &veilid_capnp::statement::Reader) -> Result<RPCStatement, RPCError> {
+    pub fn decode(
+        decode_context: &RPCDecodeContext,
+        reader: &veilid_capnp::statement::Reader,
+    ) -> Result<RPCStatement, RPCError> {
         let d_reader = reader.get_detail();
-        let detail = RPCStatementDetail::decode(&d_reader)?;
+        let detail = RPCStatementDetail::decode(decode_context, &d_reader)?;
         Ok(RPCStatement { detail })
     }
     pub fn encode(&self, builder: &mut veilid_capnp::statement::Builder) -> Result<(), RPCError> {
@@ -44,7 +46,6 @@ pub(in crate::rpc_processor) enum RPCStatementDetail {
 }
 
 impl RPCStatementDetail {
-    #[cfg(feature = "verbose-tracing")]
     pub fn desc(&self) -> &'static str {
         match self {
             RPCStatementDetail::ValidateDialInfo(_) => "ValidateDialInfo",
@@ -66,38 +67,39 @@ impl RPCStatementDetail {
         }
     }
     pub fn decode(
+        decode_context: &RPCDecodeContext,
         reader: &veilid_capnp::statement::detail::Reader,
     ) -> Result<RPCStatementDetail, RPCError> {
         let which_reader = reader.which().map_err(RPCError::protocol)?;
         let out = match which_reader {
             veilid_capnp::statement::detail::ValidateDialInfo(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationValidateDialInfo::decode(&op_reader)?;
+                let out = RPCOperationValidateDialInfo::decode(decode_context, &op_reader)?;
                 RPCStatementDetail::ValidateDialInfo(Box::new(out))
             }
             veilid_capnp::statement::detail::Route(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationRoute::decode(&op_reader)?;
+                let out = RPCOperationRoute::decode(decode_context, &op_reader)?;
                 RPCStatementDetail::Route(Box::new(out))
             }
             veilid_capnp::statement::detail::ValueChanged(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationValueChanged::decode(&op_reader)?;
+                let out = RPCOperationValueChanged::decode(decode_context, &op_reader)?;
                 RPCStatementDetail::ValueChanged(Box::new(out))
             }
             veilid_capnp::statement::detail::Signal(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationSignal::decode(&op_reader)?;
+                let out = RPCOperationSignal::decode(decode_context, &op_reader)?;
                 RPCStatementDetail::Signal(Box::new(out))
             }
             veilid_capnp::statement::detail::ReturnReceipt(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationReturnReceipt::decode(&op_reader)?;
+                let out = RPCOperationReturnReceipt::decode(decode_context, &op_reader)?;
                 RPCStatementDetail::ReturnReceipt(Box::new(out))
             }
             veilid_capnp::statement::detail::AppMessage(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationAppMessage::decode(&op_reader)?;
+                let out = RPCOperationAppMessage::decode(decode_context, &op_reader)?;
                 RPCStatementDetail::AppMessage(Box::new(out))
             }
         };

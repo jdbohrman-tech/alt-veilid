@@ -1,8 +1,10 @@
-use crate::*;
+use super::*;
 
 //use js_sys::*;
 
-pub async fn get_outbound_relay_peer() -> Option<crate::routing_table::PeerInfo> {
+pub async fn get_outbound_relay_peer(
+    _routing_domain: routing_table::RoutingDomain,
+) -> Option<Arc<routing_table::PeerInfo>> {
     // unimplemented!
     None
 }

@@ -884,6 +884,7 @@ impl Settings {
     }
 
     /// Determine default perfetto output path
+    #[cfg(unix)]
     pub fn get_default_perfetto_path(subnode_index: u16) -> PathBuf {
         std::env::temp_dir().join(if subnode_index == 0 {
             "veilid-server.pftrace".to_owned()
@@ -892,7 +893,7 @@ impl Settings {
         })
     }
 
-    #[allow(dead_code)]
+    #[cfg_attr(windows, expect(dead_code))]
     fn get_or_create_private_directory<P: AsRef<Path>>(path: P, group_read: bool) -> bool {
         let path = path.as_ref();
         if !path.is_dir()
@@ -904,7 +905,7 @@ impl Settings {
         true
     }
 
-    #[allow(dead_code)]
+    #[cfg_attr(windows, expect(dead_code))]
     fn get_default_directory(subpath: &str) -> PathBuf {
         #[cfg(unix)]
         {

@@ -9,7 +9,6 @@ mod types;
 mod watch_value;
 
 use super::*;
-use network_manager::*;
 use record_store::*;
 use routing_table::*;
 use rpc_processor::*;
@@ -154,17 +153,19 @@ impl StorageManager {
     pub async fn terminate(&self) {
         log_stor!(debug "starting storage manager shutdown");
 
+        // Stop the background ticker process
         {
             let mut inner = self.inner.lock().await;
-            inner.terminate().await;
+            inner.stop_ticker().await;
         }
 
         // Cancel all tasks
         self.cancel_tasks().await;
 
-        // Release the storage manager
+        // Terminate and release the storage manager
         {
             let mut inner = self.inner.lock().await;
+            inner.terminate().await;
             *inner = Self::new_inner(self.unlocked_inner.clone());
         }
 
@@ -190,25 +191,9 @@ impl StorageManager {
     }
 
     fn online_ready_inner(inner: &StorageManagerInner) -> Option<RPCProcessor> {
-        if let Some(rpc_processor) = { inner.opt_rpc_processor.clone() } {
-            if let Some(network_class) = rpc_processor
-                .routing_table()
-                .get_network_class(RoutingDomain::PublicInternet)
-            {
-                // If our PublicInternet network class is valid we're ready to talk
-                if network_class != NetworkClass::Invalid {
-                    Some(rpc_processor)
-                } else {
-                    None
-                }
-            } else {
-                // If we haven't gotten a network class yet we shouldnt try to use the DHT
-                None
-            }
-        } else {
-            // If we aren't attached, we won't have an rpc processor
-            None
-        }
+        let routing_table = inner.opt_routing_table.clone()?;
+        routing_table.get_published_peer_info(RoutingDomain::PublicInternet)?;
+        inner.opt_rpc_processor.clone()
     }
 
     async fn online_writes_ready(&self) -> EyreResult<Option<RPCProcessor>> {
@@ -872,7 +857,7 @@ impl StorageManager {
         let offline_subkey_writes = inner
             .offline_subkey_writes
             .get(&key)
-            .map(|o| o.subkeys.clone())
+            .map(|o| o.subkeys.union(&o.subkeys_in_flight))
             .unwrap_or_default()
             .intersect(&subkeys);
 
@@ -1015,8 +1000,20 @@ impl StorageManager {
         match fanout_result.kind {
             FanoutResultKind::Partial => false,
             FanoutResultKind::Timeout => {
-                log_stor!(debug "timeout in set_value, adding offline subkey: {}:{}", key, subkey);
-                true
+                let get_consensus =
+                    self.unlocked_inner.config.get().network.dht.get_value_count as usize;
+                let value_node_count = fanout_result.value_nodes.len();
+                if value_node_count < get_consensus {
+                    log_stor!(debug "timeout with insufficient consensus ({}<{}), adding offline subkey: {}:{}", 
+                        value_node_count, get_consensus,
+                        key, subkey);
+                    true
+                } else {
+                    log_stor!(debug "timeout with sufficient consensus ({}>={}): set_value {}:{}", 
+                        value_node_count, get_consensus,
+                        key, subkey);
+                    false
+                }
             }
             FanoutResultKind::Exhausted => {
                 let get_consensus =
@@ -1028,6 +1025,9 @@ impl StorageManager {
                         key, subkey);
                     true
                 } else {
+                    log_stor!(debug "exhausted with sufficient consensus ({}>={}): set_value {}:{}", 
+                        value_node_count, get_consensus,
+                        key, subkey);
                     false
                 }
             }

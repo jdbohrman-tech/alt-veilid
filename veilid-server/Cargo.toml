@@ -9,6 +9,7 @@ authors = ["Veilid Team <contact@veilid.com>"]
 license = "MPL-2.0"
 edition = "2021"
 resolver = "2"
+rust-version = "1.81.0"
 
 [[bin]]
 name = "veilid-server"
@@ -44,7 +45,7 @@ debug-locks = ["veilid-core/debug-locks"]
 [dependencies]
 veilid-core = { path = "../veilid-core", default-features = false }
 tracing = { version = "^0.1.40", features = ["log", "attributes"] }
-tracing-subscriber = { version = "^0.3.18", features = ["env-filter"] }
+tracing-subscriber = { version = "^0.3.18", features = ["env-filter", "time"] }
 tracing-appender = "^0.2.3"
 tracing-opentelemetry = "^0.24.0"
 # Buggy: tracing-error = "^0"
@@ -83,7 +84,8 @@ stop-token = { version = "^0", default-features = false }
 sysinfo = { version = "^0.30.13" }
 wg = { version = "^0.9.1", features = ["future"] }
 tracing-flame = "0.2.0"
-tracing-perfetto = "0.1.1"
+time = { version = "0.3.36", features = ["local-offset"] }
+chrono = "0.4.38"
 
 [target.'cfg(windows)'.dependencies]
 windows-service = "^0"
@@ -94,6 +96,7 @@ daemonize = "^0.5.0"
 signal-hook = "^0.3.17"
 signal-hook-async-std = "^0.2.2"
 nix = "^0.29.0"
+tracing-perfetto = "0.1.1"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 tracing-journald = "^0.3.0"

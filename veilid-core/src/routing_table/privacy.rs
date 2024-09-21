@@ -4,12 +4,21 @@ use super::*;
 // Compiled Privacy Objects
 
 /// An encrypted private/safety route hop
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub(crate) struct RouteHopData {
     /// The nonce used in the encryption ENC(Xn,DH(PKn,SKapr))
     pub nonce: Nonce,
     /// The encrypted blob
     pub blob: Vec<u8>,
+}
+
+impl fmt::Debug for RouteHopData {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RouteHopData")
+            .field("nonce", &self.nonce)
+            .field("blob", &format!("len={}", self.blob.len()))
+            .finish()
+    }
 }
 
 /// How to find a route node
@@ -18,7 +27,7 @@ pub(crate) enum RouteNode {
     /// Route node is optimized, no contact method information as this node id has been seen before
     NodeId(PublicKey),
     /// Route node with full contact method information to ensure the peer is reachable
-    PeerInfo(Box<PeerInfo>),
+    PeerInfo(Arc<PeerInfo>),
 }
 
 impl RouteNode {
@@ -47,12 +56,8 @@ impl RouteNode {
             }
             RouteNode::PeerInfo(pi) => {
                 //
-                match routing_table.register_node_with_peer_info(
-                    RoutingDomain::PublicInternet,
-                    *pi.clone(),
-                    false,
-                ) {
-                    Ok(nr) => Some(nr),
+                match routing_table.register_node_with_peer_info(pi.clone(), false) {
+                    Ok(nr) => Some(nr.unfiltered()),
                     Err(e) => {
                         log_rtab!(debug "failed to register route node: {}", e);
                         None

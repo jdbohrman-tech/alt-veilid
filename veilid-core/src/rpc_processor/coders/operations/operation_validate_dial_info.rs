@@ -44,6 +44,7 @@ impl RPCOperationValidateDialInfo {
     }
 
     pub fn decode(
+        _decode_context: &RPCDecodeContext,
         reader: &veilid_capnp::operation_validate_dial_info::Reader,
     ) -> Result<Self, RPCError> {
         let di_reader = reader.get_dial_info().map_err(RPCError::protocol)?;

@@ -68,6 +68,7 @@ pub(crate) fn encode_route_hop(
 }
 
 pub(crate) fn decode_route_hop(
+    decode_context: &RPCDecodeContext,
     reader: &veilid_capnp::route_hop::Reader,
 ) -> Result<RouteHop, RPCError> {
     let n_reader = reader.reborrow().get_node();
@@ -78,8 +79,8 @@ pub(crate) fn decode_route_hop(
         }
         veilid_capnp::route_hop::node::Which::PeerInfo(pi) => {
             let pi_reader = pi.map_err(RPCError::protocol)?;
-            RouteNode::PeerInfo(Box::new(
-                decode_peer_info(&pi_reader)
+            RouteNode::PeerInfo(Arc::new(
+                decode_peer_info(decode_context, &pi_reader)
                     .map_err(RPCError::map_protocol("invalid peer info in route hop"))?,
             ))
         }
@@ -126,6 +127,7 @@ pub(crate) fn encode_private_route(
 }
 
 pub(crate) fn decode_private_route(
+    decode_context: &RPCDecodeContext,
     reader: &veilid_capnp::private_route::Reader,
 ) -> Result<PrivateRoute, RPCError> {
     let public_key = decode_typed_key(&reader.get_public_key().map_err(
@@ -136,7 +138,7 @@ pub(crate) fn decode_private_route(
     let hops = match reader.get_hops().which().map_err(RPCError::protocol)? {
         veilid_capnp::private_route::hops::Which::FirstHop(rh_reader) => {
             let rh_reader = rh_reader.map_err(RPCError::protocol)?;
-            PrivateRouteHops::FirstHop(Box::new(decode_route_hop(&rh_reader)?))
+            PrivateRouteHops::FirstHop(Box::new(decode_route_hop(decode_context, &rh_reader)?))
         }
         veilid_capnp::private_route::hops::Which::Data(rhd_reader) => {
             let rhd_reader = rhd_reader.map_err(RPCError::protocol)?;
@@ -179,6 +181,7 @@ pub(crate) fn encode_safety_route(
 }
 
 pub(crate) fn decode_safety_route(
+    decode_context: &RPCDecodeContext,
     reader: &veilid_capnp::safety_route::Reader,
 ) -> Result<SafetyRoute, RPCError> {
     let public_key = decode_typed_key(
@@ -194,7 +197,7 @@ pub(crate) fn decode_safety_route(
         }
         veilid_capnp::safety_route::hops::Which::Private(pr_reader) => {
             let pr_reader = pr_reader.map_err(RPCError::protocol)?;
-            SafetyRouteHops::Private(decode_private_route(&pr_reader)?)
+            SafetyRouteHops::Private(decode_private_route(decode_context, &pr_reader)?)
         }
     };
 

@@ -1,20 +1,22 @@
-mod apple;
-mod netlink;
-mod openbsd;
-mod sockaddr_tools;
 mod tools;
-mod windows;
 
 use crate::*;
 
 cfg_if::cfg_if! {
     if #[cfg(any(target_os = "linux", target_os = "android"))] {
+        mod netlink;
         use self::netlink::PlatformSupportNetlink as PlatformSupport;
     } else if #[cfg(target_os = "windows")] {
+        mod windows;
+        mod sockaddr_tools;
         use self::windows::PlatformSupportWindows as PlatformSupport;
     } else if #[cfg(any(target_os = "macos", target_os = "ios"))] {
+        mod apple;
+        mod sockaddr_tools;
         use self::apple::PlatformSupportApple as PlatformSupport;
     } else if #[cfg(target_os = "openbsd")] {
+        mod openbsd;
+        mod sockaddr_tools;
         use self::openbsd::PlatformSupportOpenBSD as PlatformSupport;
     } else {
         compile_error!("No network interfaces support for this platform!");
@@ -27,7 +29,6 @@ pub enum IfAddr {
     V6(Ifv6Addr),
 }
 
-#[allow(dead_code)]
 impl IfAddr {
     pub fn ip(&self) -> IpAddr {
         match *self {
@@ -197,7 +198,6 @@ impl PartialOrd for InterfaceAddress {
     }
 }
 
-#[allow(dead_code)]
 impl InterfaceAddress {
     pub fn new(if_addr: IfAddr, flags: AddressFlags) -> Self {
         Self { if_addr, flags }
@@ -248,7 +248,6 @@ impl fmt::Debug for NetworkInterface {
         Ok(())
     }
 }
-#[allow(dead_code)]
 impl NetworkInterface {
     pub fn new(name: String, flags: InterfaceFlags) -> Self {
         Self {

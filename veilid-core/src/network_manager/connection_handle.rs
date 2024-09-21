@@ -26,12 +26,12 @@ impl ConnectionHandle {
         }
     }
 
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub fn connection_id(&self) -> NetworkConnectionId {
         self.connection_id
     }
 
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub fn flow(&self) -> Flow {
         self.flow
     }

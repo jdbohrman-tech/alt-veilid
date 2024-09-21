@@ -103,9 +103,15 @@ impl InteractiveUI {
                 println!("Error: {:?}", e);
                 break;
             }
+
             match readline.readline().timeout_at(done.clone()).await {
                 Ok(Ok(ReadlineEvent::Line(line))) => {
                     let line = line.trim();
+
+                    if !line.is_empty() {
+                        readline.add_history_entry(line.to_string());
+                    }
+
                     if line == "clear" {
                         if let Err(e) = readline.clear() {
                             println!("Error: {:?}", e);
@@ -183,7 +189,6 @@ impl InteractiveUI {
                             self.inner.lock().log_enabled = false;
                         }
                     } else if !line.is_empty() {
-                        readline.add_history_entry(line.to_string());
                         let cmdproc = self.inner.lock().cmdproc.clone();
                         if let Some(cmdproc) = &cmdproc {
                             if let Err(e) = cmdproc.run_command(

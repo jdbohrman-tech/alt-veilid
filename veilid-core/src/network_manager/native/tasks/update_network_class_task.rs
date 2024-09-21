@@ -4,6 +4,28 @@ use futures_util::stream::FuturesUnordered;
 use stop_token::future::FutureExt as StopTokenFutureExt;
 
 impl Network {
+    #[instrument(parent = None, level = "trace", skip(self), err)]
+    pub async fn update_network_class_task_routine(
+        self,
+        stop_token: StopToken,
+        l: Timestamp,
+        t: Timestamp,
+    ) -> EyreResult<()> {
+        let _guard = self.unlocked_inner.network_task_lock.lock().await;
+
+        // Do the public dial info check
+        let out = self.do_public_dial_info_check(stop_token, l, t).await;
+
+        // Done with public dial info check
+        {
+            let mut inner = self.inner.lock();
+            inner.needs_public_dial_info_check = false;
+            inner.public_dial_info_check_punishment = None;
+        }
+
+        out
+    }
+
     #[instrument(level = "trace", skip(self), err)]
     pub async fn update_with_detected_dial_info(&self, ddi: DetectedDialInfo) -> EyreResult<()> {
         let existing_network_class = self
@@ -16,9 +38,7 @@ impl Network {
                 // If we get any symmetric nat dialinfo, this whole network class is outbound only,
                 // and all dial info should be treated as invalid
                 if !matches!(existing_network_class, NetworkClass::OutboundOnly) {
-                    let mut editor = self
-                        .routing_table()
-                        .edit_routing_domain(RoutingDomain::PublicInternet);
+                    let mut editor = self.routing_table().edit_public_internet_routing_domain();
 
                     editor.clear_dial_info_details(None, None);
                     editor.set_network_class(Some(NetworkClass::OutboundOnly));
@@ -67,9 +87,7 @@ impl Network {
                     }
 
                     if clear || add {
-                        let mut editor = self
-                            .routing_table()
-                            .edit_routing_domain(RoutingDomain::PublicInternet);
+                        let mut editor = self.routing_table().edit_public_internet_routing_domain();
 
                         if clear {
                             editor.clear_dial_info_details(
@@ -79,11 +97,7 @@ impl Network {
                         }
 
                         if add {
-                            if let Err(e) =
-                                editor.register_dial_info(did.dial_info.clone(), did.class)
-                            {
-                                log_net!(debug "Failed to register detected dialinfo {:?}: {}", did, e);
-                            }
+                            editor.add_dial_info(did.dial_info.clone(), did.class);
                         }
 
                         editor.set_network_class(Some(NetworkClass::InboundCapable));
@@ -99,13 +113,19 @@ impl Network {
     pub async fn do_public_dial_info_check(
         &self,
         stop_token: StopToken,
-        _l: u64,
-        _t: u64,
+        _l: Timestamp,
+        _t: Timestamp,
     ) -> EyreResult<()> {
         // Figure out if we can optimize TCP/WS checking since they are often on the same port
         let (protocol_config, inbound_protocol_map) = {
             let mut inner = self.inner.lock();
-            let protocol_config = inner.protocol_config.clone();
+            let Some(protocol_config) = inner
+                .network_state
+                .as_ref()
+                .map(|ns| ns.protocol_config.clone())
+            else {
+                bail!("should not be doing public dial info check before we have an initial network state");
+            };
 
             // Allow network to be cleared if external addresses change
             inner.network_already_cleared = false;
@@ -118,7 +138,7 @@ impl Network {
 
                     // Skip things with static public dialinfo
                     // as they don't need to participate in discovery
-                    if inner.static_public_dialinfo.contains(pt) {
+                    if inner.static_public_dial_info.contains(pt) {
                         continue;
                     }
 
@@ -147,9 +167,7 @@ impl Network {
             .collect();
 
         // Set most permissive network config
-        let mut editor = self
-            .routing_table()
-            .edit_routing_domain(RoutingDomain::PublicInternet);
+        let mut editor = self.routing_table().edit_public_internet_routing_domain();
         editor.setup_network(
             protocol_config.outbound,
             protocol_config.inbound,
@@ -171,9 +189,7 @@ impl Network {
                     }
                     inner.network_already_cleared = true;
                 }
-                let mut editor = this
-                    .routing_table()
-                    .edit_routing_domain(RoutingDomain::PublicInternet);
+                let mut editor = this.routing_table().edit_public_internet_routing_domain();
                 editor.clear_dial_info_details(None, None);
                 editor.set_network_class(None);
                 editor.commit(true).await;
@@ -261,7 +277,9 @@ impl Network {
             all_address_types,
             protocol_config.public_internet_capabilities,
         );
-        editor.commit(true).await;
+        if editor.commit(true).await {
+            editor.publish();
+        }
 
         // See if the dial info changed
         let new_public_dial_info: HashSet<DialInfoDetail> = self
@@ -281,25 +299,6 @@ impl Network {
         }
 
         Ok(())
-    }
-    #[instrument(parent = None, level = "trace", skip(self), err)]
-    pub async fn update_network_class_task_routine(
-        self,
-        stop_token: StopToken,
-        l: u64,
-        t: u64,
-    ) -> EyreResult<()> {
-        // Do the public dial info check
-        let out = self.do_public_dial_info_check(stop_token, l, t).await;
-
-        // Done with public dial info check
-        {
-            let mut inner = self.inner.lock();
-            inner.needs_public_dial_info_check = false;
-            inner.public_dial_info_check_punishment = None;
-        }
-
-        out
     }
 
     /// Make a dialinfo from an address and protocol type

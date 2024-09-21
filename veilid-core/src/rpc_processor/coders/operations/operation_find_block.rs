@@ -26,6 +26,7 @@ impl RPCOperationFindBlockQ {
     }
 
     pub fn decode(
+        decode_context: &RPCDecodeContext,
         reader: &veilid_capnp::operation_find_block_q::Reader,
     ) -> Result<RPCOperationFindBlockQ, RPCError> {
         let bi_reader = reader.get_block_id().map_err(RPCError::protocol)?;

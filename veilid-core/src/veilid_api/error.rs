@@ -236,6 +236,29 @@ impl VeilidAPIError {
 
 pub type VeilidAPIResult<T> = Result<T, VeilidAPIError>;
 
+pub trait OkVeilidAPIResult<T> {
+    fn ok_try_again(self) -> VeilidAPIResult<Option<T>>;
+    fn ok_try_again_timeout(self) -> VeilidAPIResult<Option<T>>;
+}
+
+impl<T> OkVeilidAPIResult<T> for VeilidAPIResult<T> {
+    fn ok_try_again(self) -> VeilidAPIResult<Option<T>> {
+        match self {
+            Ok(v) => Ok(Some(v)),
+            Err(VeilidAPIError::TryAgain { message: _ }) => Ok(None),
+            Err(e) => Err(e),
+        }
+    }
+    fn ok_try_again_timeout(self) -> VeilidAPIResult<Option<T>> {
+        match self {
+            Ok(v) => Ok(Some(v)),
+            Err(VeilidAPIError::TryAgain { message: _ }) => Ok(None),
+            Err(VeilidAPIError::Timeout) => Ok(None),
+            Err(e) => Err(e),
+        }
+    }
+}
+
 impl From<std::io::Error> for VeilidAPIError {
     fn from(e: std::io::Error) -> Self {
         match e.kind() {

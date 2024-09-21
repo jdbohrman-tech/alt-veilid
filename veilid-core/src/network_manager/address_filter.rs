@@ -158,7 +158,7 @@ impl AddressFilter {
                 }
             }
             for key in dead_keys {
-                log_net!(debug ">>> FORGIVING: {}", key);
+                warn!("Forgiving: {}", key);
                 inner.punishments_by_ip4.remove(&key);
             }
         }
@@ -174,7 +174,7 @@ impl AddressFilter {
                 }
             }
             for key in dead_keys {
-                log_net!(debug ">>> FORGIVING: {}", key);
+                warn!("Forgiving: {}", key);
                 inner.punishments_by_ip6_prefix.remove(&key);
             }
         }
@@ -190,7 +190,7 @@ impl AddressFilter {
                 }
             }
             for key in dead_keys {
-                log_net!(debug ">>> FORGIVING: {}", key);
+                warn!("Forgiving: {}", key);
                 inner.punishments_by_node_id.remove(&key);
                 // make the entry alive again if it's still here
                 if let Ok(Some(nr)) = self.unlocked_inner.routing_table.lookup_node_ref(key) {
@@ -210,7 +210,7 @@ impl AddressFilter {
                 }
             }
             for key in dead_keys {
-                log_net!(debug ">>> DIALINFO PERMIT: {}", key);
+                log_net!(debug "DialInfo Permit: {}", key);
                 inner.dial_info_failures.remove(&key);
             }
         }
@@ -259,10 +259,10 @@ impl AddressFilter {
 
         let mut inner = self.inner.lock();
         if inner.dial_info_failures.len() >= MAX_DIAL_INFO_FAILURES {
-            log_net!(debug ">>> DIALINFO FAILURE TABLE FULL: {}", dial_info);
+            warn!("DialInfo failure table full: {}", dial_info);
             return;
         }
-        log_net!(debug ">>> DIALINFO FAILURE: {:?}", dial_info);
+        log_net!(debug "DialInfo failure: {:?}", dial_info);
         inner
             .dial_info_failures
             .entry(dial_info)
@@ -279,7 +279,7 @@ impl AddressFilter {
     }
 
     pub fn punish_ip_addr(&self, addr: IpAddr, reason: PunishmentReason) {
-        log_net!(debug ">>> PUNISHED: {} for {:?}", addr, reason);
+        warn!("Punished: {} for {:?}", addr, reason);
         let timestamp = Timestamp::now();
         let punishment = Punishment { reason, timestamp };
 
@@ -326,10 +326,10 @@ impl AddressFilter {
 
         let mut inner = self.inner.lock();
         if inner.punishments_by_node_id.len() >= MAX_PUNISHMENTS_BY_NODE_ID {
-            log_net!(debug ">>> PUNISHMENT TABLE FULL: {}", node_id);
+            warn!("Punishment table full: {}", node_id);
             return;
         }
-        log_net!(debug ">>> PUNISHED: {} for {:?}", node_id, reason);
+        warn!("Punished: {} for {:?}", node_id, reason);
         inner
             .punishments_by_node_id
             .entry(node_id)
@@ -372,7 +372,7 @@ impl AddressFilter {
                 let cnt = inner.conn_count_by_ip4.entry(v4).or_default();
                 assert!(*cnt <= self.unlocked_inner.max_connections_per_ip4);
                 if *cnt == self.unlocked_inner.max_connections_per_ip4 {
-                    warn!("address filter count exceeded: {:?}", v4);
+                    warn!("Address filter count exceeded: {:?}", v4);
                     return Err(AddressFilterError::CountExceeded);
                 }
                 // See if this ip block has connected too frequently
@@ -383,7 +383,7 @@ impl AddressFilter {
                 });
                 assert!(tstamps.len() <= self.unlocked_inner.max_connection_frequency_per_min);
                 if tstamps.len() == self.unlocked_inner.max_connection_frequency_per_min {
-                    warn!("address filter rate exceeded: {:?}", v4);
+                    warn!("Address filter rate exceeded: {:?}", v4);
                     return Err(AddressFilterError::RateExceeded);
                 }
 
@@ -396,14 +396,14 @@ impl AddressFilter {
                 let cnt = inner.conn_count_by_ip6_prefix.entry(v6).or_default();
                 assert!(*cnt <= self.unlocked_inner.max_connections_per_ip6_prefix);
                 if *cnt == self.unlocked_inner.max_connections_per_ip6_prefix {
-                    warn!("address filter count exceeded: {:?}", v6);
+                    warn!("Address filter count exceeded: {:?}", v6);
                     return Err(AddressFilterError::CountExceeded);
                 }
                 // See if this ip block has connected too frequently
                 let tstamps = inner.conn_timestamps_by_ip6_prefix.entry(v6).or_default();
                 assert!(tstamps.len() <= self.unlocked_inner.max_connection_frequency_per_min);
                 if tstamps.len() == self.unlocked_inner.max_connection_frequency_per_min {
-                    warn!("address filter rate exceeded: {:?}", v6);
+                    warn!("Address filter rate exceeded: {:?}", v6);
                     return Err(AddressFilterError::RateExceeded);
                 }
 

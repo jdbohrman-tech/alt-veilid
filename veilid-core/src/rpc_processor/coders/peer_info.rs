@@ -27,7 +27,10 @@ pub fn encode_peer_info(
     Ok(())
 }
 
-pub fn decode_peer_info(reader: &veilid_capnp::peer_info::Reader) -> Result<PeerInfo, RPCError> {
+pub fn decode_peer_info(
+    decode_context: &RPCDecodeContext,
+    reader: &veilid_capnp::peer_info::Reader,
+) -> Result<PeerInfo, RPCError> {
     let nids_reader = reader
         .reborrow()
         .get_node_ids()
@@ -44,5 +47,9 @@ pub fn decode_peer_info(reader: &veilid_capnp::peer_info::Reader) -> Result<Peer
     if node_ids.is_empty() {
         return Err(RPCError::protocol("no verified node ids"));
     }
-    Ok(PeerInfo::new(node_ids, signed_node_info))
+    Ok(PeerInfo::new(
+        decode_context.routing_domain,
+        node_ids,
+        signed_node_info,
+    ))
 }

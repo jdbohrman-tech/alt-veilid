@@ -136,7 +136,7 @@ impl DiscoveryContext {
     // Ask for a public address check from a particular noderef
     // This is done over the normal port using RPC
     #[instrument(level = "trace", skip(self), ret)]
-    async fn request_public_address(&self, node_ref: NodeRef) -> Option<SocketAddress> {
+    async fn request_public_address(&self, node_ref: FilteredNodeRef) -> Option<SocketAddress> {
         let rpc = self.unlocked_inner.routing_table.rpc_processor();
 
         let res = network_result_value_or_log!(match rpc.rpc_call_status(Destination::direct(node_ref.clone())).await {
@@ -217,7 +217,7 @@ impl DiscoveryContext {
         let nodes = self
             .unlocked_inner
             .routing_table
-            .find_fast_public_nodes_filtered(node_count, filters);
+            .find_fast_non_local_nodes_filtered(routing_domain, node_count, filters);
         if nodes.is_empty() {
             log_net!(debug
                 "no external address detection peers of type {:?}:{:?}",
@@ -232,7 +232,7 @@ impl DiscoveryContext {
 
         let get_public_address_func = |node: NodeRef| {
             let this = self.clone();
-            let node = node.filtered_clone(
+            let node = node.custom_filtered(
                 NodeRefFilter::new()
                     .with_routing_domain(routing_domain)
                     .with_dial_info_filter(dial_info_filter),
@@ -246,7 +246,7 @@ impl DiscoveryContext {
                     return Some(ExternalInfo {
                         dial_info,
                         address,
-                        node,
+                        node: node.unfiltered(),
                     });
                 }
                 None
@@ -308,12 +308,7 @@ impl DiscoveryContext {
     ) -> bool {
         let rpc_processor = self.unlocked_inner.routing_table.rpc_processor();
 
-        // asking for node validation doesn't have to use the dial info filter of the dial info we are validating
-        let mut node_ref = node_ref.clone();
-        node_ref.set_filter(None);
-
         // ask the node to send us a dial info validation receipt
-
         match rpc_processor
             .rpc_call_validate_dial_info(node_ref.clone(), dial_info, redirect)
             .await

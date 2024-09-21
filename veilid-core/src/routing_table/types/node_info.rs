@@ -96,7 +96,7 @@ impl NodeInfo {
         None
     }
 
-    pub fn all_filtered_dial_info_details<S, F>(
+    pub fn filtered_dial_info_details<S, F>(
         &self,
         sort: Option<S>,
         filter: F,

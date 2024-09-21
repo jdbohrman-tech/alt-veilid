@@ -41,12 +41,16 @@ impl RPCProcessor {
     pub(crate) async fn process_signal(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
         // Ignore if disabled
         let routing_table = self.routing_table();
-        let opi = routing_table.get_own_peer_info(msg.header.routing_domain());
-        if !opi
-            .signed_node_info()
-            .node_info()
-            .has_capability(CAP_SIGNAL)
-        {
+
+        let has_capability_signal = routing_table
+            .get_published_peer_info(msg.header.routing_domain())
+            .map(|ppi| {
+                ppi.signed_node_info()
+                    .node_info()
+                    .has_capability(CAP_SIGNAL)
+            })
+            .unwrap_or(false);
+        if !has_capability_signal {
             return Ok(NetworkResult::service_unavailable(
                 "signal is not available",
             ));
@@ -62,7 +66,7 @@ impl RPCProcessor {
         };
 
         // Get the statement
-        let (_, _, _, kind) = msg.operation.destructure();
+        let (_, _, kind) = msg.operation.destructure();
         let signal = match kind {
             RPCOperationKind::Statement(s) => match s.destructure() {
                 RPCStatementDetail::Signal(s) => s,

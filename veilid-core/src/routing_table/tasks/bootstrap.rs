@@ -257,7 +257,7 @@ impl RoutingTable {
     pub(crate) fn bootstrap_with_peer(
         self,
         crypto_kinds: Vec<CryptoKind>,
-        pi: PeerInfo,
+        pi: Arc<PeerInfo>,
         unord: &FuturesUnordered<SendPinBoxFuture<()>>,
     ) {
         log_rtab!(
@@ -266,7 +266,9 @@ impl RoutingTable {
             pi.signed_node_info().node_info().dial_info_detail_list()
         );
 
-        let nr = match self.register_node_with_peer_info(RoutingDomain::PublicInternet, pi, true) {
+        let routing_domain = pi.routing_domain();
+
+        let nr = match self.register_node_with_peer_info(pi, true) {
             Ok(nr) => nr,
             Err(e) => {
                 log_rtab!(error "failed to register bootstrap peer info: {}", e);
@@ -277,14 +279,14 @@ impl RoutingTable {
         // Add this our futures to process in parallel
         for crypto_kind in crypto_kinds {
             // Bootstrap this crypto kind
-            let nr = nr.clone();
+            let nr = nr.unfiltered();
             let routing_table = self.clone();
             unord.push(Box::pin(
                 async move {
                     // Get what contact method would be used for contacting the bootstrap
                     let bsdi = match routing_table
                         .network_manager()
-                        .get_node_contact_method(nr.clone())
+                        .get_node_contact_method(nr.default_filtered())
                     {
                         Ok(NodeContactMethod::Direct(v)) => v,
                         Ok(v) => {
@@ -302,10 +304,10 @@ impl RoutingTable {
 
                     // Need VALID signed peer info, so ask bootstrap to find_node of itself
                     // which will ensure it has the bootstrap's signed peer info as part of the response
-                    let _ = routing_table.find_target(crypto_kind, nr.clone(), vec![]).await;
+                    let _ = routing_table.find_nodes_close_to_node_ref(crypto_kind, nr.clone(), vec![]).await;
 
                     // Ensure we got the signed peer info
-                    if !nr.signed_node_info_has_valid_signature(RoutingDomain::PublicInternet) {
+                    if !nr.signed_node_info_has_valid_signature(routing_domain) {
                         log_rtab!(warn "bootstrap server is not responding");
                         log_rtab!(debug "bootstrap server is not responding for dialinfo: {}", bsdi);
 
@@ -324,7 +326,7 @@ impl RoutingTable {
     #[instrument(level = "trace", skip(self), err)]
     pub(crate) async fn bootstrap_with_peer_list(
         self,
-        peers: Vec<PeerInfo>,
+        peers: Vec<Arc<PeerInfo>>,
         stop_token: StopToken,
     ) -> EyreResult<()> {
         log_rtab!(debug "  bootstrapped peers: {:?}", &peers);
@@ -389,7 +391,7 @@ impl RoutingTable {
             // Direct bootstrap
             let network_manager = self.network_manager();
 
-            let mut peer_map = HashMap::<TypedKeyGroup, PeerInfo>::new();
+            let mut peer_map = HashMap::<TypedKeyGroup, Arc<PeerInfo>>::new();
             for bootstrap_di in bootstrap_dialinfos {
                 log_rtab!(debug "direct bootstrap with: {}", bootstrap_di);
                 let peers = network_manager.boot_request(bootstrap_di).await?;
@@ -403,7 +405,7 @@ impl RoutingTable {
         } else {
             // If not direct, resolve bootstrap servers and recurse their TXT entries
             let bsrecs = self.resolve_bootstrap(bootstrap).await?;
-            let peers: Vec<PeerInfo> = bsrecs
+            let peers: Vec<Arc<PeerInfo>> = bsrecs
                 .into_iter()
                 .map(|bsrec| {
                     // Get crypto support from list of node ids
@@ -413,8 +415,8 @@ impl RoutingTable {
                     let sni = SignedNodeInfo::Direct(SignedDirectNodeInfo::with_no_signature(
                         NodeInfo::new(
                             NetworkClass::InboundCapable, // Bootstraps are always inbound capable
-                            ProtocolTypeSet::only(ProtocolType::UDP), // Bootstraps do not participate in relaying and will not make outbound requests, but will have UDP enabled
-                            AddressTypeSet::all(), // Bootstraps are always IPV4 and IPV6 capable
+                            ProtocolTypeSet::all(), // Bootstraps are always capable of all protocols
+                            AddressTypeSet::all(),  // Bootstraps are always IPV4 and IPV6 capable
                             bsrec.envelope_support, // Envelope support is as specified in the bootstrap list
                             crypto_support, // Crypto support is derived from list of node ids
                             vec![],         // Bootstrap needs no capabilities
@@ -422,7 +424,11 @@ impl RoutingTable {
                         ),
                     ));
 
-                    PeerInfo::new(bsrec.node_ids, sni)
+                    Arc::new(PeerInfo::new(
+                        RoutingDomain::PublicInternet,
+                        bsrec.node_ids,
+                        sni,
+                    ))
                 })
                 .collect();
 

@@ -35,6 +35,7 @@ impl RPCOperationStartTunnelQ {
     }
 
     pub fn decode(
+        decode_context: &RPCDecodeContext,
         reader: &veilid_capnp::operation_start_tunnel_q::Reader,
     ) -> Result<Self, RPCError> {
         let id = TunnelId::new(reader.get_id());
@@ -86,6 +87,7 @@ impl RPCOperationStartTunnelA {
     }
 
     pub fn decode(
+        decode_context: &RPCDecodeContext,
         reader: &veilid_capnp::operation_start_tunnel_a::Reader,
     ) -> Result<Self, RPCError> {
         match reader.which().map_err(RPCError::protocol)? {

@@ -56,7 +56,7 @@ impl RoutingTable {
                     self_node_id,
                     filters,
                     |_rti, entry: Option<Arc<BucketEntry>>| {
-                        NodeRef::new(routing_table.clone(), entry.unwrap().clone(), None)
+                        NodeRef::new(routing_table.clone(), entry.unwrap().clone())
                     },
                 )
                 .unwrap();

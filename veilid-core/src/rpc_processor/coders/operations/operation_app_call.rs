@@ -27,7 +27,10 @@ impl RPCOperationAppCallQ {
         self.message
     }
 
-    pub fn decode(reader: &veilid_capnp::operation_app_call_q::Reader) -> Result<Self, RPCError> {
+    pub fn decode(
+        _decode_context: &RPCDecodeContext,
+        reader: &veilid_capnp::operation_app_call_q::Reader,
+    ) -> Result<Self, RPCError> {
         let mr = reader.get_message().map_err(RPCError::protocol)?;
         if mr.len() > MAX_APP_CALL_Q_MESSAGE_LEN {
             return Err(RPCError::protocol("AppCallQ message too long to set"));
@@ -72,7 +75,10 @@ impl RPCOperationAppCallA {
         self.message
     }
 
-    pub fn decode(reader: &veilid_capnp::operation_app_call_a::Reader) -> Result<Self, RPCError> {
+    pub fn decode(
+        _decode_context: &RPCDecodeContext,
+        reader: &veilid_capnp::operation_app_call_a::Reader,
+    ) -> Result<Self, RPCError> {
         let mr = reader.get_message().map_err(RPCError::protocol)?;
         if mr.len() > MAX_APP_CALL_A_MESSAGE_LEN {
             return Err(RPCError::protocol("AppCallA message too long to set"));

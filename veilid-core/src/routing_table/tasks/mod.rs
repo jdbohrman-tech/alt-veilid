@@ -185,7 +185,13 @@ impl RoutingTable {
                 .closest_peers_refresh_task
                 .tick()
                 .await?;
+        }
 
+        // Only perform these operations if we already have a published peer info
+        if self
+            .get_published_peer_info(RoutingDomain::PublicInternet)
+            .is_some()
+        {
             // Run the private route management task
             self.unlocked_inner
                 .private_route_management_task

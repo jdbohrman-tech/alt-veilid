@@ -277,7 +277,7 @@ impl VeilidAPI {
     ///
     /// Returns a route id and 'blob' that can be published over some means (DHT or otherwise) to be
     /// imported by another Veilid node.
-    #[instrument(target = "veilid_api", level = "debug", skip(self), ret, err)]
+    #[instrument(target = "veilid_api", level = "debug", skip(self), ret)]
     pub async fn new_custom_private_route(
         &self,
         crypto_kinds: &[CryptoKind],
@@ -310,9 +310,18 @@ impl VeilidAPI {
             &[],
             false,
         )?;
-        if !rss.test_route(route_id).await? {
-            rss.release_route(route_id);
-            apibail_generic!("allocated route failed to test");
+        match rss.test_route(route_id).await? {
+            Some(true) => {
+                // route tested okay
+            }
+            Some(false) => {
+                rss.release_route(route_id);
+                apibail_generic!("allocated route failed to test");
+            }
+            None => {
+                rss.release_route(route_id);
+                apibail_generic!("allocated route could not be tested");
+            }
         }
         let private_routes = rss.assemble_private_routes(&route_id, Some(true))?;
         let blob = match RouteSpecStore::private_routes_to_blob(&private_routes) {

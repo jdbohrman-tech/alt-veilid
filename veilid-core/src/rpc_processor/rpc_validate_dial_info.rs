@@ -3,7 +3,6 @@ use super::*;
 impl RPCProcessor {
     // Can only be sent directly, not via relays or routes
     #[instrument(level = "trace", target = "rpc", skip(self), ret, err)]
-    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub async fn rpc_call_validate_dial_info(
         self,
         peer: NodeRef,
@@ -38,7 +37,7 @@ impl RPCProcessor {
 
         // Send the validate_dial_info request
         // This can only be sent directly, as relays can not validate dial info
-        network_result_value_or_log!(self.statement(Destination::direct(peer), statement)
+        network_result_value_or_log!(self.statement(Destination::direct(peer.default_filtered()), statement)
             .await? => [ format!(": peer={} statement={:?}", peer, statement) ] {
                 return Ok(false);
             }
@@ -82,14 +81,7 @@ impl RPCProcessor {
 
     #[instrument(level = "trace", target = "rpc", skip(self, msg), fields(msg.operation.op_id), ret, err)]
     pub(crate) async fn process_validate_dial_info(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
-        let routing_table = self.routing_table();
-        if !routing_table.has_valid_network_class(msg.header.routing_domain()) {
-            return Ok(NetworkResult::service_unavailable(
-                "can't validate dial info without valid network class",
-            ));
-        }
-        let opi = routing_table.get_own_peer_info(msg.header.routing_domain());
-
+        // Ensure this never came over a private route, safety route is okay though
         let detail = match msg.header.detail {
             RPCMessageHeaderDetail::Direct(detail) => detail,
             RPCMessageHeaderDetail::SafetyRouted(_) | RPCMessageHeaderDetail::PrivateRouted(_) => {
@@ -100,20 +92,26 @@ impl RPCProcessor {
         };
 
         // Ignore if disabled
-        let ni = opi.signed_node_info().node_info();
-        if !opi
-            .signed_node_info()
-            .node_info()
-            .has_capability(CAP_VALIDATE_DIAL_INFO)
-            || !ni.is_fully_direct_inbound()
-        {
+        let routing_table = self.routing_table();
+        let routing_domain = detail.routing_domain;
+
+        let has_capability_validate_dial_info = routing_table
+            .get_published_peer_info(routing_domain)
+            .map(|ppi| {
+                ppi.signed_node_info()
+                    .node_info()
+                    .has_capability(CAP_VALIDATE_DIAL_INFO)
+                    && ppi.signed_node_info().node_info().is_fully_direct_inbound()
+            })
+            .unwrap_or(false);
+        if !has_capability_validate_dial_info {
             return Ok(NetworkResult::service_unavailable(
                 "validate dial info is not available",
             ));
         }
 
         // Get the statement
-        let (_, _, _, kind) = msg.operation.destructure();
+        let (_, _, kind) = msg.operation.destructure();
         let (dial_info, receipt, redirect) = match kind {
             RPCOperationKind::Statement(s) => match s.destructure() {
                 RPCStatementDetail::ValidateDialInfo(s) => s.destructure(),
@@ -161,7 +159,11 @@ impl RPCProcessor {
             ]);
 
             // Find nodes matching filter to redirect this to
-            let peers = routing_table.find_fast_public_nodes_filtered(node_count, filters);
+            let peers = routing_table.find_fast_non_local_nodes_filtered(
+                routing_domain,
+                node_count,
+                filters,
+            );
             if peers.is_empty() {
                 return Ok(NetworkResult::no_connection_other(format!(
                     "no peers able to reach dialinfo '{:?}'",
@@ -183,7 +185,7 @@ impl RPCProcessor {
 
                 // Send the validate_dial_info request
                 // This can only be sent directly, as relays can not validate dial info
-                network_result_value_or_log!(self.statement(Destination::direct(peer), statement)
+                network_result_value_or_log!(self.statement(Destination::direct(peer.default_filtered()), statement)
                     .await? => [ format!(": peer={} statement={:?}", peer, statement) ] {
                         continue;
                     }
@@ -196,8 +198,7 @@ impl RPCProcessor {
             ));
         };
 
-        // Otherwise send a return receipt directly
-        // Possibly from an alternate port
+        // Otherwise send a return receipt directly from a system-allocated random port
         let network_manager = self.network_manager();
         network_manager
             .send_out_of_band_receipt(dial_info.clone(), receipt)

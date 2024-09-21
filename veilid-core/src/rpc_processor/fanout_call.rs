@@ -58,7 +58,12 @@ pub(crate) fn debug_fanout_results(results: &[FanoutResult]) -> String {
     out
 }
 
-pub(crate) type FanoutCallReturnType = RPCNetworkResult<Vec<PeerInfo>>;
+#[derive(Debug)]
+pub(crate) struct FanoutCallOutput {
+    pub peer_info_list: Vec<Arc<PeerInfo>>,
+}
+
+pub(crate) type FanoutCallResult = RPCNetworkResult<FanoutCallOutput>;
 pub(crate) type FanoutNodeInfoFilter = Arc<dyn Fn(&[TypedKey], &NodeInfo) -> bool + Send + Sync>;
 
 pub(crate) fn empty_fanout_node_info_filter() -> FanoutNodeInfoFilter {
@@ -89,12 +94,11 @@ pub(crate) fn capability_fanout_node_info_filter(caps: Vec<Capability>) -> Fanou
 pub(crate) struct FanoutCall<R, F, C, D>
 where
     R: Unpin,
-    F: Future<Output = FanoutCallReturnType>,
+    F: Future<Output = FanoutCallResult>,
     C: Fn(NodeRef) -> F,
     D: Fn(&[NodeRef]) -> Option<R>,
 {
     routing_table: RoutingTable,
-    crypto_kind: CryptoKind,
     node_id: TypedKey,
     context: Mutex<FanoutContext<R>>,
     node_count: usize,
@@ -108,7 +112,7 @@ where
 impl<R, F, C, D> FanoutCall<R, F, C, D>
 where
     R: Unpin,
-    F: Future<Output = FanoutCallReturnType>,
+    F: Future<Output = FanoutCallResult>,
     C: Fn(NodeRef) -> F,
     D: Fn(&[NodeRef]) -> Option<R>,
 {
@@ -131,7 +135,6 @@ where
         Arc::new(Self {
             routing_table,
             node_id,
-            crypto_kind: node_id.kind,
             context,
             node_count,
             fanout,
@@ -198,7 +201,8 @@ where
             match (self.call_routine)(next_node.clone()).await {
                 Ok(NetworkResult::Value(v)) => {
                     // Filter returned nodes
-                    let filtered_v: Vec<PeerInfo> = v
+                    let filtered_v: Vec<Arc<PeerInfo>> = v
+                        .peer_info_list
                         .into_iter()
                         .filter(|pi| {
                             let node_ids = pi.node_ids().to_vec();
@@ -216,7 +220,7 @@ where
                     // Register the returned nodes and add them to the fanout queue in sorted order
                     let new_nodes = self
                         .routing_table
-                        .register_find_node_answer(self.crypto_kind, filtered_v);
+                        .register_nodes_with_peer_info_list(filtered_v);
                     self.clone().add_to_fanout_queue(&new_nodes);
                 }
                 #[allow(unused_variables)]
@@ -273,7 +277,7 @@ where
             let filters = VecDeque::from([filter]);
 
             let transform = |_rti: &RoutingTableInner, v: Option<Arc<BucketEntry>>| {
-                NodeRef::new(routing_table.clone(), v.unwrap().clone(), None)
+                NodeRef::new(routing_table.clone(), v.unwrap().clone())
             };
 
             routing_table

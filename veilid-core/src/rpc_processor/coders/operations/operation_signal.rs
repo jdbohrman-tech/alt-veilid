@@ -19,8 +19,11 @@ impl RPCOperationSignal {
         self.signal_info
     }
 
-    pub fn decode(reader: &veilid_capnp::operation_signal::Reader) -> Result<Self, RPCError> {
-        let signal_info = decode_signal_info(reader)?;
+    pub fn decode(
+        decode_context: &RPCDecodeContext,
+        reader: &veilid_capnp::operation_signal::Reader,
+    ) -> Result<Self, RPCError> {
+        let signal_info = decode_signal_info(decode_context, reader)?;
         Ok(Self { signal_info })
     }
     pub fn encode(

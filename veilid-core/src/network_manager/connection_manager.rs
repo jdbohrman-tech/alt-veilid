@@ -9,7 +9,6 @@ use stop_token::future::FutureExt;
 
 #[derive(Debug)]
 enum ConnectionManagerEvent {
-    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     Accepted(ProtocolNetworkConnection),
     Dead(NetworkConnection),
 }
@@ -45,6 +44,7 @@ struct ConnectionManagerInner {
     sender: flume::Sender<ConnectionManagerEvent>,
     async_processor_jh: Option<MustJoinHandle<()>>,
     stop_source: Option<StopSource>,
+    protected_addresses: HashMap<SocketAddress, NodeRef>,
 }
 
 struct ConnectionManagerArc {
@@ -80,6 +80,7 @@ impl ConnectionManager {
             stop_source: Some(stop_source),
             sender,
             async_processor_jh: Some(async_processor_jh),
+            protected_addresses: HashMap::new(),
         }
     }
     fn new_arc(network_manager: NetworkManager) -> ConnectionManagerArc {
@@ -182,25 +183,61 @@ impl ConnectionManager {
 
     // Internal routine to see if we should keep this connection
     // from being LRU removed. Used on our initiated relay connections.
-    fn should_protect_connection(&self, conn: &NetworkConnection) -> Option<NodeRef> {
-        let netman = self.network_manager();
-        let routing_table = netman.routing_table();
-        let remote_address = conn.flow().remote_address().address();
-        let routing_domain = routing_table.routing_domain_for_address(remote_address)?;
-        let relay_node = routing_table.relay_node(routing_domain)?;
-        let relay_nr = relay_node.filtered_clone(
-            NodeRefFilter::new()
-                .with_routing_domain(routing_domain)
-                .with_address_type(conn.flow().address_type())
-                .with_protocol_type(conn.flow().protocol_type()),
-        );
-        let dids = relay_nr.all_filtered_dial_info_details();
-        for did in dids {
-            if did.dial_info.address() == remote_address {
-                return Some(relay_nr);
+    fn should_protect_connection(
+        &self,
+        inner: &mut ConnectionManagerInner,
+        conn: &NetworkConnection,
+    ) -> Option<NodeRef> {
+        inner
+            .protected_addresses
+            .get(conn.flow().remote_address())
+            .cloned()
+    }
+
+    // Update connection protections if things change, like a node becomes a relay
+    pub fn update_protections(&self) {
+        let Ok(_guard) = self.arc.startup_lock.enter() else {
+            return;
+        };
+
+        let mut lock = self.arc.inner.lock();
+        let Some(inner) = lock.as_mut() else {
+            return;
+        };
+
+        // Get addresses for relays in all routing domains
+        inner.protected_addresses.clear();
+        for routing_domain in RoutingDomainSet::all() {
+            let Some(relay_node) = self
+                .network_manager()
+                .routing_table()
+                .relay_node(routing_domain)
+            else {
+                continue;
+            };
+            for did in relay_node.dial_info_details() {
+                // SocketAddress are distinct per routing domain, so they should not collide
+                // and two nodes should never have the same SocketAddress
+                inner
+                    .protected_addresses
+                    .insert(did.dial_info.socket_address(), relay_node.unfiltered());
             }
         }
-        None
+
+        self.arc
+            .connection_table
+            .with_all_connections_mut(|conn| {
+                if let Some(protect_nr) = conn.protected_node_ref() {
+                    if self.should_protect_connection(inner, conn).is_none() {
+                        log_net!(debug "== Unprotecting connection: {} -> {} for node {}", conn.connection_id(), conn.debug_print(Timestamp::now()), protect_nr);
+                        conn.unprotect();
+                    }
+                } else if let Some(protect_nr) = self.should_protect_connection(inner, conn) {
+                    log_net!(debug "== Protecting existing connection: {} -> {} for node {}", conn.connection_id(), conn.debug_print(Timestamp::now()), protect_nr);
+                    conn.protect(protect_nr);
+                }
+                Option::<()>::None
+        });
     }
 
     // Internal routine to register new connection atomically.
@@ -231,8 +268,8 @@ impl ConnectionManager {
         let handle = conn.get_handle();
 
         // See if this should be a protected connection
-        if let Some(protect_nr) = self.should_protect_connection(&conn) {
-            log_net!(debug "== PROTECTING connection: {} -> {} for node {}", id, conn.debug_print(Timestamp::now()), protect_nr);
+        if let Some(protect_nr) = self.should_protect_connection(inner, &conn) {
+            log_net!(debug "== Protecting new connection: {} -> {} for node {}", id, conn.debug_print(Timestamp::now()), protect_nr);
             conn.protect(protect_nr);
         }
 
@@ -472,7 +509,7 @@ impl ConnectionManager {
 
     // Called by low-level network when any connection-oriented protocol connection appears
     // either from incoming connections.
-    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+    #[cfg_attr(target_arch = "wasm32", expect(dead_code))]
     pub(super) async fn on_accepted_protocol_network_connection(
         &self,
         protocol_connection: ProtocolNetworkConnection,

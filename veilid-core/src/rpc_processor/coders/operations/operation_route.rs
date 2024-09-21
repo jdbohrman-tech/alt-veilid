@@ -2,6 +2,7 @@ use super::*;
 
 #[derive(Clone)]
 pub(in crate::rpc_processor) struct RoutedOperation {
+    routing_domain: RoutingDomain,
     sequencing: Sequencing,
     signatures: Vec<Signature>,
     nonce: Nonce,
@@ -11,6 +12,7 @@ pub(in crate::rpc_processor) struct RoutedOperation {
 impl fmt::Debug for RoutedOperation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("RoutedOperation")
+            .field("routing_domain", &self.routing_domain)
             .field("sequencing", &self.sequencing)
             .field("signatures.len", &self.signatures.len())
             .field("nonce", &self.nonce)
@@ -20,8 +22,14 @@ impl fmt::Debug for RoutedOperation {
 }
 
 impl RoutedOperation {
-    pub fn new(sequencing: Sequencing, nonce: Nonce, data: Vec<u8>) -> Self {
+    pub fn new(
+        routing_domain: RoutingDomain,
+        sequencing: Sequencing,
+        nonce: Nonce,
+        data: Vec<u8>,
+    ) -> Self {
         Self {
+            routing_domain,
             sequencing,
             signatures: Vec::new(),
             nonce,
@@ -31,6 +39,9 @@ impl RoutedOperation {
     pub fn validate(&mut self, _validate_context: &RPCValidateContext) -> Result<(), RPCError> {
         //xxx
         Ok(())
+    }
+    pub fn routing_domain(&self) -> RoutingDomain {
+        self.routing_domain
     }
     pub fn sequencing(&self) -> Sequencing {
         self.sequencing
@@ -54,7 +65,10 @@ impl RoutedOperation {
     //     (self.sequencing, self.signatures, self.nonce, self.data)
     // }
 
-    pub fn decode(reader: &veilid_capnp::routed_operation::Reader) -> Result<Self, RPCError> {
+    pub fn decode(
+        decode_context: &RPCDecodeContext,
+        reader: &veilid_capnp::routed_operation::Reader,
+    ) -> Result<Self, RPCError> {
         let sigs_reader = reader.get_signatures().map_err(RPCError::protocol)?;
         let mut signatures = Vec::<Signature>::with_capacity(
             sigs_reader
@@ -73,6 +87,7 @@ impl RoutedOperation {
         let data = reader.get_data().map_err(RPCError::protocol)?;
 
         Ok(Self {
+            routing_domain: decode_context.routing_domain,
             sequencing,
             signatures,
             nonce,
@@ -132,12 +147,15 @@ impl RPCOperationRoute {
         (self.safety_route, self.operation)
     }
 
-    pub fn decode(reader: &veilid_capnp::operation_route::Reader) -> Result<Self, RPCError> {
+    pub fn decode(
+        decode_context: &RPCDecodeContext,
+        reader: &veilid_capnp::operation_route::Reader,
+    ) -> Result<Self, RPCError> {
         let sr_reader = reader.get_safety_route().map_err(RPCError::protocol)?;
-        let safety_route = decode_safety_route(&sr_reader)?;
+        let safety_route = decode_safety_route(decode_context, &sr_reader)?;
 
         let o_reader = reader.get_operation().map_err(RPCError::protocol)?;
-        let operation = RoutedOperation::decode(&o_reader)?;
+        let operation = RoutedOperation::decode(decode_context, &o_reader)?;
 
         Ok(Self {
             safety_route,

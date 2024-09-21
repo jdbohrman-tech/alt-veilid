@@ -229,7 +229,7 @@ pub struct Settings {
 }
 
 impl Settings {
-    #[allow(dead_code)]
+    #[cfg_attr(windows, expect(dead_code))]
     fn get_server_default_directory(subpath: &str) -> PathBuf {
         #[cfg(unix)]
         {

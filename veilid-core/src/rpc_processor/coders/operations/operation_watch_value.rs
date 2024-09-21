@@ -15,7 +15,6 @@ pub(in crate::rpc_processor) struct RPCOperationWatchValueQ {
 }
 
 impl RPCOperationWatchValueQ {
-    #[allow(dead_code)]
     pub fn new(
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
@@ -103,40 +102,39 @@ impl RPCOperationWatchValueQ {
         Ok(())
     }
 
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub fn key(&self) -> &TypedKey {
         &self.key
     }
 
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub fn subkeys(&self) -> &ValueSubkeyRangeSet {
         &self.subkeys
     }
 
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub fn expiration(&self) -> u64 {
         self.expiration
     }
 
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub fn count(&self) -> u32 {
         self.count
     }
 
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub fn watch_id(&self) -> Option<u64> {
         self.watch_id
     }
 
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub fn watcher(&self) -> &PublicKey {
         &self.watcher
     }
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub fn signature(&self) -> &Signature {
         &self.signature
     }
-    #[allow(dead_code)]
     pub fn destructure(
         self,
     ) -> (
@@ -160,6 +158,7 @@ impl RPCOperationWatchValueQ {
     }
 
     pub fn decode(
+        _decode_context: &RPCDecodeContext,
         reader: &veilid_capnp::operation_watch_value_q::Reader,
     ) -> Result<Self, RPCError> {
         let k_reader = reader.get_key().map_err(RPCError::protocol)?;
@@ -248,16 +247,15 @@ impl RPCOperationWatchValueQ {
 pub(in crate::rpc_processor) struct RPCOperationWatchValueA {
     accepted: bool,
     expiration: u64,
-    peers: Vec<PeerInfo>,
+    peers: Vec<Arc<PeerInfo>>,
     watch_id: u64,
 }
 
 impl RPCOperationWatchValueA {
-    #[allow(dead_code)]
     pub fn new(
         accepted: bool,
         expiration: u64,
-        peers: Vec<PeerInfo>,
+        peers: Vec<Arc<PeerInfo>>,
         watch_id: u64,
     ) -> Result<Self, RPCError> {
         if peers.len() > MAX_WATCH_VALUE_A_PEERS_LEN {
@@ -276,28 +274,28 @@ impl RPCOperationWatchValueA {
         Ok(())
     }
 
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub fn accepted(&self) -> bool {
         self.accepted
     }
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub fn expiration(&self) -> u64 {
         self.expiration
     }
-    #[allow(dead_code)]
-    pub fn peers(&self) -> &[PeerInfo] {
+    #[expect(dead_code)]
+    pub fn peers(&self) -> &[Arc<PeerInfo>] {
         &self.peers
     }
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub fn watch_id(&self) -> u64 {
         self.watch_id
     }
-    #[allow(dead_code)]
-    pub fn destructure(self) -> (bool, u64, Vec<PeerInfo>, u64) {
+    pub fn destructure(self) -> (bool, u64, Vec<Arc<PeerInfo>>, u64) {
         (self.accepted, self.expiration, self.peers, self.watch_id)
     }
 
     pub fn decode(
+        decode_context: &RPCDecodeContext,
         reader: &veilid_capnp::operation_watch_value_a::Reader,
     ) -> Result<Self, RPCError> {
         let accepted = reader.get_accepted();
@@ -306,14 +304,14 @@ impl RPCOperationWatchValueA {
         if peers_reader.len() as usize > MAX_WATCH_VALUE_A_PEERS_LEN {
             return Err(RPCError::protocol("WatchValueA peers length too long"));
         }
-        let mut peers = Vec::<PeerInfo>::with_capacity(
+        let mut peers = Vec::<Arc<PeerInfo>>::with_capacity(
             peers_reader
                 .len()
                 .try_into()
                 .map_err(RPCError::map_internal("too many peers"))?,
         );
         for p in peers_reader.iter() {
-            let peer_info = decode_peer_info(&p)?;
+            let peer_info = Arc::new(decode_peer_info(decode_context, &p)?);
             peers.push(peer_info);
         }
         let watch_id = reader.get_watch_id();

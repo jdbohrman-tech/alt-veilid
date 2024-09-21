@@ -12,16 +12,18 @@ impl RPCAnswer {
     pub fn validate(&mut self, validate_context: &RPCValidateContext) -> Result<(), RPCError> {
         self.detail.validate(validate_context)
     }
-    #[cfg(feature = "verbose-tracing")]
     pub fn desc(&self) -> &'static str {
         self.detail.desc()
     }
     pub fn destructure(self) -> RPCAnswerDetail {
         self.detail
     }
-    pub fn decode(reader: &veilid_capnp::answer::Reader) -> Result<RPCAnswer, RPCError> {
+    pub fn decode(
+        decode_context: &RPCDecodeContext,
+        reader: &veilid_capnp::answer::Reader,
+    ) -> Result<RPCAnswer, RPCError> {
         let d_reader = reader.get_detail();
-        let detail = RPCAnswerDetail::decode(&d_reader)?;
+        let detail = RPCAnswerDetail::decode(decode_context, &d_reader)?;
         Ok(RPCAnswer { detail })
     }
     pub fn encode(&self, builder: &mut veilid_capnp::answer::Builder) -> Result<(), RPCError> {
@@ -52,7 +54,6 @@ pub(in crate::rpc_processor) enum RPCAnswerDetail {
 }
 
 impl RPCAnswerDetail {
-    #[cfg(feature = "verbose-tracing")]
     pub fn desc(&self) -> &'static str {
         match self {
             RPCAnswerDetail::StatusA(_) => "StatusA",
@@ -96,73 +97,74 @@ impl RPCAnswerDetail {
         }
     }
     pub fn decode(
+        decode_context: &RPCDecodeContext,
         reader: &veilid_capnp::answer::detail::Reader,
     ) -> Result<RPCAnswerDetail, RPCError> {
         let which_reader = reader.which().map_err(RPCError::protocol)?;
         let out = match which_reader {
             veilid_capnp::answer::detail::StatusA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationStatusA::decode(&op_reader)?;
+                let out = RPCOperationStatusA::decode(decode_context, &op_reader)?;
                 RPCAnswerDetail::StatusA(Box::new(out))
             }
             veilid_capnp::answer::detail::FindNodeA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationFindNodeA::decode(&op_reader)?;
+                let out = RPCOperationFindNodeA::decode(decode_context, &op_reader)?;
                 RPCAnswerDetail::FindNodeA(Box::new(out))
             }
             veilid_capnp::answer::detail::AppCallA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationAppCallA::decode(&op_reader)?;
+                let out = RPCOperationAppCallA::decode(decode_context, &op_reader)?;
                 RPCAnswerDetail::AppCallA(Box::new(out))
             }
             veilid_capnp::answer::detail::GetValueA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationGetValueA::decode(&op_reader)?;
+                let out = RPCOperationGetValueA::decode(decode_context, &op_reader)?;
                 RPCAnswerDetail::GetValueA(Box::new(out))
             }
             veilid_capnp::answer::detail::SetValueA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationSetValueA::decode(&op_reader)?;
+                let out = RPCOperationSetValueA::decode(decode_context, &op_reader)?;
                 RPCAnswerDetail::SetValueA(Box::new(out))
             }
             veilid_capnp::answer::detail::WatchValueA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationWatchValueA::decode(&op_reader)?;
+                let out = RPCOperationWatchValueA::decode(decode_context, &op_reader)?;
                 RPCAnswerDetail::WatchValueA(Box::new(out))
             }
             veilid_capnp::answer::detail::InspectValueA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationInspectValueA::decode(&op_reader)?;
+                let out = RPCOperationInspectValueA::decode(decode_context, &op_reader)?;
                 RPCAnswerDetail::InspectValueA(Box::new(out))
             }
             #[cfg(feature = "unstable-blockstore")]
             veilid_capnp::answer::detail::SupplyBlockA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationSupplyBlockA::decode(&op_reader)?;
+                let out = RPCOperationSupplyBlockA::decode(decode_context, &op_reader)?;
                 RPCAnswerDetail::SupplyBlockA(Box::new(out))
             }
             #[cfg(feature = "unstable-blockstore")]
             veilid_capnp::answer::detail::FindBlockA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationFindBlockA::decode(&op_reader)?;
+                let out = RPCOperationFindBlockA::decode(decode_context, &op_reader)?;
                 RPCAnswerDetail::FindBlockA(Box::new(out))
             }
             #[cfg(feature = "unstable-tunnels")]
             veilid_capnp::answer::detail::StartTunnelA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationStartTunnelA::decode(&op_reader)?;
+                let out = RPCOperationStartTunnelA::decode(decode_context, &op_reader)?;
                 RPCAnswerDetail::StartTunnelA(Box::new(out))
             }
             #[cfg(feature = "unstable-tunnels")]
             veilid_capnp::answer::detail::CompleteTunnelA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationCompleteTunnelA::decode(&op_reader)?;
+                let out = RPCOperationCompleteTunnelA::decode(decode_context, &op_reader)?;
                 RPCAnswerDetail::CompleteTunnelA(Box::new(out))
             }
             #[cfg(feature = "unstable-tunnels")]
             veilid_capnp::answer::detail::CancelTunnelA(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationCancelTunnelA::decode(&op_reader)?;
+                let out = RPCOperationCancelTunnelA::decode(decode_context, &op_reader)?;
                 RPCAnswerDetail::CancelTunnelA(Box::new(out))
             }
         };

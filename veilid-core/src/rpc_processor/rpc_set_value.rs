@@ -4,7 +4,7 @@ use super::*;
 pub struct SetValueAnswer {
     pub set: bool,
     pub value: Option<SignedValueData>,
-    pub peers: Vec<PeerInfo>,
+    pub peers: Vec<Arc<PeerInfo>>,
 }
 
 impl RPCProcessor {
@@ -42,7 +42,7 @@ impl RPCProcessor {
 
         // Ensure destination never has a private route
         // and get the target noderef so we can validate the response
-        let Some(target) = dest.node() else {
+        let Some(target_node_ids) = dest.get_target_node_ids() else {
             return Err(RPCError::internal(
                 "Never send set value requests over private routes",
             ));
@@ -52,7 +52,7 @@ impl RPCProcessor {
         let Some(vcrypto) = self.crypto.get(key.kind) else {
             return Err(RPCError::internal("unsupported cryptosystem"));
         };
-        let Some(target_node_id) = target.node_ids().get(key.kind) else {
+        let Some(target_node_id) = target_node_ids.get(key.kind) else {
             return Err(RPCError::internal("No node id for crypto kind"));
         };
 
@@ -106,7 +106,7 @@ impl RPCProcessor {
         };
 
         // Get the right answer type
-        let (_, _, _, kind) = msg.operation.destructure();
+        let (_, _, kind) = msg.operation.destructure();
         let set_value_a = match kind {
             RPCOperationKind::Answer(a) => match a.destructure() {
                 RPCAnswerDetail::SetValueA(a) => a,
@@ -189,23 +189,25 @@ impl RPCProcessor {
 
     #[instrument(level = "trace", target = "rpc", skip(self, msg), fields(msg.operation.op_id), ret, err)]
     pub(crate) async fn process_set_value_q(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
-        // Ignore if disabled
-        let routing_table = self.routing_table();
-        let rss = routing_table.route_spec_store();
-
-        let opi = routing_table.get_own_peer_info(msg.header.routing_domain());
-        if !opi.signed_node_info().node_info().has_capability(CAP_DHT) {
-            return Ok(NetworkResult::service_unavailable("dht is not available"));
-        }
-
         // Ensure this never came over a private route, safety route is okay though
         match &msg.header.detail {
             RPCMessageHeaderDetail::Direct(_) | RPCMessageHeaderDetail::SafetyRouted(_) => {}
             RPCMessageHeaderDetail::PrivateRouted(_) => {
                 return Ok(NetworkResult::invalid_message(
-                    "not processing set value request over private route",
+                    "not processing get value request over private route",
                 ))
             }
+        }
+        let routing_table = self.routing_table();
+        let routing_domain = msg.header.routing_domain();
+
+        // Ignore if disabled
+        let has_capability_dht = routing_table
+            .get_published_peer_info(msg.header.routing_domain())
+            .map(|ppi| ppi.signed_node_info().node_info().has_capability(CAP_DHT))
+            .unwrap_or(false);
+        if !has_capability_dht {
+            return Ok(NetworkResult::service_unavailable("dht is not available"));
         }
 
         // Get the question
@@ -223,12 +225,12 @@ impl RPCProcessor {
 
         // Get target for ValueChanged notifications
         let dest = network_result_try!(self.get_respond_to_destination(&msg));
+        let rss = routing_table.route_spec_store();
         let target = dest.get_target(rss)?;
 
         // Get the nodes that we know about that are closer to the the key than our own node
-        let routing_table = self.routing_table();
         let closer_to_key_peers = network_result_try!(
-            routing_table.find_preferred_peers_closer_to_key(key, vec![CAP_DHT])
+            routing_table.find_preferred_peers_closer_to_key(routing_domain, key, vec![CAP_DHT])
         );
 
         let debug_string = format!(

@@ -117,7 +117,6 @@ impl RoutingTable {
         let rss = self.route_spec_store();
         #[derive(Default, Debug)]
         struct TestRouteContext {
-            failed: bool,
             dead_routes: Vec<RouteId>,
         }
 
@@ -130,17 +129,13 @@ impl RoutingTable {
                 unord.push(
                     async move {
                         let success = match rss.test_route(r).await {
-                            Ok(v) => v,
-                            // Route was already removed
-                            Err(VeilidAPIError::InvalidArgument {
-                                context: _,
-                                argument: _,
-                                value: _,
-                            }) => false,
-                            // Other failures
+                            // Test had result
+                            Ok(Some(v)) => v,
+                            // Test could not be performed at this time
+                            Ok(None) => true,
+                            // Test failure
                             Err(e) => {
                                 log_rtab!(error "Test route failed: {}", e);
-                                ctx.lock().failed = true;
                                 return;
                             }
                         };

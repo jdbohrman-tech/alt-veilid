@@ -24,6 +24,7 @@ impl RPCOperationSupplyBlockQ {
     }
 
     pub fn decode(
+        decode_context: &RPCDecodeContext,
         reader: &veilid_capnp::operation_supply_block_q::Reader,
     ) -> Result<Self, RPCError> {
         let bi_reader = reader.get_block_id().map_err(RPCError::protocol)?;
@@ -72,6 +73,7 @@ impl RPCOperationSupplyBlockA {
     }
 
     pub fn decode(
+        decode_context: &RPCDecodeContext,
         reader: &veilid_capnp::operation_supply_block_a::Reader,
     ) -> Result<Self, RPCError> {
         let expiration = reader.get_expiration();
@@ -87,7 +89,7 @@ impl RPCOperationSupplyBlockA {
                 .map_err(RPCError::map_internal("too many peers"))?,
         );
         for p in peers_reader.iter() {
-            let peer_info = decode_peer_info(&p)?;
+            let peer_info = decode_peer_info(decode_context, &p)?;
             peers.push(peer_info);
         }
 
