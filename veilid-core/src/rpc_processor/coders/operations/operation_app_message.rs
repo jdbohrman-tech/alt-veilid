@@ -26,7 +26,10 @@ impl RPCOperationAppMessage {
         self.message
     }
 
-    pub fn decode(reader: &veilid_capnp::operation_app_message::Reader) -> Result<Self, RPCError> {
+    pub fn decode(
+        _decode_context: &RPCDecodeContext,
+        reader: &veilid_capnp::operation_app_message::Reader,
+    ) -> Result<Self, RPCError> {
         let mr = reader.get_message().map_err(RPCError::protocol)?;
         if mr.len() > MAX_APP_MESSAGE_MESSAGE_LEN {
             return Err(RPCError::protocol("AppMessage message too long to set"));

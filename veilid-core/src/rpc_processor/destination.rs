@@ -6,14 +6,14 @@ pub(crate) enum Destination {
     /// Send to node directly
     Direct {
         /// The node to send to
-        node: NodeRef,
+        node: FilteredNodeRef,
         /// Require safety route or not
         safety_selection: SafetySelection,
     },
     /// Send to node for relay purposes
     Relay {
         /// The relay to send to
-        relay: NodeRef,
+        relay: FilteredNodeRef,
         /// The final destination the relay should send to
         node: NodeRef,
         /// Require safety route or not
@@ -37,31 +37,14 @@ pub struct UnsafeRoutingInfo {
 }
 
 impl Destination {
-    pub fn node(&self) -> Option<NodeRef> {
-        match self {
-            Destination::Direct {
-                node: target,
-                safety_selection: _,
-            } => Some(target.clone()),
-            Destination::Relay {
-                relay: _,
-                node: target,
-                safety_selection: _,
-            } => Some(target.clone()),
-            Destination::PrivateRoute {
-                private_route: _,
-                safety_selection: _,
-            } => None,
-        }
-    }
-    pub fn direct(node: NodeRef) -> Self {
+    pub fn direct(node: FilteredNodeRef) -> Self {
         let sequencing = node.sequencing();
         Self::Direct {
             node,
             safety_selection: SafetySelection::Unsafe(sequencing),
         }
     }
-    pub fn relay(relay: NodeRef, node: NodeRef) -> Self {
+    pub fn relay(relay: FilteredNodeRef, node: NodeRef) -> Self {
         let sequencing = relay.sequencing().max(node.sequencing());
         Self::Relay {
             relay,
@@ -122,13 +105,31 @@ impl Destination {
         }
     }
 
+    pub fn get_target_node_ids(&self) -> Option<TypedKeyGroup> {
+        match self {
+            Destination::Direct {
+                node,
+                safety_selection: _,
+            } => Some(node.node_ids()),
+            Destination::Relay {
+                relay: _,
+                node,
+                safety_selection: _,
+            } => Some(node.node_ids()),
+            Destination::PrivateRoute {
+                private_route: _,
+                safety_selection: _,
+            } => None,
+        }
+    }
+
     pub fn get_target(&self, rss: RouteSpecStore) -> Result<Target, RPCError> {
         match self {
             Destination::Direct {
                 node,
                 safety_selection: _,
-            }
-            | Destination::Relay {
+            } => Ok(Target::NodeId(node.best_node_id())),
+            Destination::Relay {
                 relay: _,
                 node,
                 safety_selection: _,
@@ -173,7 +174,7 @@ impl Destination {
                     // Only a stale connection or no connection exists
                     log_rpc!(debug "No routing domain for node: node={}", node);
                 };
-                (Some(node.clone()), None, opt_routing_domain)
+                (Some(node.unfiltered()), None, opt_routing_domain)
             }
             Destination::Relay {
                 relay,
@@ -207,7 +208,11 @@ impl Destination {
                     log_rpc!(debug "Unexpected relay used for node: relay={}, node={}", relay, node);
                 };
 
-                (Some(node.clone()), Some(relay.clone()), opt_routing_domain)
+                (
+                    Some(node.clone()),
+                    Some(relay.unfiltered()),
+                    opt_routing_domain,
+                )
             }
             Destination::PrivateRoute {
                 private_route: _,
@@ -277,14 +282,14 @@ impl RPCProcessor {
         match target {
             Target::NodeId(node_id) => {
                 // Resolve node
-                let mut nr = match self.resolve_node(node_id, safety_selection).await? {
+                let nr = match self.resolve_node(node_id, safety_selection).await? {
                     Some(nr) => nr,
                     None => {
                         return Err(RPCError::network("could not resolve node id"));
                     }
                 };
                 // Apply sequencing to match safety selection
-                nr.set_sequencing(safety_selection.get_sequencing());
+                let nr = nr.sequencing_filtered(safety_selection.get_sequencing());
 
                 Ok(rpc_processor::Destination::Direct {
                     node: nr,
@@ -385,21 +390,23 @@ impl RPCProcessor {
                 match safety_selection {
                     SafetySelection::Unsafe(_) => {
                         // Sent to a private route with no safety route, use a stub safety route for the response
-                        if !routing_table.has_valid_network_class(RoutingDomain::PublicInternet) {
+
+                        let Some(published_peer_info) =
+                            routing_table.get_published_peer_info(RoutingDomain::PublicInternet)
+                        else {
                             return Ok(NetworkResult::service_unavailable(
-                                "Own node info must be valid to use private route",
+                                "Own node info must be published to use private route",
                             ));
-                        }
+                        };
 
                         // Determine if we can use optimized nodeinfo
                         let route_node = if rss.has_remote_private_route_seen_our_node_info(
                             &private_route.public_key.value,
+                            &published_peer_info,
                         ) {
                             RouteNode::NodeId(routing_table.node_id(crypto_kind).value)
                         } else {
-                            let own_peer_info =
-                                routing_table.get_own_peer_info(RoutingDomain::PublicInternet);
-                            RouteNode::PeerInfo(Box::new(own_peer_info))
+                            RouteNode::PeerInfo(published_peer_info)
                         };
 
                         Ok(NetworkResult::value(RespondTo::PrivateRoute(

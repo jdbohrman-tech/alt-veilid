@@ -15,7 +15,8 @@ pub(crate) struct CompiledRoute {
     /// The secret used to encrypt the message payload
     pub secret: SecretKey,
     /// The node ref to the first hop in the compiled route
-    pub first_hop: NodeRef,
+    /// filtered to the safetyselection it was compiled with
+    pub first_hop: FilteredNodeRef,
 }
 
 /// Ephemeral data used to help the RouteSpecStore operate efficiently

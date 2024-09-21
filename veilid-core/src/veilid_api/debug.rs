@@ -195,8 +195,9 @@ fn get_safety_selection(routing_table: RoutingTable) -> impl Fn(&str) -> Option<
     }
 }
 
-fn get_node_ref_modifiers(mut node_ref: NodeRef) -> impl FnOnce(&str) -> Option<NodeRef> {
+fn get_node_ref_modifiers(node_ref: NodeRef) -> impl FnOnce(&str) -> Option<FilteredNodeRef> {
     move |text| {
+        let mut node_ref = node_ref.default_filtered();
         for m in text.split('/') {
             if let Some(pt) = get_protocol_type(m) {
                 node_ref.merge_filter(NodeRefFilter::new().with_protocol_type(pt));
@@ -273,10 +274,10 @@ fn get_dht_key(
     }
 }
 
-fn resolve_node_ref(
+fn resolve_filtered_node_ref(
     routing_table: RoutingTable,
     safety_selection: SafetySelection,
-) -> impl FnOnce(&str) -> SendPinBoxFuture<Option<NodeRef>> {
+) -> impl FnOnce(&str) -> SendPinBoxFuture<Option<FilteredNodeRef>> {
     move |text| {
         let text = text.to_owned();
         Box::pin(async move {
@@ -285,7 +286,7 @@ fn resolve_node_ref(
                 .map(|x| (x.0, Some(x.1)))
                 .unwrap_or((&text, None));
 
-            let mut nr = if let Some(key) = get_public_key(text) {
+            let nr = if let Some(key) = get_public_key(text) {
                 let node_id = TypedKey::new(best_crypto_kind(), key);
                 routing_table
                     .rpc_processor()
@@ -304,21 +305,37 @@ fn resolve_node_ref(
                 return None;
             };
             if let Some(mods) = mods {
-                nr = get_node_ref_modifiers(nr)(mods)?;
+                Some(get_node_ref_modifiers(nr)(mods)?)
+            } else {
+                Some(nr.default_filtered())
             }
-            Some(nr)
         })
     }
 }
 
 fn get_node_ref(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<NodeRef> {
     move |text| {
+        let nr = if let Some(key) = get_public_key(text) {
+            routing_table.lookup_any_node_ref(key).ok().flatten()?
+        } else if let Some(node_id) = get_typed_key(text) {
+            routing_table.lookup_node_ref(node_id).ok().flatten()?
+        } else {
+            return None;
+        };
+        Some(nr)
+    }
+}
+
+fn get_filtered_node_ref(
+    routing_table: RoutingTable,
+) -> impl FnOnce(&str) -> Option<FilteredNodeRef> {
+    move |text| {
         let (text, mods) = text
             .split_once('/')
             .map(|x| (x.0, Some(x.1)))
             .unwrap_or((text, None));
 
-        let mut nr = if let Some(key) = get_public_key(text) {
+        let nr = if let Some(key) = get_public_key(text) {
             routing_table.lookup_any_node_ref(key).ok().flatten()?
         } else if let Some(node_id) = get_typed_key(text) {
             routing_table.lookup_node_ref(node_id).ok().flatten()?
@@ -326,9 +343,10 @@ fn get_node_ref(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<Node
             return None;
         };
         if let Some(mods) = mods {
-            nr = get_node_ref_modifiers(nr)(mods)?;
+            Some(get_node_ref_modifiers(nr)(mods)?)
+        } else {
+            Some(nr.default_filtered())
         }
-        Some(nr)
     }
 }
 
@@ -402,6 +420,17 @@ fn get_routing_domain(text: &str) -> Option<RoutingDomain> {
     }
 }
 
+fn get_published(text: &str) -> Option<bool> {
+    let ptext = text.to_ascii_lowercase();
+    if ptext == "published" {
+        Some(true)
+    } else if ptext == "current" {
+        Some(false)
+    } else {
+        None
+    }
+}
+
 fn get_debug_argument<T, G: FnOnce(&str) -> Option<T>>(
     value: &str,
     context: &str,
@@ -470,8 +499,12 @@ pub fn print_data(data: &[u8], truncate_len: Option<usize>) -> String {
         }
     }
 
-    let (data, truncated) = if truncate_len.is_some() && data.len() > truncate_len.unwrap() {
-        (&data[0..64], true)
+    let (data, truncated) = if let Some(truncate_len) = truncate_len {
+        if data.len() > truncate_len {
+            (&data[0..truncate_len], true)
+        } else {
+            (data, false)
+        }
     } else {
         (data, false)
     };
@@ -521,17 +554,31 @@ impl VeilidAPI {
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
         let routing_table = self.network_manager()?.routing_table();
 
-        let routing_domain = get_debug_argument_at(
-            &args,
-            0,
-            "debug_peerinfo",
-            "routing_domain",
-            get_routing_domain,
-        )
-        .ok()
-        .unwrap_or(RoutingDomain::PublicInternet);
+        let mut ai = 0;
+        let mut opt_routing_domain = None;
+        let mut opt_published = None;
 
-        Ok(routing_table.debug_info_peerinfo(routing_domain))
+        while ai < args.len() {
+            if let Ok(routing_domain) = get_debug_argument_at(
+                &args,
+                ai,
+                "debug_peerinfo",
+                "routing_domain",
+                get_routing_domain,
+            ) {
+                opt_routing_domain = Some(routing_domain);
+            } else if let Ok(published) =
+                get_debug_argument_at(&args, ai, "debug_peerinfo", "published", get_published)
+            {
+                opt_published = Some(published);
+            }
+            ai += 1;
+        }
+
+        let routing_domain = opt_routing_domain.unwrap_or(RoutingDomain::PublicInternet);
+        let published = opt_published.unwrap_or(true);
+
+        Ok(routing_table.debug_info_peerinfo(routing_domain, published))
     }
 
     async fn debug_txtrecord(&self, _args: String) -> VeilidAPIResult<String> {
@@ -623,11 +670,21 @@ impl VeilidAPI {
 
         // Dump routing table entry
         let routing_table = self.network_manager()?.routing_table();
-        routing_table
-            .edit_routing_domain(routing_domain)
-            .set_relay_node(relay_node)
-            .commit(true)
-            .await;
+        match routing_domain {
+            RoutingDomain::LocalNetwork => {
+                let mut editor = routing_table.edit_local_network_routing_domain();
+                if editor.set_relay_node(relay_node).commit(true).await {
+                    editor.publish();
+                }
+            }
+            RoutingDomain::PublicInternet => {
+                let mut editor = routing_table.edit_public_internet_routing_domain();
+                if editor.set_relay_node(relay_node).commit(true).await {
+                    editor.publish();
+                }
+            }
+        }
+
         Ok("Relay changed".to_owned())
     }
 
@@ -660,6 +717,13 @@ impl VeilidAPI {
         let connman = connection_manager.debug_print().await;
 
         Ok(format!("{}\n\n{}\n\n{}\n\n", nodeinfo, peertable, connman))
+    }
+
+    async fn debug_nodeid(&self, _args: String) -> VeilidAPIResult<String> {
+        // Dump routing table entry
+        let routing_table = self.network_manager()?.routing_table();
+        let nodeid = routing_table.debug_info_nodeid();
+        Ok(nodeid)
     }
 
     async fn debug_config(&self, args: String) -> VeilidAPIResult<String> {
@@ -817,7 +881,7 @@ impl VeilidAPI {
             0,
             "debug_contact",
             "node_ref",
-            get_node_ref(routing_table),
+            get_filtered_node_ref(routing_table),
         )?;
 
         let cm = network_manager
@@ -852,7 +916,7 @@ impl VeilidAPI {
             } => Ok(format!(
                 "Destination: {:#?}\nTarget Entry:\n{}\n",
                 &dest,
-                routing_table.debug_info_entry(target.clone())
+                routing_table.debug_info_entry(target.unfiltered())
             )),
             Destination::Relay {
                 relay,
@@ -862,7 +926,7 @@ impl VeilidAPI {
                 "Destination: {:#?}\nTarget Entry:\n{}\nRelay Entry:\n{}\n",
                 &dest,
                 routing_table.clone().debug_info_entry(target.clone()),
-                routing_table.debug_info_entry(relay.clone())
+                routing_table.debug_info_entry(relay.unfiltered())
             )),
             Destination::PrivateRoute {
                 private_route: _,
@@ -1261,10 +1325,10 @@ impl VeilidAPI {
             .await
             .map_err(VeilidAPIError::internal)?;
 
-        let out = if success {
-            "SUCCESS".to_owned()
-        } else {
-            "FAILED".to_owned()
+        let out = match success {
+            Some(true) => "SUCCESS".to_owned(),
+            Some(false) => "FAILED".to_owned(),
+            None => "UNTESTED".to_owned(),
         };
 
         Ok(out)
@@ -1912,49 +1976,63 @@ impl VeilidAPI {
 
     /// Get the help text for 'internal debug' commands.
     pub async fn debug_help(&self, _args: String) -> VeilidAPIResult<String> {
-        Ok(r#"buckets [dead|reliable]
-dialinfo
-peerinfo [routingdomain]
-entries [dead|reliable] [<capabilities>]
-entry <node>
-nodeinfo
-config [insecure] [configkey [new value]]
-txtrecord
-keypair
-purge <buckets|connections|routes>
-attach
-detach
-restart network
-contact <node>[<modifiers>]
-resolve <destination>
-ping <destination>
-appmessage <destination> <data>
-appcall <destination> <data>
-appreply [#id] <data>
-relay <relay> [public|local]
-punish list
-       clear
-route allocate [ord|*ord] [rel] [<count>] [in|out]
-      release <route>
-      publish <route> [full]
-      unpublish <route>
-      print <route>
-      list
-      import <blob>
-      test <route>
-record list <local|remote|opened|offline>
-       purge <local|remote> [bytes]
-       create <dhtschema> [<cryptokind> [<safety>]]
-       open <key>[+<safety>] [<writer>]
-       close [<key>]
-       set [<key>] <subkey> <data> 
-       get [<key>] <subkey> [force]
-       delete <key>
-       info [<key>] [subkey]
-       watch [<key>] [<subkeys> [<expiration> [<count>]]]
-       cancel [<key>] [<subkeys>]
-       inspect [<key>] [<scope> [<subkeys>]]
-table list
+        Ok(r#"Node Information:
+    nodeid  - display a node's id(s)
+    nodeinfo - display detailed information about this node
+    dialinfo - display the dialinfo in the routing domains of this node
+    peerinfo [routingdomain] [published|current] - display the full PeerInfo for a routing domain of this node
+
+Routing:
+    buckets [dead|reliable] - Display the routing table bucket statistics (default is only non-dead nodes)
+    entries [dead|reliable] [<capabilities>] - Display the index of nodes in the routing table
+    entry <node> - Display all the details about a particular node in the routing table
+    contact <node>[<modifiers>] - Explain what mechanism would be used to contact a particular node
+    resolve <destination> - Search the network for a particular node or private route
+    relay <relay> [public|local] - Change the relay in use for this node
+    punish list - List all punishments this node has assigned to other nodes / networks
+           clear - Clear all punishments from this node
+    route allocate [ord|*ord] [rel] [<count>] [in|out] - Allocate a route
+          release <route> - Release a route
+          publish <route> [full] - Publish a route 'blob' that can be imported on another machine
+          unpublish <route> - Mark a route as 'no longer published'
+          print <route> - Display details about a route
+          list - List allocated routes
+          import <blob> - Import a remote route blob generated by another node's 'publish' command.
+          test <route> - Test an allocated or imported remote route
+
+Utilities: 
+    config [insecure] [configkey [new value]] - Display or temporarily change the node config 
+                                                (most values should not be changed this way, careful!)
+    txtrecord - Generate a TXT record for making this node into a bootstrap node capable of DNS bootstrap
+    keypair [cryptokind] - Generate and display a random public/private keypair
+    purge <buckets|connections|routes> - Throw away the node's routing table, connections, or routes
+    attach - Attach the node to the network if it is detached
+    detach - Detach the node from the network if it is attached 
+    restart network - Restart the low level network
+
+RPC Operations:
+    ping <destination> - Send a 'Status' RPC question to a destination node and display the returned ping status
+    appmessage <destination> <data> - Send an 'App Message' RPC statement to a destination node
+    appcall <destination> <data> - Send a 'App Call' RPC question to a destination node and display the answer
+    appreply [#id] <data> - Reply to an 'App Call' RPC received by this node
+
+DHT Operations: 
+    record list <local|remote|opened|offline> - display the dht records in the store
+           purge <local|remote> [bytes] - clear all dht records optionally down to some total size
+           create <dhtschema> [<cryptokind> [<safety>]] - create a new dht record
+           open <key>[+<safety>] [<writer>] - open an existing dht record
+           close [<key>] - close an opened/created dht record
+           set [<key>] <subkey> <data> - write a value to a dht record subkey
+           get [<key>] <subkey> [force] - read a value from a dht record subkey
+           delete <key> - delete the local copy of a dht record (not from the network)
+           info [<key>] [subkey] - display information about a dht record or subkey
+           watch [<key>] [<subkeys> [<expiration> [<count>]]] - watch a record for changes
+           cancel [<key>] [<subkeys>] - cancel a dht record watch
+           inspect [<key>] [<scope> [<subkeys>]] - display a dht record's subkey status
+
+TableDB Operations:
+    table list - list the names of all the tables in the TableDB
+
 --------------------------------------------------------------------
 <key> is: VLD0:GsgXCRPrzSK6oBNgxhNpm-rTYFd02R0ySx6j9vbQBG4
     * also <node>, <relay>, <target>, <route>
@@ -2002,6 +2080,8 @@ table list
 
             if arg == "help" {
                 self.debug_help(rest).await
+            } else if arg == "nodeid" {
+                self.debug_nodeid(rest).await
             } else if arg == "buckets" {
                 self.debug_buckets(rest).await
             } else if arg == "dialinfo" {
@@ -2051,7 +2131,7 @@ table list
             } else if arg == "table" {
                 self.debug_table(rest).await
             } else {
-                Err(VeilidAPIError::generic("Unknown server debug command"))
+                Err(VeilidAPIError::generic("Unknown debug command"))
             }
         };
         res
@@ -2101,42 +2181,33 @@ table list
                         private_route,
                         ss.unwrap_or(SafetySelection::Unsafe(Sequencing::default())),
                     ))
-                } else {
-                    let (text, mods) = text
-                        .split_once('/')
-                        .map(|x| (x.0, Some(x.1)))
-                        .unwrap_or((text, None));
-                    if let Some((first, second)) = text.split_once('@') {
-                        // Relay
-                        let mut relay_nr = get_node_ref(routing_table.clone())(second)?;
-                        let target_nr = get_node_ref(routing_table)(first)?;
+                } else if let Some((first, second)) = text.split_once('@') {
+                    // Relay
+                    let relay_nr = resolve_filtered_node_ref(
+                        routing_table.clone(),
+                        ss.unwrap_or_default(),
+                    )(second)
+                    .await?;
+                    let target_nr = get_node_ref(routing_table)(first)?;
 
-                        if let Some(mods) = mods {
-                            relay_nr = get_node_ref_modifiers(relay_nr)(mods)?;
-                        }
-
-                        let mut d = Destination::relay(relay_nr, target_nr);
-                        if let Some(ss) = ss {
-                            d = d.with_safety(ss)
-                        }
-
-                        Some(d)
-                    } else {
-                        // Direct
-                        let mut target_nr =
-                            resolve_node_ref(routing_table, ss.unwrap_or_default())(text).await?;
-
-                        if let Some(mods) = mods {
-                            target_nr = get_node_ref_modifiers(target_nr)(mods)?;
-                        }
-
-                        let mut d = Destination::direct(target_nr);
-                        if let Some(ss) = ss {
-                            d = d.with_safety(ss)
-                        }
-
-                        Some(d)
+                    let mut d = Destination::relay(relay_nr, target_nr);
+                    if let Some(ss) = ss {
+                        d = d.with_safety(ss)
                     }
+
+                    Some(d)
+                } else {
+                    // Direct
+                    let target_nr =
+                        resolve_filtered_node_ref(routing_table, ss.unwrap_or_default())(text)
+                            .await?;
+
+                    let mut d = Destination::direct(target_nr);
+                    if let Some(ss) = ss {
+                        d = d.with_safety(ss)
+                    }
+
+                    Some(d)
                 }
             })
         }

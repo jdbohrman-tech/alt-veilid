@@ -62,8 +62,6 @@ pub struct TextContent {
     content: Arc<Mutex<TextContentInner>>,
 }
 
-#[allow(dead_code)]
-
 impl TextContent {
     /// Creates a new text content around the given value.
     ///
@@ -129,6 +127,7 @@ impl TextContent {
     }
 
     /// Remove lines from the end until we have no more than 'count' from the beginning
+    #[expect(dead_code)]
     pub fn resize_front(&self, count: usize) {
         if self.get_content().len() <= count {
             return;
@@ -238,7 +237,6 @@ pub struct CachedTextView {
     width: Option<usize>,
 }
 
-#[allow(dead_code)]
 impl CachedTextView {
     /// Creates a new TextView with the given content.
     pub fn new<S>(content: S, cache_size: usize, max_lines: Option<usize>) -> Self
@@ -281,6 +279,7 @@ impl CachedTextView {
     }
 
     /// Creates a new empty `TextView`.
+    #[expect(dead_code)]
     pub fn empty(cache_size: usize, max_lines: Option<usize>) -> Self {
         CachedTextView::new(ContentType::default(), cache_size, max_lines)
     }
@@ -295,6 +294,7 @@ impl CachedTextView {
     ///
     /// Chainable variant.
     #[must_use]
+    #[expect(dead_code)]
     pub fn style<S: Into<StyleType>>(self, style: S) -> Self {
         self.with(|s| s.set_style(style))
     }
@@ -303,6 +303,7 @@ impl CachedTextView {
     ///
     /// This may be useful if you want horizontal scrolling.
     #[must_use]
+    #[expect(dead_code)]
     pub fn no_wrap(self) -> Self {
         self.with(|s| s.set_content_wrap(false))
     }
@@ -317,6 +318,7 @@ impl CachedTextView {
 
     /// Sets the horizontal alignment for this view.
     #[must_use]
+    #[expect(dead_code)]
     pub fn h_align(mut self, h: HAlign) -> Self {
         self.align.h = h;
 
@@ -325,6 +327,7 @@ impl CachedTextView {
 
     /// Sets the vertical alignment for this view.
     #[must_use]
+    #[expect(dead_code)]
     pub fn v_align(mut self, v: VAlign) -> Self {
         self.align.v = v;
 
@@ -333,6 +336,7 @@ impl CachedTextView {
 
     /// Sets the alignment for this view.
     #[must_use]
+    #[expect(dead_code)]
     pub fn align(mut self, a: Align) -> Self {
         self.align = a;
 
@@ -341,6 +345,7 @@ impl CachedTextView {
 
     /// Center the text horizontally and vertically inside the view.
     #[must_use]
+    #[expect(dead_code)]
     pub fn center(mut self) -> Self {
         self.align = Align::center();
         self
@@ -350,6 +355,7 @@ impl CachedTextView {
     ///
     /// Chainable variant.
     #[must_use]
+    #[expect(dead_code)]
     pub fn content<S>(self, content: S) -> Self
     where
         S: Into<ContentType>,
@@ -392,11 +398,13 @@ impl CachedTextView {
     }
 
     /// Returns the current text in this view.
+    #[cfg_attr(not(test), expect(dead_code))]
     pub fn get_content(&self) -> TextContentRef {
         TextContentInner::get_content(&self.content.content)
     }
 
     /// Returns a shared reference to the content, allowing content mutation.
+    #[expect(dead_code)]
     pub fn get_shared_content(&mut self) -> TextContent {
         // We take &mut here without really needing it,
         // because it sort of "makes sense".

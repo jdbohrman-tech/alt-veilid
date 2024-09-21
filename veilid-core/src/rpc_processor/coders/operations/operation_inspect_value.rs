@@ -58,6 +58,7 @@ impl RPCOperationInspectValueQ {
     }
 
     pub fn decode(
+        _decode_context: &RPCDecodeContext,
         reader: &veilid_capnp::operation_inspect_value_q::Reader,
     ) -> Result<Self, RPCError> {
         let k_reader = reader.reborrow().get_key().map_err(RPCError::protocol)?;
@@ -118,14 +119,14 @@ impl RPCOperationInspectValueQ {
 #[derive(Debug, Clone)]
 pub(in crate::rpc_processor) struct RPCOperationInspectValueA {
     seqs: Vec<ValueSeqNum>,
-    peers: Vec<PeerInfo>,
+    peers: Vec<Arc<PeerInfo>>,
     descriptor: Option<SignedValueDescriptor>,
 }
 
 impl RPCOperationInspectValueA {
     pub fn new(
         seqs: Vec<ValueSeqNum>,
-        peers: Vec<PeerInfo>,
+        peers: Vec<Arc<PeerInfo>>,
         descriptor: Option<SignedValueDescriptor>,
     ) -> Result<Self, RPCError> {
         if seqs.len() > MAX_INSPECT_VALUE_A_SEQS_LEN {
@@ -198,13 +199,14 @@ impl RPCOperationInspectValueA {
         self,
     ) -> (
         Vec<ValueSeqNum>,
-        Vec<PeerInfo>,
+        Vec<Arc<PeerInfo>>,
         Option<SignedValueDescriptor>,
     ) {
         (self.seqs, self.peers, self.descriptor)
     }
 
     pub fn decode(
+        decode_context: &RPCDecodeContext,
         reader: &veilid_capnp::operation_inspect_value_a::Reader,
     ) -> Result<Self, RPCError> {
         let seqs = if reader.has_seqs() {
@@ -228,14 +230,14 @@ impl RPCOperationInspectValueA {
                 "decoded InspectValueA peers length too long",
             ));
         }
-        let mut peers = Vec::<PeerInfo>::with_capacity(
+        let mut peers = Vec::<Arc<PeerInfo>>::with_capacity(
             peers_reader
                 .len()
                 .try_into()
                 .map_err(RPCError::map_internal("too many peers"))?,
         );
         for p in peers_reader.iter() {
-            let peer_info = decode_peer_info(&p)?;
+            let peer_info = Arc::new(decode_peer_info(decode_context, &p)?);
             peers.push(peer_info);
         }
 

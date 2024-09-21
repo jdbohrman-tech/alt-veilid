@@ -94,7 +94,7 @@ impl RouteStats {
     }
 
     /// Get the transfer stats
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub fn transfer_stats(&self) -> &TransferStatsDownUp {
         &self.transfer_stats_down_up
     }

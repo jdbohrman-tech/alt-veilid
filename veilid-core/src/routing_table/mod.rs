@@ -3,11 +3,8 @@ mod bucket_entry;
 mod debug;
 mod find_peers;
 mod node_ref;
-mod node_ref_filter;
 mod privacy;
 mod route_spec_store;
-mod routing_domain_editor;
-mod routing_domains;
 mod routing_table_inner;
 mod stats_accounting;
 mod tasks;
@@ -26,11 +23,8 @@ use hashlink::LruCache;
 
 pub(crate) use bucket_entry::*;
 pub(crate) use node_ref::*;
-pub(crate) use node_ref_filter::*;
 pub(crate) use privacy::*;
 pub(crate) use route_spec_store::*;
-pub(crate) use routing_domain_editor::*;
-pub(crate) use routing_domains::*;
 pub(crate) use routing_table_inner::*;
 pub(crate) use stats_accounting::*;
 
@@ -56,9 +50,6 @@ const ALL_ENTRY_BYTES: &[u8] = b"all_entry_bytes";
 const ROUTING_TABLE: &str = "routing_table";
 const SERIALIZED_BUCKET_MAP: &[u8] = b"serialized_bucket_map";
 const CACHE_VALIDITY_KEY: &[u8] = b"cache_validity_key";
-
-// Critical sections
-const LOCK_TAG_TICK: &str = "TICK";
 
 type LowLevelProtocolPorts = BTreeSet<(LowLevelProtocolType, AddressType, u16)>;
 type ProtocolToPortMapping = BTreeMap<(ProtocolType, AddressType), (LowLevelProtocolType, u16)>;
@@ -499,15 +490,6 @@ impl RoutingTable {
         Ok(())
     }
 
-    /// Set up the local network routing domain with our local routing table configuration
-    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
-    pub fn configure_local_network_routing_domain(&self, local_networks: Vec<(IpAddr, IpAddr)>) {
-        log_net!(debug "configure_local_network_routing_domain: {:#?}", local_networks);
-        self.inner
-            .write()
-            .configure_local_network_routing_domain(local_networks);
-    }
-
     /////////////////////////////////////
     /// Locked operations
 
@@ -519,7 +501,7 @@ impl RoutingTable {
         self.inner.read().route_spec_store.as_ref().unwrap().clone()
     }
 
-    pub fn relay_node(&self, domain: RoutingDomain) -> Option<NodeRef> {
+    pub fn relay_node(&self, domain: RoutingDomain) -> Option<FilteredNodeRef> {
         self.inner.read().relay_node(domain)
     }
 
@@ -541,13 +523,6 @@ impl RoutingTable {
             .all_filtered_dial_info_details(routing_domain_set, filter)
     }
 
-    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
-    pub fn ensure_dial_info_is_valid(&self, domain: RoutingDomain, dial_info: &DialInfo) -> bool {
-        self.inner
-            .read()
-            .ensure_dial_info_is_valid(domain, dial_info)
-    }
-
     pub fn signed_node_info_is_valid_in_routing_domain(
         &self,
         routing_domain: RoutingDomain,
@@ -562,8 +537,8 @@ impl RoutingTable {
     pub fn get_contact_method(
         &self,
         routing_domain: RoutingDomain,
-        peer_a: &PeerInfo,
-        peer_b: &PeerInfo,
+        peer_a: Arc<PeerInfo>,
+        peer_b: Arc<PeerInfo>,
         dial_info_filter: DialInfoFilter,
         sequencing: Sequencing,
         dif_sort: Option<Arc<DialInfoDetailSort>>,
@@ -578,14 +553,24 @@ impl RoutingTable {
         )
     }
 
-    #[instrument(level = "debug", skip(self))]
-    pub fn edit_routing_domain(&self, domain: RoutingDomain) -> RoutingDomainEditor {
-        RoutingDomainEditor::new(self.clone(), domain)
+    /// Edit the PublicInternet RoutingDomain
+    pub fn edit_public_internet_routing_domain(&self) -> RoutingDomainEditorPublicInternet {
+        RoutingDomainEditorPublicInternet::new(self.clone())
     }
 
-    /// Return a copy of our node's peerinfo
-    pub fn get_own_peer_info(&self, routing_domain: RoutingDomain) -> PeerInfo {
-        self.inner.read().get_own_peer_info(routing_domain)
+    /// Edit the LocalNetwork RoutingDomain
+    pub fn edit_local_network_routing_domain(&self) -> RoutingDomainEditorLocalNetwork {
+        RoutingDomainEditorLocalNetwork::new(self.clone())
+    }
+
+    /// Return a copy of our node's peerinfo (may not yet be published)
+    pub fn get_published_peer_info(&self, routing_domain: RoutingDomain) -> Option<Arc<PeerInfo>> {
+        self.inner.read().get_published_peer_info(routing_domain)
+    }
+
+    /// Return a copy of our node's peerinfo (may not yet be published)
+    pub fn get_current_peer_info(&self, routing_domain: RoutingDomain) -> Arc<PeerInfo> {
+        self.inner.read().get_current_peer_info(routing_domain)
     }
 
     /// If we have a valid network class in this routing domain, then our 'NodeInfo' is valid
@@ -594,12 +579,8 @@ impl RoutingTable {
         self.inner.read().has_valid_network_class(routing_domain)
     }
 
-    /// Return our current node info timestamp
-    pub fn get_own_node_info_ts(&self, routing_domain: RoutingDomain) -> Timestamp {
-        self.inner.read().get_own_node_info_ts(routing_domain)
-    }
-
     /// Return the domain's currently registered network class
+    #[cfg_attr(target_arch = "wasm32", expect(dead_code))]
     pub fn get_network_class(&self, routing_domain: RoutingDomain) -> Option<NetworkClass> {
         self.inner.read().get_network_class(routing_domain)
     }
@@ -633,7 +614,7 @@ impl RoutingTable {
         &self,
         routing_domain: RoutingDomain,
         cur_ts: Timestamp,
-    ) -> Vec<NodeRef> {
+    ) -> Vec<FilteredNodeRef> {
         self.inner
             .read()
             .get_nodes_needing_ping(self.clone(), routing_domain, cur_ts)
@@ -671,7 +652,7 @@ impl RoutingTable {
         node_id: TypedKey,
         routing_domain_set: RoutingDomainSet,
         dial_info_filter: DialInfoFilter,
-    ) -> EyreResult<Option<NodeRef>> {
+    ) -> EyreResult<Option<FilteredNodeRef>> {
         self.inner.read().lookup_and_filter_noderef(
             self.clone(),
             node_id,
@@ -686,16 +667,12 @@ impl RoutingTable {
     #[instrument(level = "trace", skip_all, err)]
     pub fn register_node_with_peer_info(
         &self,
-        routing_domain: RoutingDomain,
-        peer_info: PeerInfo,
+        peer_info: Arc<PeerInfo>,
         allow_invalid: bool,
-    ) -> EyreResult<NodeRef> {
-        self.inner.write().register_node_with_peer_info(
-            self.clone(),
-            routing_domain,
-            peer_info,
-            allow_invalid,
-        )
+    ) -> EyreResult<FilteredNodeRef> {
+        self.inner
+            .write()
+            .register_node_with_peer_info(self.clone(), peer_info, allow_invalid)
     }
 
     /// Shortcut function to add a node to our routing table if it doesn't exist
@@ -703,12 +680,14 @@ impl RoutingTable {
     #[instrument(level = "trace", skip_all, err)]
     pub fn register_node_with_existing_connection(
         &self,
+        routing_domain: RoutingDomain,
         node_id: TypedKey,
         flow: Flow,
         timestamp: Timestamp,
-    ) -> EyreResult<NodeRef> {
+    ) -> EyreResult<FilteredNodeRef> {
         self.inner.write().register_node_with_existing_connection(
             self.clone(),
+            routing_domain,
             node_id,
             flow,
             timestamp,
@@ -810,7 +789,7 @@ impl RoutingTable {
     }
 
     /// Makes a filter that finds nodes with a matching inbound dialinfo
-    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+    #[cfg_attr(target_arch = "wasm32", expect(dead_code))]
     pub fn make_inbound_dial_info_entry_filter<'a>(
         routing_domain: RoutingDomain,
         dial_info_filter: DialInfoFilter,
@@ -864,14 +843,18 @@ impl RoutingTable {
         })
     }
 
-    pub fn find_fast_public_nodes_filtered(
+    pub fn find_fast_non_local_nodes_filtered(
         &self,
+        routing_domain: RoutingDomain,
         node_count: usize,
         filters: VecDeque<RoutingTableEntryFilter>,
     ) -> Vec<NodeRef> {
-        self.inner
-            .read()
-            .find_fast_public_nodes_filtered(self.clone(), node_count, filters)
+        self.inner.read().find_fast_non_local_nodes_filtered(
+            self.clone(),
+            routing_domain,
+            node_count,
+            filters,
+        )
     }
 
     /// Retrieve up to N of each type of protocol capable nodes for a single crypto kind
@@ -953,7 +936,7 @@ impl RoutingTable {
             protocol_types_len * 2 * max_per_type,
             filters,
             |_rti, entry: Option<Arc<BucketEntry>>| {
-                NodeRef::new(self.clone(), entry.unwrap().clone(), None)
+                NodeRef::new(self.clone(), entry.unwrap().clone())
             },
         )
     }
@@ -1018,28 +1001,22 @@ impl RoutingTable {
             .sort_and_clean_closest_noderefs(node_id, closest_nodes)
     }
 
-    #[instrument(level = "trace", skip(self, peers))]
-    pub fn register_find_node_answer(
+    #[instrument(level = "trace", skip(self, peer_info_list))]
+    pub fn register_nodes_with_peer_info_list(
         &self,
-        crypto_kind: CryptoKind,
-        peers: Vec<PeerInfo>,
+        peer_info_list: Vec<Arc<PeerInfo>>,
     ) -> Vec<NodeRef> {
         // Register nodes we'd found
-        let mut out = Vec::<NodeRef>::with_capacity(peers.len());
-        for p in peers {
-            // Ensure we're getting back nodes we asked for
-            if !p.node_ids().kinds().contains(&crypto_kind) {
-                continue;
-            }
-
+        let mut out = Vec::<NodeRef>::with_capacity(peer_info_list.len());
+        for p in peer_info_list {
             // Don't register our own node
             if self.matches_own_node_id(p.node_ids()) {
                 continue;
             }
 
             // Register the node if it's new
-            match self.register_node_with_peer_info(RoutingDomain::PublicInternet, p, false) {
-                Ok(nr) => out.push(nr),
+            match self.register_node_with_peer_info(p, false) {
+                Ok(nr) => out.push(nr.unfiltered()),
                 Err(e) => {
                     log_rtab!(debug "failed to register node with peer info from find node answer: {}", e);
                 }
@@ -1051,7 +1028,7 @@ impl RoutingTable {
     /// Finds nodes near a particular node id
     /// Ensures all returned nodes have a set of capabilities enabled
     #[instrument(level = "trace", skip(self), err)]
-    pub async fn find_node(
+    pub async fn find_nodes_close_to_node_id(
         &self,
         node_ref: NodeRef,
         node_id: TypedKey,
@@ -1062,33 +1039,38 @@ impl RoutingTable {
         let res = network_result_try!(
             rpc_processor
                 .clone()
-                .rpc_call_find_node(Destination::direct(node_ref), node_id, capabilities)
+                .rpc_call_find_node(
+                    Destination::direct(node_ref.default_filtered()),
+                    node_id,
+                    capabilities
+                )
                 .await?
         );
 
         // register nodes we'd found
         Ok(NetworkResult::value(
-            self.register_find_node_answer(node_id.kind, res.answer),
+            self.register_nodes_with_peer_info_list(res.answer),
         ))
     }
 
     /// Ask a remote node to list the nodes it has around the current node
     /// Ensures all returned nodes have a set of capabilities enabled
     #[instrument(level = "trace", skip(self), err)]
-    pub async fn find_self(
+    pub async fn find_nodes_close_to_self(
         &self,
         crypto_kind: CryptoKind,
         node_ref: NodeRef,
         capabilities: Vec<Capability>,
     ) -> EyreResult<NetworkResult<Vec<NodeRef>>> {
         let self_node_id = self.node_id(crypto_kind);
-        self.find_node(node_ref, self_node_id, capabilities).await
+        self.find_nodes_close_to_node_id(node_ref, self_node_id, capabilities)
+            .await
     }
 
     /// Ask a remote node to list the nodes it has around itself
     /// Ensures all returned nodes have a set of capabilities enabled
     #[instrument(level = "trace", skip(self), err)]
-    pub async fn find_target(
+    pub async fn find_nodes_close_to_node_ref(
         &self,
         crypto_kind: CryptoKind,
         node_ref: NodeRef,
@@ -1097,7 +1079,8 @@ impl RoutingTable {
         let Some(target_node_id) = node_ref.node_ids().get(crypto_kind) else {
             bail!("no target node ids for this crypto kind");
         };
-        self.find_node(node_ref, target_node_id, capabilities).await
+        self.find_nodes_close_to_node_id(node_ref, target_node_id, capabilities)
+            .await
     }
 
     /// Ask node to 'find node' on own node so we can get some more nodes near ourselves
@@ -1111,7 +1094,7 @@ impl RoutingTable {
         capabilities: Vec<Capability>,
     ) {
         // Ask node for nodes closest to our own node
-        let closest_nodes = network_result_value_or_log!(match self.find_self(crypto_kind, node_ref.clone(), capabilities.clone()).await {
+        let closest_nodes = network_result_value_or_log!(match self.find_nodes_close_to_self(crypto_kind, node_ref.clone(), capabilities.clone()).await {
             Err(e) => {
                 log_rtab!(error
                     "find_self failed for {:?}: {:?}",
@@ -1127,7 +1110,7 @@ impl RoutingTable {
         // Ask each node near us to find us as well
         if wide {
             for closest_nr in closest_nodes {
-                network_result_value_or_log!(match self.find_self(crypto_kind, closest_nr.clone(), capabilities.clone()).await {
+                network_result_value_or_log!(match self.find_nodes_close_to_self(crypto_kind, closest_nr.clone(), capabilities.clone()).await {
                     Err(e) => {
                         log_rtab!(error
                             "find_self failed for {:?}: {:?}",

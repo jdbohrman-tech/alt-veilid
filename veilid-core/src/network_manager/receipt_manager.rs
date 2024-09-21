@@ -7,12 +7,16 @@ use routing_table::*;
 use stop_token::future::FutureExt;
 
 #[derive(Clone, Debug)]
-#[allow(dead_code)]
 pub(crate) enum ReceiptEvent {
     ReturnedOutOfBand,
-    ReturnedInBand { inbound_noderef: NodeRef },
+    ReturnedInBand {
+        inbound_noderef: FilteredNodeRef,
+    },
     ReturnedSafety,
-    ReturnedPrivate { private_route: PublicKey },
+    ReturnedPrivate {
+        #[expect(dead_code)]
+        private_route: PublicKey,
+    },
     Expired,
     Cancelled,
 }
@@ -20,7 +24,7 @@ pub(crate) enum ReceiptEvent {
 #[derive(Clone, Debug)]
 pub(super) enum ReceiptReturned {
     OutOfBand,
-    InBand { inbound_noderef: NodeRef },
+    InBand { inbound_noderef: FilteredNodeRef },
     Safety,
     Private { private_route: PublicKey },
 }
@@ -53,7 +57,6 @@ where
 type ReceiptCallbackType = Box<dyn ReceiptCallback>;
 type ReceiptSingleShotType = SingleShotEventual<ReceiptEvent>;
 
-#[allow(dead_code)]
 enum ReceiptRecordCallbackType {
     Normal(ReceiptCallbackType),
     SingleShot(Option<ReceiptSingleShotType>),
@@ -92,7 +95,7 @@ impl fmt::Debug for ReceiptRecord {
 }
 
 impl ReceiptRecord {
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub fn new(
         receipt: Receipt,
         expiration_ts: Timestamp,
@@ -352,7 +355,6 @@ impl ReceiptManager {
         log_net!(debug "finished receipt manager shutdown");
     }
 
-    #[allow(dead_code)]
     #[instrument(level = "trace", target = "receipt", skip_all)]
     pub fn record_receipt(
         &self,
@@ -418,7 +420,7 @@ impl ReceiptManager {
         inner.next_oldest_ts = new_next_oldest_ts;
     }
 
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub async fn cancel_receipt(&self, nonce: &Nonce) -> EyreResult<()> {
         event!(target: "receipt", Level::DEBUG, "== Cancel Receipt {}", nonce.encode());
 

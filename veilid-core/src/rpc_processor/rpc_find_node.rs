@@ -13,7 +13,7 @@ impl RPCProcessor {
         dest: Destination,
         node_id: TypedKey,
         capabilities: Vec<Capability>,
-    ) -> RPCNetworkResult<Answer<Vec<PeerInfo>>> {
+    ) -> RPCNetworkResult<Answer<Vec<Arc<PeerInfo>>>> {
         let _guard = self
             .unlocked_inner
             .startup_lock
@@ -56,7 +56,7 @@ impl RPCProcessor {
         };
 
         // Get the right answer type
-        let (_, _, _, kind) = msg.operation.destructure();
+        let (_, _, kind) = msg.operation.destructure();
         let find_node_a = match kind {
             RPCOperationKind::Answer(a) => match a.destructure() {
                 RPCAnswerDetail::FindNodeA(a) => a,
@@ -70,7 +70,7 @@ impl RPCProcessor {
 
         for peer_info in &peers {
             if !self.verify_node_info(
-                RoutingDomain::PublicInternet,
+                peer_info.routing_domain(),
                 peer_info.signed_node_info(),
                 &capabilities,
             ) {
@@ -114,8 +114,13 @@ impl RPCProcessor {
 
         // Get a chunk of the routing table near the requested node id
         let routing_table = self.routing_table();
-        let closest_nodes =
-            network_result_try!(routing_table.find_preferred_closest_peers(node_id, &capabilities));
+        let routing_domain = msg.header.routing_domain();
+
+        let closest_nodes = network_result_try!(routing_table.find_preferred_closest_peers(
+            routing_domain,
+            node_id,
+            &capabilities
+        ));
 
         // Make FindNode answer
         let find_node_a = RPCOperationFindNodeA::new(closest_nodes)?;

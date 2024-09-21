@@ -34,7 +34,7 @@ impl NetworkManager {
 
     // Direct bootstrap request
     #[instrument(level = "trace", target = "net", err, skip(self))]
-    pub async fn boot_request(&self, dial_info: DialInfo) -> EyreResult<Vec<PeerInfo>> {
+    pub async fn boot_request(&self, dial_info: DialInfo) -> EyreResult<Vec<Arc<PeerInfo>>> {
         let timeout_ms = self.with_config(|c| c.network.rpc.timeout_ms);
         // Send boot magic to requested peer address
         let data = BOOT_MAGIC.to_vec();
@@ -51,6 +51,6 @@ impl NetworkManager {
             deserialize_json(std::str::from_utf8(&out_data).wrap_err("bad utf8 in boot peerinfo")?)
                 .wrap_err("failed to deserialize boot peerinfo")?;
 
-        Ok(bootstrap_peerinfo)
+        Ok(bootstrap_peerinfo.into_iter().map(Arc::new).collect())
     }
 }

@@ -96,4 +96,13 @@ impl SignedDirectNodeInfo {
     pub fn signatures(&self) -> &[TypedSignature] {
         &self.signatures
     }
+
+    /// Compare this SignedDirectNodeInfo to another one
+    /// Exclude the signature and timestamp and any other fields that are not
+    /// semantically valuable
+    pub fn equivalent(&self, other: &SignedDirectNodeInfo) -> bool {
+        let a = self.node_info();
+        let b = other.node_info();
+        a == b
+    }
 }

@@ -6,7 +6,6 @@ use std::io;
 
 #[derive(Debug)]
 pub(in crate::network_manager) enum ProtocolNetworkConnection {
-    #[allow(dead_code)]
     //Dummy(DummyNetworkConnection),
     Ws(ws::WebsocketNetworkConnection),
     //WebRTC(wrtc::WebRTCNetworkConnection),

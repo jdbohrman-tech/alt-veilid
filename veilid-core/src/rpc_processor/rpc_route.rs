@@ -26,18 +26,18 @@ impl RPCProcessor {
         }
 
         // Get next hop node ref
-        let Some(mut next_hop_nr) = route_hop
+        let Some(next_hop_nr) = route_hop
             .node
             .node_ref(self.routing_table.clone(), safety_route.public_key.kind)
         else {
-            return Err(RPCError::network(format!(
+            return Ok(NetworkResult::invalid_message(format!(
                 "could not get route node hop ref: {}",
                 route_hop.node.describe(safety_route.public_key.kind)
             )));
         };
 
         // Apply sequencing preference
-        next_hop_nr.set_sequencing(routed_operation.sequencing());
+        let next_hop_nr = next_hop_nr.sequencing_filtered(routed_operation.sequencing());
 
         // Pass along the route
         let next_hop_route = RPCOperationRoute::new(
@@ -72,17 +72,17 @@ impl RPCProcessor {
         }
 
         // Get next hop node ref
-        let Some(mut next_hop_nr) =
+        let Some(next_hop_nr) =
             next_route_node.node_ref(self.routing_table.clone(), safety_route_public_key.kind)
         else {
-            return Err(RPCError::network(format!(
+            return Ok(NetworkResult::invalid_message(format!(
                 "could not get route node hop ref: {}",
                 next_route_node.describe(safety_route_public_key.kind)
             )));
         };
 
         // Apply sequencing preference
-        next_hop_nr.set_sequencing(routed_operation.sequencing());
+        let next_hop_nr = next_hop_nr.sequencing_filtered(routed_operation.sequencing());
 
         // Pass along the route
         let next_hop_route = RPCOperationRoute::new(
@@ -253,10 +253,7 @@ impl RPCProcessor {
             )
         }
     }
-    #[cfg_attr(
-        feature = "verbose-tracing",
-        instrument(level = "trace", skip_all, err)
-    )]
+
     #[instrument(level = "trace", target = "rpc", skip_all)]
     async fn process_private_route_first_hop(
         &self,
@@ -327,7 +324,7 @@ impl RPCProcessor {
         &self,
         route_hop_data: &RouteHopData,
         pr_pubkey: &TypedKey,
-        route_operation: &mut RoutedOperation,
+        routed_operation: &mut RoutedOperation,
     ) -> RPCNetworkResult<RouteHop> {
         // Get crypto kind
         let crypto_kind = pr_pubkey.kind;
@@ -363,7 +360,10 @@ impl RPCProcessor {
             let rh_reader = dec_blob_reader
                 .get_root::<veilid_capnp::route_hop::Reader>()
                 .map_err(RPCError::protocol)?;
-            decode_route_hop(&rh_reader)?
+            let decode_context = RPCDecodeContext {
+                routing_domain: routed_operation.routing_domain(),
+            };
+            decode_route_hop(&decode_context, &rh_reader)?
         };
 
         // Validate the RouteHop
@@ -377,9 +377,9 @@ impl RPCProcessor {
             let node_id = self.routing_table.node_id(crypto_kind);
             let node_id_secret = self.routing_table.node_id_secret_key(crypto_kind);
             let sig = vcrypto
-                .sign(&node_id.value, &node_id_secret, route_operation.data())
+                .sign(&node_id.value, &node_id_secret, routed_operation.data())
                 .map_err(RPCError::internal)?;
-            route_operation.add_signature(sig);
+            routed_operation.add_signature(sig);
         }
 
         Ok(NetworkResult::value(route_hop))
@@ -389,14 +389,20 @@ impl RPCProcessor {
     pub(crate) async fn process_route(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
         // Ignore if disabled
         let routing_table = self.routing_table();
-        if !routing_table.has_valid_network_class(msg.header.routing_domain()) {
-            return Ok(NetworkResult::service_unavailable(
-                "can't route without valid network class",
-            ));
-        }
 
-        let opi = routing_table.get_own_peer_info(msg.header.routing_domain());
-        if !opi.signed_node_info().node_info().has_capability(CAP_ROUTE) {
+        let Some(published_peer_info) =
+            routing_table.get_published_peer_info(msg.header.routing_domain())
+        else {
+            return Ok(NetworkResult::service_unavailable(
+                "Own node info must be published to route",
+            ));
+        };
+
+        if !published_peer_info
+            .signed_node_info()
+            .node_info()
+            .has_capability(CAP_ROUTE)
+        {
             return Ok(NetworkResult::service_unavailable("route is not available"));
         }
 
@@ -411,7 +417,7 @@ impl RPCProcessor {
         };
 
         // Get the statement
-        let (_, _, _, kind) = msg.operation.destructure();
+        let (_, _, kind) = msg.operation.destructure();
         let route = match kind {
             RPCOperationKind::Statement(s) => match s.destructure() {
                 RPCStatementDetail::Route(s) => s,
@@ -475,7 +481,11 @@ impl RPCProcessor {
                                 "failed to get private route reader for blob",
                             ));
                         };
-                        let Ok(private_route) = decode_private_route(&pr_reader) else {
+                        let decode_context = RPCDecodeContext {
+                            routing_domain: routed_operation.routing_domain(),
+                        };
+                        let Ok(private_route) = decode_private_route(&decode_context, &pr_reader)
+                        else {
                             return Ok(NetworkResult::invalid_message(
                                 "failed to decode private route",
                             ));
@@ -509,7 +519,10 @@ impl RPCProcessor {
                                 "failed to get route hop reader for blob",
                             ));
                         };
-                        let Ok(route_hop) = decode_route_hop(&rh_reader) else {
+                        let decode_context = RPCDecodeContext {
+                            routing_domain: routed_operation.routing_domain(),
+                        };
+                        let Ok(route_hop) = decode_route_hop(&decode_context, &rh_reader) else {
                             return Ok(NetworkResult::invalid_message(
                                 "failed to decode route hop",
                             ));

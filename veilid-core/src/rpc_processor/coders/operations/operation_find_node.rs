@@ -30,7 +30,10 @@ impl RPCOperationFindNodeQ {
         (self.node_id, self.capabilities)
     }
 
-    pub fn decode(reader: &veilid_capnp::operation_find_node_q::Reader) -> Result<Self, RPCError> {
+    pub fn decode(
+        _decode_context: &RPCDecodeContext,
+        reader: &veilid_capnp::operation_find_node_q::Reader,
+    ) -> Result<Self, RPCError> {
         let ni_reader = reader.get_node_id().map_err(RPCError::protocol)?;
         let node_id = decode_typed_key(&ni_reader)?;
         let cap_reader = reader
@@ -77,11 +80,11 @@ impl RPCOperationFindNodeQ {
 
 #[derive(Debug, Clone)]
 pub(in crate::rpc_processor) struct RPCOperationFindNodeA {
-    peers: Vec<PeerInfo>,
+    peers: Vec<Arc<PeerInfo>>,
 }
 
 impl RPCOperationFindNodeA {
-    pub fn new(peers: Vec<PeerInfo>) -> Result<Self, RPCError> {
+    pub fn new(peers: Vec<Arc<PeerInfo>>) -> Result<Self, RPCError> {
         if peers.len() > MAX_FIND_NODE_A_PEERS_LEN {
             return Err(RPCError::protocol(
                 "encoded find node peers length too long",
@@ -100,11 +103,12 @@ impl RPCOperationFindNodeA {
     //     &self.peers
     // }
 
-    pub fn destructure(self) -> Vec<PeerInfo> {
+    pub fn destructure(self) -> Vec<Arc<PeerInfo>> {
         self.peers
     }
 
     pub fn decode(
+        decode_context: &RPCDecodeContext,
         reader: &veilid_capnp::operation_find_node_a::Reader,
     ) -> Result<RPCOperationFindNodeA, RPCError> {
         let peers_reader = reader.get_peers().map_err(RPCError::protocol)?;
@@ -115,15 +119,15 @@ impl RPCOperationFindNodeA {
             ));
         }
 
-        let mut peers = Vec::<PeerInfo>::with_capacity(
+        let mut peers = Vec::<Arc<PeerInfo>>::with_capacity(
             peers_reader
                 .len()
                 .try_into()
                 .map_err(RPCError::map_internal("too many peers"))?,
         );
         for p in peers_reader.iter() {
-            let peer_info = decode_peer_info(&p)?;
-            peers.push(peer_info);
+            let peer_info = decode_peer_info(decode_context, &p)?;
+            peers.push(Arc::new(peer_info));
         }
 
         Ok(Self { peers })

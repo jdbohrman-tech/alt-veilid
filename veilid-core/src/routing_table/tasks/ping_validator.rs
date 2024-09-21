@@ -23,9 +23,13 @@ impl RoutingTable {
     async fn relay_keepalive_public_internet(
         &self,
         cur_ts: Timestamp,
-        relay_nr: NodeRef,
         futurequeue: &mut VecDeque<PingValidatorFuture>,
     ) -> EyreResult<()> {
+        // Get the PublicInternet relay if we are using one
+        let Some(relay_nr) = self.relay_node(RoutingDomain::PublicInternet) else {
+            return Ok(());
+        };
+
         let rpc = self.rpc_processor();
         // Get our publicinternet dial info
         let dids = self.all_filtered_dial_info_details(
@@ -45,7 +49,7 @@ impl RoutingTable {
             return Ok(());
         }
         // Say we're doing this keepalive now
-        self.edit_routing_domain(RoutingDomain::PublicInternet)
+        self.edit_public_internet_routing_domain()
             .set_relay_node_keepalive(Some(cur_ts))
             .commit(false)
             .await;
@@ -88,17 +92,14 @@ impl RoutingTable {
                     got_unordered = true;
                 }
                 let dif = did.dial_info.make_filter();
-                let relay_nr_filtered =
-                    relay_nr.filtered_clone(NodeRefFilter::new().with_dial_info_filter(dif));
-                relay_noderefs.push(relay_nr_filtered);
+
+                relay_noderefs
+                    .push(relay_nr.filtered_clone(NodeRefFilter::new().with_dial_info_filter(dif)));
             }
         }
         // Add noderef filters for ordered or unordered sequencing if we havent already seen those
         if !got_ordered {
-            let (_, nrf) = NodeRefFilter::new().with_sequencing(Sequencing::EnsureOrdered);
-            let mut relay_nr_filtered = relay_nr.filtered_clone(nrf);
-            relay_nr_filtered.set_sequencing(Sequencing::EnsureOrdered);
-            relay_noderefs.push(relay_nr_filtered);
+            relay_noderefs.push(relay_nr.sequencing_clone(Sequencing::EnsureOrdered));
         }
         if !got_unordered {
             relay_noderefs.push(relay_nr);
@@ -158,7 +159,11 @@ impl RoutingTable {
             log_rtab!("--> Watch ping to {:?}", watch_nr);
 
             futurequeue.push_back(
-                async move { rpc.rpc_call_status(Destination::direct(watch_nr)).await }.boxed(),
+                async move {
+                    rpc.rpc_call_status(Destination::direct(watch_nr.default_filtered()))
+                        .await
+                }
+                .boxed(),
             );
         }
         Ok(())
@@ -177,14 +182,9 @@ impl RoutingTable {
         // Get all nodes needing pings in the PublicInternet routing domain
         let node_refs = self.get_nodes_needing_ping(RoutingDomain::PublicInternet, cur_ts);
 
-        // Get the PublicInternet relay if we are using one
-        let opt_relay_nr = self.relay_node(RoutingDomain::PublicInternet);
-
-        // If this is our relay, let's check for NAT keepalives
-        if let Some(relay_nr) = opt_relay_nr {
-            self.relay_keepalive_public_internet(cur_ts, relay_nr, futurequeue)
-                .await?;
-        }
+        // If we have a relay, let's ping for NAT keepalives
+        self.relay_keepalive_public_internet(cur_ts, futurequeue)
+            .await?;
 
         // Check active watch keepalives
         self.active_watches_keepalive_public_internet(cur_ts, futurequeue)

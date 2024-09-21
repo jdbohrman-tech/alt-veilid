@@ -13,7 +13,6 @@ pub(in crate::rpc_processor) struct RPCOperationValueChanged {
 }
 
 impl RPCOperationValueChanged {
-    #[allow(dead_code)]
     pub fn new(
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
@@ -58,32 +57,31 @@ impl RPCOperationValueChanged {
         Ok(())
     }
 
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub fn key(&self) -> &TypedKey {
         &self.key
     }
 
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub fn subkeys(&self) -> &ValueSubkeyRangeSet {
         &self.subkeys
     }
 
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub fn count(&self) -> u32 {
         self.count
     }
 
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub fn watch_id(&self) -> u64 {
         self.watch_id
     }
 
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub fn value(&self) -> Option<&SignedValueData> {
         self.value.as_ref()
     }
 
-    #[allow(dead_code)]
     pub fn destructure(
         self,
     ) -> (
@@ -103,6 +101,7 @@ impl RPCOperationValueChanged {
     }
 
     pub fn decode(
+        _decode_context: &RPCDecodeContext,
         reader: &veilid_capnp::operation_value_changed::Reader,
     ) -> Result<Self, RPCError> {
         let k_reader = reader.get_key().map_err(RPCError::protocol)?;

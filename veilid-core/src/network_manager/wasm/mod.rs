@@ -51,6 +51,14 @@ pub const MAX_CAPABILITIES: usize = 64;
 
 /////////////////////////////////////////////////////////////////
 
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ProtocolConfig {
+    pub outbound: ProtocolTypeSet,
+    pub inbound: ProtocolTypeSet,
+    pub family_global: AddressTypeSet,
+    pub public_internet_capabilities: Vec<FourCC>,
+}
+
 struct NetworkInner {
     network_needs_restart: bool,
     protocol_config: ProtocolConfig,
@@ -371,7 +379,6 @@ impl Network {
             };
 
             let family_global = supported_address_types;
-            let family_local = supported_address_types;
 
             let public_internet_capabilities = {
                 PUBLIC_INTERNET_CAPABILITIES
@@ -385,8 +392,6 @@ impl Network {
                 outbound,
                 inbound,
                 family_global,
-                family_local,
-                local_network_capabilities: vec![],
                 public_internet_capabilities,
             }
         };
@@ -396,7 +401,7 @@ impl Network {
         let mut editor_public_internet = self
             .unlocked_inner
             .routing_table
-            .edit_routing_domain(RoutingDomain::PublicInternet);
+            .edit_public_internet_routing_domain();
 
         // set up the routing table's network config
         // if we have static public dialinfo, upgrade our network class
@@ -409,8 +414,10 @@ impl Network {
         );
         editor_public_internet.set_network_class(Some(NetworkClass::WebApp));
 
-        // commit routing table edits
-        editor_public_internet.commit(true).await;
+        // commit routing domain edits
+        if editor_public_internet.commit(true).await {
+            editor_public_internet.publish();
+        }
 
         Ok(StartupDisposition::Success)
     }
@@ -459,14 +466,9 @@ impl Network {
 
         // Reset state
         let routing_table = self.routing_table();
-
-        // Drop all dial info
         routing_table
-            .edit_routing_domain(RoutingDomain::PublicInternet)
-            .clear_dial_info_details(None, None)
-            .set_network_class(None)
-            .clear_relay_node()
-            .commit(true)
+            .edit_public_internet_routing_domain()
+            .shutdown()
             .await;
 
         // Cancels all async background tasks by dropping join handles

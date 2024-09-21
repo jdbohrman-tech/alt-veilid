@@ -246,6 +246,58 @@ impl ConnectionTable {
         let _ = inner.conn_by_id[protocol_index].get(&id).unwrap();
     }
 
+    #[expect(dead_code)]
+    pub fn with_connection_by_flow<R, F: FnOnce(&NetworkConnection) -> R>(
+        &self,
+        flow: Flow,
+        closure: F,
+    ) -> Option<R> {
+        if flow.protocol_type() == ProtocolType::UDP {
+            return None;
+        }
+
+        let inner = self.inner.lock();
+
+        let id = *inner.id_by_flow.get(&flow)?;
+        let protocol_index = Self::protocol_to_index(flow.protocol_type());
+        let out = inner.conn_by_id[protocol_index].peek(&id).unwrap();
+        Some(closure(out))
+    }
+
+    #[expect(dead_code)]
+    pub fn with_connection_by_flow_mut<R, F: FnOnce(&mut NetworkConnection) -> R>(
+        &self,
+        flow: Flow,
+        closure: F,
+    ) -> Option<R> {
+        if flow.protocol_type() == ProtocolType::UDP {
+            return None;
+        }
+
+        let mut inner = self.inner.lock();
+
+        let id = *inner.id_by_flow.get(&flow)?;
+        let protocol_index = Self::protocol_to_index(flow.protocol_type());
+        let out = inner.conn_by_id[protocol_index].peek_mut(&id).unwrap();
+        Some(closure(out))
+    }
+
+    pub fn with_all_connections_mut<R, F: FnMut(&mut NetworkConnection) -> Option<R>>(
+        &self,
+        mut closure: F,
+    ) -> Option<R> {
+        let mut inner_lock = self.inner.lock();
+        let inner = &mut *inner_lock;
+        for (id, idx) in inner.protocol_index_by_id.iter() {
+            if let Some(conn) = inner.conn_by_id[*idx].peek_mut(id) {
+                if let Some(out) = closure(conn) {
+                    return Some(out);
+                }
+            }
+        }
+        None
+    }
+
     //#[instrument(level = "trace", skip(self), ret)]
     pub fn ref_connection_by_id(
         &self,
@@ -304,7 +356,7 @@ impl ConnectionTable {
     }
 
     //#[instrument(level = "trace", skip(self), ret)]
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub fn get_connection_ids_by_remote(&self, remote: PeerAddress) -> Vec<NetworkConnectionId> {
         let inner = self.inner.lock();
         inner

@@ -54,8 +54,9 @@ pub const IPADDR_TABLE_SIZE: usize = 1024;
 pub const IPADDR_MAX_INACTIVE_DURATION_US: TimestampDuration =
     TimestampDuration::new(300_000_000u64); // 5 minutes
 pub const NODE_CONTACT_METHOD_CACHE_SIZE: usize = 1024;
-pub const PUBLIC_ADDRESS_CHANGE_DETECTION_COUNT: usize = 5;
-pub const PUBLIC_ADDRESS_CHECK_CACHE_SIZE: usize = 10;
+pub const PUBLIC_ADDRESS_CHANGE_CONSISTENCY_DETECTION_COUNT: usize = 3; // Number of consistent results in the cache during outbound-only to trigger detection
+pub const PUBLIC_ADDRESS_CHANGE_INCONSISTENCY_DETECTION_COUNT: usize = 7; // Number of inconsistent results in the cache during inbound-capable to trigger detection
+pub const PUBLIC_ADDRESS_CHECK_CACHE_SIZE: usize = 10; // Length of consistent/inconsistent result cache for detection
 pub const PUBLIC_ADDRESS_CHECK_TASK_INTERVAL_SECS: u32 = 60;
 pub const PUBLIC_ADDRESS_INCONSISTENCY_TIMEOUT_US: TimestampDuration =
     TimestampDuration::new(300_000_000u64); // 5 minutes
@@ -63,18 +64,6 @@ pub const PUBLIC_ADDRESS_INCONSISTENCY_PUNISHMENT_TIMEOUT_US: TimestampDuration 
     TimestampDuration::new(3_600_000_000_u64); // 60 minutes
 pub const ADDRESS_FILTER_TASK_INTERVAL_SECS: u32 = 60;
 pub const BOOT_MAGIC: &[u8; 4] = b"BOOT";
-
-#[derive(Clone, Debug, Default)]
-pub struct ProtocolConfig {
-    pub outbound: ProtocolTypeSet,
-    pub inbound: ProtocolTypeSet,
-    pub family_global: AddressTypeSet,
-    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
-    pub family_local: AddressTypeSet,
-    pub public_internet_capabilities: Vec<FourCC>,
-    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
-    pub local_network_capabilities: Vec<FourCC>,
-}
 
 // Things we get when we start up and go away when we shut down
 // Routing table is not in here because we want it to survive a network shutdown/startup restart
@@ -111,20 +100,20 @@ pub(crate) enum NodeContactMethod {
     /// Contact the node directly
     Direct(DialInfo),
     /// Request via signal the node connect back directly (relay, target)
-    SignalReverse(NodeRef, NodeRef),
+    SignalReverse(FilteredNodeRef, FilteredNodeRef),
     /// Request via signal the node negotiate a hole punch (relay, target)
-    SignalHolePunch(NodeRef, NodeRef),
+    SignalHolePunch(FilteredNodeRef, FilteredNodeRef),
     /// Must use an inbound relay to reach the node
-    InboundRelay(NodeRef),
+    InboundRelay(FilteredNodeRef),
     /// Must use outbound relay to reach the node
-    OutboundRelay(NodeRef),
+    OutboundRelay(FilteredNodeRef),
 }
 #[derive(Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Hash)]
 struct NodeContactMethodCacheKey {
     node_ids: TypedKeyGroup,
     own_node_info_ts: Timestamp,
     target_node_info_ts: Timestamp,
-    target_node_ref_filter: Option<NodeRefFilter>,
+    target_node_ref_filter: NodeRefFilter,
     target_node_ref_sequencing: Sequencing,
 }
 
@@ -139,7 +128,7 @@ enum SendDataToExistingFlowResult {
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum StartupDisposition {
     Success,
-    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+    #[cfg_attr(target_arch = "wasm32", expect(dead_code))]
     BindRetry,
 }
 
@@ -148,9 +137,9 @@ struct NetworkManagerInner {
     stats: NetworkManagerStats,
     client_allowlist: LruCache<TypedKey, ClientAllowlistEntry>,
     node_contact_method_cache: LruCache<NodeContactMethodCacheKey, NodeContactMethod>,
-    public_address_check_cache:
+    public_internet_address_check_cache:
         BTreeMap<PublicAddressCheckCacheKey, LruCache<IpAddr, SocketAddress>>,
-    public_address_inconsistencies_table:
+    public_internet_address_inconsistencies_table:
         BTreeMap<PublicAddressCheckCacheKey, HashMap<IpAddr, Timestamp>>,
 }
 
@@ -169,7 +158,7 @@ struct NetworkManagerUnlockedInner {
     update_callback: RwLock<Option<UpdateCallback>>,
     // Background processes
     rolling_transfers_task: TickTask<EyreReport>,
-    public_address_check_task: TickTask<EyreReport>,
+    public_internet_address_check_task: TickTask<EyreReport>,
     address_filter_task: TickTask<EyreReport>,
     // Network Key
     network_key: Option<SharedSecret>,
@@ -189,8 +178,8 @@ impl NetworkManager {
             stats: NetworkManagerStats::default(),
             client_allowlist: LruCache::new_unbounded(),
             node_contact_method_cache: LruCache::new(NODE_CONTACT_METHOD_CACHE_SIZE),
-            public_address_check_cache: BTreeMap::new(),
-            public_address_inconsistencies_table: BTreeMap::new(),
+            public_internet_address_check_cache: BTreeMap::new(),
+            public_internet_address_inconsistencies_table: BTreeMap::new(),
         }
     }
     fn new_unlocked_inner(
@@ -216,7 +205,7 @@ impl NetworkManager {
                 "rolling_transfers_task",
                 ROLLING_TRANSFERS_INTERVAL_SECS,
             ),
-            public_address_check_task: TickTask::new(
+            public_internet_address_check_task: TickTask::new(
                 "public_address_check_task",
                 PUBLIC_ADDRESS_CHECK_TASK_INTERVAL_SECS,
             ),
@@ -525,6 +514,7 @@ impl NetworkManager {
         log_net!(debug "finished network manager shutdown");
     }
 
+    #[expect(dead_code)]
     pub fn update_client_allowlist(&self, client: TypedKey) {
         let mut inner = self.inner.lock();
         match inner.client_allowlist.entry(client) {
@@ -693,7 +683,7 @@ impl NetworkManager {
     pub async fn handle_in_band_receipt<R: AsRef<[u8]>>(
         &self,
         receipt_data: R,
-        inbound_noderef: NodeRef,
+        inbound_noderef: FilteredNodeRef,
     ) -> NetworkResult<()> {
         let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
             return NetworkResult::service_unavailable("network is not started");
@@ -779,11 +769,8 @@ impl NetworkManager {
                 let rpc = self.rpc_processor();
 
                 // Add the peer info to our routing table
-                let mut peer_nr = match routing_table.register_node_with_peer_info(
-                    RoutingDomain::PublicInternet,
-                    peer_info,
-                    false,
-                ) {
+                let mut peer_nr = match routing_table.register_node_with_peer_info(peer_info, false)
+                {
                     Ok(nr) => nr,
                     Err(e) => {
                         return Ok(NetworkResult::invalid_message(format!(
@@ -808,11 +795,8 @@ impl NetworkManager {
                 let rpc = self.rpc_processor();
 
                 // Add the peer info to our routing table
-                let mut peer_nr = match routing_table.register_node_with_peer_info(
-                    RoutingDomain::PublicInternet,
-                    peer_info,
-                    false,
-                ) {
+                let mut peer_nr = match routing_table.register_node_with_peer_info(peer_info, false)
+                {
                     Ok(nr) => nr,
                     Err(e) => {
                         return Ok(NetworkResult::invalid_message(format!(
@@ -826,9 +810,8 @@ impl NetworkManager {
                 let outbound_nrf = routing_table
                     .get_outbound_node_ref_filter(RoutingDomain::PublicInternet)
                     .with_protocol_type(ProtocolType::UDP);
-                peer_nr.set_filter(Some(outbound_nrf));
-                let Some(hole_punch_dial_info_detail) = peer_nr.first_filtered_dial_info_detail()
-                else {
+                peer_nr.set_filter(outbound_nrf);
+                let Some(hole_punch_dial_info_detail) = peer_nr.first_dial_info_detail() else {
                     return Ok(NetworkResult::no_connection_other(format!(
                         "No hole punch capable dialinfo found for node: {}",
                         peer_nr
@@ -836,10 +819,10 @@ impl NetworkManager {
                 };
 
                 // Now that we picked a specific dialinfo, further restrict the noderef to the specific address type
-                let filter = peer_nr.take_filter().unwrap();
+                let filter = peer_nr.take_filter();
                 let filter =
                     filter.with_address_type(hole_punch_dial_info_detail.dial_info.address_type());
-                peer_nr.set_filter(Some(filter));
+                peer_nr.set_filter(filter);
 
                 // Do our half of the hole punch by sending an empty packet
                 // Both sides will do this and then the receipt will get sent over the punched hole
@@ -912,7 +895,7 @@ impl NetworkManager {
     #[instrument(level = "trace", target = "net", skip_all)]
     pub async fn send_envelope<B: AsRef<[u8]>>(
         &self,
-        node_ref: NodeRef,
+        node_ref: FilteredNodeRef,
         destination_node_ref: Option<NodeRef>,
         body: B,
     ) -> EyreResult<NetworkResult<SendDataMethod>> {
@@ -920,7 +903,7 @@ impl NetworkManager {
             return Ok(NetworkResult::no_connection_other("network is not started"));
         };
 
-        let destination_node_ref = destination_node_ref.as_ref().unwrap_or(&node_ref).clone();
+        let destination_node_ref = destination_node_ref.unwrap_or_else(|| node_ref.unfiltered());
         let best_node_id = destination_node_ref.best_node_id();
 
         // Get node's envelope versions and see if we can send to it
@@ -1110,7 +1093,7 @@ impl NetworkManager {
                     .resolve_node(recipient_id, SafetySelection::Unsafe(Sequencing::default()))
                     .await
                 {
-                    Ok(v) => v,
+                    Ok(v) => v.map(|nr| nr.default_filtered()),
                     Err(e) => {
                         log_net!(debug "failed to resolve recipient node for relay, dropping outbound relayed packet: {}" ,e);
                         return Ok(false);
@@ -1125,7 +1108,7 @@ impl NetworkManager {
                 // should be mutually in each others routing tables. The node needing the relay will be
                 // pinging this node regularly to keep itself in the routing table
                 match routing_table.lookup_node_ref(recipient_id) {
-                    Ok(v) => v,
+                    Ok(v) => v.map(|nr| nr.default_filtered()),
                     Err(e) => {
                         log_net!(debug "failed to look up recipient node for relay, dropping outbound relayed packet: {}" ,e);
                         return Ok(false);
@@ -1182,7 +1165,8 @@ impl NetworkManager {
         };
 
         // Cache the envelope information in the routing table
-        let mut source_noderef = match routing_table.register_node_with_existing_connection(
+        let source_noderef = match routing_table.register_node_with_existing_connection(
+            routing_domain,
             envelope.get_sender_typed_id(),
             flow,
             ts,
@@ -1195,9 +1179,6 @@ impl NetworkManager {
             }
         };
         source_noderef.add_envelope_version(envelope.get_version());
-
-        // Enforce routing domain
-        source_noderef.merge_filter(NodeRefFilter::new().with_routing_domain(routing_domain));
 
         // Pass message to RPC system
         if let Err(e) =

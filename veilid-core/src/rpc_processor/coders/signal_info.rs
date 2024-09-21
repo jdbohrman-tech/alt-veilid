@@ -33,6 +33,7 @@ pub fn encode_signal_info(
 }
 
 pub fn decode_signal_info(
+    decode_context: &RPCDecodeContext,
     reader: &veilid_capnp::operation_signal::Reader,
 ) -> Result<SignalInfo, RPCError> {
     Ok(
@@ -52,7 +53,7 @@ pub fn decode_signal_info(
                 let pi_reader = r.get_peer_info().map_err(RPCError::map_protocol(
                     "invalid peer info in hole punch signal info",
                 ))?;
-                let peer_info = decode_peer_info(&pi_reader)?;
+                let peer_info = Arc::new(decode_peer_info(decode_context, &pi_reader)?);
 
                 SignalInfo::HolePunch { receipt, peer_info }
             }
@@ -68,7 +69,7 @@ pub fn decode_signal_info(
                 let pi_reader = r.get_peer_info().map_err(RPCError::map_protocol(
                     "invalid peer info in reverse connect signal info",
                 ))?;
-                let peer_info = decode_peer_info(&pi_reader)?;
+                let peer_info = Arc::new(decode_peer_info(decode_context, &pi_reader)?);
 
                 SignalInfo::ReverseConnect { receipt, peer_info }
             }

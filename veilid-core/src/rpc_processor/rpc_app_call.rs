@@ -36,7 +36,7 @@ impl RPCProcessor {
         };
 
         // Get the right answer type
-        let (_, _, _, kind) = msg.operation.destructure();
+        let (_, _, kind) = msg.operation.destructure();
         let app_call_a = match kind {
             RPCOperationKind::Answer(a) => match a.destructure() {
                 RPCAnswerDetail::AppCallA(a) => a,
@@ -65,12 +65,15 @@ impl RPCProcessor {
         // Ignore if disabled
         let routing_table = self.routing_table();
 
-        let opi = routing_table.get_own_peer_info(msg.header.routing_domain());
-        if !opi
-            .signed_node_info()
-            .node_info()
-            .has_capability(CAP_APPMESSAGE)
-        {
+        let has_capability_app_message = routing_table
+            .get_published_peer_info(msg.header.routing_domain())
+            .map(|ppi| {
+                ppi.signed_node_info()
+                    .node_info()
+                    .has_capability(CAP_APPMESSAGE)
+            })
+            .unwrap_or(false);
+        if !has_capability_app_message {
             return Ok(NetworkResult::service_unavailable(
                 "app call is not available",
             ));
@@ -95,7 +98,7 @@ impl RPCProcessor {
         };
 
         // Get the question
-        let (op_id, _, _, kind) = msg.operation.clone().destructure();
+        let (op_id, _, kind) = msg.operation.clone().destructure();
         let app_call_q = match kind {
             RPCOperationKind::Question(q) => match q.destructure() {
                 (_, RPCQuestionDetail::AppCallQ(q)) => q,

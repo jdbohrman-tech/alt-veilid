@@ -83,7 +83,7 @@ impl RPCProcessor {
         };
 
         // Get the right answer type
-        let (_, _, _, kind) = msg.operation.destructure();
+        let (_, _, kind) = msg.operation.destructure();
         let status_a = match kind {
             RPCOperationKind::Answer(a) => match a.destructure() {
                 RPCAnswerDetail::StatusA(a) => a,
@@ -126,13 +126,13 @@ impl RPCProcessor {
                                     .report_public_internet_socket_address(
                                         sender_info.socket_address,
                                         send_data_method.unique_flow.flow,
-                                        target,
+                                        target.unfiltered(),
                                     ),
                                 RoutingDomain::LocalNetwork => {
                                     self.network_manager().report_local_network_socket_address(
                                         sender_info.socket_address,
                                         send_data_method.unique_flow.flow,
-                                        target,
+                                        target.unfiltered(),
                                     )
                                 }
                             }

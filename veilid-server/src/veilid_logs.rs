@@ -6,7 +6,6 @@ use console_subscriber::ConsoleLayer;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "opentelemetry-otlp")] {
-        use opentelemetry::*;
         use opentelemetry_sdk::*;
         use opentelemetry_otlp::WithExportConfig;
     }
@@ -18,6 +17,7 @@ use std::path::*;
 use std::sync::Arc;
 use tracing_appender::*;
 use tracing_flame::FlameLayer;
+#[cfg(unix)]
 use tracing_perfetto::PerfettoLayer;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::*;
@@ -63,12 +63,27 @@ impl VeilidLogs {
 
         // Terminal logger
         if settingsr.logging.terminal.enabled {
+            let timer = time::format_description::parse("[hour]:[minute]:[second]")
+                .expect("invalid time format");
+
+            // Get time offset for local timezone from UTC
+            // let time_offset =
+            //     time::UtcOffset::current_local_offset().unwrap_or(time::UtcOffset::UTC);
+            // nerd fight: https://www.reddit.com/r/learnrust/comments/1bgc4p7/time_crate_never_manages_to_get_local_time/
+            // Use chrono instead of time crate to get local offset
+            let offset_in_sec = chrono::Local::now().offset().local_minus_utc();
+            let time_offset =
+                time::UtcOffset::from_whole_seconds(offset_in_sec).expect("invalid utc offset");
+            let timer = fmt::time::OffsetTime::new(time_offset, timer);
+
             let filter = veilid_core::VeilidLayerFilter::new(
                 convert_loglevel(settingsr.logging.terminal.level),
                 &settingsr.logging.terminal.ignore_log_targets,
             );
             let layer = fmt::Layer::new()
                 .compact()
+                .with_timer(timer)
+                .with_ansi(true)
                 .with_writer(std::io::stdout)
                 .with_filter(filter.clone());
             filters.insert("terminal", filter);
@@ -96,6 +111,7 @@ impl VeilidLogs {
         }
 
         // Perfetto logger
+        #[cfg(unix)]
         if settingsr.logging.perfetto.enabled {
             let filter = veilid_core::VeilidLayerFilter::new_no_default(
                 veilid_core::VeilidConfigLogLevel::Trace,
@@ -140,7 +156,7 @@ impl VeilidLogs {
                 .tracing()
                 .with_exporter(exporter)
                 .with_trace_config(opentelemetry_sdk::trace::Config::default().with_resource(
-                    Resource::new(vec![KeyValue::new(
+                    Resource::new(vec![opentelemetry::KeyValue::new(
                         opentelemetry_semantic_conventions::resource::SERVICE_NAME,
                         format!(
                                 "veilid_server:{}",

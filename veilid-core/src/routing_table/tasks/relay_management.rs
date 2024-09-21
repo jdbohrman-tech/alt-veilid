@@ -4,7 +4,7 @@ impl RoutingTable {
     // Check if a relay is desired or not
     #[instrument(level = "trace", skip_all)]
     fn public_internet_wants_relay(&self) -> Option<RelayKind> {
-        let own_peer_info = self.get_own_peer_info(RoutingDomain::PublicInternet);
+        let own_peer_info = self.get_current_peer_info(RoutingDomain::PublicInternet);
         let own_node_info = own_peer_info.signed_node_info().node_info();
         let network_class = own_node_info.network_class();
 
@@ -34,7 +34,7 @@ impl RoutingTable {
         for did in own_node_info.dial_info_detail_list() {
             inbound_addresses.insert(did.dial_info.to_socket_addr());
         }
-        let own_local_peer_info = self.get_own_peer_info(RoutingDomain::LocalNetwork);
+        let own_local_peer_info = self.get_current_peer_info(RoutingDomain::LocalNetwork);
         let own_local_node_info = own_local_peer_info.signed_node_info().node_info();
         for ldid in own_local_node_info.dial_info_detail_list() {
             inbound_addresses.remove(&ldid.dial_info.to_socket_addr());
@@ -59,7 +59,7 @@ impl RoutingTable {
         let relay_desired = self.public_internet_wants_relay();
 
         // Get routing domain editor
-        let mut editor = self.edit_routing_domain(RoutingDomain::PublicInternet);
+        let mut editor = self.edit_public_internet_routing_domain();
 
         // If we already have a relay, see if it is dead, or if we don't need it any more
         let has_relay = {
@@ -107,16 +107,14 @@ impl RoutingTable {
             let mut got_outbound_relay = false;
             if matches!(relay_desired, RelayKind::Outbound) {
                 // The outbound relay is the host of the PWA
-                if let Some(outbound_relay_peerinfo) = intf::get_outbound_relay_peer().await {
+                if let Some(outbound_relay_peerinfo) =
+                    intf::get_outbound_relay_peer(RoutingDomain::PublicInternet).await
+                {
                     // Register new outbound relay
-                    match self.register_node_with_peer_info(
-                        RoutingDomain::PublicInternet,
-                        outbound_relay_peerinfo,
-                        false,
-                    ) {
+                    match self.register_node_with_peer_info(outbound_relay_peerinfo, false) {
                         Ok(nr) => {
                             log_rtab!(debug "Outbound relay node selected: {}", nr);
-                            editor.set_relay_node(nr);
+                            editor.set_relay_node(nr.unfiltered());
                             got_outbound_relay = true;
                         }
                         Err(e) => {
@@ -141,7 +139,14 @@ impl RoutingTable {
         }
 
         // Commit the changes
-        editor.commit(false).await;
+        if editor.commit(false).await {
+            // Try to publish the peer info
+            editor.publish();
+
+            self.network_manager()
+                .connection_manager()
+                .update_protections();
+        }
 
         Ok(())
     }
@@ -152,7 +157,7 @@ impl RoutingTable {
         let outbound_dif = self.get_outbound_dial_info_filter(RoutingDomain::PublicInternet);
         let mapped_port_info = self.get_low_level_port_info();
         let own_node_info = self
-            .get_own_peer_info(RoutingDomain::PublicInternet)
+            .get_current_peer_info(RoutingDomain::PublicInternet)
             .signed_node_info()
             .node_info()
             .clone();
@@ -174,11 +179,9 @@ impl RoutingTable {
 
             // Exclude any nodes that have 'failed to send' state indicating a
             // connection drop or inability to reach the node
-
-            // XXX: we should be able to enable this!
-            // if e.peer_stats().rpc_stats.failed_to_send > 0 {
-            //     return false;
-            // }
+            if e.peer_stats().rpc_stats.failed_to_send > 0 {
+                return false;
+            }
 
             // Until we have a way of reducing a SignedRelayedNodeInfo to a SignedDirectNodeInfo
             // See https://gitlab.com/veilid/veilid/-/issues/381
@@ -200,7 +203,7 @@ impl RoutingTable {
             // Disqualify nodes that don't cover all our inbound ports for tcp and udp
             // as we need to be able to use the relay for keepalives for all nat mappings
             let mut low_level_protocol_ports = mapped_port_info.low_level_protocol_ports.clone();
-            let dids = node_info.all_filtered_dial_info_details(DialInfoDetail::NO_SORT, |did| {
+            let dids = node_info.filtered_dial_info_details(DialInfoDetail::NO_SORT, |did| {
                 did.matches_filter(&outbound_dif)
             });
             for did in &dids {
@@ -282,6 +285,6 @@ impl RoutingTable {
             Option::<()>::None
         });
         // Return the best inbound relay noderef
-        best_inbound_relay.map(|e| NodeRef::new(self.clone(), e, None))
+        best_inbound_relay.map(|e| NodeRef::new(self.clone(), e))
     }
 }

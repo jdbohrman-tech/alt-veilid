@@ -20,18 +20,20 @@ impl RPCQuestion {
     pub fn detail(&self) -> &RPCQuestionDetail {
         &self.detail
     }
-    #[cfg(feature = "verbose-tracing")]
     pub fn desc(&self) -> &'static str {
         self.detail.desc()
     }
     pub fn destructure(self) -> (RespondTo, RPCQuestionDetail) {
         (self.respond_to, self.detail)
     }
-    pub fn decode(reader: &veilid_capnp::question::Reader) -> Result<RPCQuestion, RPCError> {
+    pub fn decode(
+        decode_context: &RPCDecodeContext,
+        reader: &veilid_capnp::question::Reader,
+    ) -> Result<RPCQuestion, RPCError> {
         let rt_reader = reader.get_respond_to();
-        let respond_to = RespondTo::decode(&rt_reader)?;
+        let respond_to = RespondTo::decode(decode_context, &rt_reader)?;
         let d_reader = reader.get_detail();
-        let detail = RPCQuestionDetail::decode(&d_reader)?;
+        let detail = RPCQuestionDetail::decode(decode_context, &d_reader)?;
         Ok(RPCQuestion { respond_to, detail })
     }
     pub fn encode(&self, builder: &mut veilid_capnp::question::Builder) -> Result<(), RPCError> {
@@ -64,7 +66,6 @@ pub(in crate::rpc_processor) enum RPCQuestionDetail {
 }
 
 impl RPCQuestionDetail {
-    #[cfg(feature = "verbose-tracing")]
     pub fn desc(&self) -> &'static str {
         match self {
             RPCQuestionDetail::StatusQ(_) => "StatusQ",
@@ -109,73 +110,74 @@ impl RPCQuestionDetail {
     }
 
     pub fn decode(
+        decode_context: &RPCDecodeContext,
         reader: &veilid_capnp::question::detail::Reader,
     ) -> Result<RPCQuestionDetail, RPCError> {
         let which_reader = reader.which().map_err(RPCError::protocol)?;
         let out = match which_reader {
             veilid_capnp::question::detail::StatusQ(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationStatusQ::decode(&op_reader)?;
+                let out = RPCOperationStatusQ::decode(decode_context, &op_reader)?;
                 RPCQuestionDetail::StatusQ(Box::new(out))
             }
             veilid_capnp::question::detail::FindNodeQ(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationFindNodeQ::decode(&op_reader)?;
+                let out = RPCOperationFindNodeQ::decode(decode_context, &op_reader)?;
                 RPCQuestionDetail::FindNodeQ(Box::new(out))
             }
             veilid_capnp::question::detail::Which::AppCallQ(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationAppCallQ::decode(&op_reader)?;
+                let out = RPCOperationAppCallQ::decode(decode_context, &op_reader)?;
                 RPCQuestionDetail::AppCallQ(Box::new(out))
             }
             veilid_capnp::question::detail::GetValueQ(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationGetValueQ::decode(&op_reader)?;
+                let out = RPCOperationGetValueQ::decode(decode_context, &op_reader)?;
                 RPCQuestionDetail::GetValueQ(Box::new(out))
             }
             veilid_capnp::question::detail::SetValueQ(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationSetValueQ::decode(&op_reader)?;
+                let out = RPCOperationSetValueQ::decode(decode_context, &op_reader)?;
                 RPCQuestionDetail::SetValueQ(Box::new(out))
             }
             veilid_capnp::question::detail::WatchValueQ(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationWatchValueQ::decode(&op_reader)?;
+                let out = RPCOperationWatchValueQ::decode(decode_context, &op_reader)?;
                 RPCQuestionDetail::WatchValueQ(Box::new(out))
             }
             veilid_capnp::question::detail::InspectValueQ(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationInspectValueQ::decode(&op_reader)?;
+                let out = RPCOperationInspectValueQ::decode(decode_context, &op_reader)?;
                 RPCQuestionDetail::InspectValueQ(Box::new(out))
             }
             #[cfg(feature = "unstable-blockstore")]
             veilid_capnp::question::detail::SupplyBlockQ(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationSupplyBlockQ::decode(&op_reader)?;
+                let out = RPCOperationSupplyBlockQ::decode(decode_context, &op_reader)?;
                 RPCQuestionDetail::SupplyBlockQ(Box::new(out))
             }
             #[cfg(feature = "unstable-blockstore")]
             veilid_capnp::question::detail::FindBlockQ(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationFindBlockQ::decode(&op_reader)?;
+                let out = RPCOperationFindBlockQ::decode(decode_context, &op_reader)?;
                 RPCQuestionDetail::FindBlockQ(Box::new(out))
             }
             #[cfg(feature = "unstable-tunnels")]
             veilid_capnp::question::detail::StartTunnelQ(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationStartTunnelQ::decode(&op_reader)?;
+                let out = RPCOperationStartTunnelQ::decode(decode_context, &op_reader)?;
                 RPCQuestionDetail::StartTunnelQ(Box::new(out))
             }
             #[cfg(feature = "unstable-tunnels")]
             veilid_capnp::question::detail::CompleteTunnelQ(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationCompleteTunnelQ::decode(&op_reader)?;
+                let out = RPCOperationCompleteTunnelQ::decode(decode_context, &op_reader)?;
                 RPCQuestionDetail::CompleteTunnelQ(Box::new(out))
             }
             #[cfg(feature = "unstable-tunnels")]
             veilid_capnp::question::detail::CancelTunnelQ(r) => {
                 let op_reader = r.map_err(RPCError::protocol)?;
-                let out = RPCOperationCancelTunnelQ::decode(&op_reader)?;
+                let out = RPCOperationCancelTunnelQ::decode(decode_context, &op_reader)?;
                 RPCQuestionDetail::CancelTunnelQ(Box::new(out))
             }
         };

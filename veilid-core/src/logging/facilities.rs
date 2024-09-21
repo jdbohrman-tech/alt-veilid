@@ -1,4 +1,4 @@
-pub static DEFAULT_LOG_FACILITIES_IGNORE_LIST: [&str; 28] = [
+pub static DEFAULT_LOG_FACILITIES_IGNORE_LIST: [&str; 29] = [
     "mio",
     "h2",
     "hyper",
@@ -27,6 +27,7 @@ pub static DEFAULT_LOG_FACILITIES_IGNORE_LIST: [&str; 28] = [
     "dht",
     "fanout",
     "receipt",
+    "rpc_message",
 ];
 
 pub static FLAME_LOG_FACILITIES_IGNORE_LIST: [&str; 22] = [
@@ -423,5 +424,33 @@ macro_rules! log_crypto {
     )};
     ($fmt:literal, $($arg:expr),+) => {
         trace!(target:"crypto", $fmt, $($arg),+);
+    }
+}
+
+#[macro_export]
+macro_rules! log_rpc_message {
+    (error $text:expr) => { error!(
+        target: "rpc_message",
+        "{}",
+        $text,
+    )};
+    (error $fmt:literal, $($arg:expr),+) => {
+        error!(target:"crypto", $fmt, $($arg),+);
+    };
+    (warn $text:expr) => { warn!(
+        target: "rpc_message",
+        "{}",
+        $text,
+    )};
+    (warn $fmt:literal, $($arg:expr),+) => {
+        warn!(target:"crypto", $fmt, $($arg),+);
+    };
+    ($text:expr) => {trace!(
+        target: "rpc_message",
+        "{}",
+        $text,
+    )};
+    ($fmt:literal, $($arg:expr),+) => {
+        trace!(target:"rpc_message", $fmt, $($arg),+);
     }
 }

@@ -33,6 +33,8 @@ impl StorageManager {
         watch_id: u64,
         watch_node: NodeRef,
     ) -> VeilidAPIResult<Option<OutboundWatchValueResult>> {
+        let routing_domain = RoutingDomain::PublicInternet;
+
         // Get the appropriate watcher key, if anonymous use a static anonymous watch key
         // which lives for the duration of the app's runtime
         let watcher = opt_watcher.unwrap_or_else(|| {
@@ -47,7 +49,8 @@ impl StorageManager {
             rpc_processor
                 .clone()
                 .rpc_call_watch_value(
-                    Destination::direct(watch_node.clone()).with_safety(safety_selection),
+                    Destination::direct(watch_node.routing_domain_filtered(routing_domain))
+                        .with_safety(safety_selection),
                     key,
                     subkeys,
                     Timestamp::default(),
@@ -87,6 +90,8 @@ impl StorageManager {
         watch_id: u64,
         watch_node: NodeRef,
     ) -> VeilidAPIResult<Option<OutboundWatchValueResult>> {
+        let routing_domain = RoutingDomain::PublicInternet;
+
         if count == 0 {
             apibail_internal!("cancel should be done with outbound_watch_value_cancel");
         }
@@ -108,7 +113,8 @@ impl StorageManager {
             rpc_processor
                 .clone()
                 .rpc_call_watch_value(
-                    Destination::direct(watch_node.clone()).with_safety(safety_selection),
+                    Destination::direct(watch_node.routing_domain_filtered(routing_domain))
+                        .with_safety(safety_selection),
                     key,
                     subkeys,
                     expiration,
@@ -204,6 +210,7 @@ impl StorageManager {
         }
 
         let routing_table = rpc_processor.routing_table();
+        let routing_domain = RoutingDomain::PublicInternet;
 
         // Get the DHT parameters for 'WatchValue', some of which are the same for 'SetValue' operations
         let (key_count, timeout_us, set_value_count) = {
@@ -233,7 +240,7 @@ impl StorageManager {
                 .unwrap_or_default()
                 .into_iter()
                 .filter(|x| {
-                    x.node_info(RoutingDomain::PublicInternet)
+                    x.node_info(routing_domain)
                         .map(|ni| ni.has_all_capabilities(&[CAP_DHT, CAP_DHT_WATCH]))
                         .unwrap_or_default()
                 })
@@ -256,7 +263,7 @@ impl StorageManager {
                     rpc_processor
                         .clone()
                         .rpc_call_watch_value(
-                            Destination::direct(next_node.clone()).with_safety(safety_selection),
+                            Destination::direct(next_node.routing_domain_filtered(routing_domain)).with_safety(safety_selection),
                             key,
                             subkeys,
                             expiration,
@@ -293,7 +300,7 @@ impl StorageManager {
                 // Return peers if we have some
                 log_network_result!(debug "WatchValue fanout call returned peers {} ({})", wva.answer.peers.len(), next_node);
 
-                Ok(NetworkResult::value(wva.answer.peers))
+                Ok(NetworkResult::value(FanoutCallOutput{peer_info_list: wva.answer.peers}))
             }.instrument(tracing::trace_span!("outbound_watch_value call routine"))
         };
 

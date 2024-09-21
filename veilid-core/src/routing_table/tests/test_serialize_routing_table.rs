@@ -65,6 +65,7 @@ pub async fn test_round_trip_peerinfo() {
         ]),
     ));
     let pi: PeerInfo = PeerInfo::new(
+        RoutingDomain::PublicInternet,
         tks,
         SignedNodeInfo::Direct(SignedDirectNodeInfo::new(
             NodeInfo::new(

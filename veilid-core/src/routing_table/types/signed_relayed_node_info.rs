@@ -141,4 +141,18 @@ impl SignedRelayedNodeInfo {
     pub fn signatures(&self) -> &[TypedSignature] {
         &self.signatures
     }
+
+    /// Compare this SignedRelayedNodeInfo to another one
+    /// Exclude the signature and timestamp and any other fields that are not
+    /// semantically valuable
+    pub fn equivalent(&self, other: &SignedRelayedNodeInfo) -> bool {
+        let a = self.node_info();
+        let b = other.node_info();
+        let ari = self.relay_ids();
+        let bri = other.relay_ids();
+        let ar = self.relay_info();
+        let br = other.relay_info();
+
+        a == b && ari == bri && ar.equivalent(br)
+    }
 }

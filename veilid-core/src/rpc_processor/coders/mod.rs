@@ -74,3 +74,8 @@ pub(in crate::rpc_processor) struct RPCValidateContext {
     // pub rpc_processor: RPCProcessor,
     pub question_context: Option<QuestionContext>,
 }
+
+#[derive(Clone)]
+pub(crate) struct RPCDecodeContext {
+    pub routing_domain: RoutingDomain,
+}

@@ -89,11 +89,12 @@ pub struct CmdlineArgs {
     flame: Option<OsString>,
 
     /// Turn on perfetto tracing (experimental)
+    #[cfg(unix)]
     #[arg(long, hide = true, value_name = "PATH", num_args=0..=1, require_equals=true, default_missing_value = "")]
     perfetto: Option<OsString>,
 
     /// Run as an extra daemon on the same machine for testing purposes, specify a number greater than zero to offset the listening ports
-    #[arg(long)]
+    #[arg(short('n'), long)]
     subnode_index: Option<u16>,
 
     /// Only generate a new keypair and print it
@@ -235,6 +236,7 @@ fn main() -> EyreResult<()> {
         settingsrw.logging.flame.enabled = true;
         settingsrw.logging.flame.path = flame;
     }
+    #[cfg(unix)]
     if let Some(perfetto) = args.perfetto {
         let perfetto = if perfetto.is_empty() {
             Settings::get_default_perfetto_path(settingsrw.testing.subnode_index)
@@ -418,13 +420,11 @@ fn main() -> EyreResult<()> {
 
             run_veilid_server(settings, server_mode, veilid_logs).await
         })
-        .map(|v| {
+        .inspect(|_v| {
             println!("{}", success);
-            v
         })
-        .map_err(|e| {
+        .inspect_err(|_e| {
             println!("{}", failure);
-            e
         });
     }
 

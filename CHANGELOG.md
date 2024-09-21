@@ -1,4 +1,4 @@
-**Changed in Veilid 0.3.3**
+**Changed in Veilid 0.3.4**
 - Crates updates
   - Update crates to newer versions
   - Remove veilid-async-tungstenite and veilid-async-tls crates as they are no longer needed

@@ -60,6 +60,7 @@ impl StorageManager {
         use_set_scope: bool,
     ) -> VeilidAPIResult<OutboundInspectValueResult> {
         let routing_table = rpc_processor.routing_table();
+        let routing_domain = RoutingDomain::PublicInternet;
 
         // Get the DHT parameters for 'InspectValue'
         // Can use either 'get scope' or 'set scope' depending on the purpose of the inspection
@@ -86,7 +87,16 @@ impl StorageManager {
         // Get the nodes we know are caching this value to seed the fanout
         let init_fanout_queue = {
             let inner = self.inner.lock().await;
-            inner.get_value_nodes(key)?.unwrap_or_default()
+            inner
+                .get_value_nodes(key)?
+                .unwrap_or_default()
+                .into_iter()
+                .filter(|x| {
+                    x.node_info(routing_domain)
+                        .map(|ni| ni.has_all_capabilities(&[CAP_DHT]))
+                        .unwrap_or_default()
+                })
+                .collect()
         };
 
         // Make do-inspect-value answer context
@@ -120,7 +130,7 @@ impl StorageManager {
                     rpc_processor
                         .clone()
                         .rpc_call_inspect_value(
-                            Destination::direct(next_node.clone()).with_safety(safety_selection),
+                            Destination::direct(next_node.routing_domain_filtered(routing_domain)).with_safety(safety_selection),
                             key,
                             subkeys.clone(),
                             opt_descriptor.map(|x| (*x).clone()),
@@ -227,7 +237,7 @@ impl StorageManager {
                 // Return peers if we have some
                 log_network_result!(debug "InspectValue fanout call returned peers {}", answer.peers.len());
 
-                Ok(NetworkResult::value(answer.peers))
+                Ok(NetworkResult::value(FanoutCallOutput { peer_info_list: answer.peers}))
             }.instrument(tracing::trace_span!("outbound_inspect_value fanout call"))
         };
 

@@ -238,15 +238,13 @@ impl RouteSpecStore {
             );
         }
 
-        // Ensure we have a valid network class so our peer info is useful
-        if !rti.has_valid_network_class(RoutingDomain::PublicInternet) {
+        // Get our peer info
+        let Some(published_peer_info) = rti.get_published_peer_info(RoutingDomain::PublicInternet)
+        else {
             apibail_try_again!(
                 "unable to allocate route until we have a valid PublicInternet network class"
             );
         };
-
-        // Get our peer info
-        let our_peer_info = rti.get_own_peer_info(RoutingDomain::PublicInternet);
 
         // Get relay node if we have one
         let opt_own_relay_nr = rti
@@ -297,7 +295,7 @@ impl RouteSpecStore {
                     // or our relay is on their ipblock, or their relay is on our relays same ipblock
 
                     // our node vs their node
-                    if our_peer_info
+                    if published_peer_info
                         .signed_node_info()
                         .node_info()
                         .node_is_on_same_ipblock(sni.node_info(), ip6_prefix_size)
@@ -306,20 +304,22 @@ impl RouteSpecStore {
                     }
                     if let Some(rni) = sni.relay_info() {
                         // our node vs their relay
-                        if our_peer_info
+                        if published_peer_info
                             .signed_node_info()
                             .node_info()
                             .node_is_on_same_ipblock(rni, ip6_prefix_size)
                         {
                             return false;
                         }
-                        if let Some(our_rni) = our_peer_info.signed_node_info().relay_info() {
+                        if let Some(our_rni) = published_peer_info.signed_node_info().relay_info() {
                             // our relay vs their relay
                             if our_rni.node_is_on_same_ipblock(rni, ip6_prefix_size) {
                                 return false;
                             }
                         }
-                    } else if let Some(our_rni) = our_peer_info.signed_node_info().relay_info() {
+                    } else if let Some(our_rni) =
+                        published_peer_info.signed_node_info().relay_info()
+                    {
                         // our relay vs their node
                         if our_rni.node_is_on_same_ipblock(sni.node_info(), ip6_prefix_size) {
                             return false;
@@ -419,7 +419,7 @@ impl RouteSpecStore {
 
         let routing_table = self.unlocked_inner.routing_table.clone();
         let transform = |_rti: &RoutingTableInner, entry: Option<Arc<BucketEntry>>| -> NodeRef {
-            NodeRef::new(routing_table.clone(), entry.unwrap(), None)
+            NodeRef::new(routing_table.clone(), entry.unwrap())
         };
 
         // Pull the whole routing table in sorted order
@@ -432,12 +432,14 @@ impl RouteSpecStore {
         }
 
         // Get peer info for everything
-        let nodes_pi: Vec<PeerInfo> = nodes
+        let nodes_pi: Vec<Arc<PeerInfo>> = nodes
             .iter()
             .map(|nr| {
-                nr.locked(rti)
-                    .make_peer_info(RoutingDomain::PublicInternet)
-                    .unwrap()
+                Arc::new(
+                    nr.locked(rti)
+                        .make_peer_info(RoutingDomain::PublicInternet)
+                        .unwrap(),
+                )
             })
             .collect();
 
@@ -487,14 +489,14 @@ impl RouteSpecStore {
             // Ensure this route is viable by checking that each node can contact the next one
             let mut can_do_sequenced = true;
             if directions.contains(Direction::Outbound) {
-                let mut previous_node = &our_peer_info;
+                let mut previous_node = published_peer_info.clone();
                 let mut reachable = true;
                 for n in permutation {
-                    let current_node = nodes_pi.get(*n).unwrap();
+                    let current_node = nodes_pi.get(*n).cloned().unwrap();
                     let cm = rti.get_contact_method(
                         RoutingDomain::PublicInternet,
-                        previous_node,
-                        current_node,
+                        previous_node.clone(),
+                        current_node.clone(),
                         DialInfoFilter::all(),
                         sequencing,
                         None,
@@ -508,8 +510,8 @@ impl RouteSpecStore {
                     if can_do_sequenced {
                         let cm = rti.get_contact_method(
                             RoutingDomain::PublicInternet,
-                            previous_node,
-                            current_node,
+                            previous_node.clone(),
+                            current_node.clone(),
                             DialInfoFilter::all(),
                             Sequencing::EnsureOrdered,
                             None,
@@ -526,14 +528,14 @@ impl RouteSpecStore {
                 }
             }
             if directions.contains(Direction::Inbound) {
-                let mut next_node = &our_peer_info;
+                let mut next_node = published_peer_info.clone();
                 let mut reachable = true;
                 for n in permutation.iter().rev() {
-                    let current_node = nodes_pi.get(*n).unwrap();
+                    let current_node = nodes_pi.get(*n).cloned().unwrap();
                     let cm = rti.get_contact_method(
                         RoutingDomain::PublicInternet,
-                        next_node,
-                        current_node,
+                        next_node.clone(),
+                        current_node.clone(),
                         DialInfoFilter::all(),
                         sequencing,
                         None,
@@ -547,8 +549,8 @@ impl RouteSpecStore {
                     if can_do_sequenced {
                         let cm = rti.get_contact_method(
                             RoutingDomain::PublicInternet,
-                            next_node,
-                            current_node,
+                            next_node.clone(),
+                            current_node.clone(),
                             DialInfoFilter::all(),
                             Sequencing::EnsureOrdered,
                             None,
@@ -710,18 +712,18 @@ impl RouteSpecStore {
     }
 
     #[instrument(level = "trace", target = "route", skip(self), ret, err)]
-    async fn test_allocated_route(&self, private_route_id: RouteId) -> VeilidAPIResult<bool> {
+    async fn test_allocated_route(
+        &self,
+        private_route_id: RouteId,
+    ) -> VeilidAPIResult<Option<bool>> {
         // Make loopback route to test with
         let (dest, hops) = {
             // Get the best allocated route for this id
             let (key, hops) = {
                 let inner = &mut *self.inner.lock();
                 let Some(rssd) = inner.content.get_detail(&private_route_id) else {
-                    apibail_invalid_argument!(
-                        "route id not allocated",
-                        "private_route_id",
-                        private_route_id
-                    );
+                    // Route id is already dead
+                    return Ok(Some(false));
                 };
                 let Some(key) = rssd.get_best_route_set_key() else {
                     apibail_internal!("no best key to test allocated route");
@@ -733,7 +735,21 @@ impl RouteSpecStore {
             };
 
             // Get the private route to send to
-            let private_route = self.assemble_private_route(&key, None)?;
+            let private_route = match self.assemble_private_route(&key, None) {
+                Ok(v) => v,
+                Err(VeilidAPIError::InvalidTarget { message: _ }) => {
+                    // Route missing means its dead
+                    return Ok(Some(false));
+                }
+                Err(VeilidAPIError::TryAgain { message: _ }) => {
+                    // Try again means we didn't test because we couldnt assemble
+                    return Ok(None);
+                }
+                Err(e) => {
+                    return Err(e);
+                }
+            };
+
             // Always test routes with safety routes that are more likely to succeed
             let stability = Stability::Reliable;
             // Routes should test with the most likely to succeed sequencing they are capable of
@@ -769,15 +785,15 @@ impl RouteSpecStore {
                 for hop in hops {
                     hop.report_failed_route_test();
                 }
-                return Ok(false);
+                return Ok(Some(false));
             }
         };
 
-        Ok(true)
+        Ok(Some(true))
     }
 
     #[instrument(level = "trace", target = "route", skip(self), ret, err)]
-    async fn test_remote_route(&self, private_route_id: RouteId) -> VeilidAPIResult<bool> {
+    async fn test_remote_route(&self, private_route_id: RouteId) -> VeilidAPIResult<Option<bool>> {
         // Make private route test
         let dest = {
             // Get the route to test
@@ -812,11 +828,11 @@ impl RouteSpecStore {
             NetworkResult::Value(v) => v,
             _ => {
                 // Did not error, but did not come back, just return false
-                return Ok(false);
+                return Ok(Some(false));
             }
         };
 
-        Ok(true)
+        Ok(Some(true))
     }
 
     /// Release an allocated route that is no longer in use
@@ -848,7 +864,7 @@ impl RouteSpecStore {
 
     /// Test an allocated route for continuity
     #[instrument(level = "trace", target = "route", skip(self), ret, err)]
-    pub async fn test_route(&self, id: RouteId) -> VeilidAPIResult<bool> {
+    pub async fn test_route(&self, id: RouteId) -> VeilidAPIResult<Option<bool>> {
         let is_remote = self.is_route_id_remote(&id);
         if is_remote {
             self.test_remote_route(id).await
@@ -1040,23 +1056,18 @@ impl RouteSpecStore {
                         .lookup_node_ref(routing_table.clone(), TypedKey::new(crypto_kind, id))
                         .map_err(VeilidAPIError::internal)?,
                     RouteNode::PeerInfo(pi) => Some(
-                        rti.register_node_with_peer_info(
-                            routing_table.clone(),
-                            RoutingDomain::PublicInternet,
-                            *pi,
-                            false,
-                        )
-                        .map_err(VeilidAPIError::internal)?,
+                        rti.register_node_with_peer_info(routing_table.clone(), pi, false)
+                            .map_err(VeilidAPIError::internal)?
+                            .unfiltered(),
                     ),
                 };
-                if opt_first_hop.is_none() {
+                let Some(first_hop) = opt_first_hop else {
                     // Can't reach this private route any more
                     apibail_generic!("can't reach private route any more");
-                }
-                let mut first_hop = opt_first_hop.unwrap();
+                };
 
                 // Set sequencing requirement
-                first_hop.set_sequencing(sequencing);
+                let mut first_hop = first_hop.sequencing_filtered(sequencing);
 
                 // Enforce the routing domain
                 first_hop.merge_filter(
@@ -1115,10 +1126,10 @@ impl RouteSpecStore {
             || safety_rssd.get_stats().last_received_ts.is_some();
 
         // Get the first hop noderef of the safety route
-        let mut first_hop = safety_rssd.hop_node_ref(0).unwrap();
+        let first_hop = safety_rssd.hop_node_ref(0).unwrap();
 
         // Ensure sequencing requirement is set on first hop
-        first_hop.set_sequencing(safety_spec.sequencing);
+        let mut first_hop = first_hop.sequencing_filtered(safety_spec.sequencing);
 
         // Enforce the routing domain
         first_hop
@@ -1201,7 +1212,7 @@ impl RouteSpecStore {
                             if pi.is_none() {
                                 apibail_internal!("peer info should exist for route but doesn't");
                             }
-                            RouteNode::PeerInfo(Box::new(pi.unwrap()))
+                            RouteNode::PeerInfo(Arc::new(pi.unwrap()))
                         },
                         next_hop: Some(route_hop_data),
                     };
@@ -1386,11 +1397,10 @@ impl RouteSpecStore {
         };
 
         // Ensure our network class is valid before attempting to assemble any routes
-        if !rti.has_valid_network_class(RoutingDomain::PublicInternet) {
-            apibail_try_again!(
-                "unable to assemble route until we have a valid PublicInternet network class"
-            );
-        }
+        let Some(published_peer_info) = rti.get_published_peer_info(RoutingDomain::PublicInternet)
+        else {
+            apibail_try_again!("unable to assemble route until we have published peerinfo");
+        };
 
         // Make innermost route hop to our own node
         let mut route_hop = RouteHop {
@@ -1404,8 +1414,7 @@ impl RouteSpecStore {
                 };
                 RouteNode::NodeId(node_id.value)
             } else {
-                let pi = rti.get_own_peer_info(RoutingDomain::PublicInternet);
-                RouteNode::PeerInfo(Box::new(pi))
+                RouteNode::PeerInfo(published_peer_info)
             },
             next_hop: None,
         };
@@ -1449,7 +1458,7 @@ impl RouteSpecStore {
                     if pi.is_none() {
                         apibail_internal!("peer info should exist for route but doesn't");
                     }
-                    RouteNode::PeerInfo(Box::new(pi.unwrap()))
+                    RouteNode::PeerInfo(Arc::new(pi.unwrap()))
                 },
                 next_hop: Some(route_hop_data),
             }
@@ -1474,7 +1483,8 @@ impl RouteSpecStore {
     ) -> VeilidAPIResult<PrivateRoute> {
         let inner = &*self.inner.lock();
         let Some(rsid) = inner.content.get_id_by_key(key) else {
-            apibail_invalid_argument!("route key does not exist", "key", key);
+            // Route doesn't exist
+            apibail_invalid_target!("route id does not exist");
         };
         let Some(rssd) = inner.content.get_detail(&rsid) else {
             apibail_internal!("route id does not exist");
@@ -1504,7 +1514,7 @@ impl RouteSpecStore {
     ) -> VeilidAPIResult<Vec<PrivateRoute>> {
         let inner = &*self.inner.lock();
         let Some(rssd) = inner.content.get_detail(id) else {
-            apibail_invalid_argument!("route id does not exist", "id", id);
+            apibail_invalid_target!("route id does not exist");
         };
 
         // See if we can optimize this compilation yet
@@ -1529,10 +1539,7 @@ impl RouteSpecStore {
         let cur_ts = Timestamp::now();
 
         // decode the pr blob
-        let private_routes = RouteSpecStore::blob_to_private_routes(
-            self.unlocked_inner.routing_table.crypto(),
-            blob,
-        )?;
+        let private_routes = self.blob_to_private_routes(blob)?;
 
         // make the route id
         let id = self.generate_remote_route_id(&private_routes)?;
@@ -1620,7 +1627,11 @@ impl RouteSpecStore {
 
     /// Check to see if this remote (not ours) private route has seen our current node info yet
     /// This happens when you communicate with a private route without a safety route
-    pub fn has_remote_private_route_seen_our_node_info(&self, key: &PublicKey) -> bool {
+    pub fn has_remote_private_route_seen_our_node_info(
+        &self,
+        key: &PublicKey,
+        published_peer_info: &PeerInfo,
+    ) -> bool {
         let inner = &*self.inner.lock();
 
         // Check for local route. If this is not a remote private route,
@@ -1633,18 +1644,15 @@ impl RouteSpecStore {
         if let Some(rrid) = inner.cache.get_remote_private_route_id_by_key(key) {
             let cur_ts = Timestamp::now();
             if let Some(rpri) = inner.cache.peek_remote_private_route(cur_ts, &rrid) {
-                let our_node_info_ts = self
-                    .unlocked_inner
-                    .routing_table
-                    .get_own_node_info_ts(RoutingDomain::PublicInternet);
-                return rpri.has_seen_our_node_info_ts(our_node_info_ts);
+                return rpri
+                    .has_seen_our_node_info_ts(published_peer_info.signed_node_info().timestamp());
             }
         }
 
         false
     }
 
-    /// Mark a remote private route as having seen our current node info
+    /// Mark a remote private route as having seen our current published node info
     /// PRIVACY:
     /// We do not accept node info timestamps from remote private routes because this would
     /// enable a deanonymization attack, whereby a node could be 'pinged' with a doctored node_info with a
@@ -1655,10 +1663,14 @@ impl RouteSpecStore {
         key: &PublicKey,
         cur_ts: Timestamp,
     ) -> VeilidAPIResult<()> {
-        let our_node_info_ts = self
+        let Some(our_node_info_ts) = self
             .unlocked_inner
             .routing_table
-            .get_own_node_info_ts(RoutingDomain::PublicInternet);
+            .get_published_peer_info(RoutingDomain::PublicInternet)
+            .map(|pi| pi.signed_node_info().timestamp())
+        else {
+            apibail_internal!("peer info is not yet published");
+        };
 
         let inner = &mut *self.inner.lock();
 
@@ -1676,7 +1688,7 @@ impl RouteSpecStore {
             }
         }
 
-        apibail_invalid_argument!("private route is missing from store", "key", key);
+        apibail_invalid_target!("private route is missing from store");
     }
 
     /// Get the route statistics for any route we know about, local or remote
@@ -1732,7 +1744,7 @@ impl RouteSpecStore {
     pub fn mark_route_published(&self, id: &RouteId, published: bool) -> VeilidAPIResult<()> {
         let inner = &mut *self.inner.lock();
         let Some(rssd) = inner.content.get_detail_mut(id) else {
-            apibail_invalid_argument!("route does not exist", "id", id);
+            apibail_invalid_target!("route does not exist");
         };
         rssd.set_published(published);
         Ok(())
@@ -1776,10 +1788,10 @@ impl RouteSpecStore {
     }
 
     /// Convert binary blob to private route vector
-    pub fn blob_to_private_routes(
-        crypto: Crypto,
-        blob: Vec<u8>,
-    ) -> VeilidAPIResult<Vec<PrivateRoute>> {
+    pub fn blob_to_private_routes(&self, blob: Vec<u8>) -> VeilidAPIResult<Vec<PrivateRoute>> {
+        // Get crypto
+        let crypto = self.unlocked_inner.routing_table.crypto();
+
         // Deserialize count
         if blob.is_empty() {
             apibail_invalid_argument!(
@@ -1795,6 +1807,9 @@ impl RouteSpecStore {
         }
 
         // Deserialize stream of private routes
+        let decode_context = RPCDecodeContext {
+            routing_domain: RoutingDomain::PublicInternet,
+        };
         let mut pr_slice = &blob[1..];
         let mut out = Vec::with_capacity(pr_count);
         for _ in 0..pr_count {
@@ -1807,7 +1822,7 @@ impl RouteSpecStore {
             let pr_reader = reader
                 .get_root::<veilid_capnp::private_route::Reader>()
                 .map_err(VeilidAPIError::internal)?;
-            let private_route = decode_private_route(&pr_reader).map_err(|e| {
+            let private_route = decode_private_route(&decode_context, &pr_reader).map_err(|e| {
                 VeilidAPIError::invalid_argument("failed to decode private route", "e", e)
             })?;
             private_route.validate(crypto.clone()).map_err(|e| {

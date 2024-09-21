@@ -55,6 +55,14 @@ impl RoutingTable {
         out
     }
 
+    pub(crate) fn debug_info_nodeid(&self) -> String {
+        let mut out = String::new();
+        for nid in self.unlocked_inner.node_ids().iter() {
+            out += &format!("{}\n", nid);
+        }
+        out
+    }
+
     pub(crate) fn debug_info_nodeinfo(&self) -> String {
         let mut out = String::new();
         let inner = self.inner.read();
@@ -94,13 +102,25 @@ impl RoutingTable {
         out
     }
 
-    pub(crate) fn debug_info_peerinfo(&self, routing_domain: RoutingDomain) -> String {
+    pub(crate) fn debug_info_peerinfo(
+        &self,
+        routing_domain: RoutingDomain,
+        published: bool,
+    ) -> String {
         let mut out = String::new();
-        out += &format!(
-            "{:?} PeerInfo:\n  {:#?}\n",
-            routing_domain,
-            self.get_own_peer_info(routing_domain)
-        );
+        if published {
+            out += &format!(
+                "{:?} Published PeerInfo:\n  {:#?}\n",
+                routing_domain,
+                self.get_published_peer_info(routing_domain)
+            );
+        } else {
+            out += &format!(
+                "{:?} Current PeerInfo:\n  {:#?}\n",
+                routing_domain,
+                self.get_current_peer_info(routing_domain)
+            );
+        }
         out
     }
 
@@ -113,7 +133,7 @@ impl RoutingTable {
                 PunishmentReason::InvalidFraming => "PFRAME",
                 PunishmentReason::FailedToDecodeOperation => "PDECOP",
                 PunishmentReason::WrongSenderPeerInfo => "PSPBAD",
-                PunishmentReason::FailedToVerifySenderPeerInfo => "PSPVER",
+                // PunishmentReason::FailedToVerifySenderPeerInfo => "PSPVER",
                 PunishmentReason::FailedToRegisterSenderPeerInfo => "PSPREG",
                 //
             },

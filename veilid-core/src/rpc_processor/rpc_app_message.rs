@@ -28,12 +28,15 @@ impl RPCProcessor {
     pub(crate) async fn process_app_message(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
         // Ignore if disabled
         let routing_table = self.routing_table();
-        let opi = routing_table.get_own_peer_info(msg.header.routing_domain());
-        if !opi
-            .signed_node_info()
-            .node_info()
-            .has_capability(CAP_APPMESSAGE)
-        {
+        let has_capability_app_message = routing_table
+            .get_published_peer_info(msg.header.routing_domain())
+            .map(|ppi| {
+                ppi.signed_node_info()
+                    .node_info()
+                    .has_capability(CAP_APPMESSAGE)
+            })
+            .unwrap_or(false);
+        if !has_capability_app_message {
             return Ok(NetworkResult::service_unavailable(
                 "app message is not available",
             ));
@@ -58,7 +61,7 @@ impl RPCProcessor {
         };
 
         // Get the statement
-        let (_, _, _, kind) = msg.operation.destructure();
+        let (_, _, kind) = msg.operation.destructure();
         let app_message = match kind {
             RPCOperationKind::Statement(s) => match s.destructure() {
                 RPCStatementDetail::AppMessage(s) => s,

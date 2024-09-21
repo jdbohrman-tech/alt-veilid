@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 #![allow(clippy::absurd_extreme_comparisons)]
 use super::*;
 use crate::*;

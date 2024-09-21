@@ -7,6 +7,8 @@ description = "Veilid bindings for WebAssembly"
 authors = ["Veilid Team <contact@veilid.com>"]
 license = "MPL-2.0"
 edition = "2021"
+rust-version = "1.81.0"
+resolver = "2"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

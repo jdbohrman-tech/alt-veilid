@@ -46,7 +46,7 @@ impl DialInfoFilter {
     pub fn is_dead(&self) -> bool {
         self.protocol_type_set.is_empty() || self.address_type_set.is_empty()
     }
-    pub fn with_sequencing(self, sequencing: Sequencing) -> (bool, DialInfoFilter) {
+    pub fn apply_sequencing(self, sequencing: Sequencing) -> (bool, DialInfoFilter) {
         // Get first filtered dialinfo
         match sequencing {
             Sequencing::NoPreference => (false, self),

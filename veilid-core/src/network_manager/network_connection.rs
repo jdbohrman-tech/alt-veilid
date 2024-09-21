@@ -183,7 +183,7 @@ impl NetworkConnection {
         self.flow
     }
 
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub fn unique_flow(&self) -> UniqueFlow {
         UniqueFlow {
             flow: self.flow,
@@ -205,6 +205,10 @@ impl NetworkConnection {
 
     pub fn protect(&mut self, protect_nr: NodeRef) {
         self.protected_nr = Some(protect_nr);
+    }
+
+    pub fn unprotect(&mut self) {
+        self.protected_nr = None;
     }
 
     pub fn add_ref(&mut self) {
@@ -254,13 +258,12 @@ impl NetworkConnection {
         Ok(NetworkResult::Value(out))
     }
 
-    #[allow(dead_code)]
     pub fn stats(&self) -> NetworkConnectionStats {
         let stats = self.stats.lock();
         stats.clone()
     }
 
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub fn established_time(&self) -> Timestamp {
         self.established_time
     }

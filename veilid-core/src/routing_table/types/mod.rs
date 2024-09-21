@@ -1,3 +1,4 @@
+mod contact_method;
 mod dial_info_detail;
 mod direction;
 mod node_info;
@@ -10,6 +11,7 @@ mod signed_relayed_node_info;
 
 use super::*;
 
+pub(crate) use contact_method::*;
 pub use dial_info_detail::*;
 pub use direction::*;
 pub use node_info::*;

@@ -28,7 +28,6 @@ pub struct RoutingContextUnlockedInner {
 pub struct RoutingContext {
     /// Veilid API handle.
     api: VeilidAPI,
-    inner: Arc<Mutex<RoutingContextInner>>,
     unlocked_inner: Arc<RoutingContextUnlockedInner>,
 }
 
@@ -50,7 +49,6 @@ impl RoutingContext {
 
         Ok(Self {
             api,
-            inner: Arc::new(Mutex::new(RoutingContextInner {})),
             unlocked_inner: Arc::new(RoutingContextUnlockedInner {
                 safety_selection: SafetySelection::Safe(SafetySpec {
                     preferred_route: None,
@@ -96,7 +94,6 @@ impl RoutingContext {
 
         Ok(Self {
             api: self.api.clone(),
-            inner: Arc::new(Mutex::new(RoutingContextInner {})),
             unlocked_inner: Arc::new(RoutingContextUnlockedInner { safety_selection }),
         })
     }
@@ -109,7 +106,6 @@ impl RoutingContext {
 
         Self {
             api: self.api.clone(),
-            inner: Arc::new(Mutex::new(RoutingContextInner {})),
             unlocked_inner: Arc::new(RoutingContextUnlockedInner {
                 safety_selection: match self.unlocked_inner.safety_selection {
                     SafetySelection::Unsafe(_) => SafetySelection::Unsafe(sequencing),
@@ -129,7 +125,8 @@ impl RoutingContext {
         self.unlocked_inner.safety_selection
     }
 
-    fn sequencing(&self) -> Sequencing {
+    /// Get the sequencing used by this routing context
+    pub fn sequencing(&self) -> Sequencing {
         match self.unlocked_inner.safety_selection {
             SafetySelection::Unsafe(sequencing) => sequencing,
             SafetySelection::Safe(safety_spec) => safety_spec.sequencing,
@@ -335,7 +332,7 @@ impl RoutingContext {
     ///
     /// Returns `None` if the value was successfully put.
     /// Returns `Some(data)` if the value put was older than the one available on the network.
-    #[instrument(target = "veilid_api", level = "debug", ret, err)]
+    #[instrument(target = "veilid_api", level = "debug", skip(data), fields(data = print_data(&data, Some(64))), ret, err)]
     pub async fn set_dht_value(
         &self,
         key: TypedKey,
@@ -344,7 +341,7 @@ impl RoutingContext {
         writer: Option<KeyPair>,
     ) -> VeilidAPIResult<Option<ValueData>> {
         event!(target: "veilid_api", Level::DEBUG, 
-            "RoutingContext::set_dht_value(self: {:?}, key: {:?}, subkey: {:?}, data: {:?}, writer: {:?})", self, key, subkey, data, writer);
+            "RoutingContext::set_dht_value(self: {:?}, key: {:?}, subkey: {:?}, data: len={}, writer: {:?})", self, key, subkey, data.len(), writer);
 
         Crypto::validate_crypto_kind(key.kind)?;
         let storage_manager = self.api.storage_manager()?;

@@ -1,21 +1,21 @@
 use super::*;
 
 /// Parameter for Signal operation
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 pub enum SignalInfo {
     /// UDP Hole Punch Request
     HolePunch {
         /// /// Receipt to be returned after the hole punch
         receipt: Vec<u8>,
         /// Sender's peer info
-        peer_info: PeerInfo,
+        peer_info: Arc<PeerInfo>,
     },
     /// Reverse Connection Request
     ReverseConnect {
         /// Receipt to be returned by the reverse connection
         receipt: Vec<u8>,
         /// Sender's peer info
-        peer_info: PeerInfo,
+        peer_info: Arc<PeerInfo>,
     },
     // XXX: WebRTC
 }

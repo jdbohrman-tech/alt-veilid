@@ -4,7 +4,7 @@ use crate::storage_manager::{SignedValueData, SignedValueDescriptor};
 #[derive(Clone, Debug)]
 pub struct GetValueAnswer {
     pub value: Option<SignedValueData>,
-    pub peers: Vec<PeerInfo>,
+    pub peers: Vec<Arc<PeerInfo>>,
     pub descriptor: Option<SignedValueDescriptor>,
 }
 
@@ -38,7 +38,7 @@ impl RPCProcessor {
 
         // Ensure destination never has a private route
         // and get the target noderef so we can validate the response
-        let Some(target) = dest.node() else {
+        let Some(target_node_ids) = dest.get_target_node_ids() else {
             return Err(RPCError::internal(
                 "Never send get value requests over private routes",
             ));
@@ -48,7 +48,7 @@ impl RPCProcessor {
         let Some(vcrypto) = self.crypto.get(key.kind) else {
             return Err(RPCError::internal("unsupported cryptosystem"));
         };
-        let Some(target_node_id) = target.node_ids().get(key.kind) else {
+        let Some(target_node_id) = target_node_ids.get(key.kind) else {
             return Err(RPCError::internal("No node id for crypto kind"));
         };
 
@@ -94,7 +94,7 @@ impl RPCProcessor {
         };
 
         // Get the right answer type
-        let (_, _, _, kind) = msg.operation.destructure();
+        let (_, _, kind) = msg.operation.destructure();
         let get_value_a = match kind {
             RPCOperationKind::Answer(a) => match a.destructure() {
                 RPCAnswerDetail::GetValueA(a) => a,
@@ -188,10 +188,15 @@ impl RPCProcessor {
                 ))
             }
         }
-        // Ignore if disabled
         let routing_table = self.routing_table();
-        let opi = routing_table.get_own_peer_info(msg.header.routing_domain());
-        if !opi.signed_node_info().node_info().has_capability(CAP_DHT) {
+        let routing_domain = msg.header.routing_domain();
+
+        // Ignore if disabled
+        let has_capability_dht = routing_table
+            .get_published_peer_info(msg.header.routing_domain())
+            .map(|ppi| ppi.signed_node_info().node_info().has_capability(CAP_DHT))
+            .unwrap_or(false);
+        if !has_capability_dht {
             return Ok(NetworkResult::service_unavailable("dht is not available"));
         }
 
@@ -209,9 +214,8 @@ impl RPCProcessor {
         let (key, subkey, want_descriptor) = get_value_q.destructure();
 
         // Get the nodes that we know about that are closer to the the key than our own node
-        let routing_table = self.routing_table();
         let closer_to_key_peers = network_result_try!(
-            routing_table.find_preferred_peers_closer_to_key(key, vec![CAP_DHT])
+            routing_table.find_preferred_peers_closer_to_key(routing_domain, key, vec![CAP_DHT])
         );
 
         if debug_target_enabled!("dht") {

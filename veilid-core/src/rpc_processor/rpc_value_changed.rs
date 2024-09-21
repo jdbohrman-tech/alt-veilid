@@ -38,7 +38,7 @@ impl RPCProcessor {
     #[instrument(level = "trace", target = "rpc", skip_all)]
     pub(crate) async fn process_value_changed(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
         // Get the statement
-        let (_, _, _, kind) = msg.operation.destructure();
+        let (_, _, kind) = msg.operation.destructure();
         let (key, subkeys, count, watch_id, value) = match kind {
             RPCOperationKind::Statement(s) => match s.destructure() {
                 RPCStatementDetail::ValueChanged(s) => s.destructure(),

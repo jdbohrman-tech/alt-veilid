@@ -123,28 +123,23 @@ impl Network {
     }
 
     // Add local dial info to preferred local address table
-    fn add_preferred_local_address(inner: &mut NetworkInner, pa: PeerAddress) {
+    pub(super) fn set_preferred_local_address(inner: &mut NetworkInner, pa: PeerAddress) {
         let key = (pa.protocol_type(), pa.address_type());
         let sa = pa.socket_addr();
-        let unspec_sa = match sa {
-            SocketAddr::V4(a) => SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, a.port())),
-            SocketAddr::V6(a) => {
-                SocketAddr::V6(SocketAddrV6::new(Ipv6Addr::UNSPECIFIED, a.port(), 0, 0))
-            }
-        };
-        inner.preferred_local_addresses.insert(key, unspec_sa);
+        // let unspec_sa = match sa {
+        //     SocketAddr::V4(a) => SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, a.port())),
+        //     SocketAddr::V6(a) => {
+        //         SocketAddr::V6(SocketAddrV6::new(Ipv6Addr::UNSPECIFIED, a.port(), 0, 0))
+        //     }
+        // };
+        inner.preferred_local_addresses.entry(key).or_insert(sa);
     }
 
     /////////////////////////////////////////////////////
 
     #[instrument(level = "trace", skip_all)]
-    pub(super) async fn bind_udp_protocol_handlers(
-        &self,
-        editor_public_internet: &mut RoutingDomainEditor,
-        editor_local_network: &mut RoutingDomainEditor,
-    ) -> EyreResult<StartupDisposition> {
+    pub(super) async fn bind_udp_protocol_handlers(&self) -> EyreResult<StartupDisposition> {
         log_net!("UDP: binding protocol handlers");
-        let routing_table = self.routing_table();
         let (listen_address, public_address, detect_address_changes) = {
             let c = self.config.get();
             (
@@ -172,18 +167,59 @@ impl Network {
             );
         }
 
-        let Some(mut local_dial_info_list) = self.create_udp_protocol_handlers(bind_set).await?
-        else {
+        if !self.create_udp_protocol_handlers(bind_set).await? {
             return Ok(StartupDisposition::BindRetry);
         };
-        local_dial_info_list.sort();
 
-        let mut static_public = false;
+        // Now create tasks for udp listeners
+        self.create_udp_listener_tasks().await?;
 
-        log_net!(
-            "UDP: protocol handlers bound to {:#?}",
-            local_dial_info_list
-        );
+        {
+            let mut inner = self.inner.lock();
+            if public_address.is_some() && !detect_address_changes {
+                inner.static_public_dial_info.insert(ProtocolType::UDP);
+            }
+        }
+
+        Ok(StartupDisposition::Success)
+    }
+
+    #[instrument(level = "trace", skip_all)]
+    pub(super) async fn register_udp_dial_info(
+        &self,
+        editor_public_internet: &mut RoutingDomainEditorPublicInternet,
+        editor_local_network: &mut RoutingDomainEditorLocalNetwork,
+    ) -> EyreResult<()> {
+        log_net!("UDP: registering dial info");
+
+        let (public_address, detect_address_changes) = {
+            let c = self.config.get();
+            (
+                c.network.protocol.udp.public_address.clone(),
+                c.network.detect_address_changes,
+            )
+        };
+
+        let local_dial_info_list = {
+            let mut out = vec![];
+            if let Some(bound_addresses) = {
+                let inner = self.inner.lock();
+                inner
+                    .bound_address_per_protocol
+                    .get(&ProtocolType::UDP)
+                    .cloned()
+            } {
+                for addr in bound_addresses {
+                    let idi_addrs = self.translate_unspecified_address(addr);
+                    for idi_addr in idi_addrs {
+                        out.push(DialInfo::udp_from_socketaddr(idi_addr));
+                    }
+                }
+            }
+            out.sort();
+            out.dedup();
+            out
+        };
 
         // Add static public dialinfo if it's configured
         if let Some(public_address) = public_address.as_ref() {
@@ -197,24 +233,16 @@ impl Network {
                 let pdi = DialInfo::udp_from_socketaddr(pdi_addr);
 
                 // Register the public address
-                editor_public_internet.register_dial_info(pdi.clone(), DialInfoClass::Direct)?;
-                static_public = true;
+                editor_public_internet.add_dial_info(pdi.clone(), DialInfoClass::Direct);
+                editor_public_internet.set_network_class(Some(NetworkClass::InboundCapable));
 
                 // See if this public address is also a local interface address we haven't registered yet
-                let is_interface_address = (|| {
-                    for ip_addr in self.get_stable_interface_addresses() {
-                        if pdi_addr.ip() == ip_addr {
-                            return true;
-                        }
-                    }
-                    false
-                })();
-
-                if !local_dial_info_list.contains(&pdi) && is_interface_address {
-                    editor_local_network.register_dial_info(
+                if self.is_stable_interface_address(pdi_addr.ip()) {
+                    editor_local_network.add_dial_info(
                         DialInfo::udp_from_socketaddr(pdi_addr),
                         DialInfoClass::Direct,
-                    )?;
+                    );
+                    editor_local_network.set_network_class(Some(NetworkClass::InboundCapable));
                 }
             }
         }
@@ -223,48 +251,26 @@ impl Network {
         for di in &local_dial_info_list {
             // If the local interface address is global, then register global dial info
             // if no other public address is specified
-            if !detect_address_changes
-                && public_address.is_none()
-                && routing_table.ensure_dial_info_is_valid(RoutingDomain::PublicInternet, di)
-            {
-                editor_public_internet.register_dial_info(di.clone(), DialInfoClass::Direct)?;
-                static_public = true;
+            if !detect_address_changes && public_address.is_none() && di.address().is_global() {
+                editor_public_internet.add_dial_info(di.clone(), DialInfoClass::Direct);
+                editor_public_internet.set_network_class(Some(NetworkClass::InboundCapable));
             }
 
             // Register interface dial info as well since the address is on the local interface
-            editor_local_network.register_dial_info(di.clone(), DialInfoClass::Direct)?;
+            editor_local_network.add_dial_info(di.clone(), DialInfoClass::Direct);
         }
 
-        {
-            let mut inner = self.inner.lock();
-            if static_public {
-                inner.static_public_dialinfo.insert(ProtocolType::UDP);
-            }
-            for ldi in local_dial_info_list {
-                Self::add_preferred_local_address(&mut inner, ldi.peer_address());
-            }
-        }
-
-        // Now create tasks for udp listeners
-        self.create_udp_listener_tasks().await?;
-
-        Ok(StartupDisposition::Success)
+        Ok(())
     }
 
     #[instrument(level = "trace", skip_all)]
-    pub(super) async fn start_ws_listeners(
-        &self,
-        editor_public_internet: &mut RoutingDomainEditor,
-        editor_local_network: &mut RoutingDomainEditor,
-    ) -> EyreResult<StartupDisposition> {
+    pub(super) async fn start_ws_listeners(&self) -> EyreResult<StartupDisposition> {
         log_net!("WS: binding protocol handlers");
-        let routing_table = self.routing_table();
-        let (listen_address, url, path, detect_address_changes) = {
+        let (listen_address, url, detect_address_changes) = {
             let c = self.config.get();
             (
                 c.network.protocol.ws.listen_address.clone(),
                 c.network.protocol.ws.url.clone(),
-                c.network.protocol.ws.path.clone(),
                 c.network.detect_address_changes,
             )
         };
@@ -285,20 +291,69 @@ impl Network {
                 bind_set.port, bind_set.addrs
             );
         }
-        let Some(socket_addresses) = self
+        if !self
             .start_tcp_listener(
                 bind_set,
                 false,
+                ProtocolType::WS,
                 Box::new(|c, t| Box::new(WebsocketProtocolHandler::new(c, t))),
             )
             .await?
-        else {
+        {
             return Ok(StartupDisposition::BindRetry);
-        };
-        log_net!("WS: protocol handlers started on {:#?}", socket_addresses);
+        }
 
-        let mut static_public = false;
+        {
+            let mut inner = self.inner.lock();
+            if url.is_some() && !detect_address_changes {
+                inner.static_public_dial_info.insert(ProtocolType::WS);
+            }
+        }
+
+        Ok(StartupDisposition::Success)
+    }
+
+    #[instrument(level = "trace", skip_all)]
+    pub(super) async fn register_ws_dial_info(
+        &self,
+        editor_public_internet: &mut RoutingDomainEditorPublicInternet,
+        editor_local_network: &mut RoutingDomainEditorLocalNetwork,
+    ) -> EyreResult<()> {
+        log_net!("WS: registering dial info");
+        let (url, path, detect_address_changes) = {
+            let c = self.config.get();
+            (
+                c.network.protocol.ws.url.clone(),
+                c.network.protocol.ws.path.clone(),
+                c.network.detect_address_changes,
+            )
+        };
+
         let mut registered_addresses: HashSet<IpAddr> = HashSet::new();
+
+        let socket_addresses = {
+            let mut out = vec![];
+            if let Some(bound_addresses) = {
+                let inner = self.inner.lock();
+                inner
+                    .bound_address_per_protocol
+                    .get(&ProtocolType::WS)
+                    .cloned()
+            } {
+                for addr in bound_addresses {
+                    for idi_addr in self
+                        .translate_unspecified_address(addr)
+                        .into_iter()
+                        .map(SocketAddress::from_socket_addr)
+                    {
+                        out.push(idi_addr);
+                    }
+                }
+            }
+            out.sort();
+            out.dedup();
+            out
+        };
 
         // Add static public dialinfo if it's configured
         if let Some(url) = url.as_ref() {
@@ -318,14 +373,13 @@ impl Network {
                 let pdi = DialInfo::try_ws(SocketAddress::from_socket_addr(gsa), url.clone())
                     .wrap_err("try_ws failed")?;
 
-                editor_public_internet.register_dial_info(pdi.clone(), DialInfoClass::Direct)?;
-                static_public = true;
+                editor_public_internet.add_dial_info(pdi.clone(), DialInfoClass::Direct);
 
                 // See if this public address is also a local interface address
                 if !registered_addresses.contains(&gsa.ip())
                     && self.is_stable_interface_address(gsa.ip())
                 {
-                    editor_local_network.register_dial_info(pdi, DialInfoClass::Direct)?;
+                    editor_local_network.add_dial_info(pdi, DialInfoClass::Direct);
                 }
 
                 registered_addresses.insert(gsa.ip());
@@ -342,40 +396,23 @@ impl Network {
             let local_di =
                 DialInfo::try_ws(*socket_address, local_url).wrap_err("try_ws failed")?;
 
-            if !detect_address_changes
-                && url.is_none()
-                && routing_table.ensure_dial_info_is_valid(RoutingDomain::PublicInternet, &local_di)
-            {
+            if !detect_address_changes && url.is_none() && local_di.address().is_global() {
                 // Register public dial info
-                editor_public_internet
-                    .register_dial_info(local_di.clone(), DialInfoClass::Direct)?;
-                static_public = true;
+                editor_public_internet.add_dial_info(local_di.clone(), DialInfoClass::Direct);
             }
 
             // Register local dial info
-            editor_local_network.register_dial_info(local_di, DialInfoClass::Direct)?;
+            editor_local_network.add_dial_info(local_di, DialInfoClass::Direct);
         }
 
-        let mut inner = self.inner.lock();
-        if static_public {
-            inner.static_public_dialinfo.insert(ProtocolType::WS);
-        }
-        for sa in socket_addresses {
-            Self::add_preferred_local_address(&mut inner, PeerAddress::new(sa, ProtocolType::WS));
-        }
-
-        Ok(StartupDisposition::Success)
+        Ok(())
     }
 
     #[instrument(level = "trace", skip_all)]
-    pub(super) async fn start_wss_listeners(
-        &self,
-        editor_public_internet: &mut RoutingDomainEditor,
-        editor_local_network: &mut RoutingDomainEditor,
-    ) -> EyreResult<StartupDisposition> {
+    pub(super) async fn start_wss_listeners(&self) -> EyreResult<StartupDisposition> {
         log_net!("WSS: binding protocol handlers");
 
-        let (listen_address, url, _detect_address_changes) = {
+        let (listen_address, url, detect_address_changes) = {
             let c = self.config.get();
             (
                 c.network.protocol.wss.listen_address.clone(),
@@ -401,25 +438,49 @@ impl Network {
             );
         }
 
-        let Some(socket_addresses) = self
+        if !self
             .start_tcp_listener(
                 bind_set,
                 true,
+                ProtocolType::WSS,
                 Box::new(|c, t| Box::new(WebsocketProtocolHandler::new(c, t))),
             )
             .await?
-        else {
+        {
             return Ok(StartupDisposition::BindRetry);
-        };
+        }
 
-        log_net!("WSS: protocol handlers started on {:#?}", socket_addresses);
+        {
+            let mut inner = self.inner.lock();
+            if url.is_some() && !detect_address_changes {
+                inner.static_public_dial_info.insert(ProtocolType::WSS);
+            }
+        }
+
+        Ok(StartupDisposition::Success)
+    }
+
+    #[instrument(level = "trace", skip_all)]
+    pub(super) async fn register_wss_dial_info(
+        &self,
+        editor_public_internet: &mut RoutingDomainEditorPublicInternet,
+        editor_local_network: &mut RoutingDomainEditorLocalNetwork,
+    ) -> EyreResult<()> {
+        log_net!("WSS: registering dialinfo");
+
+        let (url, _detect_address_changes) = {
+            let c = self.config.get();
+            (
+                c.network.protocol.wss.url.clone(),
+                c.network.detect_address_changes,
+            )
+        };
 
         // NOTE: No interface dial info for WSS, as there is no way to connect to a local dialinfo via TLS
         // If the hostname is specified, it is the public dialinfo via the URL. If no hostname
         // is specified, then TLS won't validate, so no local dialinfo is possible.
         // This is not the case with unencrypted websockets, which can be specified solely by an IP address
 
-        let mut static_public = false;
         let mut registered_addresses: HashSet<IpAddr> = HashSet::new();
 
         // Add static public dialinfo if it's configured
@@ -440,14 +501,13 @@ impl Network {
                 let pdi = DialInfo::try_wss(SocketAddress::from_socket_addr(gsa), url.clone())
                     .wrap_err("try_wss failed")?;
 
-                editor_public_internet.register_dial_info(pdi.clone(), DialInfoClass::Direct)?;
-                static_public = true;
+                editor_public_internet.add_dial_info(pdi.clone(), DialInfoClass::Direct);
 
                 // See if this public address is also a local interface address
                 if !registered_addresses.contains(&gsa.ip())
                     && self.is_stable_interface_address(gsa.ip())
                 {
-                    editor_local_network.register_dial_info(pdi, DialInfoClass::Direct)?;
+                    editor_local_network.add_dial_info(pdi, DialInfoClass::Direct);
                 }
 
                 registered_addresses.insert(gsa.ip());
@@ -456,26 +516,13 @@ impl Network {
             bail!("WSS URL must be specified due to TLS requirements");
         }
 
-        let mut inner = self.inner.lock();
-        if static_public {
-            inner.static_public_dialinfo.insert(ProtocolType::WSS);
-        }
-        for sa in socket_addresses {
-            Self::add_preferred_local_address(&mut inner, PeerAddress::new(sa, ProtocolType::WSS));
-        }
-
-        Ok(StartupDisposition::Success)
+        Ok(())
     }
 
     #[instrument(level = "trace", skip_all)]
-    pub(super) async fn start_tcp_listeners(
-        &self,
-        editor_public_internet: &mut RoutingDomainEditor,
-        editor_local_network: &mut RoutingDomainEditor,
-    ) -> EyreResult<StartupDisposition> {
+    pub(super) async fn start_tcp_listeners(&self) -> EyreResult<StartupDisposition> {
         log_net!("TCP: binding protocol handlers");
 
-        let routing_table = self.routing_table();
         let (listen_address, public_address, detect_address_changes) = {
             let c = self.config.get();
             (
@@ -501,21 +548,69 @@ impl Network {
                 bind_set.port, bind_set.addrs
             );
         }
-        let Some(socket_addresses) = self
+        if !self
             .start_tcp_listener(
                 bind_set,
                 false,
+                ProtocolType::TCP,
                 Box::new(|c, _| Box::new(RawTcpProtocolHandler::new(c))),
             )
             .await?
-        else {
+        {
             return Ok(StartupDisposition::BindRetry);
+        }
+
+        {
+            let mut inner = self.inner.lock();
+            if public_address.is_some() && !detect_address_changes {
+                inner.static_public_dial_info.insert(ProtocolType::TCP);
+            }
+        }
+
+        Ok(StartupDisposition::Success)
+    }
+
+    #[instrument(level = "trace", skip_all)]
+    pub(super) async fn register_tcp_dial_info(
+        &self,
+        editor_public_internet: &mut RoutingDomainEditorPublicInternet,
+        editor_local_network: &mut RoutingDomainEditorLocalNetwork,
+    ) -> EyreResult<()> {
+        log_net!("TCP: registering dialinfo");
+
+        let (public_address, detect_address_changes) = {
+            let c = self.config.get();
+            (
+                c.network.protocol.tcp.public_address.clone(),
+                c.network.detect_address_changes,
+            )
         };
 
-        log_net!("TCP: protocol handlers started on {:#?}", socket_addresses);
-
-        let mut static_public = false;
         let mut registered_addresses: HashSet<IpAddr> = HashSet::new();
+
+        let socket_addresses = {
+            let mut out = vec![];
+            if let Some(bound_addresses) = {
+                let inner = self.inner.lock();
+                inner
+                    .bound_address_per_protocol
+                    .get(&ProtocolType::TCP)
+                    .cloned()
+            } {
+                for addr in bound_addresses {
+                    for idi_addr in self
+                        .translate_unspecified_address(addr)
+                        .into_iter()
+                        .map(SocketAddress::from_socket_addr)
+                    {
+                        out.push(idi_addr);
+                    }
+                }
+            }
+            out.sort();
+            out.dedup();
+            out
+        };
 
         // Add static public dialinfo if it's configured
         if let Some(public_address) = public_address.as_ref() {
@@ -532,12 +627,11 @@ impl Network {
                 }
                 let pdi = DialInfo::tcp_from_socketaddr(pdi_addr);
 
-                editor_public_internet.register_dial_info(pdi.clone(), DialInfoClass::Direct)?;
-                static_public = true;
+                editor_public_internet.add_dial_info(pdi.clone(), DialInfoClass::Direct);
 
                 // See if this public address is also a local interface address
                 if self.is_stable_interface_address(pdi_addr.ip()) {
-                    editor_local_network.register_dial_info(pdi, DialInfoClass::Direct)?;
+                    editor_local_network.add_dial_info(pdi, DialInfoClass::Direct);
                 }
             }
         }
@@ -546,27 +640,14 @@ impl Network {
             let di = DialInfo::tcp(*socket_address);
 
             // Register global dial info if no public address is specified
-            if !detect_address_changes
-                && public_address.is_none()
-                && routing_table.ensure_dial_info_is_valid(RoutingDomain::PublicInternet, &di)
-            {
-                editor_public_internet.register_dial_info(di.clone(), DialInfoClass::Direct)?;
-                static_public = true;
+            if !detect_address_changes && public_address.is_none() && di.address().is_global() {
+                editor_public_internet.add_dial_info(di.clone(), DialInfoClass::Direct);
             }
             // Register interface dial info
-            editor_local_network.register_dial_info(di.clone(), DialInfoClass::Direct)?;
+            editor_local_network.add_dial_info(di.clone(), DialInfoClass::Direct);
             registered_addresses.insert(socket_address.ip_addr());
         }
 
-        let mut inner = self.inner.lock();
-
-        if static_public {
-            inner.static_public_dialinfo.insert(ProtocolType::TCP);
-        }
-        for sa in socket_addresses {
-            Self::add_preferred_local_address(&mut inner, PeerAddress::new(sa, ProtocolType::TCP));
-        }
-
-        Ok(StartupDisposition::Success)
+        Ok(())
     }
 }

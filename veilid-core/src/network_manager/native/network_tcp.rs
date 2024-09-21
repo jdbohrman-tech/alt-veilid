@@ -359,10 +359,9 @@ impl Network {
         &self,
         bind_set: NetworkBindSet,
         is_tls: bool,
+        protocol_type: ProtocolType,
         new_protocol_accept_handler: Box<NewProtocolAcceptHandler>,
-    ) -> EyreResult<Option<Vec<SocketAddress>>> {
-        let mut out = Vec::<SocketAddress>::new();
-
+    ) -> EyreResult<bool> {
         for ip_addr in bind_set.addrs {
             let mut port = bind_set.port;
             loop {
@@ -407,16 +406,24 @@ impl Network {
                     }
 
                     // Return interface dial infos we listen on
-                    let idi_addrs = self.translate_unspecified_address(&addr);
-                    for idi_addr in idi_addrs {
-                        out.push(SocketAddress::from_socket_addr(idi_addr));
-                    }
+                    let mut inner = self.inner.lock();
+                    let bapp = inner
+                        .bound_address_per_protocol
+                        .entry(protocol_type)
+                        .or_default();
+                    bapp.push(addr);
+
+                    Self::set_preferred_local_address(
+                        &mut inner,
+                        PeerAddress::new(SocketAddress::from_socket_addr(addr), protocol_type),
+                    );
+
                     break;
                 }
 
                 if !bind_set.search {
                     log_net!(debug "unable to bind to tcp {}", addr);
-                    return Ok(None);
+                    return Ok(false);
                 }
 
                 if port == 65535u16 {
@@ -431,6 +438,6 @@ impl Network {
             }
         }
 
-        Ok(Some(out))
+        Ok(true)
     }
 }

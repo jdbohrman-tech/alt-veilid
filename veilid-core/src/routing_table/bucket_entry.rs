@@ -243,7 +243,6 @@ impl BucketEntryInner {
     }
 
     // Less is faster
-    #[allow(dead_code)]
     pub fn cmp_fastest(e1: &Self, e2: &Self) -> std::cmp::Ordering {
         // Lower latency to the front
         if let Some(e1_latency) = &e1.peer_stats.latency {
@@ -295,28 +294,18 @@ impl BucketEntryInner {
         }
     }
 
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub fn sort_fastest_reliable_fn(
         cur_ts: Timestamp,
     ) -> impl FnMut(&Self, &Self) -> std::cmp::Ordering {
         move |e1, e2| Self::cmp_fastest_reliable(cur_ts, e1, e2)
     }
 
-    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
-    pub fn clear_signed_node_info(&mut self, routing_domain: RoutingDomain) {
-        // Get the correct signed_node_info for the chosen routing domain
-        let opt_current_sni = match routing_domain {
-            RoutingDomain::LocalNetwork => &mut self.local_network.signed_node_info,
-            RoutingDomain::PublicInternet => &mut self.public_internet.signed_node_info,
-        };
-        *opt_current_sni = None;
-    }
-
     pub fn update_signed_node_info(
         &mut self,
         routing_domain: RoutingDomain,
         signed_node_info: SignedNodeInfo,
-    ) {
+    ) -> bool {
         // Get the correct signed_node_info for the chosen routing domain
         let opt_current_sni = match routing_domain {
             RoutingDomain::LocalNetwork => &mut self.local_network.signed_node_info,
@@ -341,11 +330,11 @@ impl BucketEntryInner {
                         self.updated_since_last_network_change = true;
                         self.make_not_dead(Timestamp::now());
                     }
-                    return;
+                    return false;
                 }
 
                 // See if anything has changed in this update beside the timestamp
-                if signed_node_info.node_info() != current_sni.node_info() {
+                if !signed_node_info.equivalent(current_sni) {
                     node_info_changed = true;
                 }
             }
@@ -369,6 +358,8 @@ impl BucketEntryInner {
         if node_info_changed {
             self.clear_last_flows_except_latest();
         }
+
+        node_info_changed
     }
 
     pub fn has_node_info(&self, routing_domain_set: RoutingDomainSet) -> bool {
@@ -425,7 +416,7 @@ impl BucketEntryInner {
         let node_ids = self.node_ids();
         opt_current_sni
             .as_ref()
-            .map(|s| PeerInfo::new(node_ids, *s.clone()))
+            .map(|s| PeerInfo::new(routing_domain, node_ids, *s.clone()))
     }
 
     pub fn best_routing_domain(
@@ -588,7 +579,7 @@ impl BucketEntryInner {
         self.envelope_support = envelope_support;
     }
 
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub fn envelope_support(&self) -> Vec<u8> {
         self.envelope_support.clone()
     }

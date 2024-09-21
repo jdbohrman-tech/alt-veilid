@@ -15,10 +15,11 @@ VERSION 0.7
 # Ensure we are using an amd64 platform because some of these targets use cross-platform tooling
 FROM ubuntu:18.04
 
-ENV ZIG_VERSION=0.13.0-dev.46+3648d7df1
+ENV ZIG_VERSION=0.13.0
 ENV CMAKE_VERSION_MINOR=3.30
 ENV CMAKE_VERSION_PATCH=3.30.1
 ENV WASM_BINDGEN_CLI_VERSION=0.2.93
+ENV RUST_VERSION=1.81.0
 ENV RUSTUP_HOME=/usr/local/rustup
 ENV RUSTUP_DIST_SERVER=https://static.rust-lang.org
 ENV CARGO_HOME=/usr/local/cargo
@@ -40,7 +41,7 @@ deps-base:
 # Install Rust
 deps-rust:
     FROM +deps-base
-    RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y -c clippy --no-modify-path --profile minimal
+    RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain=$RUST_VERSION -y -c clippy --no-modify-path --profile minimal
     RUN chmod -R a+w $RUSTUP_HOME $CARGO_HOME; \
         rustup --version; \
         cargo --version; \
@@ -60,7 +61,7 @@ deps-rust:
     # Caching tool
     RUN cargo install cargo-chef
     # Install Linux cross-platform tooling
-    RUN curl -O https://ziglang.org/builds/zig-linux-$(arch)-$ZIG_VERSION.tar.xz
+    RUN curl -O https://ziglang.org/download/$ZIG_VERSION/zig-linux-$(arch)-$ZIG_VERSION.tar.xz
     RUN tar -C /usr/local -xJf zig-linux-$(arch)-$ZIG_VERSION.tar.xz
     RUN mv /usr/local/zig-linux-$(arch)-$ZIG_VERSION /usr/local/zig
     RUN cargo install cargo-zigbuild

@@ -29,6 +29,7 @@ impl RPCOperationReturnReceipt {
     }
 
     pub fn decode(
+        _decode_context: &RPCDecodeContext,
         reader: &veilid_capnp::operation_return_receipt::Reader,
     ) -> Result<Self, RPCError> {
         let rr = reader.get_receipt().map_err(RPCError::protocol)?;

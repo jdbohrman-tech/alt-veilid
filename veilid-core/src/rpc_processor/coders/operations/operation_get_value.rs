@@ -52,7 +52,10 @@ impl RPCOperationGetValueQ {
         (self.key, self.subkey, self.want_descriptor)
     }
 
-    pub fn decode(reader: &veilid_capnp::operation_get_value_q::Reader) -> Result<Self, RPCError> {
+    pub fn decode(
+        _decode_context: &RPCDecodeContext,
+        reader: &veilid_capnp::operation_get_value_q::Reader,
+    ) -> Result<Self, RPCError> {
         let k_reader = reader.reborrow().get_key().map_err(RPCError::protocol)?;
         let key = decode_typed_key(&k_reader)?;
         let subkey = reader.reborrow().get_subkey();
@@ -80,14 +83,14 @@ impl RPCOperationGetValueQ {
 #[derive(Debug, Clone)]
 pub(in crate::rpc_processor) struct RPCOperationGetValueA {
     value: Option<SignedValueData>,
-    peers: Vec<PeerInfo>,
+    peers: Vec<Arc<PeerInfo>>,
     descriptor: Option<SignedValueDescriptor>,
 }
 
 impl RPCOperationGetValueA {
     pub fn new(
         value: Option<SignedValueData>,
-        peers: Vec<PeerInfo>,
+        peers: Vec<Arc<PeerInfo>>,
         descriptor: Option<SignedValueDescriptor>,
     ) -> Result<Self, RPCError> {
         if peers.len() > MAX_GET_VALUE_A_PEERS_LEN {
@@ -171,13 +174,16 @@ impl RPCOperationGetValueA {
         self,
     ) -> (
         Option<SignedValueData>,
-        Vec<PeerInfo>,
+        Vec<Arc<PeerInfo>>,
         Option<SignedValueDescriptor>,
     ) {
         (self.value, self.peers, self.descriptor)
     }
 
-    pub fn decode(reader: &veilid_capnp::operation_get_value_a::Reader) -> Result<Self, RPCError> {
+    pub fn decode(
+        decode_context: &RPCDecodeContext,
+        reader: &veilid_capnp::operation_get_value_a::Reader,
+    ) -> Result<Self, RPCError> {
         let value = if reader.has_value() {
             let value_reader = reader.get_value().map_err(RPCError::protocol)?;
             let value = decode_signed_value_data(&value_reader)?;
@@ -192,14 +198,14 @@ impl RPCOperationGetValueA {
                 "decoded GetValueA peers length too long",
             ));
         }
-        let mut peers = Vec::<PeerInfo>::with_capacity(
+        let mut peers = Vec::<Arc<PeerInfo>>::with_capacity(
             peers_reader
                 .len()
                 .try_into()
                 .map_err(RPCError::map_internal("too many peers"))?,
         );
         for p in peers_reader.iter() {
-            let peer_info = decode_peer_info(&p)?;
+            let peer_info = Arc::new(decode_peer_info(decode_context, &p)?);
             peers.push(peer_info);
         }
 

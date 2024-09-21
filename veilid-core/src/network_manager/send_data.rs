@@ -15,7 +15,7 @@ impl NetworkManager {
     #[instrument(level = "trace", target = "net", skip_all, err)]
     pub(crate) async fn send_data(
         &self,
-        destination_node_ref: NodeRef,
+        destination_node_ref: FilteredNodeRef,
         data: Vec<u8>,
     ) -> EyreResult<NetworkResult<SendDataMethod>> {
         // First try to send data to the last flow we've seen this peer on
@@ -81,7 +81,7 @@ impl NetworkManager {
     pub(crate) fn try_possibly_relayed_contact_method(
         &self,
         possibly_relayed_contact_method: NodeContactMethod,
-        destination_node_ref: NodeRef,
+        destination_node_ref: FilteredNodeRef,
         data: Vec<u8>,
     ) -> SendPinBoxFuture<EyreResult<NetworkResult<SendDataMethod>>> {
         let this = self.clone();
@@ -179,7 +179,7 @@ impl NetworkManager {
     #[instrument(level = "trace", target = "net", skip_all, err)]
     async fn send_data_ncm_existing(
         &self,
-        target_node_ref: NodeRef,
+        target_node_ref: FilteredNodeRef,
         data: Vec<u8>,
     ) -> EyreResult<NetworkResult<SendDataMethod>> {
         // First try to send data to the last connection we've seen this peer on
@@ -213,7 +213,7 @@ impl NetworkManager {
     #[instrument(level = "trace", target = "net", skip_all, err)]
     async fn send_data_ncm_unreachable(
         &self,
-        target_node_ref: NodeRef,
+        target_node_ref: FilteredNodeRef,
         data: Vec<u8>,
     ) -> EyreResult<NetworkResult<SendDataMethod>> {
         // Try to send data to the last socket we've seen this peer on
@@ -248,8 +248,8 @@ impl NetworkManager {
     #[instrument(level = "trace", target = "net", skip_all, err)]
     async fn send_data_ncm_signal_reverse(
         &self,
-        relay_nr: NodeRef,
-        target_node_ref: NodeRef,
+        relay_nr: FilteredNodeRef,
+        target_node_ref: FilteredNodeRef,
         data: Vec<u8>,
     ) -> EyreResult<NetworkResult<SendDataMethod>> {
         // First try to send data to the last socket we've seen this peer on
@@ -291,8 +291,8 @@ impl NetworkManager {
     #[instrument(level = "trace", target = "net", skip_all, err)]
     async fn send_data_ncm_signal_hole_punch(
         &self,
-        relay_nr: NodeRef,
-        target_node_ref: NodeRef,
+        relay_nr: FilteredNodeRef,
+        target_node_ref: FilteredNodeRef,
         data: Vec<u8>,
     ) -> EyreResult<NetworkResult<SendDataMethod>> {
         // First try to send data to the last socket we've seen this peer on
@@ -334,7 +334,7 @@ impl NetworkManager {
     #[instrument(level = "trace", target = "net", skip_all, err)]
     async fn send_data_ncm_direct(
         &self,
-        node_ref: NodeRef,
+        node_ref: FilteredNodeRef,
         dial_info: DialInfo,
         data: Vec<u8>,
     ) -> EyreResult<NetworkResult<SendDataMethod>> {
@@ -362,7 +362,7 @@ impl NetworkManager {
                 }
                 SendDataToExistingFlowResult::NotSent(d) => {
                     // Connection couldn't send, kill it
-                    node_ref.clear_last_connection(flow);
+                    node_ref.clear_last_flow(flow);
                     d
                 }
             }
@@ -393,7 +393,7 @@ impl NetworkManager {
     #[instrument(level = "trace", target = "net", skip_all, err)]
     pub(crate) fn get_node_contact_method(
         &self,
-        target_node_ref: NodeRef,
+        target_node_ref: FilteredNodeRef,
     ) -> EyreResult<NodeContactMethod> {
         let routing_table = self.routing_table();
 
@@ -415,30 +415,30 @@ impl NetworkManager {
             }
         };
 
-        // Get cache key
-        let ncm_key = NodeContactMethodCacheKey {
-            node_ids: target_node_ref.node_ids(),
-            own_node_info_ts: routing_table.get_own_node_info_ts(routing_domain),
-            target_node_info_ts: target_node_ref.node_info_ts(routing_domain),
-            target_node_ref_filter: target_node_ref.filter_ref().cloned(),
-            target_node_ref_sequencing: target_node_ref.sequencing(),
-        };
-        if let Some(ncm) = self.inner.lock().node_contact_method_cache.get(&ncm_key) {
-            return Ok(ncm.clone());
-        }
-
         // Node A is our own node
         // Use whatever node info we've calculated so far
-        let peer_a = routing_table.get_own_peer_info(routing_domain);
+        let peer_a = routing_table.get_current_peer_info(routing_domain);
 
         // Node B is the target node
         let peer_b = match target_node_ref.make_peer_info(routing_domain) {
-            Some(ni) => ni,
+            Some(pi) => Arc::new(pi),
             None => {
                 log_net!("no node info for node {:?}", target_node_ref);
                 return Ok(NodeContactMethod::Unreachable);
             }
         };
+
+        // Get cache key
+        let ncm_key = NodeContactMethodCacheKey {
+            node_ids: target_node_ref.node_ids(),
+            own_node_info_ts: peer_a.signed_node_info().timestamp(),
+            target_node_info_ts: peer_b.signed_node_info().timestamp(),
+            target_node_ref_filter: target_node_ref.filter(),
+            target_node_ref_sequencing: target_node_ref.sequencing(),
+        };
+        if let Some(ncm) = self.inner.lock().node_contact_method_cache.get(&ncm_key) {
+            return Ok(ncm.clone());
+        }
 
         // Dial info filter comes from the target node ref but must be filtered by this node's outbound capabilities
         let dial_info_filter = target_node_ref.dial_info_filter().filtered(
@@ -463,7 +463,7 @@ impl NetworkManager {
         for did in peer_b
             .signed_node_info()
             .node_info()
-            .all_filtered_dial_info_details(DialInfoDetail::NO_SORT, |_| true)
+            .filtered_dial_info_details(DialInfoDetail::NO_SORT, |_| true)
         {
             if let Some(ts) = address_filter.get_dial_info_failed_ts(&did.dial_info) {
                 dial_info_failures_map.insert(did.dial_info, ts);
@@ -488,8 +488,8 @@ impl NetworkManager {
         // Get the best contact method with these parameters from the routing domain
         let cm = routing_table.get_contact_method(
             routing_domain,
-            &peer_a,
-            &peer_b,
+            peer_a.clone(),
+            peer_b.clone(),
             dial_info_filter,
             sequencing,
             dif_sort,
@@ -585,8 +585,8 @@ impl NetworkManager {
     #[instrument(level = "trace", target = "net", skip_all, err)]
     async fn do_reverse_connect(
         &self,
-        relay_nr: NodeRef,
-        target_nr: NodeRef,
+        relay_nr: FilteredNodeRef,
+        target_nr: FilteredNodeRef,
         data: Vec<u8>,
     ) -> EyreResult<NetworkResult<UniqueFlow>> {
         // Detect if network is stopping so we can break out of this
@@ -611,22 +611,24 @@ impl NetworkManager {
             ));
         };
 
-        // Ensure we have a valid network class so our peer info is useful
-        if !self.routing_table().has_valid_network_class(routing_domain) {
+        // Get our published peer info
+        let Some(published_peer_info) =
+            self.routing_table().get_published_peer_info(routing_domain)
+        else {
             return Ok(NetworkResult::no_connection_other(
                 "Network class not yet valid for reverse connect",
             ));
         };
 
-        // Get our peer info
-        let peer_info = self.routing_table().get_own_peer_info(routing_domain);
-
         // Issue the signal
         let rpc = self.rpc_processor();
         network_result_try!(rpc
             .rpc_call_signal(
-                Destination::relay(relay_nr.clone(), target_nr.clone()),
-                SignalInfo::ReverseConnect { receipt, peer_info },
+                Destination::relay(relay_nr.clone(), target_nr.unfiltered()),
+                SignalInfo::ReverseConnect {
+                    receipt,
+                    peer_info: published_peer_info
+                },
             )
             .await
             .wrap_err("failed to send signal")?);
@@ -694,8 +696,8 @@ impl NetworkManager {
     #[instrument(level = "trace", target = "net", skip_all, err)]
     async fn do_hole_punch(
         &self,
-        relay_nr: NodeRef,
-        target_nr: NodeRef,
+        relay_nr: FilteredNodeRef,
+        target_nr: FilteredNodeRef,
         data: Vec<u8>,
     ) -> EyreResult<NetworkResult<UniqueFlow>> {
         // Detect if network is stopping so we can break out of this
@@ -703,12 +705,12 @@ impl NetworkManager {
             return Ok(NetworkResult::service_unavailable("network is stopping"));
         };
 
-        // Ensure we are filtered down to UDP (the only hole punch protocol supported today)
-        assert!(target_nr
-            .filter_ref()
-            .map(|nrf| nrf.dial_info_filter.protocol_type_set
-                == ProtocolTypeSet::only(ProtocolType::UDP))
-            .unwrap_or_default());
+        // Ensure target is filtered down to UDP (the only hole punch protocol supported today)
+        // Relay can be any protocol because the signal rpc contains the dialinfo to connect over
+        assert_eq!(
+            target_nr.dial_info_filter().protocol_type_set,
+            ProtocolType::UDP
+        );
 
         // Build a return receipt for the signal
         let receipt_timeout = TimestampDuration::new_ms(
@@ -727,19 +729,18 @@ impl NetworkManager {
             ));
         };
 
-        // Ensure we have a valid network class so our peer info is useful
-        if !self.routing_table().has_valid_network_class(routing_domain) {
+        // Get our published peer info
+        let Some(published_peer_info) =
+            self.routing_table().get_published_peer_info(routing_domain)
+        else {
             return Ok(NetworkResult::no_connection_other(
                 "Network class not yet valid for hole punch",
             ));
         };
 
-        // Get our peer info
-        let peer_info = self.routing_table().get_own_peer_info(routing_domain);
-
         // Get the udp direct dialinfo for the hole punch
         let hole_punch_did = target_nr
-            .first_filtered_dial_info_detail()
+            .first_dial_info_detail()
             .ok_or_else(|| eyre!("No hole punch capable dialinfo found for node"))?;
 
         // Do our half of the hole punch by sending an empty packet
@@ -756,8 +757,11 @@ impl NetworkManager {
         let rpc = self.rpc_processor();
         network_result_try!(rpc
             .rpc_call_signal(
-                Destination::relay(relay_nr, target_nr.clone()),
-                SignalInfo::HolePunch { receipt, peer_info },
+                Destination::relay(relay_nr, target_nr.unfiltered()),
+                SignalInfo::HolePunch {
+                    receipt,
+                    peer_info: published_peer_info
+                },
             )
             .await
             .wrap_err("failed to send signal")?);

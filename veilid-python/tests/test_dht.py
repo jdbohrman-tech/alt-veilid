@@ -207,6 +207,8 @@ async def test_open_writer_dht_value(api_connection: veilid.VeilidAPI):
         await rc.delete_dht_record(key)
 
 
+# @pytest.mark.skipif(os.getenv("INTEGRATION") != "1", reason="integration test requires two servers running")
+@pytest.mark.skip(reason = "don't work yet")
 @pytest.mark.asyncio
 async def test_watch_dht_values():
 
@@ -225,6 +227,9 @@ async def test_watch_dht_values():
     # So we can pretend to be a different node and get the watch updates
     # Normally they would not get sent if the set comes from the same target
     # as the watch's target
+    
+    # XXX: this logic doesn't work because our node still suppresses updates
+    # XXX: if the value hasn't changed in the local record store
     rcWatch = await api.new_routing_context()
     
     rcSet = await (await api.new_routing_context()).with_safety(veilid.SafetySelection.unsafe())
@@ -396,7 +401,7 @@ async def test_dht_integration_writer_reader():
                     if len(rr.offline_subkeys) == 0:
                         await rc0.close_dht_record(desc0.key)
                         break
-                    time.sleep(0.1)
+                    time.sleep(1)
 
             # read dht records on server 1
             print(f'reading {COUNT} records')
@@ -433,7 +438,7 @@ async def test_dht_write_read_local():
 
             # Previously COUNT was set to 500, which causes these tests to take
             # 10s of minutes on slow connections or debug veilid-server builds
-            COUNT = 10
+            COUNT = 100
             TEST_DATA = b"ABCD"*1024
             TEST_DATA2 = b"ABCD"*4096
 

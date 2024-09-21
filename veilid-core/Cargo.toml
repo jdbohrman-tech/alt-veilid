@@ -10,6 +10,7 @@ edition = "2021"
 build = "build.rs"
 license = "MPL-2.0"
 resolver = "2"
+rust-version = "1.81.0"
 
 [lib]
 crate-type = ["cdylib", "staticlib", "rlib"]
