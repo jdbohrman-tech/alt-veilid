@@ -148,7 +148,7 @@ sanitize-filename = "0.5.0"
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 
 # Tools
-config = { version = "0.13.4", features = ["yaml"] }
+config = { version = "0.13.4", default-features = false, features = ["yaml"] }
 bugsalot = { package = "veilid-bugsalot", version = "0.2.0" }
 chrono = "0.4.38"
 libc = "0.2.155"
