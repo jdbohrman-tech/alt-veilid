@@ -3,7 +3,7 @@ SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 OS="unknown"
 if [ "$(uname)" == "Linux" ]; then
-    if [ ! "$(grep -Ei 'debian|buntu|mint' /etc/*release)" ]; then
+    if [ ! "$(lsb_release -a | grep -Ei 'debian|buntu|mint')" ]; then
         echo Not a supported Linux
         exit 1
     fi
@@ -40,6 +40,10 @@ else
     exit 1
 fi
 
+# turn off analytics
+flutter config --no-analytics
+dart --disable-analytics
+
 # # install cargo cbindgen
 # cargo install cbindgen
 
@@ -74,10 +78,6 @@ elif [ "$OS" == "macos" ]; then
     # ensure platforms are enabled in flutter
     flutter config --enable-macos-desktop --enable-ios --enable-android
 fi
-
-# turn off analytics
-flutter config --no-analytics
-dart --disable-analytics
 
 # run flutter doctor
 flutter doctor -v
