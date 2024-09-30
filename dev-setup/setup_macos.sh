@@ -116,12 +116,12 @@ else
     exit 1
 fi
 
-# ensure Java 17 is the active version
+# ensure Java 17 or higher is the active version
 JAVA_VERSION=$(java -version 2>&1 | head -n 1 | cut -d\" -f2)
-if [ ! -z $(echo $JAVA_VERSION | egrep "^17") ]; then
-    echo '[X] Java 17 is available in the path'
+if [[ ! -z $(echo $JAVA_VERSION | egrep "^1[7-9]|^[2-9][0-9]") ]]; then
+    echo '[X] Java 17 or higher is available in the path'
 else
-    echo 'Java 17 is not available in the path'
+    echo 'Java 17 or higher is not available in the path'
     exit 1
 fi
 
