@@ -300,7 +300,7 @@ impl StorageManager {
             fanout_results.push(fanout_result);
         }
 
-        log_network_result!(debug "InspectValue Fanout ({:?}):\n{}", kind, debug_fanout_results(&fanout_results));
+        log_dht!(debug "InspectValue Fanout ({:?}):\n{}", kind, debug_fanout_results(&fanout_results));
 
         Ok(OutboundInspectValueResult {
             fanout_results,

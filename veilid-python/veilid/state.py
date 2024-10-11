@@ -52,6 +52,60 @@ class VeilidStateAttachment:
         )
 
 
+
+class AnswerStats:
+    span: TimestampDuration
+    questions: int
+    answers: int
+    lost_answers: int
+    consecutive_answers_maximum: int
+    consecutive_answers_average: int
+    consecutive_answers_minimum: int
+    consecutive_lost_answers_maximum: int
+    consecutive_lost_answers_average: int
+    consecutive_lost_answers_minimum: int
+
+    def __init__(
+        self,
+        span: TimestampDuration,
+        questions: int,
+        answers: int,
+        lost_answers: int,
+        consecutive_answers_maximum: int,
+        consecutive_answers_average: int,
+        consecutive_answers_minimum: int,
+        consecutive_lost_answers_maximum: int,
+        consecutive_lost_answers_average: int,
+        consecutive_lost_answers_minimum: int,
+    ):
+        self.span = span
+        self.questions = questions
+        self.answers = answers
+        self.lost_answers = lost_answers
+        self.consecutive_answers_maximum = consecutive_answers_maximum
+        self.consecutive_answers_average = consecutive_answers_average
+        self.consecutive_answers_minimum = consecutive_answers_minimum
+        self.consecutive_lost_answers_maximum = consecutive_lost_answers_maximum
+        self.consecutive_lost_answers_average = consecutive_lost_answers_average
+        self.consecutive_lost_answers_minimum = consecutive_lost_answers_minimum
+
+
+    @classmethod
+    def from_json(cls, j: dict) -> Self:
+        """JSON object hook"""
+        return cls(
+            j["span"],
+            j["questions"],
+            j["answers"],
+            j["lost_answers"],
+            j["consecutive_answers_maximum"],
+            j["consecutive_answers_average"],
+            j["consecutive_answers_minimum"],
+            j["consecutive_lost_answers_maximum"],
+            j["consecutive_lost_answers_average"],
+            j["consecutive_lost_answers_minimum"],
+        )
+
 class RPCStats:
     messages_sent: int
     messages_rcvd: int
@@ -61,6 +115,7 @@ class RPCStats:
     first_consecutive_seen_ts: Optional[Timestamp]
     recent_lost_answers: int
     failed_to_send: int
+    answer: AnswerStats
 
     def __init__(
         self,
@@ -72,6 +127,7 @@ class RPCStats:
         first_consecutive_seen_ts: Optional[Timestamp],
         recent_lost_answers: int,
         failed_to_send: int,
+        answer: AnswerStats,
     ):
         self.messages_sent = messages_sent
         self.messages_rcvd = messages_rcvd
@@ -81,6 +137,7 @@ class RPCStats:
         self.first_consecutive_seen_ts = first_consecutive_seen_ts
         self.recent_lost_answers = recent_lost_answers
         self.failed_to_send = failed_to_send
+        self.answer = answer
 
     @classmethod
     def from_json(cls, j: dict) -> Self:
@@ -96,6 +153,7 @@ class RPCStats:
             else Timestamp(j["first_consecutive_seen_ts"]),
             j["recent_lost_answers"],
             j["failed_to_send"],
+            AnswerStats.from_json(j["answer"]),
         )
 
 
@@ -166,12 +224,89 @@ class TransferStatsDownUp:
         """JSON object hook"""
         return cls(TransferStats.from_json(j["down"]), TransferStats.from_json(j["up"]))
 
+class StateReasonStats:
+    can_not_send: TimestampDuration
+    too_many_lost_answers: TimestampDuration
+    no_ping_response: TimestampDuration
+    failed_to_send: TimestampDuration
+    lost_answers: TimestampDuration
+    not_seen_consecutively: TimestampDuration
+    in_unreliable_ping_span: TimestampDuration
+
+    def __init__(
+        self,
+        can_not_send: TimestampDuration,
+        too_many_lost_answers: TimestampDuration,
+        no_ping_response: TimestampDuration,
+        failed_to_send: TimestampDuration,
+        lost_answers: TimestampDuration,
+        not_seen_consecutively: TimestampDuration,
+        in_unreliable_ping_span: TimestampDuration,
+    ):
+        self.can_not_send = can_not_send
+        self.too_many_lost_answers = too_many_lost_answers
+        self.no_ping_response = no_ping_response
+        self.failed_to_send = failed_to_send
+        self.lost_answers = lost_answers
+        self.not_seen_consecutively = not_seen_consecutively
+        self.in_unreliable_ping_span = in_unreliable_ping_span
+
+    @classmethod
+    def from_json(cls, j: dict) -> Self:
+        """JSON object hook"""
+        return cls(
+            j["can_not_send"],
+            j["too_many_lost_answers"],
+            j["no_ping_response"],
+            j["failed_to_send"],
+            j["lost_answers"],
+            j["not_seen_consecutively"],
+            j["in_unreliable_ping_span"],
+        )
+
+class StateStats:
+    span: TimestampDuration
+    reliable: TimestampDuration
+    unreliable: TimestampDuration
+    dead: TimestampDuration
+    punished: TimestampDuration
+    reason: StateReasonStats
+
+    def __init__(
+        self,
+        span: TimestampDuration,
+        reliable: TimestampDuration,
+        unreliable: TimestampDuration,
+        dead: TimestampDuration,
+        punished: TimestampDuration,
+        reason: StateReasonStats,
+    ):
+        self.span = span
+        self.reliable = reliable
+        self.unreliable = unreliable
+        self.dead = dead
+        self.punished = punished
+        self.reason = reason
+
+    @classmethod
+    def from_json(cls, j: dict) -> Self:
+        """JSON object hook"""
+        return cls(
+            j["span"],
+            j["reliable"],
+            j["unreliable"],
+            j["dead"],
+            j["punished"],
+            StateReasonStats.from_json(j["reason"]),
+        )
+
 
 class PeerStats:
     time_added: Timestamp
     rpc_stats: RPCStats
     latency: Optional[LatencyStats]
     transfer: TransferStatsDownUp
+    state: StateStats
 
     def __init__(
         self,
@@ -179,11 +314,13 @@ class PeerStats:
         rpc_stats: RPCStats,
         latency: Optional[LatencyStats],
         transfer: TransferStatsDownUp,
+        state: StateStats,
     ):
         self.time_added = time_added
         self.rpc_stats = rpc_stats
         self.latency = latency
         self.transfer = transfer
+        self.state = state
 
     @classmethod
     def from_json(cls, j: dict) -> Self:
@@ -193,6 +330,7 @@ class PeerStats:
             RPCStats.from_json(j["rpc_stats"]),
             None if j["latency"] is None else LatencyStats.from_json(j["latency"]),
             TransferStatsDownUp.from_json(j["transfer"]),
+            StateStats.from_json(j["state"]),
         )
 
 

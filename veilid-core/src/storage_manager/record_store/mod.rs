@@ -1268,7 +1268,7 @@ where
             out += &format!(
                 "  {} age={} len={} subkeys={}\n",
                 rik.key,
-                debug_duration(get_timestamp() - rec.last_touched().as_u64()),
+                display_duration(get_timestamp() - rec.last_touched().as_u64()),
                 rec.record_data_size(),
                 rec.stored_subkeys(),
             );

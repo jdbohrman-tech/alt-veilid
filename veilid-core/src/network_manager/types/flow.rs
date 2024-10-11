@@ -11,10 +11,20 @@ use super::*;
 /// established connection is always from a real address to another real address.
 ///
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Copy, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Flow {
     remote: PeerAddress,
     local: Option<SocketAddress>,
+}
+
+impl fmt::Display for Flow {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(local) = &self.local {
+            write!(f, "{} -> {}", local, self.remote)
+        } else {
+            write!(f, "{}", self.remote)
+        }
+    }
 }
 
 impl Flow {
@@ -47,11 +57,6 @@ impl Flow {
     pub fn address_type(&self) -> AddressType {
         self.remote.address_type()
     }
-    pub fn make_dial_info_filter(&self) -> DialInfoFilter {
-        DialInfoFilter::all()
-            .with_protocol_type(self.protocol_type())
-            .with_address_type(self.address_type())
-    }
 }
 
 impl MatchesDialInfoFilter for Flow {
@@ -73,6 +78,21 @@ impl MatchesDialInfoFilter for Flow {
 pub struct UniqueFlow {
     pub flow: Flow,
     pub connection_id: Option<NetworkConnectionId>,
+}
+
+impl fmt::Display for UniqueFlow {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} ({})",
+            self.flow,
+            if let Some(connection_id) = &self.connection_id {
+                format!("id={}", connection_id)
+            } else {
+                "---".to_string()
+            }
+        )
+    }
 }
 
 pub type NetworkConnectionId = AlignedU64;

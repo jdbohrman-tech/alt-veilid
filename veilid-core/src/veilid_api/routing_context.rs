@@ -377,7 +377,7 @@ impl RoutingContext {
         count: u32,
     ) -> VeilidAPIResult<Timestamp> {
         event!(target: "veilid_api", Level::DEBUG, 
-            "RoutingContext::watch_dht_values(self: {:?}, key: {:?}, subkeys: {:?}, expiration: {:?}, count: {:?})", self, key, subkeys, expiration, count);
+            "RoutingContext::watch_dht_values(self: {:?}, key: {:?}, subkeys: {:?}, expiration: {}, count: {})", self, key, subkeys, expiration, count);
 
         Crypto::validate_crypto_kind(key.kind)?;
         let storage_manager = self.api.storage_manager()?;

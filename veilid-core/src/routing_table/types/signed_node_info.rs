@@ -1,9 +1,26 @@
 use super::*;
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SignedNodeInfo {
     Direct(SignedDirectNodeInfo),
     Relayed(SignedRelayedNodeInfo),
+}
+
+impl fmt::Display for SignedNodeInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Direct(arg0) => {
+                writeln!(f, "direct:")?;
+                write!(f, "{}", indent_all_string(arg0))?;
+                Ok(())
+            }
+            Self::Relayed(arg0) => {
+                writeln!(f, "relayed:")?;
+                write!(f, "{}", indent_all_string(&arg0))?;
+                Ok(())
+            }
+        }
+    }
 }
 
 impl SignedNodeInfo {

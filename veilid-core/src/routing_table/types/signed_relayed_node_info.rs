@@ -1,13 +1,29 @@
 use super::*;
 
 /// Signed NodeInfo with a relay that can be passed around amongst peers and verifiable
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SignedRelayedNodeInfo {
     node_info: NodeInfo,
     relay_ids: TypedKeyGroup,
     relay_info: SignedDirectNodeInfo,
     timestamp: Timestamp,
     signatures: Vec<TypedSignature>,
+}
+
+impl fmt::Display for SignedRelayedNodeInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "node_info:")?;
+        write!(f, "{}", indent_all_string(&self.node_info))?;
+        writeln!(f, "relay_ids: {}", self.relay_ids)?;
+        writeln!(f, "relay_info:")?;
+        write!(f, "{}", indent_all_string(&self.relay_info))?;
+        writeln!(f, "timestamp: {}", self.timestamp)?;
+        writeln!(f, "signatures:")?;
+        for sig in &self.signatures {
+            writeln!(f, "{}", indent_all_string(sig))?;
+        }
+        Ok(())
+    }
 }
 
 impl SignedRelayedNodeInfo {

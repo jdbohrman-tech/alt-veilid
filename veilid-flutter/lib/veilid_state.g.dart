@@ -50,14 +50,98 @@ Map<String, dynamic> _$$TransferStatsDownUpImplToJson(
       'up': instance.up.toJson(),
     };
 
+_$StateStatsImpl _$$StateStatsImplFromJson(Map<String, dynamic> json) =>
+    _$StateStatsImpl(
+      span: TimestampDuration.fromJson(json['span']),
+      reliable: TimestampDuration.fromJson(json['reliable']),
+      unreliable: TimestampDuration.fromJson(json['unreliable']),
+      dead: TimestampDuration.fromJson(json['dead']),
+      punished: TimestampDuration.fromJson(json['punished']),
+      reason: StateReasonStats.fromJson(json['reason']),
+    );
+
+Map<String, dynamic> _$$StateStatsImplToJson(_$StateStatsImpl instance) =>
+    <String, dynamic>{
+      'span': instance.span.toJson(),
+      'reliable': instance.reliable.toJson(),
+      'unreliable': instance.unreliable.toJson(),
+      'dead': instance.dead.toJson(),
+      'punished': instance.punished.toJson(),
+      'reason': instance.reason.toJson(),
+    };
+
+_$StateReasonStatsImpl _$$StateReasonStatsImplFromJson(
+        Map<String, dynamic> json) =>
+    _$StateReasonStatsImpl(
+      canNotSend: TimestampDuration.fromJson(json['can_not_send']),
+      tooManyLostAnswers:
+          TimestampDuration.fromJson(json['too_many_lost_answers']),
+      noPingResponse: TimestampDuration.fromJson(json['no_ping_response']),
+      failedToSend: TimestampDuration.fromJson(json['failed_to_send']),
+      lostAnswers: TimestampDuration.fromJson(json['lost_answers']),
+      notSeenConsecutively:
+          TimestampDuration.fromJson(json['not_seen_consecutively']),
+      inUnreliablePingSpan:
+          TimestampDuration.fromJson(json['in_unreliable_ping_span']),
+    );
+
+Map<String, dynamic> _$$StateReasonStatsImplToJson(
+        _$StateReasonStatsImpl instance) =>
+    <String, dynamic>{
+      'can_not_send': instance.canNotSend.toJson(),
+      'too_many_lost_answers': instance.tooManyLostAnswers.toJson(),
+      'no_ping_response': instance.noPingResponse.toJson(),
+      'failed_to_send': instance.failedToSend.toJson(),
+      'lost_answers': instance.lostAnswers.toJson(),
+      'not_seen_consecutively': instance.notSeenConsecutively.toJson(),
+      'in_unreliable_ping_span': instance.inUnreliablePingSpan.toJson(),
+    };
+
+_$AnswerStatsImpl _$$AnswerStatsImplFromJson(Map<String, dynamic> json) =>
+    _$AnswerStatsImpl(
+      span: TimestampDuration.fromJson(json['span']),
+      questions: (json['questions'] as num).toInt(),
+      answers: (json['answers'] as num).toInt(),
+      lostAnswers: (json['lost_answers'] as num).toInt(),
+      consecutiveAnswersMaximum:
+          (json['consecutive_answers_maximum'] as num).toInt(),
+      consecutiveAnswersAverage:
+          (json['consecutive_answers_average'] as num).toInt(),
+      consecutiveAnswersMinimum:
+          (json['consecutive_answers_minimum'] as num).toInt(),
+      consecutiveLostAnswersMaximum:
+          (json['consecutive_lost_answers_maximum'] as num).toInt(),
+      consecutiveLostAnswersAverage:
+          (json['consecutive_lost_answers_average'] as num).toInt(),
+      consecutiveLostAnswersMinimum:
+          (json['consecutive_lost_answers_minimum'] as num).toInt(),
+    );
+
+Map<String, dynamic> _$$AnswerStatsImplToJson(_$AnswerStatsImpl instance) =>
+    <String, dynamic>{
+      'span': instance.span.toJson(),
+      'questions': instance.questions,
+      'answers': instance.answers,
+      'lost_answers': instance.lostAnswers,
+      'consecutive_answers_maximum': instance.consecutiveAnswersMaximum,
+      'consecutive_answers_average': instance.consecutiveAnswersAverage,
+      'consecutive_answers_minimum': instance.consecutiveAnswersMinimum,
+      'consecutive_lost_answers_maximum':
+          instance.consecutiveLostAnswersMaximum,
+      'consecutive_lost_answers_average':
+          instance.consecutiveLostAnswersAverage,
+      'consecutive_lost_answers_minimum':
+          instance.consecutiveLostAnswersMinimum,
+    };
+
 _$RPCStatsImpl _$$RPCStatsImplFromJson(Map<String, dynamic> json) =>
     _$RPCStatsImpl(
       messagesSent: (json['messages_sent'] as num).toInt(),
       messagesRcvd: (json['messages_rcvd'] as num).toInt(),
       questionsInFlight: (json['questions_in_flight'] as num).toInt(),
-      lastQuestion: json['last_question'] == null
+      lastQuestionTs: json['last_question_ts'] == null
           ? null
-          : Timestamp.fromJson(json['last_question']),
+          : Timestamp.fromJson(json['last_question_ts']),
       lastSeenTs: json['last_seen_ts'] == null
           ? null
           : Timestamp.fromJson(json['last_seen_ts']),
@@ -66,6 +150,7 @@ _$RPCStatsImpl _$$RPCStatsImplFromJson(Map<String, dynamic> json) =>
           : Timestamp.fromJson(json['first_consecutive_seen_ts']),
       recentLostAnswers: (json['recent_lost_answers'] as num).toInt(),
       failedToSend: (json['failed_to_send'] as num).toInt(),
+      answer: AnswerStats.fromJson(json['answer']),
     );
 
 Map<String, dynamic> _$$RPCStatsImplToJson(_$RPCStatsImpl instance) =>
@@ -73,11 +158,12 @@ Map<String, dynamic> _$$RPCStatsImplToJson(_$RPCStatsImpl instance) =>
       'messages_sent': instance.messagesSent,
       'messages_rcvd': instance.messagesRcvd,
       'questions_in_flight': instance.questionsInFlight,
-      'last_question': instance.lastQuestion?.toJson(),
+      'last_question_ts': instance.lastQuestionTs?.toJson(),
       'last_seen_ts': instance.lastSeenTs?.toJson(),
       'first_consecutive_seen_ts': instance.firstConsecutiveSeenTs?.toJson(),
       'recent_lost_answers': instance.recentLostAnswers,
       'failed_to_send': instance.failedToSend,
+      'answer': instance.answer.toJson(),
     };
 
 _$PeerStatsImpl _$$PeerStatsImplFromJson(Map<String, dynamic> json) =>
@@ -85,6 +171,7 @@ _$PeerStatsImpl _$$PeerStatsImplFromJson(Map<String, dynamic> json) =>
       timeAdded: Timestamp.fromJson(json['time_added']),
       rpcStats: RPCStats.fromJson(json['rpc_stats']),
       transfer: TransferStatsDownUp.fromJson(json['transfer']),
+      state: StateStats.fromJson(json['state']),
       latency: json['latency'] == null
           ? null
           : LatencyStats.fromJson(json['latency']),
@@ -95,6 +182,7 @@ Map<String, dynamic> _$$PeerStatsImplToJson(_$PeerStatsImpl instance) =>
       'time_added': instance.timeAdded.toJson(),
       'rpc_stats': instance.rpcStats.toJson(),
       'transfer': instance.transfer.toJson(),
+      'state': instance.state.toJson(),
       'latency': instance.latency?.toJson(),
     };
 

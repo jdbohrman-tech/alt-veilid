@@ -204,9 +204,7 @@ impl StorageManager {
                 }
             }
             std::collections::hash_map::Entry::Vacant(_) => {
-                panic!(
-                    "offline write work items should always be on offline_subkey_writes entries that exist"
-                )
+                warn!("offline write work items should always be on offline_subkey_writes entries that exist: ignoring key {}", result.key)
             }
         }
 

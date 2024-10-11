@@ -404,7 +404,17 @@ impl RoutingTable {
             peer_map.into_values().collect()
         } else {
             // If not direct, resolve bootstrap servers and recurse their TXT entries
-            let bsrecs = self.resolve_bootstrap(bootstrap).await?;
+            let bsrecs = match self
+                .resolve_bootstrap(bootstrap)
+                .timeout_at(stop_token.clone())
+                .await
+            {
+                Ok(v) => v?,
+                Err(_) => {
+                    // Stop requested
+                    return Ok(());
+                }
+            };
             let peers: Vec<Arc<PeerInfo>> = bsrecs
                 .into_iter()
                 .map(|bsrec| {

@@ -26,6 +26,21 @@ pub fn fix_transferstatsdownup() -> TransferStatsDownUp {
     }
 }
 
+pub fn fix_answerstats() -> AnswerStats {
+    AnswerStats {
+        span: TimestampDuration::new_secs(10),
+        questions: 10,
+        answers: 8,
+        lost_answers: 0,
+        consecutive_answers_maximum: 1,
+        consecutive_answers_average: 2,
+        consecutive_answers_minimum: 3,
+        consecutive_lost_answers_maximum: 4,
+        consecutive_lost_answers_average: 5,
+        consecutive_lost_answers_minimum: 6,
+    }
+}
+
 pub fn fix_rpcstats() -> RPCStats {
     RPCStats {
         messages_sent: 1_000_000,
@@ -36,6 +51,26 @@ pub fn fix_rpcstats() -> RPCStats {
         first_consecutive_seen_ts: Some(Timestamp::from(1685569111851)),
         recent_lost_answers: 5,
         failed_to_send: 3,
+        answer: fix_answerstats(),
+    }
+}
+
+pub fn fix_statestats() -> StateStats {
+    StateStats {
+        span: TimestampDuration::new_secs(10),
+        reliable: TimestampDuration::new_secs(5),
+        unreliable: TimestampDuration::new_secs(5),
+        dead: TimestampDuration::new_secs(0),
+        punished: TimestampDuration::new_secs(0),
+        reason: StateReasonStats {
+            can_not_send: TimestampDuration::new_secs(1),
+            too_many_lost_answers: TimestampDuration::new_secs(2),
+            no_ping_response: TimestampDuration::new_secs(3),
+            failed_to_send: TimestampDuration::new_secs(4),
+            lost_answers: TimestampDuration::new_secs(5),
+            not_seen_consecutively: TimestampDuration::new_secs(6),
+            in_unreliable_ping_span: TimestampDuration::new_secs(7),
+        },
     }
 }
 
@@ -45,6 +80,7 @@ pub fn fix_peerstats() -> PeerStats {
         rpc_stats: fix_rpcstats(),
         latency: Some(fix_latencystats()),
         transfer: fix_transferstatsdownup(),
+        state: fix_statestats(),
     }
 }
 

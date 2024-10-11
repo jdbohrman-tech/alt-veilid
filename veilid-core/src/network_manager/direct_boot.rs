@@ -47,9 +47,16 @@ impl NetworkManager {
             return Ok(Vec::new());
         });
 
-        let bootstrap_peerinfo: Vec<PeerInfo> =
-            deserialize_json(std::str::from_utf8(&out_data).wrap_err("bad utf8 in boot peerinfo")?)
-                .wrap_err("failed to deserialize boot peerinfo")?;
+        let bootstrap_peerinfo_str =
+            std::str::from_utf8(&out_data).wrap_err("bad utf8 in boot peerinfo")?;
+
+        let bootstrap_peerinfo: Vec<PeerInfo> = match deserialize_json(bootstrap_peerinfo_str) {
+            Ok(v) => v,
+            Err(e) => {
+                error!("{}", e);
+                return Err(e).wrap_err("failed to deserialize peerinfo");
+            }
+        };
 
         Ok(bootstrap_peerinfo.into_iter().map(Arc::new).collect())
     }

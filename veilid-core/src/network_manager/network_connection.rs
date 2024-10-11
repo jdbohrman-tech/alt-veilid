@@ -82,16 +82,29 @@ pub struct NetworkConnectionStats {
     last_message_recv_time: Option<Timestamp>,
 }
 
+/// Represents a connection in the connection table for connection-oriented protocols
 #[derive(Debug)]
 pub(in crate::network_manager) struct NetworkConnection {
+    /// A unique id for this connection
     connection_id: NetworkConnectionId,
+    /// The dial info used to make this connection if it was made with 'connect'
+    /// None if the connection was 'accepted'
+    opt_dial_info: Option<DialInfo>,
+    /// The network flow 5-tuple this connection is over
     flow: Flow,
+    /// Each connection has a processor and this is the task we wait for to ensure it exits cleanly
     processor: Option<MustJoinHandle<()>>,
+    /// When this connection was connected or accepted
     established_time: Timestamp,
+    /// Statistics about network traffic
     stats: Arc<Mutex<NetworkConnectionStats>>,
+    /// To send data out this connection, it is places in this channel
     sender: flume::Sender<(Option<Id>, Vec<u8>)>,
+    /// Drop this when we want to drop the connection
     stop_source: Option<StopSource>,
+    /// The node we are responsible for protecting the connection for if it is protected
     protected_nr: Option<NodeRef>,
+    /// The number of references to the network connection that exist (handles)
     ref_count: usize,
 }
 
@@ -110,6 +123,7 @@ impl NetworkConnection {
 
         Self {
             connection_id: id,
+            opt_dial_info: None,
             flow,
             processor: None,
             established_time: Timestamp::now(),
@@ -129,6 +143,7 @@ impl NetworkConnection {
         manager_stop_token: StopToken,
         protocol_connection: ProtocolNetworkConnection,
         connection_id: NetworkConnectionId,
+        opt_dial_info: Option<DialInfo>,
     ) -> Self {
         // Get flow
         let flow = protocol_connection.flow();
@@ -164,6 +179,7 @@ impl NetworkConnection {
         // Return the connection
         Self {
             connection_id,
+            opt_dial_info,
             flow,
             processor: Some(processor),
             established_time: Timestamp::now(),
@@ -181,6 +197,10 @@ impl NetworkConnection {
 
     pub fn flow(&self) -> Flow {
         self.flow
+    }
+
+    pub fn dial_info(&self) -> Option<DialInfo> {
+        self.opt_dial_info.clone()
     }
 
     #[expect(dead_code)]
@@ -448,32 +468,28 @@ impl NetworkConnection {
 
     pub fn debug_print(&self, cur_ts: Timestamp) -> String {
         format!(
-            "{} <- {} | {} | est {} sent {} rcvd {} refcount {}{}",
-            self.flow.remote_address(),
-            self.flow
-                .local()
-                .map(|x| x.to_string())
-                .unwrap_or("---".to_owned()),
+            "{} | {} | est {} sent {} rcvd {} refcount {}{}",
+            self.flow,
             self.connection_id.as_u64(),
-            debug_duration(
+            display_duration(
                 cur_ts
                     .as_u64()
                     .saturating_sub(self.established_time.as_u64())
             ),
             self.stats()
                 .last_message_sent_time
-                .map(|ts| debug_duration(cur_ts.as_u64().saturating_sub(ts.as_u64())))
+                .map(|ts| display_duration(cur_ts.as_u64().saturating_sub(ts.as_u64())))
                 .unwrap_or("---".to_owned()),
             self.stats()
                 .last_message_recv_time
-                .map(|ts| debug_duration(cur_ts.as_u64().saturating_sub(ts.as_u64())))
+                .map(|ts| display_duration(cur_ts.as_u64().saturating_sub(ts.as_u64())))
                 .unwrap_or("---".to_owned()),
             self.ref_count,
             if let Some(pnr) = &self.protected_nr {
                 format!(" PROTECTED:{}", pnr)
             } else {
                 "".to_owned()
-            }
+            },
         )
     }
 }

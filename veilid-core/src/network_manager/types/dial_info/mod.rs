@@ -259,7 +259,7 @@ impl DialInfo {
             Self::WSS(di) => di.socket_address.ip_addr(),
         }
     }
-    #[cfg_attr(target_arch = "wasm32", expect(dead_code))]
+    #[expect(dead_code)]
     pub fn port(&self) -> u16 {
         match self {
             Self::UDP(di) => di.socket_address.port(),

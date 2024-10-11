@@ -143,7 +143,7 @@ impl CommandProcessor {
     disable [flag]                      unset a flag
                                         valid flags in include:
                                             app_messages
-Server Debug Commands:
+Core Debug Commands:
 {}
 "#,
                     indent_all_by(4, out)

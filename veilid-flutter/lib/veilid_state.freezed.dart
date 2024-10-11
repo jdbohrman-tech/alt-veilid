@@ -24,8 +24,12 @@ mixin _$LatencyStats {
   TimestampDuration get average => throw _privateConstructorUsedError;
   TimestampDuration get slowest => throw _privateConstructorUsedError;
 
+  /// Serializes this LatencyStats to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of LatencyStats
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $LatencyStatsCopyWith<LatencyStats> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -52,6 +56,8 @@ class _$LatencyStatsCopyWithImpl<$Res, $Val extends LatencyStats>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of LatencyStats
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -98,6 +104,8 @@ class __$$LatencyStatsImplCopyWithImpl<$Res>
       _$LatencyStatsImpl _value, $Res Function(_$LatencyStatsImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of LatencyStats
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -153,11 +161,13 @@ class _$LatencyStatsImpl implements _LatencyStats {
             (identical(other.slowest, slowest) || other.slowest == slowest));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, fastest, average, slowest);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of LatencyStats
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$LatencyStatsImplCopyWith<_$LatencyStatsImpl> get copyWith =>
@@ -186,8 +196,11 @@ abstract class _LatencyStats implements LatencyStats {
   TimestampDuration get average;
   @override
   TimestampDuration get slowest;
+
+  /// Create a copy of LatencyStats
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$LatencyStatsImplCopyWith<_$LatencyStatsImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -203,8 +216,12 @@ mixin _$TransferStats {
   BigInt get average => throw _privateConstructorUsedError;
   BigInt get minimum => throw _privateConstructorUsedError;
 
+  /// Serializes this TransferStats to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of TransferStats
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $TransferStatsCopyWith<TransferStats> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -228,6 +245,8 @@ class _$TransferStatsCopyWithImpl<$Res, $Val extends TransferStats>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of TransferStats
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -276,6 +295,8 @@ class __$$TransferStatsImplCopyWithImpl<$Res>
       _$TransferStatsImpl _value, $Res Function(_$TransferStatsImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of TransferStats
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -342,12 +363,14 @@ class _$TransferStatsImpl implements _TransferStats {
             (identical(other.minimum, minimum) || other.minimum == minimum));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode =>
       Object.hash(runtimeType, total, maximum, average, minimum);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of TransferStats
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$TransferStatsImplCopyWith<_$TransferStatsImpl> get copyWith =>
@@ -379,8 +402,11 @@ abstract class _TransferStats implements TransferStats {
   BigInt get average;
   @override
   BigInt get minimum;
+
+  /// Create a copy of TransferStats
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$TransferStatsImplCopyWith<_$TransferStatsImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -394,8 +420,12 @@ mixin _$TransferStatsDownUp {
   TransferStats get down => throw _privateConstructorUsedError;
   TransferStats get up => throw _privateConstructorUsedError;
 
+  /// Serializes this TransferStatsDownUp to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of TransferStatsDownUp
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $TransferStatsDownUpCopyWith<TransferStatsDownUp> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -422,6 +452,8 @@ class _$TransferStatsDownUpCopyWithImpl<$Res, $Val extends TransferStatsDownUp>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of TransferStatsDownUp
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -440,6 +472,8 @@ class _$TransferStatsDownUpCopyWithImpl<$Res, $Val extends TransferStatsDownUp>
     ) as $Val);
   }
 
+  /// Create a copy of TransferStatsDownUp
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $TransferStatsCopyWith<$Res> get down {
@@ -448,6 +482,8 @@ class _$TransferStatsDownUpCopyWithImpl<$Res, $Val extends TransferStatsDownUp>
     });
   }
 
+  /// Create a copy of TransferStatsDownUp
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $TransferStatsCopyWith<$Res> get up {
@@ -481,6 +517,8 @@ class __$$TransferStatsDownUpImplCopyWithImpl<$Res>
       $Res Function(_$TransferStatsDownUpImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of TransferStatsDownUp
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -527,11 +565,13 @@ class _$TransferStatsDownUpImpl implements _TransferStatsDownUp {
             (identical(other.up, up) || other.up == up));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, down, up);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of TransferStatsDownUp
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$TransferStatsDownUpImplCopyWith<_$TransferStatsDownUpImpl> get copyWith =>
@@ -558,9 +598,938 @@ abstract class _TransferStatsDownUp implements TransferStatsDownUp {
   TransferStats get down;
   @override
   TransferStats get up;
+
+  /// Create a copy of TransferStatsDownUp
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$TransferStatsDownUpImplCopyWith<_$TransferStatsDownUpImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+StateStats _$StateStatsFromJson(Map<String, dynamic> json) {
+  return _StateStats.fromJson(json);
+}
+
+/// @nodoc
+mixin _$StateStats {
+  TimestampDuration get span => throw _privateConstructorUsedError;
+  TimestampDuration get reliable => throw _privateConstructorUsedError;
+  TimestampDuration get unreliable => throw _privateConstructorUsedError;
+  TimestampDuration get dead => throw _privateConstructorUsedError;
+  TimestampDuration get punished => throw _privateConstructorUsedError;
+  StateReasonStats get reason => throw _privateConstructorUsedError;
+
+  /// Serializes this StateStats to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of StateStats
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $StateStatsCopyWith<StateStats> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $StateStatsCopyWith<$Res> {
+  factory $StateStatsCopyWith(
+          StateStats value, $Res Function(StateStats) then) =
+      _$StateStatsCopyWithImpl<$Res, StateStats>;
+  @useResult
+  $Res call(
+      {TimestampDuration span,
+      TimestampDuration reliable,
+      TimestampDuration unreliable,
+      TimestampDuration dead,
+      TimestampDuration punished,
+      StateReasonStats reason});
+
+  $StateReasonStatsCopyWith<$Res> get reason;
+}
+
+/// @nodoc
+class _$StateStatsCopyWithImpl<$Res, $Val extends StateStats>
+    implements $StateStatsCopyWith<$Res> {
+  _$StateStatsCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of StateStats
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? span = null,
+    Object? reliable = null,
+    Object? unreliable = null,
+    Object? dead = null,
+    Object? punished = null,
+    Object? reason = null,
+  }) {
+    return _then(_value.copyWith(
+      span: null == span
+          ? _value.span
+          : span // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      reliable: null == reliable
+          ? _value.reliable
+          : reliable // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      unreliable: null == unreliable
+          ? _value.unreliable
+          : unreliable // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      dead: null == dead
+          ? _value.dead
+          : dead // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      punished: null == punished
+          ? _value.punished
+          : punished // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      reason: null == reason
+          ? _value.reason
+          : reason // ignore: cast_nullable_to_non_nullable
+              as StateReasonStats,
+    ) as $Val);
+  }
+
+  /// Create a copy of StateStats
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $StateReasonStatsCopyWith<$Res> get reason {
+    return $StateReasonStatsCopyWith<$Res>(_value.reason, (value) {
+      return _then(_value.copyWith(reason: value) as $Val);
+    });
+  }
+}
+
+/// @nodoc
+abstract class _$$StateStatsImplCopyWith<$Res>
+    implements $StateStatsCopyWith<$Res> {
+  factory _$$StateStatsImplCopyWith(
+          _$StateStatsImpl value, $Res Function(_$StateStatsImpl) then) =
+      __$$StateStatsImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call(
+      {TimestampDuration span,
+      TimestampDuration reliable,
+      TimestampDuration unreliable,
+      TimestampDuration dead,
+      TimestampDuration punished,
+      StateReasonStats reason});
+
+  @override
+  $StateReasonStatsCopyWith<$Res> get reason;
+}
+
+/// @nodoc
+class __$$StateStatsImplCopyWithImpl<$Res>
+    extends _$StateStatsCopyWithImpl<$Res, _$StateStatsImpl>
+    implements _$$StateStatsImplCopyWith<$Res> {
+  __$$StateStatsImplCopyWithImpl(
+      _$StateStatsImpl _value, $Res Function(_$StateStatsImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of StateStats
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? span = null,
+    Object? reliable = null,
+    Object? unreliable = null,
+    Object? dead = null,
+    Object? punished = null,
+    Object? reason = null,
+  }) {
+    return _then(_$StateStatsImpl(
+      span: null == span
+          ? _value.span
+          : span // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      reliable: null == reliable
+          ? _value.reliable
+          : reliable // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      unreliable: null == unreliable
+          ? _value.unreliable
+          : unreliable // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      dead: null == dead
+          ? _value.dead
+          : dead // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      punished: null == punished
+          ? _value.punished
+          : punished // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      reason: null == reason
+          ? _value.reason
+          : reason // ignore: cast_nullable_to_non_nullable
+              as StateReasonStats,
+    ));
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$StateStatsImpl implements _StateStats {
+  const _$StateStatsImpl(
+      {required this.span,
+      required this.reliable,
+      required this.unreliable,
+      required this.dead,
+      required this.punished,
+      required this.reason});
+
+  factory _$StateStatsImpl.fromJson(Map<String, dynamic> json) =>
+      _$$StateStatsImplFromJson(json);
+
+  @override
+  final TimestampDuration span;
+  @override
+  final TimestampDuration reliable;
+  @override
+  final TimestampDuration unreliable;
+  @override
+  final TimestampDuration dead;
+  @override
+  final TimestampDuration punished;
+  @override
+  final StateReasonStats reason;
+
+  @override
+  String toString() {
+    return 'StateStats(span: $span, reliable: $reliable, unreliable: $unreliable, dead: $dead, punished: $punished, reason: $reason)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$StateStatsImpl &&
+            (identical(other.span, span) || other.span == span) &&
+            (identical(other.reliable, reliable) ||
+                other.reliable == reliable) &&
+            (identical(other.unreliable, unreliable) ||
+                other.unreliable == unreliable) &&
+            (identical(other.dead, dead) || other.dead == dead) &&
+            (identical(other.punished, punished) ||
+                other.punished == punished) &&
+            (identical(other.reason, reason) || other.reason == reason));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+      runtimeType, span, reliable, unreliable, dead, punished, reason);
+
+  /// Create a copy of StateStats
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$StateStatsImplCopyWith<_$StateStatsImpl> get copyWith =>
+      __$$StateStatsImplCopyWithImpl<_$StateStatsImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$StateStatsImplToJson(
+      this,
+    );
+  }
+}
+
+abstract class _StateStats implements StateStats {
+  const factory _StateStats(
+      {required final TimestampDuration span,
+      required final TimestampDuration reliable,
+      required final TimestampDuration unreliable,
+      required final TimestampDuration dead,
+      required final TimestampDuration punished,
+      required final StateReasonStats reason}) = _$StateStatsImpl;
+
+  factory _StateStats.fromJson(Map<String, dynamic> json) =
+      _$StateStatsImpl.fromJson;
+
+  @override
+  TimestampDuration get span;
+  @override
+  TimestampDuration get reliable;
+  @override
+  TimestampDuration get unreliable;
+  @override
+  TimestampDuration get dead;
+  @override
+  TimestampDuration get punished;
+  @override
+  StateReasonStats get reason;
+
+  /// Create a copy of StateStats
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$StateStatsImplCopyWith<_$StateStatsImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+StateReasonStats _$StateReasonStatsFromJson(Map<String, dynamic> json) {
+  return _StateReasonStats.fromJson(json);
+}
+
+/// @nodoc
+mixin _$StateReasonStats {
+  TimestampDuration get canNotSend => throw _privateConstructorUsedError;
+  TimestampDuration get tooManyLostAnswers =>
+      throw _privateConstructorUsedError;
+  TimestampDuration get noPingResponse => throw _privateConstructorUsedError;
+  TimestampDuration get failedToSend => throw _privateConstructorUsedError;
+  TimestampDuration get lostAnswers => throw _privateConstructorUsedError;
+  TimestampDuration get notSeenConsecutively =>
+      throw _privateConstructorUsedError;
+  TimestampDuration get inUnreliablePingSpan =>
+      throw _privateConstructorUsedError;
+
+  /// Serializes this StateReasonStats to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of StateReasonStats
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $StateReasonStatsCopyWith<StateReasonStats> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $StateReasonStatsCopyWith<$Res> {
+  factory $StateReasonStatsCopyWith(
+          StateReasonStats value, $Res Function(StateReasonStats) then) =
+      _$StateReasonStatsCopyWithImpl<$Res, StateReasonStats>;
+  @useResult
+  $Res call(
+      {TimestampDuration canNotSend,
+      TimestampDuration tooManyLostAnswers,
+      TimestampDuration noPingResponse,
+      TimestampDuration failedToSend,
+      TimestampDuration lostAnswers,
+      TimestampDuration notSeenConsecutively,
+      TimestampDuration inUnreliablePingSpan});
+}
+
+/// @nodoc
+class _$StateReasonStatsCopyWithImpl<$Res, $Val extends StateReasonStats>
+    implements $StateReasonStatsCopyWith<$Res> {
+  _$StateReasonStatsCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of StateReasonStats
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? canNotSend = null,
+    Object? tooManyLostAnswers = null,
+    Object? noPingResponse = null,
+    Object? failedToSend = null,
+    Object? lostAnswers = null,
+    Object? notSeenConsecutively = null,
+    Object? inUnreliablePingSpan = null,
+  }) {
+    return _then(_value.copyWith(
+      canNotSend: null == canNotSend
+          ? _value.canNotSend
+          : canNotSend // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      tooManyLostAnswers: null == tooManyLostAnswers
+          ? _value.tooManyLostAnswers
+          : tooManyLostAnswers // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      noPingResponse: null == noPingResponse
+          ? _value.noPingResponse
+          : noPingResponse // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      failedToSend: null == failedToSend
+          ? _value.failedToSend
+          : failedToSend // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      lostAnswers: null == lostAnswers
+          ? _value.lostAnswers
+          : lostAnswers // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      notSeenConsecutively: null == notSeenConsecutively
+          ? _value.notSeenConsecutively
+          : notSeenConsecutively // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      inUnreliablePingSpan: null == inUnreliablePingSpan
+          ? _value.inUnreliablePingSpan
+          : inUnreliablePingSpan // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+    ) as $Val);
+  }
+}
+
+/// @nodoc
+abstract class _$$StateReasonStatsImplCopyWith<$Res>
+    implements $StateReasonStatsCopyWith<$Res> {
+  factory _$$StateReasonStatsImplCopyWith(_$StateReasonStatsImpl value,
+          $Res Function(_$StateReasonStatsImpl) then) =
+      __$$StateReasonStatsImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call(
+      {TimestampDuration canNotSend,
+      TimestampDuration tooManyLostAnswers,
+      TimestampDuration noPingResponse,
+      TimestampDuration failedToSend,
+      TimestampDuration lostAnswers,
+      TimestampDuration notSeenConsecutively,
+      TimestampDuration inUnreliablePingSpan});
+}
+
+/// @nodoc
+class __$$StateReasonStatsImplCopyWithImpl<$Res>
+    extends _$StateReasonStatsCopyWithImpl<$Res, _$StateReasonStatsImpl>
+    implements _$$StateReasonStatsImplCopyWith<$Res> {
+  __$$StateReasonStatsImplCopyWithImpl(_$StateReasonStatsImpl _value,
+      $Res Function(_$StateReasonStatsImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of StateReasonStats
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? canNotSend = null,
+    Object? tooManyLostAnswers = null,
+    Object? noPingResponse = null,
+    Object? failedToSend = null,
+    Object? lostAnswers = null,
+    Object? notSeenConsecutively = null,
+    Object? inUnreliablePingSpan = null,
+  }) {
+    return _then(_$StateReasonStatsImpl(
+      canNotSend: null == canNotSend
+          ? _value.canNotSend
+          : canNotSend // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      tooManyLostAnswers: null == tooManyLostAnswers
+          ? _value.tooManyLostAnswers
+          : tooManyLostAnswers // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      noPingResponse: null == noPingResponse
+          ? _value.noPingResponse
+          : noPingResponse // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      failedToSend: null == failedToSend
+          ? _value.failedToSend
+          : failedToSend // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      lostAnswers: null == lostAnswers
+          ? _value.lostAnswers
+          : lostAnswers // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      notSeenConsecutively: null == notSeenConsecutively
+          ? _value.notSeenConsecutively
+          : notSeenConsecutively // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      inUnreliablePingSpan: null == inUnreliablePingSpan
+          ? _value.inUnreliablePingSpan
+          : inUnreliablePingSpan // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+    ));
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$StateReasonStatsImpl implements _StateReasonStats {
+  const _$StateReasonStatsImpl(
+      {required this.canNotSend,
+      required this.tooManyLostAnswers,
+      required this.noPingResponse,
+      required this.failedToSend,
+      required this.lostAnswers,
+      required this.notSeenConsecutively,
+      required this.inUnreliablePingSpan});
+
+  factory _$StateReasonStatsImpl.fromJson(Map<String, dynamic> json) =>
+      _$$StateReasonStatsImplFromJson(json);
+
+  @override
+  final TimestampDuration canNotSend;
+  @override
+  final TimestampDuration tooManyLostAnswers;
+  @override
+  final TimestampDuration noPingResponse;
+  @override
+  final TimestampDuration failedToSend;
+  @override
+  final TimestampDuration lostAnswers;
+  @override
+  final TimestampDuration notSeenConsecutively;
+  @override
+  final TimestampDuration inUnreliablePingSpan;
+
+  @override
+  String toString() {
+    return 'StateReasonStats(canNotSend: $canNotSend, tooManyLostAnswers: $tooManyLostAnswers, noPingResponse: $noPingResponse, failedToSend: $failedToSend, lostAnswers: $lostAnswers, notSeenConsecutively: $notSeenConsecutively, inUnreliablePingSpan: $inUnreliablePingSpan)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$StateReasonStatsImpl &&
+            (identical(other.canNotSend, canNotSend) ||
+                other.canNotSend == canNotSend) &&
+            (identical(other.tooManyLostAnswers, tooManyLostAnswers) ||
+                other.tooManyLostAnswers == tooManyLostAnswers) &&
+            (identical(other.noPingResponse, noPingResponse) ||
+                other.noPingResponse == noPingResponse) &&
+            (identical(other.failedToSend, failedToSend) ||
+                other.failedToSend == failedToSend) &&
+            (identical(other.lostAnswers, lostAnswers) ||
+                other.lostAnswers == lostAnswers) &&
+            (identical(other.notSeenConsecutively, notSeenConsecutively) ||
+                other.notSeenConsecutively == notSeenConsecutively) &&
+            (identical(other.inUnreliablePingSpan, inUnreliablePingSpan) ||
+                other.inUnreliablePingSpan == inUnreliablePingSpan));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+      runtimeType,
+      canNotSend,
+      tooManyLostAnswers,
+      noPingResponse,
+      failedToSend,
+      lostAnswers,
+      notSeenConsecutively,
+      inUnreliablePingSpan);
+
+  /// Create a copy of StateReasonStats
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$StateReasonStatsImplCopyWith<_$StateReasonStatsImpl> get copyWith =>
+      __$$StateReasonStatsImplCopyWithImpl<_$StateReasonStatsImpl>(
+          this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$StateReasonStatsImplToJson(
+      this,
+    );
+  }
+}
+
+abstract class _StateReasonStats implements StateReasonStats {
+  const factory _StateReasonStats(
+          {required final TimestampDuration canNotSend,
+          required final TimestampDuration tooManyLostAnswers,
+          required final TimestampDuration noPingResponse,
+          required final TimestampDuration failedToSend,
+          required final TimestampDuration lostAnswers,
+          required final TimestampDuration notSeenConsecutively,
+          required final TimestampDuration inUnreliablePingSpan}) =
+      _$StateReasonStatsImpl;
+
+  factory _StateReasonStats.fromJson(Map<String, dynamic> json) =
+      _$StateReasonStatsImpl.fromJson;
+
+  @override
+  TimestampDuration get canNotSend;
+  @override
+  TimestampDuration get tooManyLostAnswers;
+  @override
+  TimestampDuration get noPingResponse;
+  @override
+  TimestampDuration get failedToSend;
+  @override
+  TimestampDuration get lostAnswers;
+  @override
+  TimestampDuration get notSeenConsecutively;
+  @override
+  TimestampDuration get inUnreliablePingSpan;
+
+  /// Create a copy of StateReasonStats
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$StateReasonStatsImplCopyWith<_$StateReasonStatsImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+AnswerStats _$AnswerStatsFromJson(Map<String, dynamic> json) {
+  return _AnswerStats.fromJson(json);
+}
+
+/// @nodoc
+mixin _$AnswerStats {
+  TimestampDuration get span => throw _privateConstructorUsedError;
+  int get questions => throw _privateConstructorUsedError;
+  int get answers => throw _privateConstructorUsedError;
+  int get lostAnswers => throw _privateConstructorUsedError;
+  int get consecutiveAnswersMaximum => throw _privateConstructorUsedError;
+  int get consecutiveAnswersAverage => throw _privateConstructorUsedError;
+  int get consecutiveAnswersMinimum => throw _privateConstructorUsedError;
+  int get consecutiveLostAnswersMaximum => throw _privateConstructorUsedError;
+  int get consecutiveLostAnswersAverage => throw _privateConstructorUsedError;
+  int get consecutiveLostAnswersMinimum => throw _privateConstructorUsedError;
+
+  /// Serializes this AnswerStats to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of AnswerStats
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $AnswerStatsCopyWith<AnswerStats> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $AnswerStatsCopyWith<$Res> {
+  factory $AnswerStatsCopyWith(
+          AnswerStats value, $Res Function(AnswerStats) then) =
+      _$AnswerStatsCopyWithImpl<$Res, AnswerStats>;
+  @useResult
+  $Res call(
+      {TimestampDuration span,
+      int questions,
+      int answers,
+      int lostAnswers,
+      int consecutiveAnswersMaximum,
+      int consecutiveAnswersAverage,
+      int consecutiveAnswersMinimum,
+      int consecutiveLostAnswersMaximum,
+      int consecutiveLostAnswersAverage,
+      int consecutiveLostAnswersMinimum});
+}
+
+/// @nodoc
+class _$AnswerStatsCopyWithImpl<$Res, $Val extends AnswerStats>
+    implements $AnswerStatsCopyWith<$Res> {
+  _$AnswerStatsCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of AnswerStats
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? span = null,
+    Object? questions = null,
+    Object? answers = null,
+    Object? lostAnswers = null,
+    Object? consecutiveAnswersMaximum = null,
+    Object? consecutiveAnswersAverage = null,
+    Object? consecutiveAnswersMinimum = null,
+    Object? consecutiveLostAnswersMaximum = null,
+    Object? consecutiveLostAnswersAverage = null,
+    Object? consecutiveLostAnswersMinimum = null,
+  }) {
+    return _then(_value.copyWith(
+      span: null == span
+          ? _value.span
+          : span // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      questions: null == questions
+          ? _value.questions
+          : questions // ignore: cast_nullable_to_non_nullable
+              as int,
+      answers: null == answers
+          ? _value.answers
+          : answers // ignore: cast_nullable_to_non_nullable
+              as int,
+      lostAnswers: null == lostAnswers
+          ? _value.lostAnswers
+          : lostAnswers // ignore: cast_nullable_to_non_nullable
+              as int,
+      consecutiveAnswersMaximum: null == consecutiveAnswersMaximum
+          ? _value.consecutiveAnswersMaximum
+          : consecutiveAnswersMaximum // ignore: cast_nullable_to_non_nullable
+              as int,
+      consecutiveAnswersAverage: null == consecutiveAnswersAverage
+          ? _value.consecutiveAnswersAverage
+          : consecutiveAnswersAverage // ignore: cast_nullable_to_non_nullable
+              as int,
+      consecutiveAnswersMinimum: null == consecutiveAnswersMinimum
+          ? _value.consecutiveAnswersMinimum
+          : consecutiveAnswersMinimum // ignore: cast_nullable_to_non_nullable
+              as int,
+      consecutiveLostAnswersMaximum: null == consecutiveLostAnswersMaximum
+          ? _value.consecutiveLostAnswersMaximum
+          : consecutiveLostAnswersMaximum // ignore: cast_nullable_to_non_nullable
+              as int,
+      consecutiveLostAnswersAverage: null == consecutiveLostAnswersAverage
+          ? _value.consecutiveLostAnswersAverage
+          : consecutiveLostAnswersAverage // ignore: cast_nullable_to_non_nullable
+              as int,
+      consecutiveLostAnswersMinimum: null == consecutiveLostAnswersMinimum
+          ? _value.consecutiveLostAnswersMinimum
+          : consecutiveLostAnswersMinimum // ignore: cast_nullable_to_non_nullable
+              as int,
+    ) as $Val);
+  }
+}
+
+/// @nodoc
+abstract class _$$AnswerStatsImplCopyWith<$Res>
+    implements $AnswerStatsCopyWith<$Res> {
+  factory _$$AnswerStatsImplCopyWith(
+          _$AnswerStatsImpl value, $Res Function(_$AnswerStatsImpl) then) =
+      __$$AnswerStatsImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call(
+      {TimestampDuration span,
+      int questions,
+      int answers,
+      int lostAnswers,
+      int consecutiveAnswersMaximum,
+      int consecutiveAnswersAverage,
+      int consecutiveAnswersMinimum,
+      int consecutiveLostAnswersMaximum,
+      int consecutiveLostAnswersAverage,
+      int consecutiveLostAnswersMinimum});
+}
+
+/// @nodoc
+class __$$AnswerStatsImplCopyWithImpl<$Res>
+    extends _$AnswerStatsCopyWithImpl<$Res, _$AnswerStatsImpl>
+    implements _$$AnswerStatsImplCopyWith<$Res> {
+  __$$AnswerStatsImplCopyWithImpl(
+      _$AnswerStatsImpl _value, $Res Function(_$AnswerStatsImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of AnswerStats
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? span = null,
+    Object? questions = null,
+    Object? answers = null,
+    Object? lostAnswers = null,
+    Object? consecutiveAnswersMaximum = null,
+    Object? consecutiveAnswersAverage = null,
+    Object? consecutiveAnswersMinimum = null,
+    Object? consecutiveLostAnswersMaximum = null,
+    Object? consecutiveLostAnswersAverage = null,
+    Object? consecutiveLostAnswersMinimum = null,
+  }) {
+    return _then(_$AnswerStatsImpl(
+      span: null == span
+          ? _value.span
+          : span // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      questions: null == questions
+          ? _value.questions
+          : questions // ignore: cast_nullable_to_non_nullable
+              as int,
+      answers: null == answers
+          ? _value.answers
+          : answers // ignore: cast_nullable_to_non_nullable
+              as int,
+      lostAnswers: null == lostAnswers
+          ? _value.lostAnswers
+          : lostAnswers // ignore: cast_nullable_to_non_nullable
+              as int,
+      consecutiveAnswersMaximum: null == consecutiveAnswersMaximum
+          ? _value.consecutiveAnswersMaximum
+          : consecutiveAnswersMaximum // ignore: cast_nullable_to_non_nullable
+              as int,
+      consecutiveAnswersAverage: null == consecutiveAnswersAverage
+          ? _value.consecutiveAnswersAverage
+          : consecutiveAnswersAverage // ignore: cast_nullable_to_non_nullable
+              as int,
+      consecutiveAnswersMinimum: null == consecutiveAnswersMinimum
+          ? _value.consecutiveAnswersMinimum
+          : consecutiveAnswersMinimum // ignore: cast_nullable_to_non_nullable
+              as int,
+      consecutiveLostAnswersMaximum: null == consecutiveLostAnswersMaximum
+          ? _value.consecutiveLostAnswersMaximum
+          : consecutiveLostAnswersMaximum // ignore: cast_nullable_to_non_nullable
+              as int,
+      consecutiveLostAnswersAverage: null == consecutiveLostAnswersAverage
+          ? _value.consecutiveLostAnswersAverage
+          : consecutiveLostAnswersAverage // ignore: cast_nullable_to_non_nullable
+              as int,
+      consecutiveLostAnswersMinimum: null == consecutiveLostAnswersMinimum
+          ? _value.consecutiveLostAnswersMinimum
+          : consecutiveLostAnswersMinimum // ignore: cast_nullable_to_non_nullable
+              as int,
+    ));
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$AnswerStatsImpl implements _AnswerStats {
+  const _$AnswerStatsImpl(
+      {required this.span,
+      required this.questions,
+      required this.answers,
+      required this.lostAnswers,
+      required this.consecutiveAnswersMaximum,
+      required this.consecutiveAnswersAverage,
+      required this.consecutiveAnswersMinimum,
+      required this.consecutiveLostAnswersMaximum,
+      required this.consecutiveLostAnswersAverage,
+      required this.consecutiveLostAnswersMinimum});
+
+  factory _$AnswerStatsImpl.fromJson(Map<String, dynamic> json) =>
+      _$$AnswerStatsImplFromJson(json);
+
+  @override
+  final TimestampDuration span;
+  @override
+  final int questions;
+  @override
+  final int answers;
+  @override
+  final int lostAnswers;
+  @override
+  final int consecutiveAnswersMaximum;
+  @override
+  final int consecutiveAnswersAverage;
+  @override
+  final int consecutiveAnswersMinimum;
+  @override
+  final int consecutiveLostAnswersMaximum;
+  @override
+  final int consecutiveLostAnswersAverage;
+  @override
+  final int consecutiveLostAnswersMinimum;
+
+  @override
+  String toString() {
+    return 'AnswerStats(span: $span, questions: $questions, answers: $answers, lostAnswers: $lostAnswers, consecutiveAnswersMaximum: $consecutiveAnswersMaximum, consecutiveAnswersAverage: $consecutiveAnswersAverage, consecutiveAnswersMinimum: $consecutiveAnswersMinimum, consecutiveLostAnswersMaximum: $consecutiveLostAnswersMaximum, consecutiveLostAnswersAverage: $consecutiveLostAnswersAverage, consecutiveLostAnswersMinimum: $consecutiveLostAnswersMinimum)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$AnswerStatsImpl &&
+            (identical(other.span, span) || other.span == span) &&
+            (identical(other.questions, questions) ||
+                other.questions == questions) &&
+            (identical(other.answers, answers) || other.answers == answers) &&
+            (identical(other.lostAnswers, lostAnswers) ||
+                other.lostAnswers == lostAnswers) &&
+            (identical(other.consecutiveAnswersMaximum,
+                    consecutiveAnswersMaximum) ||
+                other.consecutiveAnswersMaximum == consecutiveAnswersMaximum) &&
+            (identical(other.consecutiveAnswersAverage,
+                    consecutiveAnswersAverage) ||
+                other.consecutiveAnswersAverage == consecutiveAnswersAverage) &&
+            (identical(other.consecutiveAnswersMinimum,
+                    consecutiveAnswersMinimum) ||
+                other.consecutiveAnswersMinimum == consecutiveAnswersMinimum) &&
+            (identical(other.consecutiveLostAnswersMaximum,
+                    consecutiveLostAnswersMaximum) ||
+                other.consecutiveLostAnswersMaximum ==
+                    consecutiveLostAnswersMaximum) &&
+            (identical(other.consecutiveLostAnswersAverage,
+                    consecutiveLostAnswersAverage) ||
+                other.consecutiveLostAnswersAverage ==
+                    consecutiveLostAnswersAverage) &&
+            (identical(other.consecutiveLostAnswersMinimum,
+                    consecutiveLostAnswersMinimum) ||
+                other.consecutiveLostAnswersMinimum ==
+                    consecutiveLostAnswersMinimum));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+      runtimeType,
+      span,
+      questions,
+      answers,
+      lostAnswers,
+      consecutiveAnswersMaximum,
+      consecutiveAnswersAverage,
+      consecutiveAnswersMinimum,
+      consecutiveLostAnswersMaximum,
+      consecutiveLostAnswersAverage,
+      consecutiveLostAnswersMinimum);
+
+  /// Create a copy of AnswerStats
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$AnswerStatsImplCopyWith<_$AnswerStatsImpl> get copyWith =>
+      __$$AnswerStatsImplCopyWithImpl<_$AnswerStatsImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$AnswerStatsImplToJson(
+      this,
+    );
+  }
+}
+
+abstract class _AnswerStats implements AnswerStats {
+  const factory _AnswerStats(
+      {required final TimestampDuration span,
+      required final int questions,
+      required final int answers,
+      required final int lostAnswers,
+      required final int consecutiveAnswersMaximum,
+      required final int consecutiveAnswersAverage,
+      required final int consecutiveAnswersMinimum,
+      required final int consecutiveLostAnswersMaximum,
+      required final int consecutiveLostAnswersAverage,
+      required final int consecutiveLostAnswersMinimum}) = _$AnswerStatsImpl;
+
+  factory _AnswerStats.fromJson(Map<String, dynamic> json) =
+      _$AnswerStatsImpl.fromJson;
+
+  @override
+  TimestampDuration get span;
+  @override
+  int get questions;
+  @override
+  int get answers;
+  @override
+  int get lostAnswers;
+  @override
+  int get consecutiveAnswersMaximum;
+  @override
+  int get consecutiveAnswersAverage;
+  @override
+  int get consecutiveAnswersMinimum;
+  @override
+  int get consecutiveLostAnswersMaximum;
+  @override
+  int get consecutiveLostAnswersAverage;
+  @override
+  int get consecutiveLostAnswersMinimum;
+
+  /// Create a copy of AnswerStats
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$AnswerStatsImplCopyWith<_$AnswerStatsImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
@@ -573,14 +1542,19 @@ mixin _$RPCStats {
   int get messagesSent => throw _privateConstructorUsedError;
   int get messagesRcvd => throw _privateConstructorUsedError;
   int get questionsInFlight => throw _privateConstructorUsedError;
-  Timestamp? get lastQuestion => throw _privateConstructorUsedError;
+  Timestamp? get lastQuestionTs => throw _privateConstructorUsedError;
   Timestamp? get lastSeenTs => throw _privateConstructorUsedError;
   Timestamp? get firstConsecutiveSeenTs => throw _privateConstructorUsedError;
   int get recentLostAnswers => throw _privateConstructorUsedError;
   int get failedToSend => throw _privateConstructorUsedError;
+  AnswerStats get answer => throw _privateConstructorUsedError;
 
+  /// Serializes this RPCStats to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of RPCStats
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $RPCStatsCopyWith<RPCStats> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -594,11 +1568,14 @@ abstract class $RPCStatsCopyWith<$Res> {
       {int messagesSent,
       int messagesRcvd,
       int questionsInFlight,
-      Timestamp? lastQuestion,
+      Timestamp? lastQuestionTs,
       Timestamp? lastSeenTs,
       Timestamp? firstConsecutiveSeenTs,
       int recentLostAnswers,
-      int failedToSend});
+      int failedToSend,
+      AnswerStats answer});
+
+  $AnswerStatsCopyWith<$Res> get answer;
 }
 
 /// @nodoc
@@ -611,17 +1588,20 @@ class _$RPCStatsCopyWithImpl<$Res, $Val extends RPCStats>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of RPCStats
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
     Object? messagesSent = null,
     Object? messagesRcvd = null,
     Object? questionsInFlight = null,
-    Object? lastQuestion = freezed,
+    Object? lastQuestionTs = freezed,
     Object? lastSeenTs = freezed,
     Object? firstConsecutiveSeenTs = freezed,
     Object? recentLostAnswers = null,
     Object? failedToSend = null,
+    Object? answer = null,
   }) {
     return _then(_value.copyWith(
       messagesSent: null == messagesSent
@@ -636,9 +1616,9 @@ class _$RPCStatsCopyWithImpl<$Res, $Val extends RPCStats>
           ? _value.questionsInFlight
           : questionsInFlight // ignore: cast_nullable_to_non_nullable
               as int,
-      lastQuestion: freezed == lastQuestion
-          ? _value.lastQuestion
-          : lastQuestion // ignore: cast_nullable_to_non_nullable
+      lastQuestionTs: freezed == lastQuestionTs
+          ? _value.lastQuestionTs
+          : lastQuestionTs // ignore: cast_nullable_to_non_nullable
               as Timestamp?,
       lastSeenTs: freezed == lastSeenTs
           ? _value.lastSeenTs
@@ -656,7 +1636,21 @@ class _$RPCStatsCopyWithImpl<$Res, $Val extends RPCStats>
           ? _value.failedToSend
           : failedToSend // ignore: cast_nullable_to_non_nullable
               as int,
+      answer: null == answer
+          ? _value.answer
+          : answer // ignore: cast_nullable_to_non_nullable
+              as AnswerStats,
     ) as $Val);
+  }
+
+  /// Create a copy of RPCStats
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $AnswerStatsCopyWith<$Res> get answer {
+    return $AnswerStatsCopyWith<$Res>(_value.answer, (value) {
+      return _then(_value.copyWith(answer: value) as $Val);
+    });
   }
 }
 
@@ -672,11 +1666,15 @@ abstract class _$$RPCStatsImplCopyWith<$Res>
       {int messagesSent,
       int messagesRcvd,
       int questionsInFlight,
-      Timestamp? lastQuestion,
+      Timestamp? lastQuestionTs,
       Timestamp? lastSeenTs,
       Timestamp? firstConsecutiveSeenTs,
       int recentLostAnswers,
-      int failedToSend});
+      int failedToSend,
+      AnswerStats answer});
+
+  @override
+  $AnswerStatsCopyWith<$Res> get answer;
 }
 
 /// @nodoc
@@ -687,17 +1685,20 @@ class __$$RPCStatsImplCopyWithImpl<$Res>
       _$RPCStatsImpl _value, $Res Function(_$RPCStatsImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of RPCStats
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
     Object? messagesSent = null,
     Object? messagesRcvd = null,
     Object? questionsInFlight = null,
-    Object? lastQuestion = freezed,
+    Object? lastQuestionTs = freezed,
     Object? lastSeenTs = freezed,
     Object? firstConsecutiveSeenTs = freezed,
     Object? recentLostAnswers = null,
     Object? failedToSend = null,
+    Object? answer = null,
   }) {
     return _then(_$RPCStatsImpl(
       messagesSent: null == messagesSent
@@ -712,9 +1713,9 @@ class __$$RPCStatsImplCopyWithImpl<$Res>
           ? _value.questionsInFlight
           : questionsInFlight // ignore: cast_nullable_to_non_nullable
               as int,
-      lastQuestion: freezed == lastQuestion
-          ? _value.lastQuestion
-          : lastQuestion // ignore: cast_nullable_to_non_nullable
+      lastQuestionTs: freezed == lastQuestionTs
+          ? _value.lastQuestionTs
+          : lastQuestionTs // ignore: cast_nullable_to_non_nullable
               as Timestamp?,
       lastSeenTs: freezed == lastSeenTs
           ? _value.lastSeenTs
@@ -732,6 +1733,10 @@ class __$$RPCStatsImplCopyWithImpl<$Res>
           ? _value.failedToSend
           : failedToSend // ignore: cast_nullable_to_non_nullable
               as int,
+      answer: null == answer
+          ? _value.answer
+          : answer // ignore: cast_nullable_to_non_nullable
+              as AnswerStats,
     ));
   }
 }
@@ -743,11 +1748,12 @@ class _$RPCStatsImpl implements _RPCStats {
       {required this.messagesSent,
       required this.messagesRcvd,
       required this.questionsInFlight,
-      required this.lastQuestion,
+      required this.lastQuestionTs,
       required this.lastSeenTs,
       required this.firstConsecutiveSeenTs,
       required this.recentLostAnswers,
-      required this.failedToSend});
+      required this.failedToSend,
+      required this.answer});
 
   factory _$RPCStatsImpl.fromJson(Map<String, dynamic> json) =>
       _$$RPCStatsImplFromJson(json);
@@ -759,7 +1765,7 @@ class _$RPCStatsImpl implements _RPCStats {
   @override
   final int questionsInFlight;
   @override
-  final Timestamp? lastQuestion;
+  final Timestamp? lastQuestionTs;
   @override
   final Timestamp? lastSeenTs;
   @override
@@ -768,10 +1774,12 @@ class _$RPCStatsImpl implements _RPCStats {
   final int recentLostAnswers;
   @override
   final int failedToSend;
+  @override
+  final AnswerStats answer;
 
   @override
   String toString() {
-    return 'RPCStats(messagesSent: $messagesSent, messagesRcvd: $messagesRcvd, questionsInFlight: $questionsInFlight, lastQuestion: $lastQuestion, lastSeenTs: $lastSeenTs, firstConsecutiveSeenTs: $firstConsecutiveSeenTs, recentLostAnswers: $recentLostAnswers, failedToSend: $failedToSend)';
+    return 'RPCStats(messagesSent: $messagesSent, messagesRcvd: $messagesRcvd, questionsInFlight: $questionsInFlight, lastQuestionTs: $lastQuestionTs, lastSeenTs: $lastSeenTs, firstConsecutiveSeenTs: $firstConsecutiveSeenTs, recentLostAnswers: $recentLostAnswers, failedToSend: $failedToSend, answer: $answer)';
   }
 
   @override
@@ -785,8 +1793,8 @@ class _$RPCStatsImpl implements _RPCStats {
                 other.messagesRcvd == messagesRcvd) &&
             (identical(other.questionsInFlight, questionsInFlight) ||
                 other.questionsInFlight == questionsInFlight) &&
-            (identical(other.lastQuestion, lastQuestion) ||
-                other.lastQuestion == lastQuestion) &&
+            (identical(other.lastQuestionTs, lastQuestionTs) ||
+                other.lastQuestionTs == lastQuestionTs) &&
             (identical(other.lastSeenTs, lastSeenTs) ||
                 other.lastSeenTs == lastSeenTs) &&
             (identical(other.firstConsecutiveSeenTs, firstConsecutiveSeenTs) ||
@@ -794,23 +1802,27 @@ class _$RPCStatsImpl implements _RPCStats {
             (identical(other.recentLostAnswers, recentLostAnswers) ||
                 other.recentLostAnswers == recentLostAnswers) &&
             (identical(other.failedToSend, failedToSend) ||
-                other.failedToSend == failedToSend));
+                other.failedToSend == failedToSend) &&
+            (identical(other.answer, answer) || other.answer == answer));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
       runtimeType,
       messagesSent,
       messagesRcvd,
       questionsInFlight,
-      lastQuestion,
+      lastQuestionTs,
       lastSeenTs,
       firstConsecutiveSeenTs,
       recentLostAnswers,
-      failedToSend);
+      failedToSend,
+      answer);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of RPCStats
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$RPCStatsImplCopyWith<_$RPCStatsImpl> get copyWith =>
@@ -829,11 +1841,12 @@ abstract class _RPCStats implements RPCStats {
       {required final int messagesSent,
       required final int messagesRcvd,
       required final int questionsInFlight,
-      required final Timestamp? lastQuestion,
+      required final Timestamp? lastQuestionTs,
       required final Timestamp? lastSeenTs,
       required final Timestamp? firstConsecutiveSeenTs,
       required final int recentLostAnswers,
-      required final int failedToSend}) = _$RPCStatsImpl;
+      required final int failedToSend,
+      required final AnswerStats answer}) = _$RPCStatsImpl;
 
   factory _RPCStats.fromJson(Map<String, dynamic> json) =
       _$RPCStatsImpl.fromJson;
@@ -845,7 +1858,7 @@ abstract class _RPCStats implements RPCStats {
   @override
   int get questionsInFlight;
   @override
-  Timestamp? get lastQuestion;
+  Timestamp? get lastQuestionTs;
   @override
   Timestamp? get lastSeenTs;
   @override
@@ -855,7 +1868,12 @@ abstract class _RPCStats implements RPCStats {
   @override
   int get failedToSend;
   @override
-  @JsonKey(ignore: true)
+  AnswerStats get answer;
+
+  /// Create a copy of RPCStats
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$RPCStatsImplCopyWith<_$RPCStatsImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -869,10 +1887,15 @@ mixin _$PeerStats {
   Timestamp get timeAdded => throw _privateConstructorUsedError;
   RPCStats get rpcStats => throw _privateConstructorUsedError;
   TransferStatsDownUp get transfer => throw _privateConstructorUsedError;
+  StateStats get state => throw _privateConstructorUsedError;
   LatencyStats? get latency => throw _privateConstructorUsedError;
 
+  /// Serializes this PeerStats to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of PeerStats
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $PeerStatsCopyWith<PeerStats> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -886,10 +1909,12 @@ abstract class $PeerStatsCopyWith<$Res> {
       {Timestamp timeAdded,
       RPCStats rpcStats,
       TransferStatsDownUp transfer,
+      StateStats state,
       LatencyStats? latency});
 
   $RPCStatsCopyWith<$Res> get rpcStats;
   $TransferStatsDownUpCopyWith<$Res> get transfer;
+  $StateStatsCopyWith<$Res> get state;
   $LatencyStatsCopyWith<$Res>? get latency;
 }
 
@@ -903,12 +1928,15 @@ class _$PeerStatsCopyWithImpl<$Res, $Val extends PeerStats>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of PeerStats
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
     Object? timeAdded = null,
     Object? rpcStats = null,
     Object? transfer = null,
+    Object? state = null,
     Object? latency = freezed,
   }) {
     return _then(_value.copyWith(
@@ -924,6 +1952,10 @@ class _$PeerStatsCopyWithImpl<$Res, $Val extends PeerStats>
           ? _value.transfer
           : transfer // ignore: cast_nullable_to_non_nullable
               as TransferStatsDownUp,
+      state: null == state
+          ? _value.state
+          : state // ignore: cast_nullable_to_non_nullable
+              as StateStats,
       latency: freezed == latency
           ? _value.latency
           : latency // ignore: cast_nullable_to_non_nullable
@@ -931,6 +1963,8 @@ class _$PeerStatsCopyWithImpl<$Res, $Val extends PeerStats>
     ) as $Val);
   }
 
+  /// Create a copy of PeerStats
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $RPCStatsCopyWith<$Res> get rpcStats {
@@ -939,6 +1973,8 @@ class _$PeerStatsCopyWithImpl<$Res, $Val extends PeerStats>
     });
   }
 
+  /// Create a copy of PeerStats
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $TransferStatsDownUpCopyWith<$Res> get transfer {
@@ -947,6 +1983,18 @@ class _$PeerStatsCopyWithImpl<$Res, $Val extends PeerStats>
     });
   }
 
+  /// Create a copy of PeerStats
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $StateStatsCopyWith<$Res> get state {
+    return $StateStatsCopyWith<$Res>(_value.state, (value) {
+      return _then(_value.copyWith(state: value) as $Val);
+    });
+  }
+
+  /// Create a copy of PeerStats
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $LatencyStatsCopyWith<$Res>? get latency {
@@ -972,12 +2020,15 @@ abstract class _$$PeerStatsImplCopyWith<$Res>
       {Timestamp timeAdded,
       RPCStats rpcStats,
       TransferStatsDownUp transfer,
+      StateStats state,
       LatencyStats? latency});
 
   @override
   $RPCStatsCopyWith<$Res> get rpcStats;
   @override
   $TransferStatsDownUpCopyWith<$Res> get transfer;
+  @override
+  $StateStatsCopyWith<$Res> get state;
   @override
   $LatencyStatsCopyWith<$Res>? get latency;
 }
@@ -990,12 +2041,15 @@ class __$$PeerStatsImplCopyWithImpl<$Res>
       _$PeerStatsImpl _value, $Res Function(_$PeerStatsImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of PeerStats
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
     Object? timeAdded = null,
     Object? rpcStats = null,
     Object? transfer = null,
+    Object? state = null,
     Object? latency = freezed,
   }) {
     return _then(_$PeerStatsImpl(
@@ -1011,6 +2065,10 @@ class __$$PeerStatsImplCopyWithImpl<$Res>
           ? _value.transfer
           : transfer // ignore: cast_nullable_to_non_nullable
               as TransferStatsDownUp,
+      state: null == state
+          ? _value.state
+          : state // ignore: cast_nullable_to_non_nullable
+              as StateStats,
       latency: freezed == latency
           ? _value.latency
           : latency // ignore: cast_nullable_to_non_nullable
@@ -1026,6 +2084,7 @@ class _$PeerStatsImpl implements _PeerStats {
       {required this.timeAdded,
       required this.rpcStats,
       required this.transfer,
+      required this.state,
       this.latency});
 
   factory _$PeerStatsImpl.fromJson(Map<String, dynamic> json) =>
@@ -1038,11 +2097,13 @@ class _$PeerStatsImpl implements _PeerStats {
   @override
   final TransferStatsDownUp transfer;
   @override
+  final StateStats state;
+  @override
   final LatencyStats? latency;
 
   @override
   String toString() {
-    return 'PeerStats(timeAdded: $timeAdded, rpcStats: $rpcStats, transfer: $transfer, latency: $latency)';
+    return 'PeerStats(timeAdded: $timeAdded, rpcStats: $rpcStats, transfer: $transfer, state: $state, latency: $latency)';
   }
 
   @override
@@ -1056,15 +2117,18 @@ class _$PeerStatsImpl implements _PeerStats {
                 other.rpcStats == rpcStats) &&
             (identical(other.transfer, transfer) ||
                 other.transfer == transfer) &&
+            (identical(other.state, state) || other.state == state) &&
             (identical(other.latency, latency) || other.latency == latency));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode =>
-      Object.hash(runtimeType, timeAdded, rpcStats, transfer, latency);
+      Object.hash(runtimeType, timeAdded, rpcStats, transfer, state, latency);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of PeerStats
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$PeerStatsImplCopyWith<_$PeerStatsImpl> get copyWith =>
@@ -1083,6 +2147,7 @@ abstract class _PeerStats implements PeerStats {
       {required final Timestamp timeAdded,
       required final RPCStats rpcStats,
       required final TransferStatsDownUp transfer,
+      required final StateStats state,
       final LatencyStats? latency}) = _$PeerStatsImpl;
 
   factory _PeerStats.fromJson(Map<String, dynamic> json) =
@@ -1095,9 +2160,14 @@ abstract class _PeerStats implements PeerStats {
   @override
   TransferStatsDownUp get transfer;
   @override
-  LatencyStats? get latency;
+  StateStats get state;
   @override
-  @JsonKey(ignore: true)
+  LatencyStats? get latency;
+
+  /// Create a copy of PeerStats
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$PeerStatsImplCopyWith<_$PeerStatsImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -1113,8 +2183,12 @@ mixin _$PeerTableData {
   String get peerAddress => throw _privateConstructorUsedError;
   PeerStats get peerStats => throw _privateConstructorUsedError;
 
+  /// Serializes this PeerTableData to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of PeerTableData
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $PeerTableDataCopyWith<PeerTableData> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -1143,6 +2217,8 @@ class _$PeerTableDataCopyWithImpl<$Res, $Val extends PeerTableData>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of PeerTableData
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -1166,6 +2242,8 @@ class _$PeerTableDataCopyWithImpl<$Res, $Val extends PeerTableData>
     ) as $Val);
   }
 
+  /// Create a copy of PeerTableData
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $PeerStatsCopyWith<$Res> get peerStats {
@@ -1200,6 +2278,8 @@ class __$$PeerTableDataImplCopyWithImpl<$Res>
       _$PeerTableDataImpl _value, $Res Function(_$PeerTableDataImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of PeerTableData
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -1266,12 +2346,14 @@ class _$PeerTableDataImpl implements _PeerTableData {
                 other.peerStats == peerStats));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType,
       const DeepCollectionEquality().hash(_nodeIds), peerAddress, peerStats);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of PeerTableData
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$PeerTableDataImplCopyWith<_$PeerTableDataImpl> get copyWith =>
@@ -1300,8 +2382,11 @@ abstract class _PeerTableData implements PeerTableData {
   String get peerAddress;
   @override
   PeerStats get peerStats;
+
+  /// Create a copy of PeerTableData
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$PeerTableDataImplCopyWith<_$PeerTableDataImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -1458,6 +2543,8 @@ mixin _$VeilidUpdate {
     required TResult orElse(),
   }) =>
       throw _privateConstructorUsedError;
+
+  /// Serializes this VeilidUpdate to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 }
 
@@ -1477,6 +2564,9 @@ class _$VeilidUpdateCopyWithImpl<$Res, $Val extends VeilidUpdate>
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
+
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -1496,6 +2586,8 @@ class __$$VeilidLogImplCopyWithImpl<$Res>
       _$VeilidLogImpl _value, $Res Function(_$VeilidLogImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -1560,11 +2652,13 @@ class _$VeilidLogImpl implements VeilidLog {
                 other.backtrace == backtrace));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, logLevel, message, backtrace);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidLogImplCopyWith<_$VeilidLogImpl> get copyWith =>
@@ -1739,7 +2833,10 @@ abstract class VeilidLog implements VeilidUpdate {
   VeilidLogLevel get logLevel;
   String get message;
   String? get backtrace;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidLogImplCopyWith<_$VeilidLogImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -1764,6 +2861,8 @@ class __$$VeilidAppMessageImplCopyWithImpl<$Res>
       $Res Function(_$VeilidAppMessageImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -1827,12 +2926,14 @@ class _$VeilidAppMessageImpl implements VeilidAppMessage {
             (identical(other.routeId, routeId) || other.routeId == routeId));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType,
       const DeepCollectionEquality().hash(message), sender, routeId);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidAppMessageImplCopyWith<_$VeilidAppMessageImpl> get copyWith =>
@@ -2009,7 +3110,10 @@ abstract class VeilidAppMessage implements VeilidUpdate {
   Uint8List get message;
   Typed<FixedEncodedString43>? get sender;
   String? get routeId;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidAppMessageImplCopyWith<_$VeilidAppMessageImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -2035,6 +3139,8 @@ class __$$VeilidAppCallImplCopyWithImpl<$Res>
       _$VeilidAppCallImpl _value, $Res Function(_$VeilidAppCallImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -2107,12 +3213,14 @@ class _$VeilidAppCallImpl implements VeilidAppCall {
             (identical(other.routeId, routeId) || other.routeId == routeId));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType,
       const DeepCollectionEquality().hash(message), callId, sender, routeId);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidAppCallImplCopyWith<_$VeilidAppCallImpl> get copyWith =>
@@ -2290,7 +3398,10 @@ abstract class VeilidAppCall implements VeilidUpdate {
   String get callId;
   Typed<FixedEncodedString43>? get sender;
   String? get routeId;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidAppCallImplCopyWith<_$VeilidAppCallImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -2317,6 +3428,8 @@ class __$$VeilidUpdateAttachmentImplCopyWithImpl<$Res>
       $Res Function(_$VeilidUpdateAttachmentImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -2381,12 +3494,14 @@ class _$VeilidUpdateAttachmentImpl implements VeilidUpdateAttachment {
                 other.localNetworkReady == localNetworkReady));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode =>
       Object.hash(runtimeType, state, publicInternetReady, localNetworkReady);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidUpdateAttachmentImplCopyWith<_$VeilidUpdateAttachmentImpl>
@@ -2562,7 +3677,10 @@ abstract class VeilidUpdateAttachment implements VeilidUpdate {
   AttachmentState get state;
   bool get publicInternetReady;
   bool get localNetworkReady;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidUpdateAttachmentImplCopyWith<_$VeilidUpdateAttachmentImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -2585,6 +3703,8 @@ class __$$VeilidUpdateNetworkImplCopyWithImpl<$Res>
       $Res Function(_$VeilidUpdateNetworkImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -2662,12 +3782,14 @@ class _$VeilidUpdateNetworkImpl implements VeilidUpdateNetwork {
             const DeepCollectionEquality().equals(other._peers, _peers));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, started, bpsDown, bpsUp,
       const DeepCollectionEquality().hash(_peers));
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidUpdateNetworkImplCopyWith<_$VeilidUpdateNetworkImpl> get copyWith =>
@@ -2845,7 +3967,10 @@ abstract class VeilidUpdateNetwork implements VeilidUpdate {
   BigInt get bpsDown;
   BigInt get bpsUp;
   List<PeerTableData> get peers;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidUpdateNetworkImplCopyWith<_$VeilidUpdateNetworkImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -2869,6 +3994,8 @@ class __$$VeilidUpdateConfigImplCopyWithImpl<$Res>
       $Res Function(_$VeilidUpdateConfigImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -2882,6 +4009,8 @@ class __$$VeilidUpdateConfigImplCopyWithImpl<$Res>
     ));
   }
 
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $VeilidConfigCopyWith<$Res> get config {
@@ -2919,11 +4048,13 @@ class _$VeilidUpdateConfigImpl implements VeilidUpdateConfig {
             (identical(other.config, config) || other.config == config));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, config);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidUpdateConfigImplCopyWith<_$VeilidUpdateConfigImpl> get copyWith =>
@@ -3095,7 +4226,10 @@ abstract class VeilidUpdateConfig implements VeilidUpdate {
       _$VeilidUpdateConfigImpl.fromJson;
 
   VeilidConfig get config;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidUpdateConfigImplCopyWith<_$VeilidUpdateConfigImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -3119,6 +4253,8 @@ class __$$VeilidUpdateRouteChangeImplCopyWithImpl<$Res>
       $Res Function(_$VeilidUpdateRouteChangeImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -3188,14 +4324,16 @@ class _$VeilidUpdateRouteChangeImpl implements VeilidUpdateRouteChange {
                 .equals(other._deadRemoteRoutes, _deadRemoteRoutes));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
       runtimeType,
       const DeepCollectionEquality().hash(_deadRoutes),
       const DeepCollectionEquality().hash(_deadRemoteRoutes));
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidUpdateRouteChangeImplCopyWith<_$VeilidUpdateRouteChangeImpl>
@@ -3370,7 +4508,10 @@ abstract class VeilidUpdateRouteChange implements VeilidUpdate {
 
   List<String> get deadRoutes;
   List<String> get deadRemoteRoutes;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidUpdateRouteChangeImplCopyWith<_$VeilidUpdateRouteChangeImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -3400,6 +4541,8 @@ class __$$VeilidUpdateValueChangeImplCopyWithImpl<$Res>
       $Res Function(_$VeilidUpdateValueChangeImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -3428,6 +4571,8 @@ class __$$VeilidUpdateValueChangeImplCopyWithImpl<$Res>
     ));
   }
 
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $ValueDataCopyWith<$Res>? get value {
@@ -3490,12 +4635,14 @@ class _$VeilidUpdateValueChangeImpl implements VeilidUpdateValueChange {
             (identical(other.value, value) || other.value == value));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, key,
       const DeepCollectionEquality().hash(_subkeys), count, value);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidUpdateValueChangeImplCopyWith<_$VeilidUpdateValueChangeImpl>
@@ -3673,7 +4820,10 @@ abstract class VeilidUpdateValueChange implements VeilidUpdate {
   List<ValueSubkeyRange> get subkeys;
   int get count;
   ValueData? get value;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidUpdateValueChangeImplCopyWith<_$VeilidUpdateValueChangeImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -3689,8 +4839,12 @@ mixin _$VeilidStateAttachment {
   bool get publicInternetReady => throw _privateConstructorUsedError;
   bool get localNetworkReady => throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidStateAttachment to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidStateAttachment
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidStateAttachmentCopyWith<VeilidStateAttachment> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -3718,6 +4872,8 @@ class _$VeilidStateAttachmentCopyWithImpl<$Res,
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidStateAttachment
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -3766,6 +4922,8 @@ class __$$VeilidStateAttachmentImplCopyWithImpl<$Res>
       $Res Function(_$VeilidStateAttachmentImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidStateAttachment
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -3825,12 +4983,14 @@ class _$VeilidStateAttachmentImpl implements _VeilidStateAttachment {
                 other.localNetworkReady == localNetworkReady));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode =>
       Object.hash(runtimeType, state, publicInternetReady, localNetworkReady);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidStateAttachment
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidStateAttachmentImplCopyWith<_$VeilidStateAttachmentImpl>
@@ -3860,8 +5020,11 @@ abstract class _VeilidStateAttachment implements VeilidStateAttachment {
   bool get publicInternetReady;
   @override
   bool get localNetworkReady;
+
+  /// Create a copy of VeilidStateAttachment
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidStateAttachmentImplCopyWith<_$VeilidStateAttachmentImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -3877,8 +5040,12 @@ mixin _$VeilidStateNetwork {
   BigInt get bpsUp => throw _privateConstructorUsedError;
   List<PeerTableData> get peers => throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidStateNetwork to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidStateNetwork
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidStateNetworkCopyWith<VeilidStateNetwork> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -3903,6 +5070,8 @@ class _$VeilidStateNetworkCopyWithImpl<$Res, $Val extends VeilidStateNetwork>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidStateNetwork
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -3952,6 +5121,8 @@ class __$$VeilidStateNetworkImplCopyWithImpl<$Res>
       $Res Function(_$VeilidStateNetworkImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidStateNetwork
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -4024,12 +5195,14 @@ class _$VeilidStateNetworkImpl implements _VeilidStateNetwork {
             const DeepCollectionEquality().equals(other._peers, _peers));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, started, bpsDown, bpsUp,
       const DeepCollectionEquality().hash(_peers));
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidStateNetwork
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidStateNetworkImplCopyWith<_$VeilidStateNetworkImpl> get copyWith =>
@@ -4062,8 +5235,11 @@ abstract class _VeilidStateNetwork implements VeilidStateNetwork {
   BigInt get bpsUp;
   @override
   List<PeerTableData> get peers;
+
+  /// Create a copy of VeilidStateNetwork
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidStateNetworkImplCopyWith<_$VeilidStateNetworkImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -4076,8 +5252,12 @@ VeilidStateConfig _$VeilidStateConfigFromJson(Map<String, dynamic> json) {
 mixin _$VeilidStateConfig {
   VeilidConfig get config => throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidStateConfig to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidStateConfig
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidStateConfigCopyWith<VeilidStateConfig> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -4103,6 +5283,8 @@ class _$VeilidStateConfigCopyWithImpl<$Res, $Val extends VeilidStateConfig>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidStateConfig
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -4116,6 +5298,8 @@ class _$VeilidStateConfigCopyWithImpl<$Res, $Val extends VeilidStateConfig>
     ) as $Val);
   }
 
+  /// Create a copy of VeilidStateConfig
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $VeilidConfigCopyWith<$Res> get config {
@@ -4147,6 +5331,8 @@ class __$$VeilidStateConfigImplCopyWithImpl<$Res>
       $Res Function(_$VeilidStateConfigImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidStateConfig
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -4185,11 +5371,13 @@ class _$VeilidStateConfigImpl implements _VeilidStateConfig {
             (identical(other.config, config) || other.config == config));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, config);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidStateConfig
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidStateConfigImplCopyWith<_$VeilidStateConfigImpl> get copyWith =>
@@ -4213,8 +5401,11 @@ abstract class _VeilidStateConfig implements VeilidStateConfig {
 
   @override
   VeilidConfig get config;
+
+  /// Create a copy of VeilidStateConfig
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidStateConfigImplCopyWith<_$VeilidStateConfigImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -4229,8 +5420,12 @@ mixin _$VeilidState {
   VeilidStateNetwork get network => throw _privateConstructorUsedError;
   VeilidStateConfig get config => throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidState to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidState
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidStateCopyWith<VeilidState> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -4261,6 +5456,8 @@ class _$VeilidStateCopyWithImpl<$Res, $Val extends VeilidState>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidState
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -4284,6 +5481,8 @@ class _$VeilidStateCopyWithImpl<$Res, $Val extends VeilidState>
     ) as $Val);
   }
 
+  /// Create a copy of VeilidState
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $VeilidStateAttachmentCopyWith<$Res> get attachment {
@@ -4292,6 +5491,8 @@ class _$VeilidStateCopyWithImpl<$Res, $Val extends VeilidState>
     });
   }
 
+  /// Create a copy of VeilidState
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $VeilidStateNetworkCopyWith<$Res> get network {
@@ -4300,6 +5501,8 @@ class _$VeilidStateCopyWithImpl<$Res, $Val extends VeilidState>
     });
   }
 
+  /// Create a copy of VeilidState
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $VeilidStateConfigCopyWith<$Res> get config {
@@ -4338,6 +5541,8 @@ class __$$VeilidStateImplCopyWithImpl<$Res>
       _$VeilidStateImpl _value, $Res Function(_$VeilidStateImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidState
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -4394,11 +5599,13 @@ class _$VeilidStateImpl implements _VeilidState {
             (identical(other.config, config) || other.config == config));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, attachment, network, config);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidState
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidStateImplCopyWith<_$VeilidStateImpl> get copyWith =>
@@ -4427,8 +5634,11 @@ abstract class _VeilidState implements VeilidState {
   VeilidStateNetwork get network;
   @override
   VeilidStateConfig get config;
+
+  /// Create a copy of VeilidState
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidStateImplCopyWith<_$VeilidStateImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }

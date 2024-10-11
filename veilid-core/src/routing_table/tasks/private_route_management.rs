@@ -2,6 +2,7 @@ use super::*;
 
 use futures_util::stream::{FuturesUnordered, StreamExt};
 use futures_util::FutureExt;
+use stop_token::future::FutureExt as _;
 
 const BACKGROUND_SAFETY_ROUTE_COUNT: usize = 2;
 
@@ -58,12 +59,12 @@ impl RoutingTable {
             }
             // If this has been published, always test if we need it
             // Also if the route has never been tested, test it at least once
-            if v.is_published() || stats.last_tested_ts.is_none() {
+            if v.is_published() || stats.last_known_valid_ts.is_none() {
                 must_test_routes.push(*k);
             }
             // If this is a default route hop length, include it in routes to keep alive
             else if v.hop_count() == default_route_hop_count {
-                unpublished_routes.push((*k, stats.latency_stats.average.as_u64()));
+                unpublished_routes.push((*k, stats.latency.average.as_u64()));
             }
             // Else this is a route that hasnt been used recently enough and we can tear it down
             else {
@@ -102,10 +103,10 @@ impl RoutingTable {
     }
 
     /// Test set of routes and remove the ones that don't test clean
-    #[instrument(level = "trace", skip(self, _stop_token), err)]
+    #[instrument(level = "trace", skip(self, stop_token), err)]
     async fn test_route_set(
         &self,
-        _stop_token: StopToken,
+        stop_token: StopToken,
         routes_needing_testing: Vec<RouteId>,
     ) -> EyreResult<()> {
         if routes_needing_testing.is_empty() {
@@ -152,7 +153,7 @@ impl RoutingTable {
             }
 
             // Wait for test_route futures to complete in parallel
-            while unord.next().await.is_some() {}
+            while let Ok(Some(())) = unord.next().timeout_at(stop_token.clone()).await {}
         }
 
         // Process failed routes

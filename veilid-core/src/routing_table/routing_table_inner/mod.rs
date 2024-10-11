@@ -94,25 +94,23 @@ impl RoutingTableInner {
         }
     }
 
-    fn with_public_internet_routing_domain_mut<F, R>(&mut self, f: F) -> R
-    where
-        F: FnOnce(&mut PublicInternetRoutingDomainDetail) -> R,
-    {
-        f(&mut self.public_internet_routing_domain)
-    }
-    fn with_local_network_routing_domain_mut<F, R>(&mut self, f: F) -> R
-    where
-        F: FnOnce(&mut LocalNetworkRoutingDomainDetail) -> R,
-    {
-        f(&mut self.local_network_routing_domain)
-    }
-
     pub fn relay_node(&self, domain: RoutingDomain) -> Option<FilteredNodeRef> {
         self.with_routing_domain(domain, |rdd| rdd.relay_node())
     }
 
     pub fn relay_node_last_keepalive(&self, domain: RoutingDomain) -> Option<Timestamp> {
         self.with_routing_domain(domain, |rdd| rdd.relay_node_last_keepalive())
+    }
+
+    pub fn set_relay_node_last_keepalive(&mut self, domain: RoutingDomain, ts: Timestamp) {
+        match domain {
+            RoutingDomain::PublicInternet => self
+                .public_internet_routing_domain
+                .set_relay_node_last_keepalive(Some(ts)),
+            RoutingDomain::LocalNetwork => self
+                .local_network_routing_domain
+                .set_relay_node_last_keepalive(Some(ts)),
+        };
     }
 
     #[expect(dead_code)]
@@ -248,11 +246,6 @@ impl RoutingTableInner {
     /// Get the current published peer info
     pub fn get_published_peer_info(&self, routing_domain: RoutingDomain) -> Option<Arc<PeerInfo>> {
         self.with_routing_domain(routing_domain, |rdd| rdd.get_published_peer_info())
-    }
-
-    /// Return if this routing domain has a valid network class
-    pub fn has_valid_network_class(&self, routing_domain: RoutingDomain) -> bool {
-        self.with_routing_domain(routing_domain, |rdd| rdd.has_valid_network_class())
     }
 
     /// Return a copy of our node's current peerinfo (may not yet be published)
@@ -477,6 +470,7 @@ impl RoutingTableInner {
         None
     }
 
+    // Collect all entries that are 'needs_ping' and have some node info making them reachable somehow
     pub(super) fn get_nodes_needing_ping(
         &self,
         outer_self: RoutingTable,
@@ -487,47 +481,107 @@ impl RoutingTableInner {
             .get_published_peer_info(routing_domain)
             .map(|pi| pi.signed_node_info().timestamp());
 
-        // Collect all entries that are 'needs_ping' and have some node info making them reachable somehow
-        let mut node_refs = Vec::<FilteredNodeRef>::with_capacity(self.bucket_entry_count());
-        self.with_entries(cur_ts, BucketEntryState::Unreliable, |rti, entry| {
-            let entry_needs_ping = |e: &BucketEntryInner| {
-                // If this entry isn't in the routing domain we are checking, don't include it
-                if !e.exists_in_routing_domain(rti, routing_domain) {
-                    return false;
+        let mut filters = VecDeque::new();
+
+        // Remove our own node from the results
+        let filter_self =
+            Box::new(move |_rti: &RoutingTableInner, v: Option<Arc<BucketEntry>>| v.is_some())
+                as RoutingTableEntryFilter;
+        filters.push_back(filter_self);
+
+        let filter_ping = Box::new(
+            move |rti: &RoutingTableInner, v: Option<Arc<BucketEntry>>| {
+                let entry = v.unwrap();
+                entry.with_inner(|e| {
+                    // If this entry isn't in the routing domain we are checking, don't include it
+                    if !e.exists_in_routing_domain(rti, routing_domain) {
+                        return false;
+                    }
+
+                    // If we don't have node status for this node, then we should ping it to get some node status
+                    if e.has_node_info(routing_domain.into())
+                        && e.node_status(routing_domain).is_none()
+                    {
+                        return true;
+                    }
+
+                    // If this entry needs a ping because this node hasn't seen our latest node info, then do it
+                    if opt_own_node_info_ts.is_some()
+                        && !e.has_seen_our_node_info_ts(
+                            routing_domain,
+                            opt_own_node_info_ts.unwrap(),
+                        )
+                    {
+                        return true;
+                    }
+
+                    // If this entry needs need a ping by non-routing-domain-specific metrics then do it
+                    if e.needs_ping(cur_ts) {
+                        return true;
+                    }
+
+                    false
+                })
+            },
+        ) as RoutingTableEntryFilter;
+        filters.push_back(filter_ping);
+
+        // Sort by least recently contacted
+        let compare = |_rti: &RoutingTableInner,
+                       a_entry: &Option<Arc<BucketEntry>>,
+                       b_entry: &Option<Arc<BucketEntry>>| {
+            // same nodes are always the same
+            if let Some(a_entry) = a_entry {
+                if let Some(b_entry) = b_entry {
+                    if Arc::ptr_eq(a_entry, b_entry) {
+                        return core::cmp::Ordering::Equal;
+                    }
                 }
-
-                // If we don't have node status for this node, then we should ping it to get some node status
-                if e.has_node_info(routing_domain.into()) && e.node_status(routing_domain).is_none()
-                {
-                    return true;
-                }
-
-                // If this entry needs a ping because this node hasn't seen our latest node info, then do it
-                if opt_own_node_info_ts.is_some()
-                    && !e.has_seen_our_node_info_ts(routing_domain, opt_own_node_info_ts.unwrap())
-                {
-                    return true;
-                }
-
-                // If this entry needs need a ping by non-routing-domain-specific metrics then do it
-                if e.needs_ping(cur_ts) {
-                    return true;
-                }
-
-                false
-            };
-
-            if entry.with_inner(entry_needs_ping) {
-                node_refs.push(FilteredNodeRef::new(
-                    outer_self.clone(),
-                    entry,
-                    NodeRefFilter::new().with_routing_domain(routing_domain),
-                    Sequencing::default(),
-                ));
+            } else if b_entry.is_none() {
+                return core::cmp::Ordering::Equal;
             }
-            Option::<()>::None
-        });
-        node_refs
+
+            // our own node always comes last (should not happen, here for completeness)
+            if a_entry.is_none() {
+                return core::cmp::Ordering::Greater;
+            }
+            if b_entry.is_none() {
+                return core::cmp::Ordering::Less;
+            }
+            // Sort by least recently contacted regardless of reliability
+            // If something needs a ping it should get it in the order of need
+            let ae = a_entry.as_ref().unwrap();
+            let be = b_entry.as_ref().unwrap();
+            ae.with_inner(|ae| {
+                be.with_inner(|be| {
+                    let ca = ae
+                        .peer_stats()
+                        .rpc_stats
+                        .last_question_ts
+                        .unwrap_or(Timestamp::new(0))
+                        .as_u64();
+                    let cb = be
+                        .peer_stats()
+                        .rpc_stats
+                        .last_question_ts
+                        .unwrap_or(Timestamp::new(0))
+                        .as_u64();
+
+                    ca.cmp(&cb)
+                })
+            })
+        };
+
+        let transform = |_rti: &RoutingTableInner, v: Option<Arc<BucketEntry>>| {
+            FilteredNodeRef::new(
+                outer_self.clone(),
+                v.unwrap().clone(),
+                NodeRefFilter::new().with_routing_domain(routing_domain),
+                Sequencing::default(),
+            )
+        };
+
+        self.find_peers_with_sort_and_filter(usize::MAX, cur_ts, filters, compare, transform)
     }
 
     #[expect(dead_code)]
@@ -891,20 +945,16 @@ impl RoutingTableInner {
         }
 
         // Public internet routing domain is ready for app use,
-        // when we have proper dialinfo/networkclass
-        let public_internet_ready = !matches!(
-            self.get_network_class(RoutingDomain::PublicInternet)
-                .unwrap_or_default(),
-            NetworkClass::Invalid
-        );
+        // when we have proper dialinfo/networkclass and it is published
+        let public_internet_ready = self
+            .get_published_peer_info(RoutingDomain::PublicInternet)
+            .is_some();
 
         // Local internet routing domain is ready for app use
-        // when we have proper dialinfo/networkclass
-        let local_network_ready = !matches!(
-            self.get_network_class(RoutingDomain::LocalNetwork)
-                .unwrap_or_default(),
-            NetworkClass::Invalid
-        );
+        // when we have proper dialinfo/networkclass and it is published
+        let local_network_ready = self
+            .get_published_peer_info(RoutingDomain::LocalNetwork)
+            .is_some();
 
         let live_entry_counts = self.cached_entry_counts();
 
@@ -1017,7 +1067,7 @@ impl RoutingTableInner {
             &'b Option<Arc<BucketEntry>>,
             &'b Option<Arc<BucketEntry>>,
         ) -> core::cmp::Ordering,
-        T: for<'r, 't> FnMut(&'r RoutingTableInner, Option<Arc<BucketEntry>>) -> O,
+        T: for<'r> FnMut(&'r RoutingTableInner, Option<Arc<BucketEntry>>) -> O,
     {
         // collect all the nodes for sorting
         let mut nodes =

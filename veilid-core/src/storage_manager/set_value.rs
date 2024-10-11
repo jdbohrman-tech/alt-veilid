@@ -88,7 +88,7 @@ impl StorageManager {
                 let context = context.clone();
                 let descriptor = descriptor.clone();
                 async move {
-                    let send_descriptor = true; // xxx check if next_node needs the descriptor or not
+                    let send_descriptor = true; // xxx check if next_node needs the descriptor or not, see issue #203
 
                     // get most recent value to send
                     let value = {
@@ -274,7 +274,7 @@ impl StorageManager {
                         kind,
                         value_nodes: ctx.value_nodes.clone(),
                     };
-                    log_network_result!(debug "SetValue Fanout: {:?}", fanout_result);
+                    log_dht!(debug "SetValue Fanout: {:?}", fanout_result);
 
                     if let Err(e) = out_tx.send(Ok(OutboundSetValueResult {
                         fanout_result,

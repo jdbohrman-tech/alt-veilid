@@ -133,7 +133,13 @@ impl ClientApi {
         // Make wait group for all incoming connections
         let awg = AsyncWaitGroup::new();
 
-        let stop_token = self.inner.lock().stop.as_ref().unwrap().token();
+        let stop_token = match self.inner.lock().stop.as_ref() {
+            Some(stop) => stop.token(),
+            None => {
+                debug!(target: "client_api", "Already stopped");
+                return Ok(());
+            }
+        };
         while let Ok(Some(stream_result)) =
             incoming_stream.next().timeout_at(stop_token.clone()).await
         {
@@ -174,7 +180,13 @@ impl ClientApi {
         // Make wait group for all incoming connections
         let awg = AsyncWaitGroup::new();
 
-        let stop_token = self.inner.lock().stop.as_ref().unwrap().token();
+        let stop_token = match self.inner.lock().stop.as_ref() {
+            Some(stop) => stop.token(),
+            None => {
+                debug!(target: "client_api", "Already stopped");
+                return Ok(());
+            }
+        };
         while let Ok(Some(stream_result)) =
             incoming_stream.next().timeout_at(stop_token.clone()).await
         {

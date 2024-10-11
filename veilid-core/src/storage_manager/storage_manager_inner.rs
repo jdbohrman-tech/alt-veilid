@@ -743,6 +743,7 @@ impl StorageManagerInner {
         receiver: flume::Receiver<T>,
         handler: impl FnMut(T) -> SendPinBoxFuture<bool> + Send + 'static,
     ) -> bool {
-        self.deferred_result_processor.add(receiver, handler)
+        self.deferred_result_processor
+            .add(receiver.into_stream(), handler)
     }
 }

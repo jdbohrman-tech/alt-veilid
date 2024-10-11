@@ -9,6 +9,7 @@ use super::*;
 
 /// Background processor for streams
 /// Handles streams to completion, passing each item from the stream to a callback
+#[derive(Debug)]
 pub struct DeferredStreamProcessor {
     pub opt_deferred_stream_channel: Option<flume::Sender<SendPinBoxFuture<()>>>,
     pub opt_stopper: Option<StopSource>,
@@ -98,9 +99,9 @@ impl DeferredStreamProcessor {
     /// * 'handler' is the callback to handle each item from the stream
     ///
     /// Returns 'true' if the stream was added for processing, and 'false' if the stream could not be added, possibly due to not being initialized.
-    pub fn add<T: Send + 'static>(
+    pub fn add<T: Send + 'static, S: futures_util::Stream<Item = T> + Unpin + Send + 'static>(
         &mut self,
-        receiver: flume::Receiver<T>,
+        mut receiver: S,
         mut handler: impl FnMut(T) -> SendPinBoxFuture<bool> + Send + 'static,
     ) -> bool {
         let Some(st) = self.opt_stopper.as_ref().map(|s| s.token()) else {
@@ -110,7 +111,7 @@ impl DeferredStreamProcessor {
             return false;
         };
         let drp = Box::pin(async move {
-            while let Ok(Ok(res)) = receiver.recv_async().timeout_at(st.clone()).await {
+            while let Ok(Some(res)) = receiver.next().timeout_at(st.clone()).await {
                 if !handler(res).await {
                     break;
                 }

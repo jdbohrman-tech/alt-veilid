@@ -2,6 +2,8 @@ import asyncio
 import importlib.resources as importlib_resources
 import json
 import os
+import traceback
+
 from typing import Awaitable, Callable, Optional, Self
 
 from jsonschema import exceptions, validators
@@ -48,6 +50,8 @@ from .types import (
     VeilidVersion,
     urlsafe_b64decode_no_pad,
 )
+
+_STREAM_LIMIT = (65536 * 4)
 
 ##############################################################
 
@@ -139,17 +143,15 @@ class _JsonVeilidAPI(VeilidAPI):
             self.lock.release()
         # Cancel it
         handle_recv_messages_task.cancel()
-        try:
-            await handle_recv_messages_task
-        except asyncio.CancelledError:
-            pass
+        await handle_recv_messages_task
+
         self.done = True
 
     @classmethod
     async def connect(
         cls, host: str, port: int, update_callback: Callable[[VeilidUpdate], Awaitable]
     ) -> Self:
-        reader, writer = await asyncio.open_connection(host, port)
+        reader, writer = await asyncio.open_connection(host, port, limit=_STREAM_LIMIT)
         veilid_api = cls(reader, writer, update_callback)
         veilid_api.handle_recv_messages_task = asyncio.create_task(
             veilid_api.handle_recv_messages(), name="JsonVeilidAPI.handle_recv_messages"
@@ -173,9 +175,9 @@ class _JsonVeilidAPI(VeilidAPI):
                     lambda: protocol, path, **kwds)
                 writer = asyncio.StreamWriter(transport, protocol, reader, loop)
                 return reader, writer
-            reader, writer = await open_windows_pipe(ipc_path)
+            reader, writer = await open_windows_pipe(ipc_path, limit=_STREAM_LIMIT)
         else:
-            reader, writer = await asyncio.open_unix_connection(ipc_path)
+            reader, writer = await asyncio.open_unix_connection(ipc_path, limit=_STREAM_LIMIT)
 
         veilid_api = cls(reader, writer, update_callback)
         veilid_api.handle_recv_messages_task = asyncio.create_task(
@@ -211,12 +213,15 @@ class _JsonVeilidAPI(VeilidAPI):
 
                 if self.validate_schema:
                     _schema_validate(_VALIDATOR_RECV_MESSAGE, j)
-
                 # Process the message
                 if j["type"] == "Response":
                     await self.handle_recv_message_response(j)
                 elif j["type"] == "Update":
                     await self.update_callback(VeilidUpdate.from_json(j))
+        except ValueError:
+            pass
+        except asyncio.CancelledError:
+            pass
         finally:
             await self._cleanup_close()
 
@@ -236,6 +241,7 @@ class _JsonVeilidAPI(VeilidAPI):
         try:
             reqfuture = self.in_flight_requests.pop(id, None)
             if reqfuture is not None:
+                print("ass")
                 reqfuture.cancel()
         finally:
             self.lock.release()
@@ -267,6 +273,9 @@ class _JsonVeilidAPI(VeilidAPI):
             id = self.next_id
             self.next_id += 1
             writer = self.writer
+
+            if self.writer is None:
+                return
         finally:
             self.lock.release()
 

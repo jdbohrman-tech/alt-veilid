@@ -88,16 +88,73 @@ class TransferStatsDownUp with _$TransferStatsDownUp {
 ////////////
 
 @freezed
+class StateStats with _$StateStats {
+  const factory StateStats({
+    required TimestampDuration span,
+    required TimestampDuration reliable,
+    required TimestampDuration unreliable,
+    required TimestampDuration dead,
+    required TimestampDuration punished,
+    required StateReasonStats reason,
+  }) = _StateStats;
+
+  factory StateStats.fromJson(dynamic json) =>
+      _$StateStatsFromJson(json as Map<String, dynamic>);
+}
+
+////////////
+
+@freezed
+class StateReasonStats with _$StateReasonStats {
+  const factory StateReasonStats({
+    required TimestampDuration canNotSend,
+    required TimestampDuration tooManyLostAnswers,
+    required TimestampDuration noPingResponse,
+    required TimestampDuration failedToSend,
+    required TimestampDuration lostAnswers,
+    required TimestampDuration notSeenConsecutively,
+    required TimestampDuration inUnreliablePingSpan,
+  }) = _StateReasonStats;
+
+  factory StateReasonStats.fromJson(dynamic json) =>
+      _$StateReasonStatsFromJson(json as Map<String, dynamic>);
+}
+
+////////////
+
+@freezed
+class AnswerStats with _$AnswerStats {
+  const factory AnswerStats({
+    required TimestampDuration span,
+    required int questions,
+    required int answers,
+    required int lostAnswers,
+    required int consecutiveAnswersMaximum,
+    required int consecutiveAnswersAverage,
+    required int consecutiveAnswersMinimum,
+    required int consecutiveLostAnswersMaximum,
+    required int consecutiveLostAnswersAverage,
+    required int consecutiveLostAnswersMinimum,
+  }) = _AnswerStats;
+
+  factory AnswerStats.fromJson(dynamic json) =>
+      _$AnswerStatsFromJson(json as Map<String, dynamic>);
+}
+
+////////////
+
+@freezed
 class RPCStats with _$RPCStats {
   const factory RPCStats({
     required int messagesSent,
     required int messagesRcvd,
     required int questionsInFlight,
-    required Timestamp? lastQuestion,
+    required Timestamp? lastQuestionTs,
     required Timestamp? lastSeenTs,
     required Timestamp? firstConsecutiveSeenTs,
     required int recentLostAnswers,
     required int failedToSend,
+    required AnswerStats answer,
   }) = _RPCStats;
 
   factory RPCStats.fromJson(dynamic json) =>
@@ -112,6 +169,7 @@ class PeerStats with _$PeerStats {
     required Timestamp timeAdded,
     required RPCStats rpcStats,
     required TransferStatsDownUp transfer,
+    required StateStats state,
     LatencyStats? latency,
   }) = _PeerStats;
 

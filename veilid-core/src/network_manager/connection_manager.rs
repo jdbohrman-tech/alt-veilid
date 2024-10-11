@@ -4,6 +4,9 @@ use connection_table::*;
 use network_connection::*;
 use stop_token::future::FutureExt;
 
+const PROTECTED_CONNECTION_DROP_SPAN: TimestampDuration = TimestampDuration::new_secs(10);
+const PROTECTED_CONNECTION_DROP_COUNT: usize = 3;
+
 ///////////////////////////////////////////////////////////
 // Connection manager
 
@@ -39,12 +42,20 @@ impl Drop for ConnectionRefScope {
 }
 
 #[derive(Debug)]
+struct ProtectedAddress {
+    node_ref: NodeRef,
+    span_start_ts: Timestamp,
+    drops_in_span: usize,
+}
+
+#[derive(Debug)]
 struct ConnectionManagerInner {
     next_id: NetworkConnectionId,
     sender: flume::Sender<ConnectionManagerEvent>,
     async_processor_jh: Option<MustJoinHandle<()>>,
     stop_source: Option<StopSource>,
-    protected_addresses: HashMap<SocketAddress, NodeRef>,
+    protected_addresses: HashMap<SocketAddress, ProtectedAddress>,
+    reconnection_processor: DeferredStreamProcessor,
 }
 
 struct ConnectionManagerArc {
@@ -74,6 +85,7 @@ impl ConnectionManager {
         stop_source: StopSource,
         sender: flume::Sender<ConnectionManagerEvent>,
         async_processor_jh: MustJoinHandle<()>,
+        reconnection_processor: DeferredStreamProcessor,
     ) -> ConnectionManagerInner {
         ConnectionManagerInner {
             next_id: 0.into(),
@@ -81,6 +93,7 @@ impl ConnectionManager {
             sender,
             async_processor_jh: Some(async_processor_jh),
             protected_addresses: HashMap::new(),
+            reconnection_processor,
         }
     }
     fn new_arc(network_manager: NetworkManager) -> ConnectionManagerArc {
@@ -123,11 +136,6 @@ impl ConnectionManager {
 
         log_net!(debug "startup connection manager");
 
-        let mut inner = self.arc.inner.lock();
-        if inner.is_some() {
-            panic!("shouldn't start connection manager twice without shutting it down first");
-        }
-
         // Create channel for async_processor to receive notifications of networking events
         let (sender, receiver) = flume::unbounded();
 
@@ -140,8 +148,21 @@ impl ConnectionManager {
             self.clone().async_processor(stop_source.token(), receiver),
         );
 
+        // Spawn the reconnection processor
+        let mut reconnection_processor = DeferredStreamProcessor::new();
+        reconnection_processor.init().await;
+
         // Store in the inner object
-        *inner = Some(Self::new_inner(stop_source, sender, async_processor));
+        let mut inner = self.arc.inner.lock();
+        if inner.is_some() {
+            panic!("shouldn't start connection manager twice without shutting it down first");
+        }
+        *inner = Some(Self::new_inner(
+            stop_source,
+            sender,
+            async_processor,
+            reconnection_processor,
+        ));
 
         guard.success();
 
@@ -165,7 +186,9 @@ impl ConnectionManager {
                 }
             }
         };
-
+        // Stop the reconnection processor
+        log_net!(debug "stopping reconnection processor task");
+        inner.reconnection_processor.terminate().await;
         // Stop all the connections and the async processor
         log_net!(debug "stopping async processor task");
         drop(inner.stop_source.take());
@@ -191,7 +214,7 @@ impl ConnectionManager {
         inner
             .protected_addresses
             .get(conn.flow().remote_address())
-            .cloned()
+            .map(|x| x.node_ref.clone())
     }
 
     // Update connection protections if things change, like a node becomes a relay
@@ -205,8 +228,12 @@ impl ConnectionManager {
             return;
         };
 
-        // Get addresses for relays in all routing domains
-        inner.protected_addresses.clear();
+        // Protect addresses for relays in all routing domains
+        let mut dead_addresses = inner
+            .protected_addresses
+            .keys()
+            .cloned()
+            .collect::<HashSet<_>>();
         for routing_domain in RoutingDomainSet::all() {
             let Some(relay_node) = self
                 .network_manager()
@@ -218,12 +245,28 @@ impl ConnectionManager {
             for did in relay_node.dial_info_details() {
                 // SocketAddress are distinct per routing domain, so they should not collide
                 // and two nodes should never have the same SocketAddress
+                let protected_address = did.dial_info.socket_address();
+
+                // Update the protection, note the protected address is not dead
+                dead_addresses.remove(&protected_address);
                 inner
                     .protected_addresses
-                    .insert(did.dial_info.socket_address(), relay_node.unfiltered());
+                    .entry(protected_address)
+                    .and_modify(|pa| pa.node_ref = relay_node.unfiltered())
+                    .or_insert_with(|| ProtectedAddress {
+                        node_ref: relay_node.unfiltered(),
+                        span_start_ts: Timestamp::now(),
+                        drops_in_span: 0usize,
+                    });
             }
         }
 
+        // Remove protected addresses that were not still associated with a protected noderef
+        for dead_address in dead_addresses {
+            inner.protected_addresses.remove(&dead_address);
+        }
+
+        // For all connections, register the protection
         self.arc
             .connection_table
             .with_all_connections_mut(|conn| {
@@ -248,6 +291,7 @@ impl ConnectionManager {
         &self,
         inner: &mut ConnectionManagerInner,
         prot_conn: ProtocolNetworkConnection,
+        opt_dial_info: Option<DialInfo>,
     ) -> EyreResult<NetworkResult<ConnectionHandle>> {
         // Get next connection id to use
         let id = inner.next_id;
@@ -264,7 +308,13 @@ impl ConnectionManager {
             None => bail!("not creating connection because we are stopping"),
         };
 
-        let mut conn = NetworkConnection::from_protocol(self.clone(), stop_token, prot_conn, id);
+        let mut conn = NetworkConnection::from_protocol(
+            self.clone(),
+            stop_token,
+            prot_conn,
+            id,
+            opt_dial_info,
+        );
         let handle = conn.get_handle();
 
         // See if this should be a protected connection
@@ -281,6 +331,7 @@ impl ConnectionManager {
             Ok(Some(conn)) => {
                 // Connection added and a different one LRU'd out
                 // Send it to be terminated
+                #[cfg(feature = "verbose-tracing")]
                 log_net!(debug "== LRU kill connection due to limit: {:?}", conn.debug_print(Timestamp::now()));
                 let _ = inner.sender.send(ConnectionManagerEvent::Dead(conn));
             }
@@ -438,7 +489,7 @@ impl ConnectionManager {
             }
         };
 
-        self.on_new_protocol_network_connection(inner, prot_conn)
+        self.on_new_protocol_network_connection(inner, prot_conn, Some(dial_info))
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -472,7 +523,7 @@ impl ConnectionManager {
                         // We don't care if this fails, since nobody here asked for the inbound connection.
                         // If it does, we just drop the connection
 
-                        let _ = self.on_new_protocol_network_connection(inner, prot_conn);
+                        let _ = self.on_new_protocol_network_connection(inner, prot_conn, None);
                     }
                     None => {
                         // If this somehow happens, we're shutting down
@@ -559,12 +610,79 @@ impl ConnectionManager {
         // Inform the processor of the event
         if let Some(conn) = conn {
             // If the connection closed while it was protected, report it on the node the connection was established on
-            // In-use connections will already get reported because they will cause a 'question_lost' stat on the remote node
+            // In-use connections will already get reported because they will cause a 'lost_answer' stat on the remote node
             if let Some(protect_nr) = conn.protected_node_ref() {
-                protect_nr.report_protected_connection_dropped();
+                // Find the protected address and increase our drop count
+                if let Some(inner) = self.arc.inner.lock().as_mut() {
+                    for pa in inner.protected_addresses.values_mut() {
+                        if pa.node_ref.same_entry(&protect_nr) {
+                            // See if we've had more than the threshold number of drops in the last span
+                            let cur_ts = Timestamp::now();
+                            let duration = cur_ts.saturating_sub(pa.span_start_ts);
+
+                            let mut reconnect = true;
+
+                            if duration < PROTECTED_CONNECTION_DROP_SPAN {
+                                pa.drops_in_span += 1;
+                                log_net!(debug "== Protected connection dropped (count={}): {} -> {} for node {}", pa.drops_in_span, conn.connection_id(), conn.debug_print(Timestamp::now()), protect_nr);
+
+                                if pa.drops_in_span >= PROTECTED_CONNECTION_DROP_COUNT {
+                                    // Consider this as a failure to send if we've dropped the connection too many times in a single timespan
+                                    protect_nr.report_protected_connection_dropped();
+                                    reconnect = false;
+
+                                    // Reset the drop counter
+                                    pa.drops_in_span = 0;
+                                    pa.span_start_ts = cur_ts;
+                                }
+                            } else {
+                                // Otherwise, just reset the drop detection span
+                                pa.drops_in_span = 1;
+                                pa.span_start_ts = cur_ts;
+
+                                log_net!(debug "== Protected connection dropped (count={}): {} -> {} for node {}", pa.drops_in_span, conn.connection_id(), conn.debug_print(Timestamp::now()), protect_nr);
+                            }
+
+                            // Reconnect the protected connection immediately
+                            if reconnect {
+                                if let Some(dial_info) = conn.dial_info() {
+                                    self.spawn_reconnector_inner(inner, dial_info);
+                                } else {
+                                    log_net!(debug "Can't reconnect to accepted protected connection: {} -> {} for node {}", conn.connection_id(), conn.debug_print(Timestamp::now()), protect_nr);
+                                }
+                            }
+
+                            break;
+                        }
+                    }
+                }
             }
             let _ = sender.send_async(ConnectionManagerEvent::Dead(conn)).await;
         }
+    }
+
+    fn spawn_reconnector_inner(&self, inner: &mut ConnectionManagerInner, dial_info: DialInfo) {
+        let this = self.clone();
+        inner.reconnection_processor.add(
+            Box::pin(futures_util::stream::once(async { dial_info })),
+            move |dial_info| {
+                let this = this.clone();
+                Box::pin(async move {
+                    match this.get_or_create_connection(dial_info.clone()).await {
+                        Ok(NetworkResult::Value(conn)) => {
+                            log_net!(debug "Reconnection successful to {}: {:?}", dial_info,conn);
+                        }
+                        Ok(res) => {
+                            log_net!(debug "Reconnection unsuccessful to {}: {:?}", dial_info, res);
+                        }
+                        Err(e) => {
+                            log_net!(debug "Reconnection error to {}: {}", dial_info, e);
+                        }
+                    }
+                    false
+                })
+            },
+        );
     }
 
     pub async fn debug_print(&self) -> String {

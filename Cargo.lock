@@ -5955,9 +5955,9 @@ dependencies = [
 
 [[package]]
 name = "veilid-hashlink"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a3dabbda02cfe176635dcaa18a021416ff2eb4d0b47a913e3fdc7f62049d7b1"
+checksum = "2070d1d09dad90091d23e49743408f82f8874994dec5ae0a8d3689b061bba426"
 dependencies = [
  "hashbrown 0.14.5",
  "serde",

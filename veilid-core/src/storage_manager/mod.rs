@@ -207,12 +207,20 @@ impl StorageManager {
     }
 
     /// Get the set of nodes in our active watches
-    pub async fn get_active_watch_nodes(&self) -> Vec<NodeRef> {
+    pub async fn get_active_watch_nodes(&self) -> Vec<Destination> {
         let inner = self.inner.lock().await;
         inner
             .opened_records
             .values()
-            .filter_map(|v| v.active_watch().map(|aw| aw.watch_node))
+            .filter_map(|v| {
+                v.active_watch().map(|aw| {
+                    Destination::direct(
+                        aw.watch_node
+                            .routing_domain_filtered(RoutingDomain::PublicInternet),
+                    )
+                    .with_safety(v.safety_selection())
+                })
+            })
             .collect()
     }
 

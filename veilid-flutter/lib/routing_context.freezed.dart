@@ -68,8 +68,13 @@ mixin _$DHTSchema {
     required TResult orElse(),
   }) =>
       throw _privateConstructorUsedError;
+
+  /// Serializes this DHTSchema to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of DHTSchema
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $DHTSchemaCopyWith<DHTSchema> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -92,6 +97,8 @@ class _$DHTSchemaCopyWithImpl<$Res, $Val extends DHTSchema>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of DHTSchema
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -125,6 +132,8 @@ class __$$DHTSchemaDFLTImplCopyWithImpl<$Res>
       _$DHTSchemaDFLTImpl _value, $Res Function(_$DHTSchemaDFLTImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of DHTSchema
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -167,11 +176,13 @@ class _$DHTSchemaDFLTImpl implements DHTSchemaDFLT {
             (identical(other.oCnt, oCnt) || other.oCnt == oCnt));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, oCnt);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of DHTSchema
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$DHTSchemaDFLTImplCopyWith<_$DHTSchemaDFLTImpl> get copyWith =>
@@ -255,8 +266,11 @@ abstract class DHTSchemaDFLT implements DHTSchema {
 
   @override
   int get oCnt;
+
+  /// Create a copy of DHTSchema
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$DHTSchemaDFLTImplCopyWith<_$DHTSchemaDFLTImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -280,6 +294,8 @@ class __$$DHTSchemaSMPLImplCopyWithImpl<$Res>
       _$DHTSchemaSMPLImpl _value, $Res Function(_$DHTSchemaSMPLImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of DHTSchema
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -339,12 +355,14 @@ class _$DHTSchemaSMPLImpl implements DHTSchemaSMPL {
             const DeepCollectionEquality().equals(other._members, _members));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
       runtimeType, oCnt, const DeepCollectionEquality().hash(_members));
 
-  @JsonKey(ignore: true)
+  /// Create a copy of DHTSchema
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$DHTSchemaSMPLImplCopyWith<_$DHTSchemaSMPLImpl> get copyWith =>
@@ -431,8 +449,11 @@ abstract class DHTSchemaSMPL implements DHTSchema {
   @override
   int get oCnt;
   List<DHTSchemaMember> get members;
+
+  /// Create a copy of DHTSchema
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$DHTSchemaSMPLImplCopyWith<_$DHTSchemaSMPLImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -446,8 +467,12 @@ mixin _$DHTSchemaMember {
   FixedEncodedString43 get mKey => throw _privateConstructorUsedError;
   int get mCnt => throw _privateConstructorUsedError;
 
+  /// Serializes this DHTSchemaMember to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of DHTSchemaMember
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $DHTSchemaMemberCopyWith<DHTSchemaMember> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -471,6 +496,8 @@ class _$DHTSchemaMemberCopyWithImpl<$Res, $Val extends DHTSchemaMember>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of DHTSchemaMember
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -509,6 +536,8 @@ class __$$DHTSchemaMemberImplCopyWithImpl<$Res>
       _$DHTSchemaMemberImpl _value, $Res Function(_$DHTSchemaMemberImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of DHTSchemaMember
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -556,11 +585,13 @@ class _$DHTSchemaMemberImpl implements _DHTSchemaMember {
             (identical(other.mCnt, mCnt) || other.mCnt == mCnt));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, mKey, mCnt);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of DHTSchemaMember
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$DHTSchemaMemberImplCopyWith<_$DHTSchemaMemberImpl> get copyWith =>
@@ -587,8 +618,11 @@ abstract class _DHTSchemaMember implements DHTSchemaMember {
   FixedEncodedString43 get mKey;
   @override
   int get mCnt;
+
+  /// Create a copy of DHTSchemaMember
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$DHTSchemaMemberImplCopyWith<_$DHTSchemaMemberImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -604,8 +638,12 @@ mixin _$DHTRecordDescriptor {
   DHTSchema get schema => throw _privateConstructorUsedError;
   FixedEncodedString43? get ownerSecret => throw _privateConstructorUsedError;
 
+  /// Serializes this DHTRecordDescriptor to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of DHTRecordDescriptor
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $DHTRecordDescriptorCopyWith<DHTRecordDescriptor> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -635,6 +673,8 @@ class _$DHTRecordDescriptorCopyWithImpl<$Res, $Val extends DHTRecordDescriptor>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of DHTRecordDescriptor
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -663,6 +703,8 @@ class _$DHTRecordDescriptorCopyWithImpl<$Res, $Val extends DHTRecordDescriptor>
     ) as $Val);
   }
 
+  /// Create a copy of DHTRecordDescriptor
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $DHTSchemaCopyWith<$Res> get schema {
@@ -698,6 +740,8 @@ class __$$DHTRecordDescriptorImplCopyWithImpl<$Res>
       $Res Function(_$DHTRecordDescriptorImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of DHTRecordDescriptor
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -765,11 +809,13 @@ class _$DHTRecordDescriptorImpl implements _DHTRecordDescriptor {
                 other.ownerSecret == ownerSecret));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, key, owner, schema, ownerSecret);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of DHTRecordDescriptor
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$DHTRecordDescriptorImplCopyWith<_$DHTRecordDescriptorImpl> get copyWith =>
@@ -802,8 +848,11 @@ abstract class _DHTRecordDescriptor implements DHTRecordDescriptor {
   DHTSchema get schema;
   @override
   FixedEncodedString43? get ownerSecret;
+
+  /// Create a copy of DHTRecordDescriptor
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$DHTRecordDescriptorImplCopyWith<_$DHTRecordDescriptorImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -819,8 +868,12 @@ mixin _$ValueData {
   Uint8List get data => throw _privateConstructorUsedError;
   FixedEncodedString43 get writer => throw _privateConstructorUsedError;
 
+  /// Serializes this ValueData to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of ValueData
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $ValueDataCopyWith<ValueData> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -846,6 +899,8 @@ class _$ValueDataCopyWithImpl<$Res, $Val extends ValueData>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of ValueData
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -892,6 +947,8 @@ class __$$ValueDataImplCopyWithImpl<$Res>
       _$ValueDataImpl _value, $Res Function(_$ValueDataImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of ValueData
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -951,12 +1008,14 @@ class _$ValueDataImpl implements _ValueData {
             (identical(other.writer, writer) || other.writer == writer));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
       runtimeType, seq, const DeepCollectionEquality().hash(data), writer);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of ValueData
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$ValueDataImplCopyWith<_$ValueDataImpl> get copyWith =>
@@ -986,8 +1045,11 @@ abstract class _ValueData implements ValueData {
   Uint8List get data;
   @override
   FixedEncodedString43 get writer;
+
+  /// Create a copy of ValueData
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$ValueDataImplCopyWith<_$ValueDataImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -1003,8 +1065,12 @@ mixin _$SafetySpec {
   Sequencing get sequencing => throw _privateConstructorUsedError;
   String? get preferredRoute => throw _privateConstructorUsedError;
 
+  /// Serializes this SafetySpec to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of SafetySpec
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $SafetySpecCopyWith<SafetySpec> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -1032,6 +1098,8 @@ class _$SafetySpecCopyWithImpl<$Res, $Val extends SafetySpec>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of SafetySpec
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -1084,6 +1152,8 @@ class __$$SafetySpecImplCopyWithImpl<$Res>
       _$SafetySpecImpl _value, $Res Function(_$SafetySpecImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of SafetySpec
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -1154,12 +1224,14 @@ class _$SafetySpecImpl implements _SafetySpec {
                 other.preferredRoute == preferredRoute));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode =>
       Object.hash(runtimeType, hopCount, stability, sequencing, preferredRoute);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of SafetySpec
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$SafetySpecImplCopyWith<_$SafetySpecImpl> get copyWith =>
@@ -1191,8 +1263,11 @@ abstract class _SafetySpec implements SafetySpec {
   Sequencing get sequencing;
   @override
   String? get preferredRoute;
+
+  /// Create a copy of SafetySpec
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$SafetySpecImplCopyWith<_$SafetySpecImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -1207,8 +1282,12 @@ mixin _$RouteBlob {
   @Uint8ListJsonConverter()
   Uint8List get blob => throw _privateConstructorUsedError;
 
+  /// Serializes this RouteBlob to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of RouteBlob
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $RouteBlobCopyWith<RouteBlob> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -1231,6 +1310,8 @@ class _$RouteBlobCopyWithImpl<$Res, $Val extends RouteBlob>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of RouteBlob
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -1269,6 +1350,8 @@ class __$$RouteBlobImplCopyWithImpl<$Res>
       _$RouteBlobImpl _value, $Res Function(_$RouteBlobImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of RouteBlob
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -1317,12 +1400,14 @@ class _$RouteBlobImpl implements _RouteBlob {
             const DeepCollectionEquality().equals(other.blob, blob));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
       runtimeType, routeId, const DeepCollectionEquality().hash(blob));
 
-  @JsonKey(ignore: true)
+  /// Create a copy of RouteBlob
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$RouteBlobImplCopyWith<_$RouteBlobImpl> get copyWith =>
@@ -1350,8 +1435,11 @@ abstract class _RouteBlob implements RouteBlob {
   @override
   @Uint8ListJsonConverter()
   Uint8List get blob;
+
+  /// Create a copy of RouteBlob
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$RouteBlobImplCopyWith<_$RouteBlobImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -1368,8 +1456,12 @@ mixin _$DHTRecordReport {
   List<int> get localSeqs => throw _privateConstructorUsedError;
   List<int> get networkSeqs => throw _privateConstructorUsedError;
 
+  /// Serializes this DHTRecordReport to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of DHTRecordReport
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $DHTRecordReportCopyWith<DHTRecordReport> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -1397,6 +1489,8 @@ class _$DHTRecordReportCopyWithImpl<$Res, $Val extends DHTRecordReport>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of DHTRecordReport
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -1449,6 +1543,8 @@ class __$$DHTRecordReportImplCopyWithImpl<$Res>
       _$DHTRecordReportImpl _value, $Res Function(_$DHTRecordReportImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of DHTRecordReport
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -1545,7 +1641,7 @@ class _$DHTRecordReportImpl implements _DHTRecordReport {
                 .equals(other._networkSeqs, _networkSeqs));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
       runtimeType,
@@ -1554,7 +1650,9 @@ class _$DHTRecordReportImpl implements _DHTRecordReport {
       const DeepCollectionEquality().hash(_localSeqs),
       const DeepCollectionEquality().hash(_networkSeqs));
 
-  @JsonKey(ignore: true)
+  /// Create a copy of DHTRecordReport
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$DHTRecordReportImplCopyWith<_$DHTRecordReportImpl> get copyWith =>
@@ -1587,8 +1685,11 @@ abstract class _DHTRecordReport implements DHTRecordReport {
   List<int> get localSeqs;
   @override
   List<int> get networkSeqs;
+
+  /// Create a copy of DHTRecordReport
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$DHTRecordReportImplCopyWith<_$DHTRecordReportImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }

@@ -34,6 +34,7 @@ pub mod eventual;
 pub mod eventual_base;
 pub mod eventual_value;
 pub mod eventual_value_clone;
+pub mod future_queue;
 pub mod interval;
 pub mod ip_addr_port;
 pub mod ip_extra;
@@ -200,6 +201,8 @@ pub use eventual_base::{EventualCommon, EventualResolvedFuture};
 pub use eventual_value::*;
 #[doc(inline)]
 pub use eventual_value_clone::*;
+#[doc(inline)]
+pub use future_queue::*;
 #[doc(inline)]
 pub use interval::*;
 #[doc(inline)]

@@ -149,7 +149,7 @@ where
             inner
                 .waiting_op_table
                 .remove(&op_id)
-                .ok_or_else(RPCError::else_internal(format!(
+                .ok_or_else(RPCError::else_ignore(format!(
                     "Unmatched operation id: {}",
                     op_id
                 )))?

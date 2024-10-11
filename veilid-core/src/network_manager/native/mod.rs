@@ -30,6 +30,10 @@ use std::path::{Path, PathBuf};
 
 /////////////////////////////////////////////////////////////////
 
+pub const UPDATE_NETWORK_CLASS_TASK_TICK_PERIOD_SECS: u32 = 1;
+pub const NETWORK_INTERFACES_TASK_TICK_PERIOD_SECS: u32 = 1;
+pub const UPNP_TASK_TICK_PERIOD_SECS: u32 = 1;
+
 pub const PEEK_DETECT_LEN: usize = 64;
 
 cfg_if! {
@@ -168,9 +172,15 @@ impl Network {
             routing_table,
             connection_manager,
             interfaces: NetworkInterfaces::new(),
-            update_network_class_task: TickTask::new("update_network_class_task", 1),
-            network_interfaces_task: TickTask::new("network_interfaces_task", 1),
-            upnp_task: TickTask::new("upnp_task", 1),
+            update_network_class_task: TickTask::new(
+                "update_network_class_task",
+                UPDATE_NETWORK_CLASS_TASK_TICK_PERIOD_SECS,
+            ),
+            network_interfaces_task: TickTask::new(
+                "network_interfaces_task",
+                NETWORK_INTERFACES_TASK_TICK_PERIOD_SECS,
+            ),
+            upnp_task: TickTask::new("upnp_task", UPNP_TASK_TICK_PERIOD_SECS),
             network_task_lock: AsyncMutex::new(()),
             igd_manager: igd_manager::IGDManager::new(config.clone()),
         }
@@ -543,7 +553,7 @@ impl Network {
                 network_result_value_or_log!(ph.clone()
                     .send_message(data.clone(), peer_socket_addr)
                     .await
-                    .wrap_err("sending data to existing connection")? => [ format!(": data.len={}, flow={:?}", data.len(), flow) ] 
+                    .wrap_err("sending data to existing connection")? => [ format!(": data.len={}, flow={:?}", data.len(), flow) ]
                     { return Ok(SendDataToExistingFlowResult::NotSent(data)); } );
 
                 // Network accounting
@@ -737,22 +747,6 @@ impl Network {
         // Register all dialinfo
         self.register_all_dial_info(&mut editor_public_internet, &mut editor_local_network)
             .await?;
-
-        // Set network class statically if we have static public dialinfo
-        let detect_address_changes = {
-            let c = self.config.get();
-            c.network.detect_address_changes
-        };
-        if !detect_address_changes {
-            let inner = self.inner.lock();
-            if !inner.static_public_dial_info.is_empty() {
-                editor_public_internet.set_network_class(Some(NetworkClass::InboundCapable));
-            }
-        }
-
-        // Set network class statically for local network routing domain until
-        // we can do some reachability analysis eventually
-        editor_local_network.set_network_class(Some(NetworkClass::InboundCapable));
 
         // Commit routing domain edits
         if editor_public_internet.commit(true).await {

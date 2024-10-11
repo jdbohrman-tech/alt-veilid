@@ -97,6 +97,7 @@ use enumset::*;
 use eyre::{bail, eyre, Report as EyreReport, Result as EyreResult, WrapErr};
 #[allow(unused_imports)]
 use futures_util::stream::{FuturesOrdered, FuturesUnordered};
+use indent::*;
 use parking_lot::*;
 use schemars::{schema_for, JsonSchema};
 use serde::*;
