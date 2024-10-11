@@ -6,9 +6,7 @@ pub trait RoutingDomainEditorCommonTrait {
         address_type: Option<AddressType>,
         protocol_type: Option<ProtocolType>,
     ) -> &mut Self;
-    fn clear_relay_node(&mut self) -> &mut Self;
-    fn set_relay_node(&mut self, relay_node: NodeRef) -> &mut Self;
-    fn set_relay_node_keepalive(&mut self, ts: Option<Timestamp>) -> &mut Self;
+    fn set_relay_node(&mut self, relay_node: Option<NodeRef>) -> &mut Self;
     #[cfg_attr(target_arch = "wasm32", expect(dead_code))]
     fn add_dial_info(&mut self, dial_info: DialInfo, class: DialInfoClass) -> &mut Self;
     fn setup_network(
@@ -18,7 +16,6 @@ pub trait RoutingDomainEditorCommonTrait {
         address_types: AddressTypeSet,
         capabilities: Vec<Capability>,
     ) -> &mut Self;
-    fn set_network_class(&mut self, network_class: Option<NetworkClass>) -> &mut Self;
     fn commit(&mut self, pause_tasks: bool) -> SendPinBoxFutureLifetime<'_, bool>;
     fn shutdown(&mut self) -> SendPinBoxFutureLifetime<'_, ()>;
     fn publish(&mut self);
@@ -41,17 +38,10 @@ impl<T: RoutingDomainDetailCommonAccessors> RoutingDomainDetailApplyCommonChange
                     .clear_dial_info_details(address_type, protocol_type);
             }
 
-            RoutingDomainChangeCommon::ClearRelayNode => {
-                self.common_mut().set_relay_node(None);
-            }
-
             RoutingDomainChangeCommon::SetRelayNode { relay_node } => {
-                self.common_mut().set_relay_node(Some(relay_node.clone()))
+                self.common_mut().set_relay_node(relay_node)
             }
 
-            RoutingDomainChangeCommon::SetRelayNodeKeepalive { ts } => {
-                self.common_mut().set_relay_node_last_keepalive(ts);
-            }
             RoutingDomainChangeCommon::AddDialInfo { dial_info_detail } => {
                 if !self.ensure_dial_info_is_valid(&dial_info_detail.dial_info) {
                     return;
@@ -77,9 +67,6 @@ impl<T: RoutingDomainDetailCommonAccessors> RoutingDomainDetailApplyCommonChange
                     capabilities.clone(),
                 );
             }
-            RoutingDomainChangeCommon::SetNetworkClass { network_class } => {
-                self.common_mut().set_network_class(network_class);
-            }
         }
     }
 }
@@ -90,12 +77,8 @@ pub(super) enum RoutingDomainChangeCommon {
         address_type: Option<AddressType>,
         protocol_type: Option<ProtocolType>,
     },
-    ClearRelayNode,
     SetRelayNode {
-        relay_node: NodeRef,
-    },
-    SetRelayNodeKeepalive {
-        ts: Option<Timestamp>,
+        relay_node: Option<NodeRef>,
     },
     AddDialInfo {
         dial_info_detail: DialInfoDetail,
@@ -109,8 +92,5 @@ pub(super) enum RoutingDomainChangeCommon {
         inbound_protocols: ProtocolTypeSet,
         address_types: AddressTypeSet,
         capabilities: Vec<Capability>,
-    },
-    SetNetworkClass {
-        network_class: Option<NetworkClass>,
     },
 }

@@ -293,31 +293,27 @@ pub struct VeilidConfigTLS {
 
 impl Default for VeilidConfigTLS {
     fn default() -> Self {
-        let certificate_path = get_default_ssl_directory("certs/server.crt");
-        let private_key_path = get_default_ssl_directory("keys/server.key");
         Self {
-            certificate_path,
-            private_key_path,
+            certificate_path: "".to_string(),
+            private_key_path: "".to_string(),
             connection_initial_timeout_ms: 2000,
         }
     }
 }
 
 #[cfg_attr(target_arch = "wasm32", allow(unused_variables))]
-pub fn get_default_ssl_directory(sub_path: &str) -> String {
+pub fn get_default_ssl_directory(
+    program_name: &str,
+    organization: &str,
+    qualifier: &str,
+    sub_path: &str,
+) -> String {
     cfg_if::cfg_if! {
         if #[cfg(target_arch = "wasm32")] {
             "".to_owned()
         } else {
             use std::path::PathBuf;
-            #[cfg(unix)]
-            {
-                let default_path = PathBuf::from("/etc/veilid-server/ssl").join(sub_path);
-                if default_path.exists() {
-                    return default_path.to_string_lossy().into();
-                }
-            }
-            ProjectDirs::from("org", "Veilid", "Veilid")
+            ProjectDirs::from(qualifier, organization, program_name)
                 .map(|dirs| dirs.data_local_dir().join("ssl").join(sub_path))
                 .unwrap_or_else(|| PathBuf::from("./ssl").join(sub_path))
                 .to_string_lossy()
@@ -535,37 +531,26 @@ impl Default for VeilidConfigNetwork {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 pub struct VeilidConfigTableStore {
     pub directory: String,
     pub delete: bool,
 }
 
-impl Default for VeilidConfigTableStore {
-    fn default() -> Self {
-        Self {
-            directory: get_default_store_path("table_store"),
-            delete: false,
-        }
-    }
-}
-
 #[cfg_attr(target_arch = "wasm32", allow(unused_variables))]
-fn get_default_store_path(store_type: &str) -> String {
+fn get_default_store_path(
+    program_name: &str,
+    organization: &str,
+    qualifier: &str,
+    store_type: &str,
+) -> String {
     cfg_if::cfg_if! {
         if #[cfg(target_arch = "wasm32")] {
             "".to_owned()
         } else {
             use std::path::PathBuf;
-            #[cfg(unix)]
-            {
-                let globalpath = PathBuf::from(format!("/var/db/veilid-server/{}", store_type));
-                if globalpath.exists() {
-                    return globalpath.to_string_lossy().into();
-                }
-            }
-            ProjectDirs::from("org", "Veilid", "Veilid")
+            ProjectDirs::from(qualifier, organization, program_name)
                 .map(|dirs| dirs.data_local_dir().to_path_buf())
                 .unwrap_or_else(|| PathBuf::from("./"))
                 .join(store_type)
@@ -585,7 +570,7 @@ pub struct VeilidConfigBlockStore {
 impl Default for VeilidConfigBlockStore {
     fn default() -> Self {
         Self {
-            directory: get_default_store_path("block_store"),
+            directory: "".to_string(),
             delete: false,
         }
     }
@@ -608,7 +593,7 @@ impl Default for VeilidConfigProtectedStore {
         Self {
             allow_insecure_fallback: false,
             always_use_insecure_storage: false,
-            directory: get_default_store_path("protected_store"),
+            directory: "".to_string(),
             delete: false,
             device_encryption_key_password: "".to_owned(),
             new_device_encryption_key_password: None,
@@ -742,6 +727,81 @@ pub struct VeilidConfigInner {
     pub block_store: VeilidConfigBlockStore,
     /// Configuring how Veilid interacts with the low level network
     pub network: VeilidConfigNetwork,
+}
+
+impl VeilidConfigInner {
+    /// Create a new 'VeilidConfigInner' for use with `setup_from_config`
+    /// Should match the application bundle name if used elsewhere in the format:
+    /// `qualifier.organization.program_name` - for example `org.veilid.veilidchat`
+    ///
+    /// The 'bundle name' will be used when choosing the default storage location for the
+    /// application in a platform-dependent fashion, unless 'storage_directory' is
+    /// specified to override this location
+    ///
+    /// * `program_name` - Pick a program name and do not change it from release to release,
+    ///    see `VeilidConfigInner::program_name` for details.
+    /// * `organization_name` - Similar to program_name, but for the organization publishing this app
+    /// * `qualifier` - Suffix for the application bundle name
+    /// * `storage_directory` - Override for the path where veilid-core stores its content
+    ///   such as the table store, protected store, and block store
+    /// * `config_directory` - Override for the path where veilid-core can retrieve extra configuration files
+    ///   such as certificates and keys
+    pub fn new(
+        program_name: &str,
+        organization: &str,
+        qualifier: &str,
+        storage_directory: Option<&str>,
+        config_directory: Option<&str>,
+    ) -> Self {
+        let mut out = Self {
+            program_name: program_name.to_owned(),
+            ..Default::default()
+        };
+
+        if let Some(storage_directory) = storage_directory {
+            out.protected_store.directory = (std::path::PathBuf::from(storage_directory)
+                .join("protected_store"))
+            .to_string_lossy()
+            .to_string();
+            out.table_store.directory = (std::path::PathBuf::from(storage_directory)
+                .join("table_store"))
+            .to_string_lossy()
+            .to_string();
+            out.block_store.directory = (std::path::PathBuf::from(storage_directory)
+                .join("block_store"))
+            .to_string_lossy()
+            .to_string();
+        } else {
+            out.protected_store.directory =
+                get_default_store_path(program_name, organization, qualifier, "protected_store");
+            out.table_store.directory =
+                get_default_store_path(program_name, organization, qualifier, "table_store");
+            out.block_store.directory =
+                get_default_store_path(program_name, organization, qualifier, "block_store");
+        }
+
+        if let Some(config_directory) = config_directory {
+            out.network.tls.certificate_path = (std::path::PathBuf::from(config_directory)
+                .join("ssl/certs/server.crt"))
+            .to_string_lossy()
+            .to_string();
+            out.network.tls.private_key_path = (std::path::PathBuf::from(config_directory)
+                .join("ssl/keys/server.key"))
+            .to_string_lossy()
+            .to_string();
+        } else {
+            out.network.tls.certificate_path = get_default_ssl_directory(
+                program_name,
+                organization,
+                qualifier,
+                "certs/server.crt",
+            );
+            out.network.tls.private_key_path =
+                get_default_ssl_directory(program_name, organization, qualifier, "keys/server.key");
+        }
+
+        out
+    }
 }
 
 /// The configuration built for each Veilid node during API startup

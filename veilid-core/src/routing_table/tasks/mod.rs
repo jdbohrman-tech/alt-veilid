@@ -5,7 +5,7 @@ pub mod peer_minimum_refresh;
 pub mod ping_validator;
 pub mod private_route_management;
 pub mod relay_management;
-pub mod rolling_transfers;
+pub mod update_statistics;
 
 use super::*;
 
@@ -18,6 +18,34 @@ impl RoutingTable {
                 .rolling_transfers_task
                 .set_routine(move |s, l, t| {
                     Box::pin(this.clone().rolling_transfers_task_routine(
+                        s,
+                        Timestamp::new(l),
+                        Timestamp::new(t),
+                    ))
+                });
+        }
+
+        // Set update state stats tick task
+        {
+            let this = self.clone();
+            self.unlocked_inner
+                .update_state_stats_task
+                .set_routine(move |s, l, t| {
+                    Box::pin(this.clone().update_state_stats_task_routine(
+                        s,
+                        Timestamp::new(l),
+                        Timestamp::new(t),
+                    ))
+                });
+        }
+
+        // Set rolling answers tick task
+        {
+            let this = self.clone();
+            self.unlocked_inner
+                .rolling_answers_task
+                .set_routine(move |s, l, t| {
+                    Box::pin(this.clone().rolling_answers_task_routine(
                         s,
                         Timestamp::new(l),
                         Timestamp::new(t),
@@ -67,13 +95,58 @@ impl RoutingTable {
                 });
         }
 
-        // Set ping validator tick task
+        // Set ping validator PublicInternet tick task
         {
             let this = self.clone();
             self.unlocked_inner
-                .ping_validator_task
+                .ping_validator_public_internet_task
                 .set_routine(move |s, l, t| {
-                    Box::pin(this.clone().ping_validator_task_routine(
+                    Box::pin(this.clone().ping_validator_public_internet_task_routine(
+                        s,
+                        Timestamp::new(l),
+                        Timestamp::new(t),
+                    ))
+                });
+        }
+
+        // Set ping validator LocalNetwork tick task
+        {
+            let this = self.clone();
+            self.unlocked_inner
+                .ping_validator_local_network_task
+                .set_routine(move |s, l, t| {
+                    Box::pin(this.clone().ping_validator_local_network_task_routine(
+                        s,
+                        Timestamp::new(l),
+                        Timestamp::new(t),
+                    ))
+                });
+        }
+
+        // Set ping validator PublicInternet Relay tick task
+        {
+            let this = self.clone();
+            self.unlocked_inner
+                .ping_validator_public_internet_relay_task
+                .set_routine(move |s, l, t| {
+                    Box::pin(
+                        this.clone()
+                            .ping_validator_public_internet_relay_task_routine(
+                                s,
+                                Timestamp::new(l),
+                                Timestamp::new(t),
+                            ),
+                    )
+                });
+        }
+
+        // Set ping validator Active Watch tick task
+        {
+            let this = self.clone();
+            self.unlocked_inner
+                .ping_validator_active_watch_task
+                .set_routine(move |s, l, t| {
+                    Box::pin(this.clone().ping_validator_active_watch_task_routine(
                         s,
                         Timestamp::new(l),
                         Timestamp::new(t),
@@ -126,6 +199,12 @@ impl RoutingTable {
         // Do rolling transfers every ROLLING_TRANSFERS_INTERVAL_SECS secs
         self.unlocked_inner.rolling_transfers_task.tick().await?;
 
+        // Do state stats update every UPDATE_STATE_STATS_INTERVAL_SECS secs
+        self.unlocked_inner.update_state_stats_task.tick().await?;
+
+        // Do rolling answers every ROLLING_ANSWER_INTERVAL_SECS secs
+        self.unlocked_inner.rolling_answers_task.tick().await?;
+
         // Kick buckets task
         let kick_bucket_queue_count = self.unlocked_inner.kick_queue.lock().len();
         if kick_bucket_queue_count > 0 {
@@ -165,22 +244,29 @@ impl RoutingTable {
         }
 
         // Ping validate some nodes to groom the table
-        self.unlocked_inner.ping_validator_task.tick().await?;
+        self.unlocked_inner
+            .ping_validator_public_internet_task
+            .tick()
+            .await?;
+        self.unlocked_inner
+            .ping_validator_local_network_task
+            .tick()
+            .await?;
+        self.unlocked_inner
+            .ping_validator_public_internet_relay_task
+            .tick()
+            .await?;
+        self.unlocked_inner
+            .ping_validator_active_watch_task
+            .tick()
+            .await?;
 
         // Run the relay management task
         self.unlocked_inner.relay_management_task.tick().await?;
 
-        // Only perform these operations if we already have a valid network class
-        // and if we didn't need to bootstrap or perform a peer minimum refresh as these operations
-        // require having a suitably full routing table and guaranteed ability to contact other nodes
-        if !needs_bootstrap
-            && !needs_peer_minimum_refresh
-            && self.has_valid_network_class(RoutingDomain::PublicInternet)
-        {
+        // Get more nodes if we need to
+        if !needs_bootstrap && !needs_peer_minimum_refresh {
             // Run closest peers refresh task
-            // this will also inform other close nodes of -our- existence so we would
-            // much rather perform this action -after- we have a valid network class
-            // so our PeerInfo is valid when informing the other nodes of our existence.
             self.unlocked_inner
                 .closest_peers_refresh_task
                 .tick()
@@ -212,6 +298,14 @@ impl RoutingTable {
         if let Err(e) = self.unlocked_inner.rolling_transfers_task.stop().await {
             error!("rolling_transfers_task not stopped: {}", e);
         }
+        log_rtab!(debug "stopping update state stats task");
+        if let Err(e) = self.unlocked_inner.update_state_stats_task.stop().await {
+            error!("update_state_stats_task not stopped: {}", e);
+        }
+        log_rtab!(debug "stopping rolling answers task");
+        if let Err(e) = self.unlocked_inner.rolling_answers_task.stop().await {
+            error!("rolling_answers_task not stopped: {}", e);
+        }
         log_rtab!(debug "stopping kick buckets task");
         if let Err(e) = self.unlocked_inner.kick_buckets_task.stop().await {
             error!("kick_buckets_task not stopped: {}", e);
@@ -224,10 +318,44 @@ impl RoutingTable {
         if let Err(e) = self.unlocked_inner.peer_minimum_refresh_task.stop().await {
             error!("peer_minimum_refresh_task not stopped: {}", e);
         }
-        log_rtab!(debug "stopping ping_validator task");
-        if let Err(e) = self.unlocked_inner.ping_validator_task.stop().await {
-            error!("ping_validator_task not stopped: {}", e);
+
+        log_rtab!(debug "stopping ping_validator tasks");
+        if let Err(e) = self
+            .unlocked_inner
+            .ping_validator_public_internet_task
+            .stop()
+            .await
+        {
+            error!("ping_validator_public_internet_task not stopped: {}", e);
         }
+        if let Err(e) = self
+            .unlocked_inner
+            .ping_validator_local_network_task
+            .stop()
+            .await
+        {
+            error!("ping_validator_local_network_task not stopped: {}", e);
+        }
+        if let Err(e) = self
+            .unlocked_inner
+            .ping_validator_public_internet_relay_task
+            .stop()
+            .await
+        {
+            error!(
+                "ping_validator_public_internet_relay_task not stopped: {}",
+                e
+            );
+        }
+        if let Err(e) = self
+            .unlocked_inner
+            .ping_validator_active_watch_task
+            .stop()
+            .await
+        {
+            error!("ping_validator_active_watch_task not stopped: {}", e);
+        }
+
         log_rtab!(debug "stopping relay management task");
         if let Err(e) = self.unlocked_inner.relay_management_task.stop().await {
             warn!("relay_management_task not stopped: {}", e);

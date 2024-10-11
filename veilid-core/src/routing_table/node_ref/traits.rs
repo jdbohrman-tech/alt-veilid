@@ -91,12 +91,16 @@ pub trait NodeRefCommonTrait: NodeRefAccessorsTrait + NodeRefOperateTrait {
                 .unwrap_or(0u64.into())
         })
     }
-    fn has_seen_our_node_info_ts(
-        &self,
-        routing_domain: RoutingDomain,
-        our_node_info_ts: Timestamp,
-    ) -> bool {
-        self.operate(|_rti, e| e.has_seen_our_node_info_ts(routing_domain, our_node_info_ts))
+    fn has_seen_our_node_info_ts(&self, routing_domain: RoutingDomain) -> bool {
+        self.operate(|rti, e| {
+            let Some(our_node_info_ts) = rti
+                .get_published_peer_info(routing_domain)
+                .map(|pi| pi.signed_node_info().timestamp())
+            else {
+                return false;
+            };
+            e.has_seen_our_node_info_ts(routing_domain, our_node_info_ts)
+        })
     }
     fn set_seen_our_node_info_ts(&self, routing_domain: RoutingDomain, seen_ts: Timestamp) {
         self.operate_mut(|_rti, e| e.set_seen_our_node_info_ts(routing_domain, seen_ts));
@@ -183,7 +187,7 @@ pub trait NodeRefCommonTrait: NodeRefAccessorsTrait + NodeRefOperateTrait {
         out
     }
 
-    /// Get the most recent 'last connection' to this node
+    /// Get the most recent 'last connection' to this node matching the node ref filter
     /// Filtered first and then sorted by ordering preference and then by most recent
     fn last_flow(&self) -> Option<Flow> {
         self.operate(|rti, e| {
@@ -203,7 +207,8 @@ pub trait NodeRefCommonTrait: NodeRefAccessorsTrait + NodeRefOperateTrait {
         })
     }
 
-    /// Get all the 'last connection' flows for this node
+    /// Get all the 'last connection' flows for this node matching the node ref filter
+    /// Filtered first and then sorted by ordering preference and then by most recent
     #[expect(dead_code)]
     fn last_flows(&self) -> Vec<Flow> {
         self.operate(|rti, e| {
@@ -287,14 +292,28 @@ pub trait NodeRefCommonTrait: NodeRefAccessorsTrait + NodeRefOperateTrait {
             e.answer_rcvd(send_ts, recv_ts, bytes);
         })
     }
-    fn stats_question_lost(&self) {
+    fn stats_lost_answer(&self) {
         self.operate_mut(|_rti, e| {
-            e.question_lost();
+            e.lost_answer();
         })
     }
     fn stats_failed_to_send(&self, ts: Timestamp, expects_answer: bool) {
         self.operate_mut(|_rti, e| {
             e.failed_to_send(ts, expects_answer);
+        })
+    }
+    fn report_sender_info(
+        &self,
+        routing_domain: RoutingDomain,
+        protocol_type: ProtocolType,
+        address_type: AddressType,
+        sender_info: SenderInfo,
+    ) -> Option<SenderInfo> {
+        self.operate_mut(|_rti, e| {
+            e.report_sender_info(
+                LastSenderInfoKey(routing_domain, protocol_type, address_type),
+                sender_info,
+            )
         })
     }
 }

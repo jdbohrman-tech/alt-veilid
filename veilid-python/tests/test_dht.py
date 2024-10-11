@@ -395,13 +395,17 @@ async def test_dht_integration_writer_reader():
                 print(f'  {n}')
             
             print('syncing records to the network')
+            recleft = len(records)
             for desc0 in records:
                 while True:
                     rr = await rc0.inspect_dht_record(desc0.key, [])
-                    if len(rr.offline_subkeys) == 0:
+                    left = 0; [left := left + (x[1]-x[0]+1) for x in rr.offline_subkeys]
+                    if left == 0:
                         await rc0.close_dht_record(desc0.key)
                         break
-                    time.sleep(1)
+                    print(f'  {recleft} records {left} subkeys left')
+                    time.sleep(0.1)
+                recleft-=1
 
             # read dht records on server 1
             print(f'reading {COUNT} records')
@@ -455,19 +459,31 @@ async def test_dht_write_read_local():
 
                 print(f'  {n}')
             
-            print(f'syncing records to the network')
-            for desc0 in records:
-                while True:
+            print('syncing records to the network')
+
+            syncrecords = records.copy()
+            while len(syncrecords) > 0:
+                donerecords = set()
+                subkeysleft = 0
+                for desc0 in records:
                     rr = await rc0.inspect_dht_record(desc0.key, [])
-                    if len(rr.offline_subkeys) == 0:
-                        await rc0.close_dht_record(desc0.key)
-                        break
-                    time.sleep(0.1)
+                    left = 0; [left := left + (x[1]-x[0]+1) for x in rr.offline_subkeys]
+                    if left == 0:
+                        donerecords.add(desc0)
+                    else:
+                        subkeysleft += left
+                syncrecords = [x for x in syncrecords if x not in donerecords]
+                print(f'  {len(syncrecords)} records {subkeysleft} subkeys left')
+                time.sleep(1)
+
+            await api0.debug("record purge local")
+            await api0.debug("record purge remote")
 
             # read dht records on server 0
             print(f'reading {COUNT} records')
             n = 0
             for desc0 in records:
+                await rc0.close_dht_record(desc0.key)
                 desc1 = await rc0.open_dht_record(desc0.key)
                 
                 vd0 = await rc0.get_dht_value(desc1.key, ValueSubkey(0), force_refresh=True)

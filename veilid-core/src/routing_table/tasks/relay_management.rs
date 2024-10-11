@@ -14,7 +14,11 @@ impl RoutingTable {
         }
 
         // If we -need- a relay always request one
-        if let Some(rk) = own_node_info.requires_relay() {
+        let requires_relay = self
+            .inner
+            .read()
+            .with_routing_domain(RoutingDomain::PublicInternet, |rdd| rdd.requires_relay());
+        if let Some(rk) = requires_relay {
             return Some(rk);
         }
 
@@ -71,7 +75,7 @@ impl RoutingTable {
                     BucketEntryStateReason::Dead(_) | BucketEntryStateReason::Punished(_)
                 ) {
                     log_rtab!(debug "Relay node is now {:?}, dropping relay {}", state_reason, relay_node);
-                    editor.clear_relay_node();
+                    editor.set_relay_node(None);
                     false
                 }
                 // Relay node no longer can relay
@@ -80,7 +84,7 @@ impl RoutingTable {
                         "Relay node can no longer relay, dropping relay {}",
                         relay_node
                     );
-                    editor.clear_relay_node();
+                    editor.set_relay_node(None);
                     false
                 }
                 // Relay node is no longer wanted
@@ -89,7 +93,7 @@ impl RoutingTable {
                         "Relay node no longer desired, dropping relay {}",
                         relay_node
                     );
-                    editor.clear_relay_node();
+                    editor.set_relay_node(None);
                     false
                 } else {
                     true
@@ -114,7 +118,7 @@ impl RoutingTable {
                     match self.register_node_with_peer_info(outbound_relay_peerinfo, false) {
                         Ok(nr) => {
                             log_rtab!(debug "Outbound relay node selected: {}", nr);
-                            editor.set_relay_node(nr.unfiltered());
+                            editor.set_relay_node(Some(nr.unfiltered()));
                             got_outbound_relay = true;
                         }
                         Err(e) => {
@@ -133,7 +137,7 @@ impl RoutingTable {
                     relay_node_filter,
                 ) {
                     log_rtab!(debug "Inbound relay node selected: {}", nr);
-                    editor.set_relay_node(nr);
+                    editor.set_relay_node(Some(nr));
                 }
             }
         }
@@ -142,10 +146,6 @@ impl RoutingTable {
         if editor.commit(false).await {
             // Try to publish the peer info
             editor.publish();
-
-            self.network_manager()
-                .connection_manager()
-                .update_protections();
         }
 
         Ok(())

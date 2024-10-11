@@ -66,22 +66,12 @@ impl RoutingTable {
     pub(crate) fn debug_info_nodeinfo(&self) -> String {
         let mut out = String::new();
         let inner = self.inner.read();
-        out += "Routing Table Info:\n";
-
-        out += &format!("   Node Ids: {}\n", self.unlocked_inner.node_ids());
+        out += &format!("Node Ids: {}\n", self.unlocked_inner.node_ids());
         out += &format!(
-            "   Self Latency Stats Accounting: {:#?}\n\n",
-            inner.self_latency_stats_accounting
+            "Self Transfer Stats:\n{}",
+            indent_all_string(&inner.self_transfer_stats)
         );
-        out += &format!(
-            "   Self Transfer Stats Accounting: {:#?}\n\n",
-            inner.self_transfer_stats_accounting
-        );
-        out += &format!(
-            "   Self Transfer Stats: {:#?}\n\n",
-            inner.self_transfer_stats
-        );
-        out += &format!("   Version: {}\n\n", veilid_version_string());
+        out += &format!("Version: {}", veilid_version_string());
 
         out
     }
@@ -93,11 +83,11 @@ impl RoutingTable {
 
         out += "Local Network Dial Info Details:\n";
         for (n, ldi) in ldis.iter().enumerate() {
-            out += &format!("  {:>2}: {:?}\n", n, ldi);
+            out += &indent_all_string(&format!("{:>2}: {}\n", n, ldi));
         }
         out += "Public Internet Dial Info Details:\n";
         for (n, gdi) in gdis.iter().enumerate() {
-            out += &format!("  {:>2}: {:?}\n", n, gdi);
+            out += &indent_all_string(&format!("{:>2}: {}\n", n, gdi));
         }
         out
     }
@@ -109,17 +99,16 @@ impl RoutingTable {
     ) -> String {
         let mut out = String::new();
         if published {
-            out += &format!(
-                "{:?} Published PeerInfo:\n  {:#?}\n",
-                routing_domain,
-                self.get_published_peer_info(routing_domain)
-            );
+            let pistr = if let Some(pi) = self.get_published_peer_info(routing_domain) {
+                format!("\n{}\n", indent_all_string(&pi))
+            } else {
+                " None".to_owned()
+            };
+            out += &format!("{:?} Published PeerInfo:{}", routing_domain, pistr);
         } else {
-            out += &format!(
-                "{:?} Current PeerInfo:\n  {:#?}\n",
-                routing_domain,
-                self.get_current_peer_info(routing_domain)
-            );
+            let pi = self.get_current_peer_info(routing_domain);
+            let pistr = format!("\n{}\n", indent_all_string(&pi));
+            out += &format!("{:?} Current PeerInfo:{}", routing_domain, pistr);
         }
         out
     }
@@ -138,7 +127,7 @@ impl RoutingTable {
                 //
             },
             BucketEntryStateReason::Dead(d) => match d {
-                BucketEntryDeadReason::FailedToSend => "DFSEND",
+                BucketEntryDeadReason::CanNotSend => "DFSEND",
                 BucketEntryDeadReason::TooManyLostAnswers => "DALOST",
                 BucketEntryDeadReason::NoPingResponse => "DNOPNG",
             },
@@ -153,11 +142,60 @@ impl RoutingTable {
         }
     }
 
+    fn format_entry(
+        cur_ts: Timestamp,
+        node: TypedKey,
+        e: &BucketEntryInner,
+        relay_tag: &str,
+    ) -> String {
+        format!(
+            "    {} [{}][{}] {} [{}] lastq@{} seen@{}",
+            // node id
+            node,
+            // state reason
+            Self::format_state_reason(e.state_reason(cur_ts)),
+            // Relay tag
+            relay_tag,
+            // average latency
+            e.peer_stats()
+                .latency
+                .as_ref()
+                .map(|l| l.to_string())
+                .unwrap_or_else(|| "???".to_string()),
+            // capabilities
+            if let Some(ni) = e.node_info(RoutingDomain::PublicInternet) {
+                ni.capabilities()
+                    .iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<String>>()
+                    .join(",")
+            } else {
+                "???".to_owned()
+            },
+            // duration since last question
+            e.peer_stats()
+                .rpc_stats
+                .last_question_ts
+                .as_ref()
+                .map(|l| cur_ts.saturating_sub(*l).to_string())
+                .unwrap_or_else(|| "???".to_string()),
+            // duration since last seen
+            e.peer_stats()
+                .rpc_stats
+                .last_seen_ts
+                .as_ref()
+                .map(|l| cur_ts.saturating_sub(*l).to_string())
+                .unwrap_or_else(|| "???".to_string()),
+        )
+    }
+
     pub(crate) fn debug_info_entries(
         &self,
         min_state: BucketEntryState,
         capabilities: Vec<FourCC>,
     ) -> String {
+        let relay_node_filter = self.make_public_internet_relay_node_filter();
+
         let inner = self.inner.read();
         let inner = &*inner;
         let cur_ts = Timestamp::now();
@@ -191,41 +229,97 @@ impl RoutingTable {
                 if !filtered_entries.is_empty() {
                     out += &format!("{} Bucket #{}:\n", ck, b);
                     for e in filtered_entries {
-                        let state_reason = e.1.with(inner, |_rti, e| e.state_reason(cur_ts));
-                        out += &format!(
-                            "    {} [{}] {} [{}]\n",
-                            e.0.encode(),
-                            Self::format_state_reason(state_reason),
-                            e.1.with(inner, |_rti, e| {
-                                e.peer_stats()
-                                    .latency
-                                    .as_ref()
-                                    .map(|l| {
-                                        format!(
-                                            "{:.2}ms",
-                                            timestamp_to_secs(l.average.as_u64()) * 1000.0
-                                        )
-                                    })
-                                    .unwrap_or_else(|| "???.??ms".to_string())
-                            }),
-                            e.1.with(inner, |_rti, e| {
-                                if let Some(ni) = e.node_info(RoutingDomain::PublicInternet) {
-                                    ni.capabilities()
-                                        .iter()
-                                        .map(|x| x.to_string())
-                                        .collect::<Vec<String>>()
-                                        .join(",")
-                                } else {
-                                    "???".to_owned()
-                                }
-                            })
-                        );
+                        let node = *e.0;
+
+                        let can_be_relay = e.1.with(inner, |_rti, e| relay_node_filter(e));
+                        let is_relay = self
+                            .relay_node(RoutingDomain::PublicInternet)
+                            .map(|r| r.same_bucket_entry(e.1))
+                            .unwrap_or(false);
+                        let relay_tag = if is_relay {
+                            "R"
+                        } else if can_be_relay {
+                            "r"
+                        } else {
+                            "-"
+                        };
+
+                        out += "    ";
+                        out += &e.1.with(inner, |_rti, e| {
+                            Self::format_entry(cur_ts, TypedKey::new(*ck, node), e, relay_tag)
+                        });
+                        out += "\n";
                     }
                 }
                 b += 1;
             }
             out += &format!("{} Filtered Total: {}\n", ck, filtered_total);
         }
+
+        out
+    }
+
+    pub(crate) fn debug_info_entries_fastest(
+        &self,
+        min_state: BucketEntryState,
+        capabilities: Vec<FourCC>,
+        node_count: usize,
+    ) -> String {
+        let cur_ts = Timestamp::now();
+        let relay_node_filter = self.make_public_internet_relay_node_filter();
+        let mut relay_count = 0usize;
+
+        let mut filters = VecDeque::new();
+        filters.push_front(
+            Box::new(|rti: &RoutingTableInner, e: Option<Arc<BucketEntry>>| {
+                let Some(e) = e else {
+                    return false;
+                };
+                let cap_match = e.with(rti, |_rti, e| {
+                    e.has_all_capabilities(RoutingDomain::PublicInternet, &capabilities)
+                });
+                let state = e.with(rti, |_rti, e| e.state(cur_ts));
+                state >= min_state && cap_match
+            }) as RoutingTableEntryFilter,
+        );
+        let nodes = self.find_preferred_fastest_nodes(
+            node_count,
+            filters,
+            |_rti, entry: Option<Arc<BucketEntry>>| {
+                NodeRef::new(self.clone(), entry.unwrap().clone())
+            },
+        );
+        let mut out = String::new();
+        let entry_count = nodes.len();
+        for node in nodes {
+            let can_be_relay = node.operate(|_rti, e| relay_node_filter(e));
+            let is_relay = self
+                .relay_node(RoutingDomain::PublicInternet)
+                .map(|r| r.same_entry(&node))
+                .unwrap_or(false);
+            let relay_tag = if is_relay {
+                "R"
+            } else if can_be_relay {
+                "r"
+            } else {
+                "-"
+            };
+            if can_be_relay {
+                relay_count += 1;
+            }
+
+            out += "    ";
+            out += &node
+                .operate(|_rti, e| Self::format_entry(cur_ts, node.best_node_id(), e, relay_tag));
+            out += "\n";
+        }
+
+        out += &format!(
+            "Entries: {}  Relays: {}  Relay %: {:.2}\n",
+            entry_count,
+            relay_count,
+            (relay_count as f64) * 100.0 / (entry_count as f64)
+        );
 
         out
     }
@@ -237,9 +331,9 @@ impl RoutingTable {
         out += &node_ref.operate(|_rti, e| {
             let state_reason = e.state_reason(cur_ts);
             format!(
-                "state: {}\n{:#?}\n",
+                "{}\nstate: {}\n",
+                e,
                 Self::format_state_reason(state_reason),
-                e
             )
         });
         out

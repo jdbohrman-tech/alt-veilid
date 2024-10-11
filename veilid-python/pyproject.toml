@@ -9,7 +9,7 @@ readme = "README.md"
 packages = [{ include = "veilid" }]
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "^3.12.5"
 jsonschema = "^4.17.3"
 
 [tool.poetry.group.dev.dependencies]

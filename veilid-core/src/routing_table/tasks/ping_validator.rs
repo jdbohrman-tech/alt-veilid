@@ -7,17 +7,92 @@ const RELAY_KEEPALIVE_PING_INTERVAL_SECS: u32 = 10;
 /// Keepalive pings are done for active watch nodes to make sure they are still there
 const ACTIVE_WATCH_KEEPALIVE_PING_INTERVAL_SECS: u32 = 10;
 
-/// Ping queue processing depth
-const MAX_PARALLEL_PINGS: usize = 16;
+/// Ping queue processing depth per validator
+const MAX_PARALLEL_PINGS: usize = 8;
 
-use futures_util::stream::{FuturesUnordered, StreamExt};
 use futures_util::FutureExt;
-use stop_token::future::FutureExt as StopFutureExt;
 
-type PingValidatorFuture =
-    SendPinBoxFuture<Result<NetworkResult<Answer<Option<SenderInfo>>>, RPCError>>;
+type PingValidatorFuture = SendPinBoxFuture<Result<(), RPCError>>;
 
 impl RoutingTable {
+    // Task routine for PublicInternet status pings
+    #[instrument(level = "trace", skip(self), err)]
+    pub(crate) async fn ping_validator_public_internet_task_routine(
+        self,
+        stop_token: StopToken,
+        _last_ts: Timestamp,
+        cur_ts: Timestamp,
+    ) -> EyreResult<()> {
+        let mut future_queue: VecDeque<PingValidatorFuture> = VecDeque::new();
+
+        self.ping_validator_public_internet(cur_ts, &mut future_queue)
+            .await?;
+
+        self.process_ping_validation_queue("PublicInternet", stop_token, cur_ts, future_queue)
+            .await;
+
+        Ok(())
+    }
+
+    // Task routine for LocalNetwork status pings
+    #[instrument(level = "trace", skip(self), err)]
+    pub(crate) async fn ping_validator_local_network_task_routine(
+        self,
+        stop_token: StopToken,
+        _last_ts: Timestamp,
+        cur_ts: Timestamp,
+    ) -> EyreResult<()> {
+        let mut future_queue: VecDeque<PingValidatorFuture> = VecDeque::new();
+
+        self.ping_validator_local_network(cur_ts, &mut future_queue)
+            .await?;
+
+        self.process_ping_validation_queue("LocalNetwork", stop_token, cur_ts, future_queue)
+            .await;
+
+        Ok(())
+    }
+
+    // Task routine for PublicInternet relay keepalive pings
+    #[instrument(level = "trace", skip(self), err)]
+    pub(crate) async fn ping_validator_public_internet_relay_task_routine(
+        self,
+        stop_token: StopToken,
+        _last_ts: Timestamp,
+        cur_ts: Timestamp,
+    ) -> EyreResult<()> {
+        let mut future_queue: VecDeque<PingValidatorFuture> = VecDeque::new();
+
+        self.relay_keepalive_public_internet(cur_ts, &mut future_queue)
+            .await?;
+
+        self.process_ping_validation_queue("RelayKeepalive", stop_token, cur_ts, future_queue)
+            .await;
+
+        Ok(())
+    }
+
+    // Task routine for active watch keepalive pings
+    #[instrument(level = "trace", skip(self), err)]
+    pub(crate) async fn ping_validator_active_watch_task_routine(
+        self,
+        stop_token: StopToken,
+        _last_ts: Timestamp,
+        cur_ts: Timestamp,
+    ) -> EyreResult<()> {
+        let mut future_queue: VecDeque<PingValidatorFuture> = VecDeque::new();
+
+        self.active_watches_keepalive_public_internet(cur_ts, &mut future_queue)
+            .await?;
+
+        self.process_ping_validation_queue("WatchKeepalive", stop_token, cur_ts, future_queue)
+            .await;
+
+        Ok(())
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     // Ping the relay to keep it alive, over every protocol it is relaying for us
     #[instrument(level = "trace", skip(self, futurequeue), err)]
     async fn relay_keepalive_public_internet(
@@ -49,10 +124,9 @@ impl RoutingTable {
             return Ok(());
         }
         // Say we're doing this keepalive now
-        self.edit_public_internet_routing_domain()
-            .set_relay_node_keepalive(Some(cur_ts))
-            .commit(false)
-            .await;
+        self.inner
+            .write()
+            .set_relay_node_last_keepalive(RoutingDomain::PublicInternet, cur_ts);
 
         // We need to keep-alive at one connection per ordering for relays
         // but also one per NAT mapping that we need to keep open for our inbound dial info
@@ -107,13 +181,13 @@ impl RoutingTable {
 
         for relay_nr_filtered in relay_noderefs {
             let rpc = rpc.clone();
-
-            log_rtab!("--> Keepalive ping to {:?}", relay_nr_filtered);
-
             futurequeue.push_back(
                 async move {
-                    rpc.rpc_call_status(Destination::direct(relay_nr_filtered))
-                        .await
+                    log_rtab!("--> PublicInternet Relay ping to {:?}", relay_nr_filtered);
+                    let _ = rpc
+                        .rpc_call_status(Destination::direct(relay_nr_filtered))
+                        .await?;
+                    Ok(())
                 }
                 .boxed(),
             );
@@ -151,17 +225,15 @@ impl RoutingTable {
 
         // Get all the active watches from the storage manager
         let storage_manager = self.unlocked_inner.network_manager.storage_manager();
-        let watch_node_refs = storage_manager.get_active_watch_nodes().await;
+        let watch_destinations = storage_manager.get_active_watch_nodes().await;
 
-        for watch_nr in watch_node_refs {
+        for watch_destination in watch_destinations {
             let rpc = rpc.clone();
-
-            log_rtab!("--> Watch ping to {:?}", watch_nr);
-
             futurequeue.push_back(
                 async move {
-                    rpc.rpc_call_status(Destination::direct(watch_nr.default_filtered()))
-                        .await
+                    log_rtab!("--> Watch Keepalive ping to {:?}", watch_destination);
+                    let _ = rpc.rpc_call_status(watch_destination).await?;
+                    Ok(())
                 }
                 .boxed(),
             );
@@ -182,20 +254,19 @@ impl RoutingTable {
         // Get all nodes needing pings in the PublicInternet routing domain
         let node_refs = self.get_nodes_needing_ping(RoutingDomain::PublicInternet, cur_ts);
 
-        // If we have a relay, let's ping for NAT keepalives
-        self.relay_keepalive_public_internet(cur_ts, futurequeue)
-            .await?;
-
-        // Check active watch keepalives
-        self.active_watches_keepalive_public_internet(cur_ts, futurequeue)
-            .await?;
-
         // Just do a single ping with the best protocol for all the other nodes to check for liveness
         for nr in node_refs {
+            let nr = nr.sequencing_clone(Sequencing::PreferOrdered);
+
             let rpc = rpc.clone();
-            log_rtab!("--> Validator ping to {:?}", nr);
             futurequeue.push_back(
-                async move { rpc.rpc_call_status(Destination::direct(nr)).await }.boxed(),
+                async move {
+                    #[cfg(feature = "verbose-tracing")]
+                    log_rtab!(debug "--> PublicInternet Validator ping to {:?}", nr);
+                    let _ = rpc.rpc_call_status(Destination::direct(nr)).await?;
+                    Ok(())
+                }
+                .boxed(),
             );
         }
 
@@ -215,76 +286,58 @@ impl RoutingTable {
         // Get all nodes needing pings in the LocalNetwork routing domain
         let node_refs = self.get_nodes_needing_ping(RoutingDomain::LocalNetwork, cur_ts);
 
-        // For all nodes needing pings, figure out how many and over what protocols
+        // Just do a single ping with the best protocol for all the other nodes to check for liveness
         for nr in node_refs {
+            let nr = nr.sequencing_clone(Sequencing::PreferOrdered);
+
             let rpc = rpc.clone();
 
             // Just do a single ping with the best protocol for all the nodes
             futurequeue.push_back(
-                async move { rpc.rpc_call_status(Destination::direct(nr)).await }.boxed(),
+                async move {
+                    #[cfg(feature = "verbose-tracing")]
+                    log_rtab!(debug "--> LocalNetwork Validator ping to {:?}", nr);
+                    let _ = rpc.rpc_call_status(Destination::direct(nr)).await?;
+                    Ok(())
+                }
+                .boxed(),
             );
         }
 
         Ok(())
     }
 
-    // Ping each node in the routing table if they need to be pinged
-    // to determine their reliability
-    #[instrument(level = "trace", skip(self), err)]
-    pub(crate) async fn ping_validator_task_routine(
-        self,
+    // Common handler for running ping validations in a batch
+    async fn process_ping_validation_queue(
+        &self,
+        name: &str,
         stop_token: StopToken,
-        _last_ts: Timestamp,
         cur_ts: Timestamp,
-    ) -> EyreResult<()> {
-        let mut futurequeue: VecDeque<PingValidatorFuture> = VecDeque::new();
-
-        // PublicInternet
-        self.ping_validator_public_internet(cur_ts, &mut futurequeue)
-            .await?;
-
-        // LocalNetwork
-        self.ping_validator_local_network(cur_ts, &mut futurequeue)
-            .await?;
-
-        // Wait for ping futures to complete in parallel
-        let mut unord = FuturesUnordered::new();
-
-        while !unord.is_empty() || !futurequeue.is_empty() {
-            log_rtab!(
-                "Ping validation queue: {} remaining, {} in progress",
-                futurequeue.len(),
-                unord.len()
-            );
-
-            // Process one unordered futures if we have some
-            match unord
-                .next()
-                .timeout_at(stop_token.clone())
-                .in_current_span()
-                .await
-            {
-                Ok(Some(_)) => {
-                    // Some ping completed
-                }
-                Ok(None) => {
-                    // We're empty
-                }
-                Err(_) => {
-                    // Timeout means we drop the rest because we were asked to stop
-                    break;
-                }
-            }
-
-            // Fill unord up to max parallelism
-            while unord.len() < MAX_PARALLEL_PINGS {
-                let Some(fq) = futurequeue.pop_front() else {
-                    break;
-                };
-                unord.push(fq);
-            }
+        future_queue: VecDeque<PingValidatorFuture>,
+    ) {
+        let count = future_queue.len();
+        if count == 0 {
+            return;
         }
+        log_rtab!(debug "[{}] Ping validation queue: {} remaining", name, count);
 
-        Ok(())
+        let atomic_count = AtomicUsize::new(count);
+        process_batched_future_queue(future_queue, MAX_PARALLEL_PINGS, stop_token, |res| async {
+            if let Err(e) = res {
+                log_rtab!(error "[{}] Error performing status ping: {}", name, e);
+            }
+            let remaining = atomic_count.fetch_sub(1, Ordering::AcqRel) - 1;
+            if remaining > 0 {
+                log_rtab!(debug "[{}] Ping validation queue: {} remaining", name, remaining);
+            }
+        })
+        .await;
+        let done_ts = Timestamp::now();
+        log_rtab!(debug
+            "[{}] Ping validation queue finished {} pings in {}",
+            name,
+            count,
+            done_ts - cur_ts
+        );
     }
 }

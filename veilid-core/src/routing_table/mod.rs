@@ -42,8 +42,11 @@ pub const RELAY_MANAGEMENT_INTERVAL_SECS: u32 = 1;
 pub const PRIVATE_ROUTE_MANAGEMENT_INTERVAL_SECS: u32 = 1;
 
 // Connectionless protocols like UDP are dependent on a NAT translation timeout
-// We should ping them with some frequency and 30 seconds is typical timeout
-pub const CONNECTIONLESS_TIMEOUT_SECS: u32 = 29;
+// We ping relays to maintain our UDP NAT state with a RELAY_KEEPALIVE_PING_INTERVAL_SECS=10 frequency
+// since 30 seconds is a typical UDP NAT state timeout.
+// Non-relay flows are assumed to be alive for half the typical timeout and we regenerate the hole punch
+// if it the flow hasn't had any activity in this amount of time.
+pub const CONNECTIONLESS_TIMEOUT_SECS: u32 = 15;
 
 // Table store keys
 const ALL_ENTRY_BYTES: &[u8] = b"all_entry_bytes";
@@ -100,6 +103,10 @@ pub(crate) struct RoutingTableUnlockedInner {
     kick_queue: Mutex<BTreeSet<BucketIndex>>,
     /// Background process for computing statistics
     rolling_transfers_task: TickTask<EyreReport>,
+    /// Background process for computing statistics
+    update_state_stats_task: TickTask<EyreReport>,
+    /// Background process for computing statistics
+    rolling_answers_task: TickTask<EyreReport>,
     /// Background process to purge dead routing table entries when necessary
     kick_buckets_task: TickTask<EyreReport>,
     /// Background process to get our initial routing table
@@ -108,8 +115,14 @@ pub(crate) struct RoutingTableUnlockedInner {
     peer_minimum_refresh_task: TickTask<EyreReport>,
     /// Background process to ensure we have enough nodes close to our own in our routing table
     closest_peers_refresh_task: TickTask<EyreReport>,
-    /// Background process to check nodes to see if they are still alive and for reliability
-    ping_validator_task: TickTask<EyreReport>,
+    /// Background process to check PublicInternet nodes to see if they are still alive and for reliability
+    ping_validator_public_internet_task: TickTask<EyreReport>,
+    /// Background process to check LocalNetwork nodes to see if they are still alive and for reliability
+    ping_validator_local_network_task: TickTask<EyreReport>,
+    /// Background process to check PublicInternet relay nodes to see if they are still alive and for reliability
+    ping_validator_public_internet_relay_task: TickTask<EyreReport>,
+    /// Background process to check Active Watch nodes to see if they are still alive and for reliability
+    ping_validator_active_watch_task: TickTask<EyreReport>,
     /// Background process to keep relays up
     relay_management_task: TickTask<EyreReport>,
     /// Background process to keep private routes up
@@ -216,6 +229,14 @@ impl RoutingTable {
                 "rolling_transfers_task",
                 ROLLING_TRANSFERS_INTERVAL_SECS,
             ),
+            update_state_stats_task: TickTask::new(
+                "update_state_stats_task",
+                UPDATE_STATE_STATS_INTERVAL_SECS,
+            ),
+            rolling_answers_task: TickTask::new(
+                "rolling_answers_task",
+                ROLLING_ANSWER_INTERVAL_SECS,
+            ),
             kick_buckets_task: TickTask::new("kick_buckets_task", 1),
             bootstrap_task: TickTask::new("bootstrap_task", 1),
             peer_minimum_refresh_task: TickTask::new("peer_minimum_refresh_task", 1),
@@ -223,7 +244,19 @@ impl RoutingTable {
                 "closest_peers_refresh_task",
                 c.network.dht.min_peer_refresh_time_ms,
             ),
-            ping_validator_task: TickTask::new("ping_validator_task", 1),
+            ping_validator_public_internet_task: TickTask::new(
+                "ping_validator_public_internet_task",
+                1,
+            ),
+            ping_validator_local_network_task: TickTask::new(
+                "ping_validator_local_network_task",
+                1,
+            ),
+            ping_validator_public_internet_relay_task: TickTask::new(
+                "ping_validator_public_internet_relay_task",
+                1,
+            ),
+            ping_validator_active_watch_task: TickTask::new("ping_validator_active_watch_task", 1),
             relay_management_task: TickTask::new(
                 "relay_management_task",
                 RELAY_MANAGEMENT_INTERVAL_SECS,
@@ -571,12 +604,6 @@ impl RoutingTable {
     /// Return a copy of our node's peerinfo (may not yet be published)
     pub fn get_current_peer_info(&self, routing_domain: RoutingDomain) -> Arc<PeerInfo> {
         self.inner.read().get_current_peer_info(routing_domain)
-    }
-
-    /// If we have a valid network class in this routing domain, then our 'NodeInfo' is valid
-    /// If this is true, we can get our final peer info, otherwise we only have a 'best effort' peer info
-    pub fn has_valid_network_class(&self, routing_domain: RoutingDomain) -> bool {
-        self.inner.read().has_valid_network_class(routing_domain)
     }
 
     /// Return the domain's currently registered network class

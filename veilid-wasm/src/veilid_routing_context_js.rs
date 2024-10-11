@@ -331,7 +331,9 @@ impl VeilidRoutingContext {
         let key = TypedKey::from_str(&key)?;
         let subkeys = subkeys.unwrap_or_default();
         let expiration = if let Some(expiration) = expiration {
-            veilid_core::Timestamp::from_str(&expiration).map_err(VeilidAPIError::generic)?
+            veilid_core::Timestamp::new(
+                u64::from_str(&expiration).map_err(VeilidAPIError::generic)?,
+            )
         } else {
             veilid_core::Timestamp::default()
         };

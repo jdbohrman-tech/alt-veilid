@@ -404,15 +404,12 @@ impl Network {
             .edit_public_internet_routing_domain();
 
         // set up the routing table's network config
-        // if we have static public dialinfo, upgrade our network class
-
         editor_public_internet.setup_network(
             protocol_config.outbound,
             protocol_config.inbound,
             protocol_config.family_global,
             protocol_config.public_internet_capabilities.clone(),
         );
-        editor_public_internet.set_network_class(Some(NetworkClass::WebApp));
 
         // commit routing domain edits
         if editor_public_internet.commit(true).await {

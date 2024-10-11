@@ -1122,8 +1122,7 @@ impl RouteSpecStore {
         // We can optimize the peer info in this safety route if it has been successfully
         // communicated over either via an outbound test, or used as a private route inbound
         // and we are replying over the same route as our safety route outbound
-        let optimize = safety_rssd.get_stats().last_tested_ts.is_some()
-            || safety_rssd.get_stats().last_received_ts.is_some();
+        let optimize = safety_rssd.get_stats().last_known_valid_ts.is_some();
 
         // Get the first hop noderef of the safety route
         let first_hop = safety_rssd.hop_node_ref(0).unwrap();
@@ -1492,10 +1491,7 @@ impl RouteSpecStore {
 
         // See if we can optimize this compilation yet
         // We don't want to include full nodeinfo if we don't have to
-        let optimized = optimized.unwrap_or(
-            rssd.get_stats().last_tested_ts.is_some()
-                || rssd.get_stats().last_received_ts.is_some(),
-        );
+        let optimized = optimized.unwrap_or(rssd.get_stats().last_known_valid_ts.is_some());
 
         let rsd = rssd
             .get_route_by_key(key)
@@ -1519,10 +1515,7 @@ impl RouteSpecStore {
 
         // See if we can optimize this compilation yet
         // We don't want to include full nodeinfo if we don't have to
-        let optimized = optimized.unwrap_or(
-            rssd.get_stats().last_tested_ts.is_some()
-                || rssd.get_stats().last_received_ts.is_some(),
-        );
+        let optimized = optimized.unwrap_or(rssd.get_stats().last_known_valid_ts.is_some());
 
         let mut out = Vec::new();
         for (key, rsd) in rssd.iter_route_set() {
@@ -1726,15 +1719,15 @@ impl RouteSpecStore {
 
     /// Clear caches when local our local node info changes
     #[instrument(level = "trace", target = "route", skip(self))]
-    pub fn reset(&self) {
-        log_rtab!(debug "flushing route spec store");
+    pub fn reset_cache(&self) {
+        log_rtab!(debug "resetting route cache");
 
         let inner = &mut *self.inner.lock();
 
-        // Clean up local allocated routes
+        // Clean up local allocated routes (does not delete allocated routes, set republication flag)
         inner.content.reset_details();
 
-        // Reset private route cache
+        // Reset private route cache (does not delete imported routes)
         inner.cache.reset_remote_private_routes();
     }
 
@@ -1759,6 +1752,17 @@ impl RouteSpecStore {
 
         // Roll transfers for remote private routes
         inner.cache.roll_transfers(last_ts, cur_ts);
+    }
+
+    /// Process answer statistics
+    pub fn roll_answers(&self, cur_ts: Timestamp) {
+        let inner = &mut *self.inner.lock();
+
+        // Roll transfers for locally allocated routes
+        inner.content.roll_answers(cur_ts);
+
+        // Roll transfers for remote private routes
+        inner.cache.roll_answers(cur_ts);
     }
 
     /// Convert private route list to binary blob
@@ -1861,7 +1865,7 @@ impl RouteSpecStore {
         Ok(RouteId::new(vcrypto.generate_hash(&idbytes).bytes))
     }
 
-    /// Generate RouteId from set of private routes    
+    /// Generate RouteId from set of private routes
     fn generate_remote_route_id(
         &self,
         private_routes: &[PrivateRoute],

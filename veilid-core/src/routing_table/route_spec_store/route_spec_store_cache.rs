@@ -365,6 +365,12 @@ impl RouteSpecStoreCache {
             v.get_stats_mut().roll_transfers(last_ts, cur_ts);
         }
     }
+    /// Roll answer statistics
+    pub fn roll_answers(&mut self, cur_ts: Timestamp) {
+        for (_k, v) in self.remote_private_route_set_cache.iter_mut() {
+            v.get_stats_mut().roll_answers(cur_ts);
+        }
+    }
 }
 
 impl Default for RouteSpecStoreCache {

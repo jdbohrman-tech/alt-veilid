@@ -196,23 +196,23 @@ core:
     )
     .replace(
         "%TABLE_STORE_DIRECTORY%",
-        &VeilidConfigTableStore::default().directory,
+        &Settings::get_default_table_store_directory().to_string_lossy(),
     )
     .replace(
         "%BLOCK_STORE_DIRECTORY%",
-        &VeilidConfigBlockStore::default().directory,
+        &Settings::get_default_block_store_directory().to_string_lossy(),
     )
     .replace(
         "%DIRECTORY%",
-        &VeilidConfigProtectedStore::default().directory,
+        &Settings::get_default_protected_store_directory().to_string_lossy(),
     )
     .replace(
         "%CERTIFICATE_PATH%",
-        &VeilidConfigTLS::default().certificate_path,
+        &Settings::get_default_tls_certificate_path().to_string_lossy(),
     )
     .replace(
         "%PRIVATE_KEY_PATH%",
-        &VeilidConfigTLS::default().private_key_path,
+        &Settings::get_default_tls_private_key_path().to_string_lossy(),
     )
     .replace(
         "%REMOTE_MAX_SUBKEY_CACHE_MEMORY_MB%",
@@ -860,18 +860,23 @@ impl Settings {
     /// `C:\Users\<user>\AppData\Roaming\Veilid\Veilid`, and for macOS, at
     /// `/Users/<user>/Library/Application Support/org.Veilid.Veilid`
     ///
-    pub fn get_default_config_path() -> PathBuf {
+    pub fn get_default_config_path(subpath: &str) -> PathBuf {
         #[cfg(unix)]
         {
-            let default_path = PathBuf::from("/etc/veilid-server/veilid-server.conf");
-            if default_path.exists() {
-                return default_path;
+            let globalpath = PathBuf::from("/var/db/veilid-server");
+
+            if globalpath.exists() {
+                return globalpath.join(subpath);
             }
         }
 
-        ProjectDirs::from("org", "Veilid", "Veilid")
-            .map(|dirs| dirs.config_dir().join("veilid-server.conf"))
-            .unwrap_or_else(|| PathBuf::from("./veilid-server.conf"))
+        let mut ts_path = if let Some(my_proj_dirs) = ProjectDirs::from("org", "Veilid", "Veilid") {
+            PathBuf::from(my_proj_dirs.config_dir())
+        } else {
+            PathBuf::from("./")
+        };
+        ts_path.push(subpath);
+        ts_path
     }
 
     /// Determine default flamegraph output path
@@ -933,6 +938,25 @@ impl Settings {
                 Self::get_default_directory("ipc")
             }
         }
+    }
+
+    pub fn get_default_veilid_server_conf_path() -> PathBuf {
+        Settings::get_default_config_path("veilid-server.conf")
+    }
+    pub fn get_default_table_store_directory() -> PathBuf {
+        Settings::get_default_directory("table_store")
+    }
+    pub fn get_default_block_store_directory() -> PathBuf {
+        Settings::get_default_directory("block_store")
+    }
+    pub fn get_default_protected_store_directory() -> PathBuf {
+        Settings::get_default_directory("protected_store")
+    }
+    pub fn get_default_tls_certificate_path() -> PathBuf {
+        Settings::get_default_config_path("ssl/certs/server.crt")
+    }
+    pub fn get_default_tls_private_key_path() -> PathBuf {
+        Settings::get_default_config_path("ssl/keys/server.key")
     }
 
     pub fn get_default_remote_max_subkey_cache_memory_mb() -> u32 {
@@ -1594,13 +1618,17 @@ mod tests {
 
         assert_eq!(
             s.core.table_store.directory,
-            VeilidConfigTableStore::default().directory,
+            Settings::get_default_table_store_directory()
+                .to_string_lossy()
+                .to_string()
         );
         assert!(!s.core.table_store.delete);
 
         assert_eq!(
             s.core.block_store.directory,
-            VeilidConfigBlockStore::default().directory,
+            Settings::get_default_block_store_directory()
+                .to_string_lossy()
+                .to_string()
         );
         assert!(!s.core.block_store.delete);
 
@@ -1608,7 +1636,9 @@ mod tests {
         assert!(s.core.protected_store.always_use_insecure_storage);
         assert_eq!(
             s.core.protected_store.directory,
-            VeilidConfigProtectedStore::default().directory
+            Settings::get_default_protected_store_directory()
+                .to_string_lossy()
+                .to_string()
         );
         assert!(!s.core.protected_store.delete);
         assert_eq!(s.core.protected_store.device_encryption_key_password, "");
@@ -1669,11 +1699,15 @@ mod tests {
         //
         assert_eq!(
             s.core.network.tls.certificate_path,
-            VeilidConfigTLS::default().certificate_path
+            Settings::get_default_tls_certificate_path()
+                .to_string_lossy()
+                .to_string()
         );
         assert_eq!(
             s.core.network.tls.private_key_path,
-            VeilidConfigTLS::default().private_key_path
+            Settings::get_default_tls_private_key_path()
+                .to_string_lossy()
+                .to_string()
         );
         assert_eq!(s.core.network.tls.connection_initial_timeout_ms, 2_000u32);
         //

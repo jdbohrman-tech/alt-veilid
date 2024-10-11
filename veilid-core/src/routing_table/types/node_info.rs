@@ -15,7 +15,7 @@ pub const CAP_BLOCKSTORE: Capability = FourCC(*b"BLOC");
 
 pub const DISTANCE_METRIC_CAPABILITIES: &[Capability] = &[CAP_DHT, CAP_DHT_WATCH];
 
-#[derive(Clone, Default, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NodeInfo {
     network_class: NetworkClass,
     outbound_protocols: ProtocolTypeSet,
@@ -24,6 +24,22 @@ pub struct NodeInfo {
     crypto_support: Vec<CryptoKind>,
     capabilities: Vec<Capability>,
     dial_info_detail_list: Vec<DialInfoDetail>,
+}
+
+impl fmt::Display for NodeInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "network_class:      {:?}", self.network_class)?;
+        writeln!(f, "outbound_protocols: {:?}", self.outbound_protocols)?;
+        writeln!(f, "address_types:      {:?}", self.address_types)?;
+        writeln!(f, "envelope_support:   {:?}", self.envelope_support)?;
+        writeln!(f, "crypto_support:     {:?}", self.crypto_support)?;
+        writeln!(f, "capabilities:       {:?}", self.capabilities)?;
+        writeln!(f, "dial_info_detail_list:")?;
+        for did in &self.dial_info_detail_list {
+            writeln!(f, "    {}", did)?;
+        }
+        Ok(())
+    }
 }
 
 impl NodeInfo {
@@ -128,27 +144,6 @@ impl NodeInfo {
     /// Does this node has some dial info
     pub fn has_dial_info(&self) -> bool {
         !self.dial_info_detail_list.is_empty()
-    }
-
-    /// Is some relay required either for signal or inbound relay or outbound relay?
-    pub fn requires_relay(&self) -> Option<RelayKind> {
-        match self.network_class {
-            NetworkClass::InboundCapable => {
-                for did in &self.dial_info_detail_list {
-                    if did.class.requires_relay() {
-                        return Some(RelayKind::Inbound);
-                    }
-                }
-            }
-            NetworkClass::OutboundOnly => {
-                return Some(RelayKind::Inbound);
-            }
-            NetworkClass::WebApp => {
-                return Some(RelayKind::Outbound);
-            }
-            NetworkClass::Invalid => {}
-        }
-        None
     }
 
     pub fn has_capability(&self, cap: Capability) -> bool {

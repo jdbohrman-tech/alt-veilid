@@ -62,6 +62,9 @@ impl RPCError {
     pub fn map_ignore<M: ToString, X: ToString>(message: M) -> impl FnOnce(X) -> Self {
         move |x| Self::Ignore(format!("{}: {}", message.to_string(), x.to_string()))
     }
+    pub fn else_ignore<M: ToString>(message: M) -> impl FnOnce() -> Self {
+        move || Self::Ignore(message.to_string())
+    }
 }
 
 impl From<RPCError> for VeilidAPIError {

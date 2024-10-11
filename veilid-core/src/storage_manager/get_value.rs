@@ -272,7 +272,7 @@ impl StorageManager {
                         kind,
                         value_nodes: ctx.value_nodes.clone(),
                     };
-                    log_network_result!(debug "GetValue Fanout: {:?}", fanout_result);
+                    log_dht!(debug "GetValue Fanout: {:?}", fanout_result);
 
                     if let Err(e) = out_tx.send(Ok(OutboundGetValueResult {
                         fanout_result,

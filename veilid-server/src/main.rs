@@ -53,7 +53,7 @@ pub struct CmdlineArgs {
     foreground: bool,
 
     /// Specify a configuration file to use
-    #[arg(short, long, value_name = "FILE", default_value = OsString::from(Settings::get_default_config_path()))]
+    #[arg(short, long, value_name = "FILE", default_value = OsString::from(Settings::get_default_veilid_server_conf_path()))]
     config_file: Option<OsString>,
 
     /// Specify configuration value to set (key in dot format, value in json format), eg: logging.api.enabled=true

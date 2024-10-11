@@ -1,10 +1,32 @@
 use super::*;
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PeerInfo {
+    #[serde(
+        default = "default_routing_domain",
+        skip_serializing_if = "is_default_routing_domain"
+    )]
     routing_domain: RoutingDomain,
     node_ids: TypedKeyGroup,
     signed_node_info: SignedNodeInfo,
+}
+
+fn default_routing_domain() -> RoutingDomain {
+    RoutingDomain::PublicInternet
+}
+
+fn is_default_routing_domain(routing_domain: &RoutingDomain) -> bool {
+    matches!(routing_domain, RoutingDomain::PublicInternet)
+}
+
+impl fmt::Display for PeerInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "routing_domain: {:?}", self.routing_domain)?;
+        writeln!(f, "node_ids: {}", self.node_ids)?;
+        writeln!(f, "signed_node_info:")?;
+        write!(f, "{}", indent_all_string(&self.signed_node_info))?;
+        Ok(())
+    }
 }
 
 impl PeerInfo {

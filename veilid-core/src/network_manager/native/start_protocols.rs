@@ -234,7 +234,6 @@ impl Network {
 
                 // Register the public address
                 editor_public_internet.add_dial_info(pdi.clone(), DialInfoClass::Direct);
-                editor_public_internet.set_network_class(Some(NetworkClass::InboundCapable));
 
                 // See if this public address is also a local interface address we haven't registered yet
                 if self.is_stable_interface_address(pdi_addr.ip()) {
@@ -242,7 +241,6 @@ impl Network {
                         DialInfo::udp_from_socketaddr(pdi_addr),
                         DialInfoClass::Direct,
                     );
-                    editor_local_network.set_network_class(Some(NetworkClass::InboundCapable));
                 }
             }
         }
@@ -253,7 +251,6 @@ impl Network {
             // if no other public address is specified
             if !detect_address_changes && public_address.is_none() && di.address().is_global() {
                 editor_public_internet.add_dial_info(di.clone(), DialInfoClass::Direct);
-                editor_public_internet.set_network_class(Some(NetworkClass::InboundCapable));
             }
 
             // Register interface dial info as well since the address is on the local interface

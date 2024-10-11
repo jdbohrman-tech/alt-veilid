@@ -1,7 +1,6 @@
 use super::*;
 use alloc::collections::btree_map::Entry;
 
-// XXX: Move to config eventually?
 const PUNISHMENT_DURATION_MIN: usize = 60;
 const MAX_PUNISHMENTS_BY_NODE_ID: usize = 65536;
 const DIAL_INFO_FAILURE_DURATION_MIN: usize = 10;

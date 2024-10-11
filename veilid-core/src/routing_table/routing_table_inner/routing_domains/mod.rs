@@ -18,10 +18,10 @@ pub(crate) trait RoutingDomainDetail {
     fn inbound_protocols(&self) -> ProtocolTypeSet;
     fn address_types(&self) -> AddressTypeSet;
     fn capabilities(&self) -> Vec<Capability>;
+    fn requires_relay(&self) -> Option<RelayKind>;
     fn relay_node(&self) -> Option<FilteredNodeRef>;
     fn relay_node_last_keepalive(&self) -> Option<Timestamp>;
     fn dial_info_details(&self) -> &Vec<DialInfoDetail>;
-    fn has_valid_network_class(&self) -> bool;
     fn get_published_peer_info(&self) -> Option<Arc<PeerInfo>>;
     fn inbound_dial_info_filter(&self) -> DialInfoFilter;
     fn outbound_dial_info_filter(&self) -> DialInfoFilter;
@@ -49,6 +49,9 @@ pub(crate) trait RoutingDomainDetail {
         sequencing: Sequencing,
         dif_sort: Option<Arc<DialInfoDetailSort>>,
     ) -> ContactMethod;
+
+    // Set last relay keepalive time
+    fn set_relay_node_last_keepalive(&mut self, ts: Option<Timestamp>);
 }
 
 trait RoutingDomainDetailCommonAccessors: RoutingDomainDetail {
@@ -109,31 +112,29 @@ fn first_filtered_dial_info_detail_between_nodes(
 #[derive(Debug)]
 struct RoutingDomainDetailCommon {
     routing_domain: RoutingDomain,
-    network_class: Option<NetworkClass>,
     outbound_protocols: ProtocolTypeSet,
     inbound_protocols: ProtocolTypeSet,
     address_types: AddressTypeSet,
     relay_node: Option<NodeRef>,
-    relay_node_last_keepalive: Option<Timestamp>,
     capabilities: Vec<Capability>,
     dial_info_details: Vec<DialInfoDetail>,
     // caches
     cached_peer_info: Mutex<Option<Arc<PeerInfo>>>,
+    relay_node_last_keepalive: Option<Timestamp>,
 }
 
 impl RoutingDomainDetailCommon {
     pub fn new(routing_domain: RoutingDomain) -> Self {
         Self {
             routing_domain,
-            network_class: Default::default(),
             outbound_protocols: Default::default(),
             inbound_protocols: Default::default(),
             address_types: Default::default(),
             relay_node: Default::default(),
-            relay_node_last_keepalive: Default::default(),
             capabilities: Default::default(),
             dial_info_details: Default::default(),
             cached_peer_info: Mutex::new(Default::default()),
+            relay_node_last_keepalive: Default::default(),
         }
     }
 
@@ -141,7 +142,24 @@ impl RoutingDomainDetailCommon {
     // Accessors
 
     pub fn network_class(&self) -> Option<NetworkClass> {
-        self.network_class
+        cfg_if! {
+            if #[cfg(target_arch = "wasm32")] {
+                Some(NetworkClass::WebApp)
+            } else {
+                if self.address_types.is_empty() {
+                    None
+                }
+                else if self.dial_info_details.is_empty() {
+                    if self.relay_node.is_none() {
+                        None
+                    } else {
+                        Some(NetworkClass::OutboundOnly)
+                    }
+                } else {
+                    Some(NetworkClass::InboundCapable)
+                }
+            }
+        }
     }
 
     pub fn outbound_protocols(&self) -> ProtocolTypeSet {
@@ -160,6 +178,37 @@ impl RoutingDomainDetailCommon {
         self.capabilities.clone()
     }
 
+    pub fn requires_relay(&self) -> Option<RelayKind> {
+        match self.network_class()? {
+            NetworkClass::InboundCapable => {
+                let mut all_inbound_set: HashSet<(ProtocolType, AddressType)> = HashSet::new();
+                for p in self.inbound_protocols {
+                    for a in self.address_types {
+                        all_inbound_set.insert((p, a));
+                    }
+                }
+                for did in &self.dial_info_details {
+                    if did.class.requires_relay() {
+                        return Some(RelayKind::Inbound);
+                    }
+                    let ib = (did.dial_info.protocol_type(), did.dial_info.address_type());
+                    all_inbound_set.remove(&ib);
+                }
+                if !all_inbound_set.is_empty() {
+                    return Some(RelayKind::Inbound);
+                }
+            }
+            NetworkClass::OutboundOnly => {
+                return Some(RelayKind::Inbound);
+            }
+            NetworkClass::WebApp => {
+                return Some(RelayKind::Outbound);
+            }
+            NetworkClass::Invalid => {}
+        }
+        None
+    }
+
     pub fn relay_node(&self) -> Option<FilteredNodeRef> {
         self.relay_node.as_ref().map(|nr| {
             nr.custom_filtered(NodeRefFilter::new().with_routing_domain(self.routing_domain))
@@ -172,10 +221,6 @@ impl RoutingDomainDetailCommon {
 
     pub fn dial_info_details(&self) -> &Vec<DialInfoDetail> {
         &self.dial_info_details
-    }
-
-    pub fn has_valid_network_class(&self) -> bool {
-        self.network_class.unwrap_or(NetworkClass::Invalid) != NetworkClass::Invalid
     }
 
     pub fn inbound_dial_info_filter(&self) -> DialInfoFilter {
@@ -219,18 +264,10 @@ impl RoutingDomainDetailCommon {
         self.clear_cache();
     }
 
-    fn set_network_class(&mut self, network_class: Option<NetworkClass>) {
-        self.network_class = network_class;
-        self.clear_cache();
-    }
-
     fn set_relay_node(&mut self, opt_relay_node: Option<NodeRef>) {
         self.relay_node = opt_relay_node;
         self.relay_node_last_keepalive = None;
         self.clear_cache();
-    }
-    fn set_relay_node_last_keepalive(&mut self, ts: Option<Timestamp>) {
-        self.relay_node_last_keepalive = ts;
     }
 
     fn clear_dial_info_details(
@@ -267,12 +304,16 @@ impl RoutingDomainDetailCommon {
     //     self.clear_cache();
     // }
 
+    fn set_relay_node_last_keepalive(&mut self, ts: Option<Timestamp>) {
+        self.relay_node_last_keepalive = ts;
+    }
+
     //////////////////////////////////////////////////////////////////////////////
     // Internal functions
 
     fn make_peer_info(&self, rti: &RoutingTableInner) -> PeerInfo {
         let node_info = NodeInfo::new(
-            self.network_class.unwrap_or(NetworkClass::Invalid),
+            self.network_class().unwrap_or(NetworkClass::Invalid),
             self.outbound_protocols,
             self.address_types,
             VALID_ENVELOPE_VERSIONS.to_vec(),

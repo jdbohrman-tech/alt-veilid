@@ -62,7 +62,7 @@ impl StorageManager {
         )?;
 
         if wva.answer.accepted {
-            log_dht!(debug "WatchValue canceled: id={} expiration_ts={} ({})", wva.answer.watch_id, debug_ts(wva.answer.expiration_ts.as_u64()), watch_node);
+            log_dht!(debug "WatchValue canceled: id={} expiration_ts={} ({})", wva.answer.watch_id, display_ts(wva.answer.expiration_ts.as_u64()), watch_node);
             Ok(Some(OutboundWatchValueResult {
                 expiration_ts: wva.answer.expiration_ts,
                 watch_id: wva.answer.watch_id,
@@ -127,9 +127,9 @@ impl StorageManager {
 
         if wva.answer.accepted {
             if watch_id != wva.answer.watch_id {
-                log_dht!(debug "WatchValue changed: id={}->{} expiration_ts={} ({})", watch_id, wva.answer.watch_id, debug_ts(wva.answer.expiration_ts.as_u64()), watch_node);
+                log_dht!(debug "WatchValue changed: id={}->{} expiration_ts={} ({})", watch_id, wva.answer.watch_id, display_ts(wva.answer.expiration_ts.as_u64()), watch_node);
             } else {
-                log_dht!(debug "WatchValue renewed: id={} expiration_ts={} ({})", watch_id, debug_ts(wva.answer.expiration_ts.as_u64()), watch_node);
+                log_dht!(debug "WatchValue renewed: id={} expiration_ts={} ({})", watch_id, display_ts(wva.answer.expiration_ts.as_u64()), watch_node);
             }
 
             Ok(Some(OutboundWatchValueResult {
@@ -280,7 +280,7 @@ impl StorageManager {
                     let mut done = false;
                     if wva.answer.expiration_ts.as_u64() > 0 {
                         // If the expiration time is greater than zero this watch is active
-                        log_dht!(debug "Watch created: id={} expiration_ts={} ({})", wva.answer.watch_id, debug_ts(wva.answer.expiration_ts.as_u64()), next_node);
+                        log_dht!(debug "Watch created: id={} expiration_ts={} ({})", wva.answer.watch_id, display_ts(wva.answer.expiration_ts.as_u64()), next_node);
                         done = true;
                     } else {
                         // If the returned expiration time is zero, this watch was cancelled or rejected

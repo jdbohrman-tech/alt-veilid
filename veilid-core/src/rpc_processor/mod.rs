@@ -692,7 +692,7 @@ impl RPCProcessor {
         match &out {
             Err(e) => {
                 log_rpc!(debug "RPC Lost (id={} {}): {}", id, debug_string, e);
-                self.record_question_lost(
+                self.record_lost_answer(
                     waitable_reply.send_ts,
                     waitable_reply.node_ref.clone(),
                     waitable_reply.safety_route,
@@ -702,7 +702,7 @@ impl RPCProcessor {
             }
             Ok(TimeoutOr::Timeout) => {
                 log_rpc!(debug "RPC Lost (id={} {}): Timeout", id, debug_string);
-                self.record_question_lost(
+                self.record_lost_answer(
                     waitable_reply.send_ts,
                     waitable_reply.node_ref.clone(),
                     waitable_reply.safety_route,
@@ -1008,11 +1008,8 @@ impl RPCProcessor {
         let routing_table = self.routing_table();
 
         if let Some(published_peer_info) = routing_table.get_published_peer_info(routing_domain) {
-            // Get our node info timestamp
-            let our_node_info_ts = published_peer_info.signed_node_info().timestamp();
-
             // If the target has not yet seen our published peer info, send it along if we have it
-            if !node.has_seen_our_node_info_ts(routing_domain, our_node_info_ts) {
+            if !node.has_seen_our_node_info_ts(routing_domain) {
                 return SenderPeerInfo::new(published_peer_info, target_node_info_ts);
             }
         }
@@ -1056,7 +1053,7 @@ impl RPCProcessor {
 
     /// Record question lost to node or route
     #[instrument(level = "trace", target = "rpc", skip_all)]
-    fn record_question_lost(
+    fn record_lost_answer(
         &self,
         send_ts: Timestamp,
         node_ref: NodeRef,
@@ -1066,7 +1063,7 @@ impl RPCProcessor {
     ) {
         // Record for node if this was not sent via a route
         if safety_route.is_none() && remote_private_route.is_none() {
-            node_ref.stats_question_lost();
+            node_ref.stats_lost_answer();
 
             // Also clear the last_connections for the entry so we make a new connection next time
             node_ref.clear_last_flows();
@@ -1080,19 +1077,19 @@ impl RPCProcessor {
         if let Some(sr_pubkey) = &safety_route {
             let rss = self.routing_table.route_spec_store();
             rss.with_route_stats_mut(send_ts, sr_pubkey, |s| {
-                s.record_question_lost();
+                s.record_lost_answer();
             });
         }
         // If remote private route was used, record question lost there
         if let Some(rpr_pubkey) = &remote_private_route {
             rss.with_route_stats_mut(send_ts, rpr_pubkey, |s| {
-                s.record_question_lost();
+                s.record_lost_answer();
             });
         }
         // If private route was used, record question lost there
         if let Some(pr_pubkey) = &private_route {
             rss.with_route_stats_mut(send_ts, pr_pubkey, |s| {
-                s.record_question_lost();
+                s.record_lost_answer();
             });
         }
     }
@@ -1169,8 +1166,8 @@ impl RPCProcessor {
         // If safety route was used, record route there
         if let Some(sr_pubkey) = &safety_route {
             rss.with_route_stats_mut(send_ts, sr_pubkey, |s| {
-                // If we received an answer, the safety route we sent over can be considered tested
-                s.record_tested(recv_ts);
+                // Record received bytes
+                s.record_answer_received(recv_ts, bytes);
 
                 // If we used a safety route to send, use our last tested latency
                 total_local_latency += s.latency_stats().average
@@ -1181,7 +1178,7 @@ impl RPCProcessor {
         if let Some(pr_pubkey) = &reply_private_route {
             rss.with_route_stats_mut(send_ts, pr_pubkey, |s| {
                 // Record received bytes
-                s.record_received(recv_ts, bytes);
+                s.record_answer_received(recv_ts, bytes);
 
                 // If we used a private route to receive, use our last tested latency
                 total_local_latency += s.latency_stats().average
@@ -1192,7 +1189,7 @@ impl RPCProcessor {
         if let Some(rpr_pubkey) = &remote_private_route {
             rss.with_route_stats_mut(send_ts, rpr_pubkey, |s| {
                 // Record received bytes
-                s.record_received(recv_ts, bytes);
+                s.record_answer_received(recv_ts, bytes);
 
                 // The remote route latency is recorded using the total latency minus the total local latency
                 let remote_latency = total_latency.saturating_sub(total_local_latency);
@@ -1248,7 +1245,7 @@ impl RPCProcessor {
                 // This may record nothing if the remote safety route is not also
                 // a remote private route that been imported, but that's okay
                 rss.with_route_stats_mut(recv_ts, &d.remote_safety_route, |s| {
-                    s.record_received(recv_ts, bytes);
+                    s.record_question_received(recv_ts, bytes);
                 });
             }
             // Process messages that arrived to our private route
@@ -1260,12 +1257,12 @@ impl RPCProcessor {
                 // it could also be a node id if no remote safety route was used
                 // in which case this also will do nothing
                 rss.with_route_stats_mut(recv_ts, &d.remote_safety_route, |s| {
-                    s.record_received(recv_ts, bytes);
+                    s.record_question_received(recv_ts, bytes);
                 });
 
                 // Record for our local private route we received over
                 rss.with_route_stats_mut(recv_ts, &d.private_route, |s| {
-                    s.record_received(recv_ts, bytes);
+                    s.record_question_received(recv_ts, bytes);
                 });
             }
         }
@@ -1748,7 +1745,7 @@ impl RPCProcessor {
                             log_rpc!(debug "Could not complete rpc operation: id = {}: {}", op_id, e);
                         }
                         RPCError::Ignore(_) => {
-                            log_rpc!("Answer late: id = {}", op_id);
+                            log_rpc!(debug "Answer late: id = {}", op_id);
                         }
                     };
                     // Don't throw an error here because it's okay if the original operation timed out

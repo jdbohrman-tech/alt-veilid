@@ -122,4 +122,10 @@ impl RouteSpecStoreContent {
             rssd.get_stats_mut().roll_transfers(last_ts, cur_ts);
         }
     }
+    /// Roll answer statistics
+    pub fn roll_answers(&mut self, cur_ts: Timestamp) {
+        for rssd in self.details.values_mut() {
+            rssd.get_stats_mut().roll_answers(cur_ts);
+        }
+    }
 }

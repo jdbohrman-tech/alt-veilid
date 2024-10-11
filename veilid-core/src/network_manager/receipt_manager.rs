@@ -74,24 +74,13 @@ impl fmt::Debug for ReceiptRecordCallbackType {
     }
 }
 
+#[derive(Debug)]
 struct ReceiptRecord {
     expiration_ts: Timestamp,
     receipt: Receipt,
     expected_returns: u32,
     returns_so_far: u32,
     receipt_callback: ReceiptRecordCallbackType,
-}
-
-impl fmt::Debug for ReceiptRecord {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ReceiptRecord")
-            .field("expiration_ts", &self.expiration_ts)
-            .field("receipt", &self.receipt)
-            .field("expected_returns", &self.expected_returns)
-            .field("returns_so_far", &self.returns_so_far)
-            .field("receipt_callback", &self.receipt_callback)
-            .finish()
-    }
 }
 
 impl ReceiptRecord {

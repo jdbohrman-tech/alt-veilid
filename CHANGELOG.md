@@ -1,3 +1,36 @@
+**Changed in Veilid 0.3.5** _WIP_
+- Dialinfo detection issues:
+  - Add a publish() as well as a commit() for routing domain editor
+  - Should only publish our peer info after we're sure we done editing it (end of public address detection task)
+  - Publish should happen after relay selection as well
+  - Publish should happen if the relay's peerinfo has changed
+  - Publish should not do anything if the peerinfo hasn't changed
+  - PeerInfo -> Arc<PeerInfo> everywhere to minimize deep clones and ensure read-only PeerInfo
+  - Routing domain editing is now more atomic
+  - When a node selects a relay it now immediately protects its connections.
+  - Made dial info port (for port restricted nat) more resilient to changes, in the case there are multiple mappings
+  - Relays that drop protected connections should be deprioritized for relay selection (table saturation detection)
+  - clear_network_callback in do_public_dial_info_check is a kludge, removed
+  - Raised the bar for dialinfo changes when its just the port
+  - Pinging node on the same network works again
+  - resolve_node() never returns a dead node even when we want to try to communicate with it again
+  - Removed 'bad public address' detection as it wasn't working anyway
+  - Added separate parallelism lanes for relay keepalive pings from peer liveness check pings, as they are higher priority
+  - Change send_data to always check cache for contact method first instead of going with filtered active flows first, avoids choosing UDP when a preferable TCP connection could be made
+  - Nodes that are not relay capable should drop relayed packets
+
+- DHT issues:
+  - Make setvalue more likely to succeed by accepting a getvalue consensus if a full setvalue consensus is not reached.
+  - Offline subkey writes are cleared too fast and should be thought as 'subkeys not yet synchronized'
+  - If set_value is partial / in-flight, it should still be in offline_subkey_writes
+  - Make inflight_subkey_writes list and probably some bit for 'written_while_inflight' so we dont clear the offline_subkey_writes until they're really written
+
+
+- API Additions:
+  - VeilidConfigInner::new parameteriztion for easier config from rust apps
+  - Remove veilid-server specific paths from veilid-core defaults
+  - Lots more stats about node performance in PeerStats
+
 **Changed in Veilid 0.3.4**
 - Crates updates
   - Update crates to newer versions

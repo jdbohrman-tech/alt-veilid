@@ -5,6 +5,7 @@ mod native;
 #[cfg(target_arch = "wasm32")]
 mod wasm;
 
+mod address_check;
 mod address_filter;
 mod connection_handle;
 mod connection_manager;
@@ -30,6 +31,7 @@ pub(crate) use stats::*;
 pub use types::*;
 
 ////////////////////////////////////////////////////////////////////////////////////////
+use address_check::*;
 use address_filter::*;
 use connection_handle::*;
 use crypto::*;
@@ -54,16 +56,9 @@ pub const IPADDR_TABLE_SIZE: usize = 1024;
 pub const IPADDR_MAX_INACTIVE_DURATION_US: TimestampDuration =
     TimestampDuration::new(300_000_000u64); // 5 minutes
 pub const NODE_CONTACT_METHOD_CACHE_SIZE: usize = 1024;
-pub const PUBLIC_ADDRESS_CHANGE_CONSISTENCY_DETECTION_COUNT: usize = 3; // Number of consistent results in the cache during outbound-only to trigger detection
-pub const PUBLIC_ADDRESS_CHANGE_INCONSISTENCY_DETECTION_COUNT: usize = 7; // Number of inconsistent results in the cache during inbound-capable to trigger detection
-pub const PUBLIC_ADDRESS_CHECK_CACHE_SIZE: usize = 10; // Length of consistent/inconsistent result cache for detection
-pub const PUBLIC_ADDRESS_CHECK_TASK_INTERVAL_SECS: u32 = 60;
-pub const PUBLIC_ADDRESS_INCONSISTENCY_TIMEOUT_US: TimestampDuration =
-    TimestampDuration::new(300_000_000u64); // 5 minutes
-pub const PUBLIC_ADDRESS_INCONSISTENCY_PUNISHMENT_TIMEOUT_US: TimestampDuration =
-    TimestampDuration::new(3_600_000_000_u64); // 60 minutes
 pub const ADDRESS_FILTER_TASK_INTERVAL_SECS: u32 = 60;
 pub const BOOT_MAGIC: &[u8; 4] = b"BOOT";
+pub const HOLE_PUNCH_DELAY_MS: u32 = 100;
 
 // Things we get when we start up and go away when we shut down
 // Routing table is not in here because we want it to survive a network shutdown/startup restart
@@ -117,9 +112,6 @@ struct NodeContactMethodCacheKey {
     target_node_ref_sequencing: Sequencing,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Hash)]
-struct PublicAddressCheckCacheKey(ProtocolType, AddressType);
-
 enum SendDataToExistingFlowResult {
     Sent(UniqueFlow),
     NotSent(Vec<u8>),
@@ -137,10 +129,7 @@ struct NetworkManagerInner {
     stats: NetworkManagerStats,
     client_allowlist: LruCache<TypedKey, ClientAllowlistEntry>,
     node_contact_method_cache: LruCache<NodeContactMethodCacheKey, NodeContactMethod>,
-    public_internet_address_check_cache:
-        BTreeMap<PublicAddressCheckCacheKey, LruCache<IpAddr, SocketAddress>>,
-    public_internet_address_inconsistencies_table:
-        BTreeMap<PublicAddressCheckCacheKey, HashMap<IpAddr, Timestamp>>,
+    address_check: Option<AddressCheck>,
 }
 
 struct NetworkManagerUnlockedInner {
@@ -158,7 +147,6 @@ struct NetworkManagerUnlockedInner {
     update_callback: RwLock<Option<UpdateCallback>>,
     // Background processes
     rolling_transfers_task: TickTask<EyreReport>,
-    public_internet_address_check_task: TickTask<EyreReport>,
     address_filter_task: TickTask<EyreReport>,
     // Network Key
     network_key: Option<SharedSecret>,
@@ -178,8 +166,7 @@ impl NetworkManager {
             stats: NetworkManagerStats::default(),
             client_allowlist: LruCache::new_unbounded(),
             node_contact_method_cache: LruCache::new(NODE_CONTACT_METHOD_CACHE_SIZE),
-            public_internet_address_check_cache: BTreeMap::new(),
-            public_internet_address_inconsistencies_table: BTreeMap::new(),
+            address_check: None,
         }
     }
     fn new_unlocked_inner(
@@ -204,10 +191,6 @@ impl NetworkManager {
             rolling_transfers_task: TickTask::new(
                 "rolling_transfers_task",
                 ROLLING_TRANSFERS_INTERVAL_SECS,
-            ),
-            public_internet_address_check_task: TickTask::new(
-                "public_address_check_task",
-                PUBLIC_ADDRESS_CHECK_TASK_INTERVAL_SECS,
             ),
             address_filter_task: TickTask::new(
                 "address_filter_task",
@@ -437,6 +420,20 @@ impl NetworkManager {
                 return Ok(StartupDisposition::BindRetry);
             }
         }
+
+        let (detect_address_changes, ip6_prefix_size) = self.with_config(|c| {
+            (
+                c.network.detect_address_changes,
+                c.network.max_connections_per_ip6_prefix_size as usize,
+            )
+        });
+        let address_check_config = AddressCheckConfig {
+            detect_address_changes,
+            ip6_prefix_size,
+        };
+        let address_check = AddressCheck::new(address_check_config, net.clone());
+        self.inner.lock().address_check = Some(address_check);
+
         rpc_processor.startup().await?;
         receipt_manager.startup().await?;
 
@@ -474,18 +471,22 @@ impl NetworkManager {
         // Cancel all tasks
         self.cancel_tasks().await;
 
+        // Shutdown address check
+        self.inner.lock().address_check = Option::<AddressCheck>::None;
+
         // Shutdown network components if they started up
         log_net!(debug "shutting down network components");
 
-        let components = self.unlocked_inner.components.read().clone();
-        if let Some(components) = components {
-            components.net.shutdown().await;
-            components.rpc_processor.shutdown().await;
-            components.receipt_manager.shutdown().await;
-            components.connection_manager.shutdown().await;
-
-            *self.unlocked_inner.components.write() = None;
+        {
+            let components = self.unlocked_inner.components.read().clone();
+            if let Some(components) = components {
+                components.net.shutdown().await;
+                components.rpc_processor.shutdown().await;
+                components.receipt_manager.shutdown().await;
+                components.connection_manager.shutdown().await;
+            }
         }
+        *self.unlocked_inner.components.write() = None;
 
         // reset the state
         log_net!(debug "resetting network manager state");
@@ -835,7 +836,8 @@ impl NetworkManager {
                         .await?
                 );
 
-                // XXX: do we need a delay here? or another hole punch packet?
+                // Add small delay to encourage packets to be delivered in order
+                sleep(HOLE_PUNCH_DELAY_MS).await;
 
                 // Set the hole punch as our 'last connection' to ensure we return the receipt over the direct hole punch
                 peer_nr.set_last_flow(unique_flow.flow, Timestamp::now());
@@ -1074,18 +1076,24 @@ impl NetworkManager {
         let routing_table = self.routing_table();
         let rpc = self.rpc_processor();
 
-        // Peek at header and see if we need to relay this
-        // If the recipient id is not our node id, then it needs relaying
+        // See if this sender is punished, if so, ignore the packet
         let sender_id = envelope.get_sender_typed_id();
         if self.address_filter().is_node_id_punished(sender_id) {
             return Ok(false);
         }
 
+        // Peek at header and see if we need to relay this
+        // If the recipient id is not our node id, then it needs relaying
         let recipient_id = envelope.get_recipient_typed_id();
         if !routing_table.matches_own_node_id(&[recipient_id]) {
             // See if the source node is allowed to resolve nodes
             // This is a costly operation, so only outbound-relay permitted
             // nodes are allowed to do this, for example PWA users
+
+            // xxx: eventually allow recipient_id to be in allowlist?
+            // xxx: to enable cross-routing domain relaying? or rather
+            // xxx: that 'localnetwork' routing domain nodes could be allowed to
+            // xxx: full relay as well as client_allowlist nodes...
 
             let some_relay_nr = if self.check_client_allowlist(sender_id) {
                 // Full relay allowed, do a full resolve_node
@@ -1095,13 +1103,26 @@ impl NetworkManager {
                 {
                     Ok(v) => v.map(|nr| nr.default_filtered()),
                     Err(e) => {
-                        log_net!(debug "failed to resolve recipient node for relay, dropping outbound relayed packet: {}" ,e);
+                        log_net!(debug "failed to resolve recipient node for relay, dropping relayed envelope: {}" ,e);
                         return Ok(false);
                     }
                 }
             } else {
                 // If this is not a node in the client allowlist, only allow inbound relay
                 // which only performs a lightweight lookup before passing the packet back out
+
+                // If our node has the relay capability disabled, we should not be asked to relay
+                if self.with_config(|c| c.capabilities.disable.contains(&CAP_RELAY)) {
+                    log_net!(debug "node has relay capability disabled, dropping relayed envelope from {} to {}", sender_id, recipient_id);
+                    return Ok(false);
+                }
+
+                // If our own node requires a relay, we should not be asked to relay
+                // on behalf of other nodes, just drop relayed packets if we can't relay
+                if routing_table.relay_node(routing_domain).is_some() {
+                    log_net!(debug "node requires a relay itself, dropping relayed envelope from {} to {}", sender_id, recipient_id);
+                    return Ok(false);
+                }
 
                 // See if we have the node in our routing table
                 // We should, because relays are chosen by nodes that have established connectivity and
@@ -1110,7 +1131,7 @@ impl NetworkManager {
                 match routing_table.lookup_node_ref(recipient_id) {
                     Ok(v) => v.map(|nr| nr.default_filtered()),
                     Err(e) => {
-                        log_net!(debug "failed to look up recipient node for relay, dropping outbound relayed packet: {}" ,e);
+                        log_net!(debug "failed to look up recipient node for relay, dropping relayed envelope: {}" ,e);
                         return Ok(false);
                     }
                 }
@@ -1195,5 +1216,49 @@ impl NetworkManager {
 
     pub fn restart_network(&self) {
         self.net().restart_network();
+    }
+
+    // If some other subsystem believes our dial info is no longer valid, this will trigger
+    // a re-check of the dial info and network class
+    pub fn set_needs_dial_info_check(&self, routing_domain: RoutingDomain) {
+        match routing_domain {
+            RoutingDomain::LocalNetwork => {
+                // nothing here yet
+            }
+            RoutingDomain::PublicInternet => {
+                self.net().set_needs_public_dial_info_check(None);
+            }
+        }
+    }
+
+    // Report peer info changes
+    pub fn report_peer_info_change(&mut self, peer_info: Arc<PeerInfo>) {
+        let mut inner = self.inner.lock();
+        if let Some(address_check) = inner.address_check.as_mut() {
+            address_check.report_peer_info_change(peer_info);
+        }
+    }
+
+    // Determine if our IP address has changed
+    // this means we should recreate our public dial info if it is not static and rediscover it
+    // Wait until we have received confirmation from N different peers
+    pub fn report_socket_address_change(
+        &self,
+        routing_domain: RoutingDomain, // the routing domain this flow is over
+        socket_address: SocketAddress, // the socket address as seen by the remote peer
+        old_socket_address: Option<SocketAddress>, // the socket address previously for this peer
+        flow: Flow,                    // the flow used
+        reporting_peer: NodeRef,       // the peer's noderef reporting the socket address
+    ) {
+        let mut inner = self.inner.lock();
+        if let Some(address_check) = inner.address_check.as_mut() {
+            address_check.report_socket_address_change(
+                routing_domain,
+                socket_address,
+                old_socket_address,
+                flow,
+                reporting_peer,
+            );
+        }
     }
 }

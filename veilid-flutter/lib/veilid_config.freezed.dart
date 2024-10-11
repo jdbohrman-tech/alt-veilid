@@ -25,8 +25,12 @@ mixin _$VeilidFFIConfigLoggingTerminal {
   VeilidConfigLogLevel get level => throw _privateConstructorUsedError;
   List<String> get ignoreLogTargets => throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidFFIConfigLoggingTerminal to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidFFIConfigLoggingTerminal
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidFFIConfigLoggingTerminalCopyWith<VeilidFFIConfigLoggingTerminal>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -56,6 +60,8 @@ class _$VeilidFFIConfigLoggingTerminalCopyWithImpl<$Res,
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidFFIConfigLoggingTerminal
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -105,6 +111,8 @@ class __$$VeilidFFIConfigLoggingTerminalImplCopyWithImpl<$Res>
       $Res Function(_$VeilidFFIConfigLoggingTerminalImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidFFIConfigLoggingTerminal
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -184,12 +192,14 @@ class _$VeilidFFIConfigLoggingTerminalImpl
                 .equals(other._ignoreLogTargets, _ignoreLogTargets));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, enabled, level,
       const DeepCollectionEquality().hash(_ignoreLogTargets));
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidFFIConfigLoggingTerminal
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidFFIConfigLoggingTerminalImplCopyWith<
@@ -222,8 +232,11 @@ abstract class _VeilidFFIConfigLoggingTerminal
   VeilidConfigLogLevel get level;
   @override
   List<String> get ignoreLogTargets;
+
+  /// Create a copy of VeilidFFIConfigLoggingTerminal
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidFFIConfigLoggingTerminalImplCopyWith<
           _$VeilidFFIConfigLoggingTerminalImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -242,8 +255,12 @@ mixin _$VeilidFFIConfigLoggingOtlp {
   String get serviceName => throw _privateConstructorUsedError;
   List<String> get ignoreLogTargets => throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidFFIConfigLoggingOtlp to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidFFIConfigLoggingOtlp
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidFFIConfigLoggingOtlpCopyWith<VeilidFFIConfigLoggingOtlp>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -274,6 +291,8 @@ class _$VeilidFFIConfigLoggingOtlpCopyWithImpl<$Res,
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidFFIConfigLoggingOtlp
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -335,6 +354,8 @@ class __$$VeilidFFIConfigLoggingOtlpImplCopyWithImpl<$Res>
       $Res Function(_$VeilidFFIConfigLoggingOtlpImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidFFIConfigLoggingOtlp
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -436,12 +457,14 @@ class _$VeilidFFIConfigLoggingOtlpImpl
                 .equals(other._ignoreLogTargets, _ignoreLogTargets));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, enabled, level, grpcEndpoint,
       serviceName, const DeepCollectionEquality().hash(_ignoreLogTargets));
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidFFIConfigLoggingOtlp
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidFFIConfigLoggingOtlpImplCopyWith<_$VeilidFFIConfigLoggingOtlpImpl>
@@ -478,8 +501,11 @@ abstract class _VeilidFFIConfigLoggingOtlp
   String get serviceName;
   @override
   List<String> get ignoreLogTargets;
+
+  /// Create a copy of VeilidFFIConfigLoggingOtlp
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidFFIConfigLoggingOtlpImplCopyWith<_$VeilidFFIConfigLoggingOtlpImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -495,8 +521,12 @@ mixin _$VeilidFFIConfigLoggingApi {
   VeilidConfigLogLevel get level => throw _privateConstructorUsedError;
   List<String> get ignoreLogTargets => throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidFFIConfigLoggingApi to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidFFIConfigLoggingApi
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidFFIConfigLoggingApiCopyWith<VeilidFFIConfigLoggingApi> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -524,6 +554,8 @@ class _$VeilidFFIConfigLoggingApiCopyWithImpl<$Res,
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidFFIConfigLoggingApi
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -573,6 +605,8 @@ class __$$VeilidFFIConfigLoggingApiImplCopyWithImpl<$Res>
       $Res Function(_$VeilidFFIConfigLoggingApiImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidFFIConfigLoggingApi
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -651,12 +685,14 @@ class _$VeilidFFIConfigLoggingApiImpl
                 .equals(other._ignoreLogTargets, _ignoreLogTargets));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, enabled, level,
       const DeepCollectionEquality().hash(_ignoreLogTargets));
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidFFIConfigLoggingApi
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidFFIConfigLoggingApiImplCopyWith<_$VeilidFFIConfigLoggingApiImpl>
@@ -686,8 +722,11 @@ abstract class _VeilidFFIConfigLoggingApi implements VeilidFFIConfigLoggingApi {
   VeilidConfigLogLevel get level;
   @override
   List<String> get ignoreLogTargets;
+
+  /// Create a copy of VeilidFFIConfigLoggingApi
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidFFIConfigLoggingApiImplCopyWith<_$VeilidFFIConfigLoggingApiImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -702,8 +741,12 @@ mixin _$VeilidFFIConfigLoggingFlame {
   bool get enabled => throw _privateConstructorUsedError;
   String get path => throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidFFIConfigLoggingFlame to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidFFIConfigLoggingFlame
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidFFIConfigLoggingFlameCopyWith<VeilidFFIConfigLoggingFlame>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -730,6 +773,8 @@ class _$VeilidFFIConfigLoggingFlameCopyWithImpl<$Res,
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidFFIConfigLoggingFlame
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -771,6 +816,8 @@ class __$$VeilidFFIConfigLoggingFlameImplCopyWithImpl<$Res>
       $Res Function(_$VeilidFFIConfigLoggingFlameImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidFFIConfigLoggingFlame
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -830,11 +877,13 @@ class _$VeilidFFIConfigLoggingFlameImpl
             (identical(other.path, path) || other.path == path));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, enabled, path);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidFFIConfigLoggingFlame
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidFFIConfigLoggingFlameImplCopyWith<_$VeilidFFIConfigLoggingFlameImpl>
@@ -862,8 +911,11 @@ abstract class _VeilidFFIConfigLoggingFlame
   bool get enabled;
   @override
   String get path;
+
+  /// Create a copy of VeilidFFIConfigLoggingFlame
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidFFIConfigLoggingFlameImplCopyWith<_$VeilidFFIConfigLoggingFlameImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -881,8 +933,12 @@ mixin _$VeilidFFIConfigLogging {
   VeilidFFIConfigLoggingApi get api => throw _privateConstructorUsedError;
   VeilidFFIConfigLoggingFlame get flame => throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidFFIConfigLogging to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidFFIConfigLogging
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidFFIConfigLoggingCopyWith<VeilidFFIConfigLogging> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -916,6 +972,8 @@ class _$VeilidFFIConfigLoggingCopyWithImpl<$Res,
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidFFIConfigLogging
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -944,6 +1002,8 @@ class _$VeilidFFIConfigLoggingCopyWithImpl<$Res,
     ) as $Val);
   }
 
+  /// Create a copy of VeilidFFIConfigLogging
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $VeilidFFIConfigLoggingTerminalCopyWith<$Res> get terminal {
@@ -953,6 +1013,8 @@ class _$VeilidFFIConfigLoggingCopyWithImpl<$Res,
     });
   }
 
+  /// Create a copy of VeilidFFIConfigLogging
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $VeilidFFIConfigLoggingOtlpCopyWith<$Res> get otlp {
@@ -961,6 +1023,8 @@ class _$VeilidFFIConfigLoggingCopyWithImpl<$Res,
     });
   }
 
+  /// Create a copy of VeilidFFIConfigLogging
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $VeilidFFIConfigLoggingApiCopyWith<$Res> get api {
@@ -969,6 +1033,8 @@ class _$VeilidFFIConfigLoggingCopyWithImpl<$Res,
     });
   }
 
+  /// Create a copy of VeilidFFIConfigLogging
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $VeilidFFIConfigLoggingFlameCopyWith<$Res> get flame {
@@ -1013,6 +1079,8 @@ class __$$VeilidFFIConfigLoggingImplCopyWithImpl<$Res>
       $Res Function(_$VeilidFFIConfigLoggingImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidFFIConfigLogging
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -1093,11 +1161,13 @@ class _$VeilidFFIConfigLoggingImpl
             (identical(other.flame, flame) || other.flame == flame));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, terminal, otlp, api, flame);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidFFIConfigLogging
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidFFIConfigLoggingImplCopyWith<_$VeilidFFIConfigLoggingImpl>
@@ -1131,8 +1201,11 @@ abstract class _VeilidFFIConfigLogging implements VeilidFFIConfigLogging {
   VeilidFFIConfigLoggingApi get api;
   @override
   VeilidFFIConfigLoggingFlame get flame;
+
+  /// Create a copy of VeilidFFIConfigLogging
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidFFIConfigLoggingImplCopyWith<_$VeilidFFIConfigLoggingImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -1145,8 +1218,12 @@ VeilidFFIConfig _$VeilidFFIConfigFromJson(Map<String, dynamic> json) {
 mixin _$VeilidFFIConfig {
   VeilidFFIConfigLogging get logging => throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidFFIConfig to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidFFIConfig
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidFFIConfigCopyWith<VeilidFFIConfig> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -1172,6 +1249,8 @@ class _$VeilidFFIConfigCopyWithImpl<$Res, $Val extends VeilidFFIConfig>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidFFIConfig
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -1185,6 +1264,8 @@ class _$VeilidFFIConfigCopyWithImpl<$Res, $Val extends VeilidFFIConfig>
     ) as $Val);
   }
 
+  /// Create a copy of VeilidFFIConfig
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $VeilidFFIConfigLoggingCopyWith<$Res> get logging {
@@ -1216,6 +1297,8 @@ class __$$VeilidFFIConfigImplCopyWithImpl<$Res>
       _$VeilidFFIConfigImpl _value, $Res Function(_$VeilidFFIConfigImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidFFIConfig
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -1264,11 +1347,13 @@ class _$VeilidFFIConfigImpl
             (identical(other.logging, logging) || other.logging == logging));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, logging);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidFFIConfig
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidFFIConfigImplCopyWith<_$VeilidFFIConfigImpl> get copyWith =>
@@ -1292,8 +1377,11 @@ abstract class _VeilidFFIConfig implements VeilidFFIConfig {
 
   @override
   VeilidFFIConfigLogging get logging;
+
+  /// Create a copy of VeilidFFIConfig
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidFFIConfigImplCopyWith<_$VeilidFFIConfigImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -1311,8 +1399,12 @@ mixin _$VeilidWASMConfigLoggingPerformance {
   bool get logsInConsole => throw _privateConstructorUsedError;
   List<String> get ignoreLogTargets => throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidWASMConfigLoggingPerformance to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidWASMConfigLoggingPerformance
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidWASMConfigLoggingPerformanceCopyWith<
           VeilidWASMConfigLoggingPerformance>
       get copyWith => throw _privateConstructorUsedError;
@@ -1345,6 +1437,8 @@ class _$VeilidWASMConfigLoggingPerformanceCopyWithImpl<$Res,
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidWASMConfigLoggingPerformance
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -1406,6 +1500,8 @@ class __$$VeilidWASMConfigLoggingPerformanceImplCopyWithImpl<$Res>
       $Res Function(_$VeilidWASMConfigLoggingPerformanceImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidWASMConfigLoggingPerformance
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -1507,12 +1603,14 @@ class _$VeilidWASMConfigLoggingPerformanceImpl
                 .equals(other._ignoreLogTargets, _ignoreLogTargets));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, enabled, level, logsInTimings,
       logsInConsole, const DeepCollectionEquality().hash(_ignoreLogTargets));
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidWASMConfigLoggingPerformance
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidWASMConfigLoggingPerformanceImplCopyWith<
@@ -1552,8 +1650,11 @@ abstract class _VeilidWASMConfigLoggingPerformance
   bool get logsInConsole;
   @override
   List<String> get ignoreLogTargets;
+
+  /// Create a copy of VeilidWASMConfigLoggingPerformance
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidWASMConfigLoggingPerformanceImplCopyWith<
           _$VeilidWASMConfigLoggingPerformanceImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -1570,8 +1671,12 @@ mixin _$VeilidWASMConfigLoggingApi {
   VeilidConfigLogLevel get level => throw _privateConstructorUsedError;
   List<String> get ignoreLogTargets => throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidWASMConfigLoggingApi to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidWASMConfigLoggingApi
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidWASMConfigLoggingApiCopyWith<VeilidWASMConfigLoggingApi>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -1600,6 +1705,8 @@ class _$VeilidWASMConfigLoggingApiCopyWithImpl<$Res,
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidWASMConfigLoggingApi
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -1649,6 +1756,8 @@ class __$$VeilidWASMConfigLoggingApiImplCopyWithImpl<$Res>
       $Res Function(_$VeilidWASMConfigLoggingApiImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidWASMConfigLoggingApi
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -1728,12 +1837,14 @@ class _$VeilidWASMConfigLoggingApiImpl
                 .equals(other._ignoreLogTargets, _ignoreLogTargets));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, enabled, level,
       const DeepCollectionEquality().hash(_ignoreLogTargets));
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidWASMConfigLoggingApi
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidWASMConfigLoggingApiImplCopyWith<_$VeilidWASMConfigLoggingApiImpl>
@@ -1764,8 +1875,11 @@ abstract class _VeilidWASMConfigLoggingApi
   VeilidConfigLogLevel get level;
   @override
   List<String> get ignoreLogTargets;
+
+  /// Create a copy of VeilidWASMConfigLoggingApi
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidWASMConfigLoggingApiImplCopyWith<_$VeilidWASMConfigLoggingApiImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -1781,8 +1895,12 @@ mixin _$VeilidWASMConfigLogging {
       throw _privateConstructorUsedError;
   VeilidWASMConfigLoggingApi get api => throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidWASMConfigLogging to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidWASMConfigLogging
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidWASMConfigLoggingCopyWith<VeilidWASMConfigLogging> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -1812,6 +1930,8 @@ class _$VeilidWASMConfigLoggingCopyWithImpl<$Res,
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidWASMConfigLogging
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -1830,6 +1950,8 @@ class _$VeilidWASMConfigLoggingCopyWithImpl<$Res,
     ) as $Val);
   }
 
+  /// Create a copy of VeilidWASMConfigLogging
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $VeilidWASMConfigLoggingPerformanceCopyWith<$Res> get performance {
@@ -1839,6 +1961,8 @@ class _$VeilidWASMConfigLoggingCopyWithImpl<$Res,
     });
   }
 
+  /// Create a copy of VeilidWASMConfigLogging
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $VeilidWASMConfigLoggingApiCopyWith<$Res> get api {
@@ -1877,6 +2001,8 @@ class __$$VeilidWASMConfigLoggingImplCopyWithImpl<$Res>
       $Res Function(_$VeilidWASMConfigLoggingImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidWASMConfigLogging
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -1936,11 +2062,13 @@ class _$VeilidWASMConfigLoggingImpl
             (identical(other.api, api) || other.api == api));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, performance, api);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidWASMConfigLogging
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidWASMConfigLoggingImplCopyWith<_$VeilidWASMConfigLoggingImpl>
@@ -1968,8 +2096,11 @@ abstract class _VeilidWASMConfigLogging implements VeilidWASMConfigLogging {
   VeilidWASMConfigLoggingPerformance get performance;
   @override
   VeilidWASMConfigLoggingApi get api;
+
+  /// Create a copy of VeilidWASMConfigLogging
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidWASMConfigLoggingImplCopyWith<_$VeilidWASMConfigLoggingImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -1982,8 +2113,12 @@ VeilidWASMConfig _$VeilidWASMConfigFromJson(Map<String, dynamic> json) {
 mixin _$VeilidWASMConfig {
   VeilidWASMConfigLogging get logging => throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidWASMConfig to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidWASMConfig
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidWASMConfigCopyWith<VeilidWASMConfig> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -2009,6 +2144,8 @@ class _$VeilidWASMConfigCopyWithImpl<$Res, $Val extends VeilidWASMConfig>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidWASMConfig
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -2022,6 +2159,8 @@ class _$VeilidWASMConfigCopyWithImpl<$Res, $Val extends VeilidWASMConfig>
     ) as $Val);
   }
 
+  /// Create a copy of VeilidWASMConfig
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $VeilidWASMConfigLoggingCopyWith<$Res> get logging {
@@ -2053,6 +2192,8 @@ class __$$VeilidWASMConfigImplCopyWithImpl<$Res>
       $Res Function(_$VeilidWASMConfigImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidWASMConfig
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -2101,11 +2242,13 @@ class _$VeilidWASMConfigImpl
             (identical(other.logging, logging) || other.logging == logging));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, logging);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidWASMConfig
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidWASMConfigImplCopyWith<_$VeilidWASMConfigImpl> get copyWith =>
@@ -2130,8 +2273,11 @@ abstract class _VeilidWASMConfig implements VeilidWASMConfig {
 
   @override
   VeilidWASMConfigLogging get logging;
+
+  /// Create a copy of VeilidWASMConfig
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidWASMConfigImplCopyWith<_$VeilidWASMConfigImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -2147,8 +2293,12 @@ mixin _$VeilidConfigHTTPS {
   String get path => throw _privateConstructorUsedError;
   String? get url => throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidConfigHTTPS to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidConfigHTTPS
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidConfigHTTPSCopyWith<VeilidConfigHTTPS> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -2172,6 +2322,8 @@ class _$VeilidConfigHTTPSCopyWithImpl<$Res, $Val extends VeilidConfigHTTPS>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidConfigHTTPS
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -2220,6 +2372,8 @@ class __$$VeilidConfigHTTPSImplCopyWithImpl<$Res>
       $Res Function(_$VeilidConfigHTTPSImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidConfigHTTPS
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -2300,12 +2454,14 @@ class _$VeilidConfigHTTPSImpl
             (identical(other.url, url) || other.url == url));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode =>
       Object.hash(runtimeType, enabled, listenAddress, path, url);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidConfigHTTPS
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidConfigHTTPSImplCopyWith<_$VeilidConfigHTTPSImpl> get copyWith =>
@@ -2338,8 +2494,11 @@ abstract class _VeilidConfigHTTPS implements VeilidConfigHTTPS {
   String get path;
   @override
   String? get url;
+
+  /// Create a copy of VeilidConfigHTTPS
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidConfigHTTPSImplCopyWith<_$VeilidConfigHTTPSImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -2355,8 +2514,12 @@ mixin _$VeilidConfigHTTP {
   String get path => throw _privateConstructorUsedError;
   String? get url => throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidConfigHTTP to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidConfigHTTP
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidConfigHTTPCopyWith<VeilidConfigHTTP> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -2380,6 +2543,8 @@ class _$VeilidConfigHTTPCopyWithImpl<$Res, $Val extends VeilidConfigHTTP>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidConfigHTTP
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -2428,6 +2593,8 @@ class __$$VeilidConfigHTTPImplCopyWithImpl<$Res>
       $Res Function(_$VeilidConfigHTTPImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidConfigHTTP
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -2508,12 +2675,14 @@ class _$VeilidConfigHTTPImpl
             (identical(other.url, url) || other.url == url));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode =>
       Object.hash(runtimeType, enabled, listenAddress, path, url);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidConfigHTTP
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidConfigHTTPImplCopyWith<_$VeilidConfigHTTPImpl> get copyWith =>
@@ -2546,8 +2715,11 @@ abstract class _VeilidConfigHTTP implements VeilidConfigHTTP {
   String get path;
   @override
   String? get url;
+
+  /// Create a copy of VeilidConfigHTTP
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidConfigHTTPImplCopyWith<_$VeilidConfigHTTPImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -2562,8 +2734,12 @@ mixin _$VeilidConfigApplication {
   VeilidConfigHTTPS get https => throw _privateConstructorUsedError;
   VeilidConfigHTTP get http => throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidConfigApplication to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidConfigApplication
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidConfigApplicationCopyWith<VeilidConfigApplication> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -2591,6 +2767,8 @@ class _$VeilidConfigApplicationCopyWithImpl<$Res,
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidConfigApplication
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -2609,6 +2787,8 @@ class _$VeilidConfigApplicationCopyWithImpl<$Res,
     ) as $Val);
   }
 
+  /// Create a copy of VeilidConfigApplication
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $VeilidConfigHTTPSCopyWith<$Res> get https {
@@ -2617,6 +2797,8 @@ class _$VeilidConfigApplicationCopyWithImpl<$Res,
     });
   }
 
+  /// Create a copy of VeilidConfigApplication
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $VeilidConfigHTTPCopyWith<$Res> get http {
@@ -2653,6 +2835,8 @@ class __$$VeilidConfigApplicationImplCopyWithImpl<$Res>
       $Res Function(_$VeilidConfigApplicationImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidConfigApplication
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -2711,11 +2895,13 @@ class _$VeilidConfigApplicationImpl
             (identical(other.http, http) || other.http == http));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, https, http);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidConfigApplication
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidConfigApplicationImplCopyWith<_$VeilidConfigApplicationImpl>
@@ -2742,8 +2928,11 @@ abstract class _VeilidConfigApplication implements VeilidConfigApplication {
   VeilidConfigHTTPS get https;
   @override
   VeilidConfigHTTP get http;
+
+  /// Create a copy of VeilidConfigApplication
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidConfigApplicationImplCopyWith<_$VeilidConfigApplicationImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -2759,8 +2948,12 @@ mixin _$VeilidConfigUDP {
   String get listenAddress => throw _privateConstructorUsedError;
   String? get publicAddress => throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidConfigUDP to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidConfigUDP
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidConfigUDPCopyWith<VeilidConfigUDP> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -2788,6 +2981,8 @@ class _$VeilidConfigUDPCopyWithImpl<$Res, $Val extends VeilidConfigUDP>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidConfigUDP
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -2840,6 +3035,8 @@ class __$$VeilidConfigUDPImplCopyWithImpl<$Res>
       _$VeilidConfigUDPImpl _value, $Res Function(_$VeilidConfigUDPImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidConfigUDP
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -2922,12 +3119,14 @@ class _$VeilidConfigUDPImpl
                 other.publicAddress == publicAddress));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
       runtimeType, enabled, socketPoolSize, listenAddress, publicAddress);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidConfigUDP
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidConfigUDPImplCopyWith<_$VeilidConfigUDPImpl> get copyWith =>
@@ -2960,8 +3159,11 @@ abstract class _VeilidConfigUDP implements VeilidConfigUDP {
   String get listenAddress;
   @override
   String? get publicAddress;
+
+  /// Create a copy of VeilidConfigUDP
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidConfigUDPImplCopyWith<_$VeilidConfigUDPImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -2978,8 +3180,12 @@ mixin _$VeilidConfigTCP {
   String get listenAddress => throw _privateConstructorUsedError;
   String? get publicAddress => throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidConfigTCP to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidConfigTCP
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidConfigTCPCopyWith<VeilidConfigTCP> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -3008,6 +3214,8 @@ class _$VeilidConfigTCPCopyWithImpl<$Res, $Val extends VeilidConfigTCP>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidConfigTCP
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -3066,6 +3274,8 @@ class __$$VeilidConfigTCPImplCopyWithImpl<$Res>
       _$VeilidConfigTCPImpl _value, $Res Function(_$VeilidConfigTCPImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidConfigTCP
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -3158,12 +3368,14 @@ class _$VeilidConfigTCPImpl
                 other.publicAddress == publicAddress));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, connect, listen, maxConnections,
       listenAddress, publicAddress);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidConfigTCP
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidConfigTCPImplCopyWith<_$VeilidConfigTCPImpl> get copyWith =>
@@ -3199,8 +3411,11 @@ abstract class _VeilidConfigTCP implements VeilidConfigTCP {
   String get listenAddress;
   @override
   String? get publicAddress;
+
+  /// Create a copy of VeilidConfigTCP
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidConfigTCPImplCopyWith<_$VeilidConfigTCPImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -3218,8 +3433,12 @@ mixin _$VeilidConfigWS {
   String get path => throw _privateConstructorUsedError;
   String? get url => throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidConfigWS to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidConfigWS
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidConfigWSCopyWith<VeilidConfigWS> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -3249,6 +3468,8 @@ class _$VeilidConfigWSCopyWithImpl<$Res, $Val extends VeilidConfigWS>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidConfigWS
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -3313,6 +3534,8 @@ class __$$VeilidConfigWSImplCopyWithImpl<$Res>
       _$VeilidConfigWSImpl _value, $Res Function(_$VeilidConfigWSImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidConfigWS
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -3414,12 +3637,14 @@ class _$VeilidConfigWSImpl
             (identical(other.url, url) || other.url == url));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
       runtimeType, connect, listen, maxConnections, listenAddress, path, url);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidConfigWS
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidConfigWSImplCopyWith<_$VeilidConfigWSImpl> get copyWith =>
@@ -3458,8 +3683,11 @@ abstract class _VeilidConfigWS implements VeilidConfigWS {
   String get path;
   @override
   String? get url;
+
+  /// Create a copy of VeilidConfigWS
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidConfigWSImplCopyWith<_$VeilidConfigWSImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -3477,8 +3705,12 @@ mixin _$VeilidConfigWSS {
   String get path => throw _privateConstructorUsedError;
   String? get url => throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidConfigWSS to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidConfigWSS
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidConfigWSSCopyWith<VeilidConfigWSS> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -3508,6 +3740,8 @@ class _$VeilidConfigWSSCopyWithImpl<$Res, $Val extends VeilidConfigWSS>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidConfigWSS
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -3572,6 +3806,8 @@ class __$$VeilidConfigWSSImplCopyWithImpl<$Res>
       _$VeilidConfigWSSImpl _value, $Res Function(_$VeilidConfigWSSImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidConfigWSS
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -3673,12 +3909,14 @@ class _$VeilidConfigWSSImpl
             (identical(other.url, url) || other.url == url));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
       runtimeType, connect, listen, maxConnections, listenAddress, path, url);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidConfigWSS
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidConfigWSSImplCopyWith<_$VeilidConfigWSSImpl> get copyWith =>
@@ -3717,8 +3955,11 @@ abstract class _VeilidConfigWSS implements VeilidConfigWSS {
   String get path;
   @override
   String? get url;
+
+  /// Create a copy of VeilidConfigWSS
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidConfigWSSImplCopyWith<_$VeilidConfigWSSImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -3734,8 +3975,12 @@ mixin _$VeilidConfigProtocol {
   VeilidConfigWS get ws => throw _privateConstructorUsedError;
   VeilidConfigWSS get wss => throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidConfigProtocol to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidConfigProtocol
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidConfigProtocolCopyWith<VeilidConfigProtocol> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -3769,6 +4014,8 @@ class _$VeilidConfigProtocolCopyWithImpl<$Res,
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidConfigProtocol
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -3797,6 +4044,8 @@ class _$VeilidConfigProtocolCopyWithImpl<$Res,
     ) as $Val);
   }
 
+  /// Create a copy of VeilidConfigProtocol
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $VeilidConfigUDPCopyWith<$Res> get udp {
@@ -3805,6 +4054,8 @@ class _$VeilidConfigProtocolCopyWithImpl<$Res,
     });
   }
 
+  /// Create a copy of VeilidConfigProtocol
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $VeilidConfigTCPCopyWith<$Res> get tcp {
@@ -3813,6 +4064,8 @@ class _$VeilidConfigProtocolCopyWithImpl<$Res,
     });
   }
 
+  /// Create a copy of VeilidConfigProtocol
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $VeilidConfigWSCopyWith<$Res> get ws {
@@ -3821,6 +4074,8 @@ class _$VeilidConfigProtocolCopyWithImpl<$Res,
     });
   }
 
+  /// Create a copy of VeilidConfigProtocol
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $VeilidConfigWSSCopyWith<$Res> get wss {
@@ -3862,6 +4117,8 @@ class __$$VeilidConfigProtocolImplCopyWithImpl<$Res>
       $Res Function(_$VeilidConfigProtocolImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidConfigProtocol
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -3941,11 +4198,13 @@ class _$VeilidConfigProtocolImpl
             (identical(other.wss, wss) || other.wss == wss));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, udp, tcp, ws, wss);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidConfigProtocol
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidConfigProtocolImplCopyWith<_$VeilidConfigProtocolImpl>
@@ -3979,8 +4238,11 @@ abstract class _VeilidConfigProtocol implements VeilidConfigProtocol {
   VeilidConfigWS get ws;
   @override
   VeilidConfigWSS get wss;
+
+  /// Create a copy of VeilidConfigProtocol
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidConfigProtocolImplCopyWith<_$VeilidConfigProtocolImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -3995,8 +4257,12 @@ mixin _$VeilidConfigTLS {
   String get privateKeyPath => throw _privateConstructorUsedError;
   int get connectionInitialTimeoutMs => throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidConfigTLS to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidConfigTLS
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidConfigTLSCopyWith<VeilidConfigTLS> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -4023,6 +4289,8 @@ class _$VeilidConfigTLSCopyWithImpl<$Res, $Val extends VeilidConfigTLS>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidConfigTLS
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -4069,6 +4337,8 @@ class __$$VeilidConfigTLSImplCopyWithImpl<$Res>
       _$VeilidConfigTLSImpl _value, $Res Function(_$VeilidConfigTLSImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidConfigTLS
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -4144,12 +4414,14 @@ class _$VeilidConfigTLSImpl
                     connectionInitialTimeoutMs));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
       runtimeType, certificatePath, privateKeyPath, connectionInitialTimeoutMs);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidConfigTLS
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidConfigTLSImplCopyWith<_$VeilidConfigTLSImpl> get copyWith =>
@@ -4179,8 +4451,11 @@ abstract class _VeilidConfigTLS implements VeilidConfigTLS {
   String get privateKeyPath;
   @override
   int get connectionInitialTimeoutMs;
+
+  /// Create a copy of VeilidConfigTLS
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidConfigTLSImplCopyWith<_$VeilidConfigTLSImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -4214,8 +4489,12 @@ mixin _$VeilidConfigDHT {
   int get memberWatchLimit => throw _privateConstructorUsedError;
   int get maxWatchExpirationMs => throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidConfigDHT to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidConfigDHT
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidConfigDHTCopyWith<VeilidConfigDHT> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -4261,6 +4540,8 @@ class _$VeilidConfigDHTCopyWithImpl<$Res, $Val extends VeilidConfigDHT>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidConfigDHT
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -4421,6 +4702,8 @@ class __$$VeilidConfigDHTImplCopyWithImpl<$Res>
       _$VeilidConfigDHTImpl _value, $Res Function(_$VeilidConfigDHTImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidConfigDHT
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -4712,7 +4995,7 @@ class _$VeilidConfigDHTImpl
                 other.maxWatchExpirationMs == maxWatchExpirationMs));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hashAll([
         runtimeType,
@@ -4740,7 +5023,9 @@ class _$VeilidConfigDHTImpl
         maxWatchExpirationMs
       ]);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidConfigDHT
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidConfigDHTImplCopyWith<_$VeilidConfigDHTImpl> get copyWith =>
@@ -4827,8 +5112,11 @@ abstract class _VeilidConfigDHT implements VeilidConfigDHT {
   int get memberWatchLimit;
   @override
   int get maxWatchExpirationMs;
+
+  /// Create a copy of VeilidConfigDHT
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidConfigDHTImplCopyWith<_$VeilidConfigDHTImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -4847,8 +5135,12 @@ mixin _$VeilidConfigRPC {
   int? get maxTimestampBehindMs => throw _privateConstructorUsedError;
   int? get maxTimestampAheadMs => throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidConfigRPC to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidConfigRPC
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidConfigRPCCopyWith<VeilidConfigRPC> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -4879,6 +5171,8 @@ class _$VeilidConfigRPCCopyWithImpl<$Res, $Val extends VeilidConfigRPC>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidConfigRPC
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -4949,6 +5243,8 @@ class __$$VeilidConfigRPCImplCopyWithImpl<$Res>
       _$VeilidConfigRPCImpl _value, $Res Function(_$VeilidConfigRPCImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidConfigRPC
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -5065,7 +5361,7 @@ class _$VeilidConfigRPCImpl
                 other.maxTimestampAheadMs == maxTimestampAheadMs));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
       runtimeType,
@@ -5077,7 +5373,9 @@ class _$VeilidConfigRPCImpl
       maxTimestampBehindMs,
       maxTimestampAheadMs);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidConfigRPC
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidConfigRPCImplCopyWith<_$VeilidConfigRPCImpl> get copyWith =>
@@ -5119,8 +5417,11 @@ abstract class _VeilidConfigRPC implements VeilidConfigRPC {
   int? get maxTimestampBehindMs;
   @override
   int? get maxTimestampAheadMs;
+
+  /// Create a copy of VeilidConfigRPC
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidConfigRPCImplCopyWith<_$VeilidConfigRPCImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -5143,8 +5444,12 @@ mixin _$VeilidConfigRoutingTable {
   int get limitAttachedGood => throw _privateConstructorUsedError;
   int get limitAttachedWeak => throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidConfigRoutingTable to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidConfigRoutingTable
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidConfigRoutingTableCopyWith<VeilidConfigRoutingTable> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -5177,6 +5482,8 @@ class _$VeilidConfigRoutingTableCopyWithImpl<$Res,
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidConfigRoutingTable
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -5256,6 +5563,8 @@ class __$$VeilidConfigRoutingTableImplCopyWithImpl<$Res>
       $Res Function(_$VeilidConfigRoutingTableImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidConfigRoutingTable
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -5403,7 +5712,7 @@ class _$VeilidConfigRoutingTableImpl
                 other.limitAttachedWeak == limitAttachedWeak));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
       runtimeType,
@@ -5416,7 +5725,9 @@ class _$VeilidConfigRoutingTableImpl
       limitAttachedGood,
       limitAttachedWeak);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidConfigRoutingTable
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidConfigRoutingTableImplCopyWith<_$VeilidConfigRoutingTableImpl>
@@ -5461,8 +5772,11 @@ abstract class _VeilidConfigRoutingTable implements VeilidConfigRoutingTable {
   int get limitAttachedGood;
   @override
   int get limitAttachedWeak;
+
+  /// Create a copy of VeilidConfigRoutingTable
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidConfigRoutingTableImplCopyWith<_$VeilidConfigRoutingTableImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -5494,8 +5808,12 @@ mixin _$VeilidConfigNetwork {
   VeilidConfigProtocol get protocol => throw _privateConstructorUsedError;
   String? get networkKeyPassword => throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidConfigNetwork to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidConfigNetwork
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidConfigNetworkCopyWith<VeilidConfigNetwork> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -5545,6 +5863,8 @@ class _$VeilidConfigNetworkCopyWithImpl<$Res, $Val extends VeilidConfigNetwork>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidConfigNetwork
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -5648,6 +5968,8 @@ class _$VeilidConfigNetworkCopyWithImpl<$Res, $Val extends VeilidConfigNetwork>
     ) as $Val);
   }
 
+  /// Create a copy of VeilidConfigNetwork
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $VeilidConfigRoutingTableCopyWith<$Res> get routingTable {
@@ -5657,6 +5979,8 @@ class _$VeilidConfigNetworkCopyWithImpl<$Res, $Val extends VeilidConfigNetwork>
     });
   }
 
+  /// Create a copy of VeilidConfigNetwork
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $VeilidConfigRPCCopyWith<$Res> get rpc {
@@ -5665,6 +5989,8 @@ class _$VeilidConfigNetworkCopyWithImpl<$Res, $Val extends VeilidConfigNetwork>
     });
   }
 
+  /// Create a copy of VeilidConfigNetwork
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $VeilidConfigDHTCopyWith<$Res> get dht {
@@ -5673,6 +5999,8 @@ class _$VeilidConfigNetworkCopyWithImpl<$Res, $Val extends VeilidConfigNetwork>
     });
   }
 
+  /// Create a copy of VeilidConfigNetwork
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $VeilidConfigTLSCopyWith<$Res> get tls {
@@ -5681,6 +6009,8 @@ class _$VeilidConfigNetworkCopyWithImpl<$Res, $Val extends VeilidConfigNetwork>
     });
   }
 
+  /// Create a copy of VeilidConfigNetwork
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $VeilidConfigApplicationCopyWith<$Res> get application {
@@ -5689,6 +6019,8 @@ class _$VeilidConfigNetworkCopyWithImpl<$Res, $Val extends VeilidConfigNetwork>
     });
   }
 
+  /// Create a copy of VeilidConfigNetwork
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $VeilidConfigProtocolCopyWith<$Res> get protocol {
@@ -5749,6 +6081,8 @@ class __$$VeilidConfigNetworkImplCopyWithImpl<$Res>
       $Res Function(_$VeilidConfigNetworkImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidConfigNetwork
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -6008,7 +6342,7 @@ class _$VeilidConfigNetworkImpl
                 other.networkKeyPassword == networkKeyPassword));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hashAll([
         runtimeType,
@@ -6033,7 +6367,9 @@ class _$VeilidConfigNetworkImpl
         networkKeyPassword
       ]);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidConfigNetwork
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidConfigNetworkImplCopyWith<_$VeilidConfigNetworkImpl> get copyWith =>
@@ -6111,8 +6447,11 @@ abstract class _VeilidConfigNetwork implements VeilidConfigNetwork {
   VeilidConfigProtocol get protocol;
   @override
   String? get networkKeyPassword;
+
+  /// Create a copy of VeilidConfigNetwork
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidConfigNetworkImplCopyWith<_$VeilidConfigNetworkImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -6127,8 +6466,12 @@ mixin _$VeilidConfigTableStore {
   String get directory => throw _privateConstructorUsedError;
   bool get delete => throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidConfigTableStore to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidConfigTableStore
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidConfigTableStoreCopyWith<VeilidConfigTableStore> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -6153,6 +6496,8 @@ class _$VeilidConfigTableStoreCopyWithImpl<$Res,
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidConfigTableStore
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -6194,6 +6539,8 @@ class __$$VeilidConfigTableStoreImplCopyWithImpl<$Res>
       $Res Function(_$VeilidConfigTableStoreImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidConfigTableStore
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -6253,11 +6600,13 @@ class _$VeilidConfigTableStoreImpl
             (identical(other.delete, delete) || other.delete == delete));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, directory, delete);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidConfigTableStore
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidConfigTableStoreImplCopyWith<_$VeilidConfigTableStoreImpl>
@@ -6284,8 +6633,11 @@ abstract class _VeilidConfigTableStore implements VeilidConfigTableStore {
   String get directory;
   @override
   bool get delete;
+
+  /// Create a copy of VeilidConfigTableStore
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidConfigTableStoreImplCopyWith<_$VeilidConfigTableStoreImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -6300,8 +6652,12 @@ mixin _$VeilidConfigBlockStore {
   String get directory => throw _privateConstructorUsedError;
   bool get delete => throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidConfigBlockStore to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidConfigBlockStore
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidConfigBlockStoreCopyWith<VeilidConfigBlockStore> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -6326,6 +6682,8 @@ class _$VeilidConfigBlockStoreCopyWithImpl<$Res,
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidConfigBlockStore
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -6367,6 +6725,8 @@ class __$$VeilidConfigBlockStoreImplCopyWithImpl<$Res>
       $Res Function(_$VeilidConfigBlockStoreImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidConfigBlockStore
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -6426,11 +6786,13 @@ class _$VeilidConfigBlockStoreImpl
             (identical(other.delete, delete) || other.delete == delete));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, directory, delete);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidConfigBlockStore
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidConfigBlockStoreImplCopyWith<_$VeilidConfigBlockStoreImpl>
@@ -6457,8 +6819,11 @@ abstract class _VeilidConfigBlockStore implements VeilidConfigBlockStore {
   String get directory;
   @override
   bool get delete;
+
+  /// Create a copy of VeilidConfigBlockStore
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidConfigBlockStoreImplCopyWith<_$VeilidConfigBlockStoreImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -6478,8 +6843,12 @@ mixin _$VeilidConfigProtectedStore {
   String? get newDeviceEncryptionKeyPassword =>
       throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidConfigProtectedStore to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidConfigProtectedStore
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidConfigProtectedStoreCopyWith<VeilidConfigProtectedStore>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -6511,6 +6880,8 @@ class _$VeilidConfigProtectedStoreCopyWithImpl<$Res,
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidConfigProtectedStore
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -6578,6 +6949,8 @@ class __$$VeilidConfigProtectedStoreImplCopyWithImpl<$Res>
       $Res Function(_$VeilidConfigProtectedStoreImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidConfigProtectedStore
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -6691,7 +7064,7 @@ class _$VeilidConfigProtectedStoreImpl
                     newDeviceEncryptionKeyPassword));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
       runtimeType,
@@ -6702,7 +7075,9 @@ class _$VeilidConfigProtectedStoreImpl
       deviceEncryptionKeyPassword,
       newDeviceEncryptionKeyPassword);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidConfigProtectedStore
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidConfigProtectedStoreImplCopyWith<_$VeilidConfigProtectedStoreImpl>
@@ -6743,8 +7118,11 @@ abstract class _VeilidConfigProtectedStore
   String get deviceEncryptionKeyPassword;
   @override
   String? get newDeviceEncryptionKeyPassword;
+
+  /// Create a copy of VeilidConfigProtectedStore
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidConfigProtectedStoreImplCopyWith<_$VeilidConfigProtectedStoreImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -6758,8 +7136,12 @@ VeilidConfigCapabilities _$VeilidConfigCapabilitiesFromJson(
 mixin _$VeilidConfigCapabilities {
   List<String> get disable => throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidConfigCapabilities to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidConfigCapabilities
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidConfigCapabilitiesCopyWith<VeilidConfigCapabilities> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -6784,6 +7166,8 @@ class _$VeilidConfigCapabilitiesCopyWithImpl<$Res,
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidConfigCapabilities
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -6820,6 +7204,8 @@ class __$$VeilidConfigCapabilitiesImplCopyWithImpl<$Res>
       $Res Function(_$VeilidConfigCapabilitiesImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidConfigCapabilities
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -6874,12 +7260,14 @@ class _$VeilidConfigCapabilitiesImpl
             const DeepCollectionEquality().equals(other._disable, _disable));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode =>
       Object.hash(runtimeType, const DeepCollectionEquality().hash(_disable));
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidConfigCapabilities
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidConfigCapabilitiesImplCopyWith<_$VeilidConfigCapabilitiesImpl>
@@ -6903,8 +7291,11 @@ abstract class _VeilidConfigCapabilities implements VeilidConfigCapabilities {
 
   @override
   List<String> get disable;
+
+  /// Create a copy of VeilidConfigCapabilities
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidConfigCapabilitiesImplCopyWith<_$VeilidConfigCapabilitiesImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -6925,8 +7316,12 @@ mixin _$VeilidConfig {
   VeilidConfigBlockStore get blockStore => throw _privateConstructorUsedError;
   VeilidConfigNetwork get network => throw _privateConstructorUsedError;
 
+  /// Serializes this VeilidConfig to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of VeilidConfig
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VeilidConfigCopyWith<VeilidConfig> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -6963,6 +7358,8 @@ class _$VeilidConfigCopyWithImpl<$Res, $Val extends VeilidConfig>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of VeilidConfig
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -7006,6 +7403,8 @@ class _$VeilidConfigCopyWithImpl<$Res, $Val extends VeilidConfig>
     ) as $Val);
   }
 
+  /// Create a copy of VeilidConfig
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $VeilidConfigCapabilitiesCopyWith<$Res> get capabilities {
@@ -7015,6 +7414,8 @@ class _$VeilidConfigCopyWithImpl<$Res, $Val extends VeilidConfig>
     });
   }
 
+  /// Create a copy of VeilidConfig
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $VeilidConfigProtectedStoreCopyWith<$Res> get protectedStore {
@@ -7024,6 +7425,8 @@ class _$VeilidConfigCopyWithImpl<$Res, $Val extends VeilidConfig>
     });
   }
 
+  /// Create a copy of VeilidConfig
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $VeilidConfigTableStoreCopyWith<$Res> get tableStore {
@@ -7032,6 +7435,8 @@ class _$VeilidConfigCopyWithImpl<$Res, $Val extends VeilidConfig>
     });
   }
 
+  /// Create a copy of VeilidConfig
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $VeilidConfigBlockStoreCopyWith<$Res> get blockStore {
@@ -7040,6 +7445,8 @@ class _$VeilidConfigCopyWithImpl<$Res, $Val extends VeilidConfig>
     });
   }
 
+  /// Create a copy of VeilidConfig
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $VeilidConfigNetworkCopyWith<$Res> get network {
@@ -7086,6 +7493,8 @@ class __$$VeilidConfigImplCopyWithImpl<$Res>
       _$VeilidConfigImpl _value, $Res Function(_$VeilidConfigImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of VeilidConfig
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -7199,12 +7608,14 @@ class _$VeilidConfigImpl with DiagnosticableTreeMixin implements _VeilidConfig {
             (identical(other.network, network) || other.network == network));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, programName, namespace,
       capabilities, protectedStore, tableStore, blockStore, network);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of VeilidConfig
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VeilidConfigImplCopyWith<_$VeilidConfigImpl> get copyWith =>
@@ -7245,8 +7656,11 @@ abstract class _VeilidConfig implements VeilidConfig {
   VeilidConfigBlockStore get blockStore;
   @override
   VeilidConfigNetwork get network;
+
+  /// Create a copy of VeilidConfig
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VeilidConfigImplCopyWith<_$VeilidConfigImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }

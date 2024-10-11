@@ -6,6 +6,7 @@ use futures_util::stream::FuturesUnordered;
 const PORT_MAP_VALIDATE_TRY_COUNT: usize = 3;
 const PORT_MAP_VALIDATE_DELAY_MS: u32 = 500;
 const PORT_MAP_TRY_COUNT: usize = 3;
+const EXTERNAL_INFO_VALIDATIONS: usize = 5;
 
 // Detection result of dial info detection futures
 #[derive(Clone, Debug)]
@@ -17,9 +18,16 @@ pub enum DetectedDialInfo {
 // Detection result of external address
 #[derive(Clone, Debug)]
 pub struct DetectionResult {
+    pub config: DiscoveryContextConfig,
     pub ddi: DetectedDialInfo,
     pub external_address_types: AddressTypeSet,
-    pub local_port: u16,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct DiscoveryContextConfig {
+    pub protocol_type: ProtocolType,
+    pub address_type: AddressType,
+    pub port: u16,
 }
 
 // Result of checking external address
@@ -31,23 +39,16 @@ struct ExternalInfo {
 }
 
 struct DiscoveryContextInner {
-    // first node contacted
-    external_1: Option<ExternalInfo>,
-    // second node contacted
-    external_2: Option<ExternalInfo>,
+    external_info: Vec<ExternalInfo>,
 }
 
 struct DiscoveryContextUnlockedInner {
     routing_table: RoutingTable,
     net: Network,
-    clear_network_callback: ClearNetworkCallback,
+    config: DiscoveryContextConfig,
 
     // per-protocol
     intf_addrs: Vec<SocketAddress>,
-    existing_external_address: Option<SocketAddress>,
-    protocol_type: ProtocolType,
-    address_type: AddressType,
-    port: u16,
 }
 
 #[derive(Clone)]
@@ -56,53 +57,23 @@ pub(super) struct DiscoveryContext {
     inner: Arc<Mutex<DiscoveryContextInner>>,
 }
 
-pub(super) type ClearNetworkCallback = Arc<dyn Fn() -> SendPinBoxFuture<()> + Send + Sync>;
-
 impl DiscoveryContext {
-    pub fn new(
-        routing_table: RoutingTable,
-        net: Network,
-        protocol_type: ProtocolType,
-        address_type: AddressType,
-        port: u16,
-        clear_network_callback: ClearNetworkCallback,
-    ) -> Self {
-        let intf_addrs =
-            Self::get_local_addresses(routing_table.clone(), protocol_type, address_type);
-
-        // Get the existing external address to check to see if it has changed
-        let existing_dial_info = routing_table.all_filtered_dial_info_details(
-            RoutingDomain::PublicInternet.into(),
-            &DialInfoFilter::default()
-                .with_address_type(address_type)
-                .with_protocol_type(protocol_type),
+    pub fn new(routing_table: RoutingTable, net: Network, config: DiscoveryContextConfig) -> Self {
+        let intf_addrs = Self::get_local_addresses(
+            routing_table.clone(),
+            config.protocol_type,
+            config.address_type,
         );
-        let existing_external_address = if existing_dial_info.len() == 1 {
-            Some(
-                existing_dial_info
-                    .first()
-                    .unwrap()
-                    .dial_info
-                    .socket_address(),
-            )
-        } else {
-            None
-        };
 
         Self {
             unlocked_inner: Arc::new(DiscoveryContextUnlockedInner {
                 routing_table,
                 net,
-                clear_network_callback,
+                config,
                 intf_addrs,
-                existing_external_address,
-                protocol_type,
-                address_type,
-                port,
             }),
             inner: Arc::new(Mutex::new(DiscoveryContextInner {
-                external_1: None,
-                external_2: None,
+                external_info: Vec::new(),
             })),
         }
     }
@@ -153,12 +124,12 @@ impl DiscoveryContext {
             }
         );
 
-        log_net!(
+        log_network_result!(
             debug "request_public_address {:?}: Value({:?})",
             node_ref,
             res.answer
         );
-        res.answer.map(|si| si.socket_address)
+        res.answer.opt_sender_info.map(|si| si.socket_address)
     }
 
     // find fast peers with a particular address type, and ask them to tell us what our external address is
@@ -171,8 +142,10 @@ impl DiscoveryContext {
             c.network.dht.max_find_node_count as usize
         };
         let routing_domain = RoutingDomain::PublicInternet;
-        let protocol_type = self.unlocked_inner.protocol_type;
-        let address_type = self.unlocked_inner.address_type;
+
+        let protocol_type = self.unlocked_inner.config.protocol_type;
+        let address_type = self.unlocked_inner.config.address_type;
+        let port = self.unlocked_inner.config.port;
 
         // Build an filter that matches our protocol and address type
         // and excludes relayed nodes so we can get an accurate external address
@@ -228,7 +201,6 @@ impl DiscoveryContext {
         }
 
         // For each peer, ask them for our public address, filtering on desired dial info
-        let mut unord = FuturesUnordered::new();
 
         let get_public_address_func = |node: NodeRef| {
             let this = self.clone();
@@ -242,7 +214,7 @@ impl DiscoveryContext {
                     let dial_info = this
                         .unlocked_inner
                         .net
-                        .make_dial_info(address, this.unlocked_inner.protocol_type);
+                        .make_dial_info(address, protocol_type);
                     return Some(ExternalInfo {
                         dial_info,
                         address,
@@ -254,46 +226,65 @@ impl DiscoveryContext {
         };
 
         let mut external_address_infos = Vec::new();
-
-        for node in nodes.iter().take(nodes.len() - 1).cloned() {
+        let mut unord = FuturesUnordered::new();
+        for node in nodes.iter().cloned() {
             let gpa_future = get_public_address_func(node);
             unord.push(gpa_future);
 
-            // Always process two at a time so we get both addresses in parallel if possible
-            if unord.len() == 2 {
+            // Always process N at a time so we get all addresses in parallel if possible
+            if unord.len() == EXTERNAL_INFO_VALIDATIONS {
                 // Process one
                 if let Some(Some(ei)) = unord.next().in_current_span().await {
                     external_address_infos.push(ei);
-                    if external_address_infos.len() == 2 {
+                    if external_address_infos.len() == EXTERNAL_INFO_VALIDATIONS {
                         break;
                     }
                 }
             }
         }
         // Finish whatever is left if we need to
-        if external_address_infos.len() < 2 {
+        if external_address_infos.len() < EXTERNAL_INFO_VALIDATIONS {
             while let Some(res) = unord.next().in_current_span().await {
                 if let Some(ei) = res {
                     external_address_infos.push(ei);
-                    if external_address_infos.len() == 2 {
+                    if external_address_infos.len() == EXTERNAL_INFO_VALIDATIONS {
                         break;
                     }
                 }
             }
         }
-        if external_address_infos.len() < 2 {
+        if external_address_infos.len() < EXTERNAL_INFO_VALIDATIONS {
             log_net!(debug "not enough peers responded with an external address for type {:?}:{:?}",
                 protocol_type,
                 address_type);
             return false;
         }
 
+        // Try to make preferential port come first
+        external_address_infos.sort_by(|a, b| {
+            let acmp = a.address.ip_addr().cmp(&b.address.ip_addr());
+            if acmp != cmp::Ordering::Equal {
+                return acmp;
+            }
+            if a.address.port() == b.address.port() {
+                return cmp::Ordering::Equal;
+            }
+            if a.address.port() == port {
+                return cmp::Ordering::Less;
+            }
+            if b.address.port() == port {
+                return cmp::Ordering::Greater;
+            }
+            a.address.port().cmp(&b.address.port())
+        });
+
         {
             let mut inner = self.inner.lock();
-            inner.external_1 = Some(external_address_infos[0].clone());
-            log_net!(debug "external_1: {:?}", inner.external_1);
-            inner.external_2 = Some(external_address_infos[1].clone());
-            log_net!(debug "external_2: {:?}", inner.external_2);
+            inner.external_info = external_address_infos;
+            log_net!(debug "External Addresses: ({:?}:{:?})[{}]",
+                protocol_type,
+                address_type,
+                inner.external_info.iter().map(|x| format!("{} <- {}",x.address, x.node)).collect::<Vec<_>>().join(", "));
         }
 
         true
@@ -323,11 +314,12 @@ impl DiscoveryContext {
 
     #[instrument(level = "trace", skip(self), ret)]
     async fn try_upnp_port_mapping(&self) -> Option<DialInfo> {
-        let protocol_type = self.unlocked_inner.protocol_type;
+        let protocol_type = self.unlocked_inner.config.protocol_type;
+        let address_type = self.unlocked_inner.config.address_type;
+        let local_port = self.unlocked_inner.config.port;
+
         let low_level_protocol_type = protocol_type.low_level_protocol_type();
-        let address_type = self.unlocked_inner.address_type;
-        let local_port = self.unlocked_inner.port;
-        let external_1 = self.inner.lock().external_1.as_ref().unwrap().clone();
+        let external_1 = self.inner.lock().external_info.first().unwrap().clone();
 
         let igd_manager = self.unlocked_inner.net.unlocked_inner.igd_manager.clone();
         let mut tries = 0;
@@ -410,7 +402,7 @@ impl DiscoveryContext {
         &self,
         unord: &mut FuturesUnordered<SendPinBoxFuture<Option<DetectionResult>>>,
     ) {
-        let external_1 = self.inner.lock().external_1.as_ref().unwrap().clone();
+        let external_1 = self.inner.lock().external_info.first().cloned().unwrap();
 
         let this = self.clone();
         let do_no_nat_fut: SendPinBoxFuture<Option<DetectionResult>> = Box::pin(async move {
@@ -421,22 +413,22 @@ impl DiscoveryContext {
             {
                 // Add public dial info with Direct dialinfo class
                 Some(DetectionResult {
+                    config: this.unlocked_inner.config,
                     ddi: DetectedDialInfo::Detected(DialInfoDetail {
                         dial_info: external_1.dial_info.clone(),
                         class: DialInfoClass::Direct,
                     }),
                     external_address_types: AddressTypeSet::only(external_1.address.address_type()),
-                    local_port: this.unlocked_inner.port,
                 })
             } else {
                 // Add public dial info with Blocked dialinfo class
                 Some(DetectionResult {
+                    config: this.unlocked_inner.config,
                     ddi: DetectedDialInfo::Detected(DialInfoDetail {
                         dial_info: external_1.dial_info.clone(),
                         class: DialInfoClass::Blocked,
                     }),
                     external_address_types: AddressTypeSet::only(external_1.address.address_type()),
-                    local_port: this.unlocked_inner.port,
                 })
             }
         });
@@ -449,28 +441,69 @@ impl DiscoveryContext {
         &self,
         unord: &mut FuturesUnordered<SendPinBoxFuture<Option<DetectionResult>>>,
     ) {
-        // Get the external dial info for our use here
-        let (external_1, external_2) = {
+        let external_info = {
             let inner = self.inner.lock();
-            (
-                inner.external_1.as_ref().unwrap().clone(),
-                inner.external_2.as_ref().unwrap().clone(),
-            )
+            inner.external_info.clone()
         };
+        let local_port = self.unlocked_inner.config.port;
 
-        // If we have two different external address/port combinations, then this is a symmetric NAT
-        if external_2.address != external_1.address {
+        // Get the external dial info histogram for our use here
+        let mut external_info_addr_port_hist = HashMap::<SocketAddress, usize>::new();
+        let mut external_info_addr_hist = HashMap::<Address, usize>::new();
+        for ei in &external_info {
+            external_info_addr_port_hist
+                .entry(ei.address)
+                .and_modify(|n| *n += 1)
+                .or_insert(1);
+            external_info_addr_hist
+                .entry(ei.address.address())
+                .and_modify(|n| *n += 1)
+                .or_insert(1);
+        }
+
+        // If we have two different external addresses, then this is a symmetric NAT
+        // If just the port differs, and one is the preferential port we still accept
+        // this as an inbound capable dialinfo for holepunch
+        let different_addresses = external_info_addr_hist.len() > 1;
+        let mut best_external_info = None;
+        let mut local_port_matching_external_info = None;
+        let mut external_address_types = AddressTypeSet::new();
+
+        // Get the most popular external port from our sampling
+        // There will always be a best external info
+        let mut best_ei_address = None;
+        let mut best_ei_cnt = 0;
+        for eiph in &external_info_addr_port_hist {
+            if *eiph.1 > best_ei_cnt {
+                best_ei_address = Some(*eiph.0);
+                best_ei_cnt = *eiph.1;
+            }
+        }
+        // In preference order, pick out the best external address and if we have one the one that
+        // matches our local port number (may be the same)
+        for ei in &external_info {
+            if ei.address.port() == local_port && local_port_matching_external_info.is_none() {
+                local_port_matching_external_info = Some(ei.clone());
+            }
+            if best_ei_address.unwrap() == ei.address && best_external_info.is_none() {
+                best_external_info = Some(ei.clone());
+            }
+            external_address_types |= ei.address.address_type();
+        }
+
+        // There is a popular port on the best external info (more than one external address sample with same port)
+        let same_address_has_popular_port = !different_addresses && best_ei_cnt > 1;
+
+        // If we have different addresses in our samples, or no single address has a popular port
+        // then we consider this a symmetric NAT
+        if different_addresses || !same_address_has_popular_port {
             let this = self.clone();
             let do_symmetric_nat_fut: SendPinBoxFuture<Option<DetectionResult>> =
                 Box::pin(async move {
                     Some(DetectionResult {
+                        config: this.unlocked_inner.config,
                         ddi: DetectedDialInfo::SymmetricNAT,
-                        external_address_types: AddressTypeSet::only(
-                            external_1.address.address_type(),
-                        ) | AddressTypeSet::only(
-                            external_2.address.address_type(),
-                        ),
-                        local_port: this.unlocked_inner.port,
+                        external_address_types,
                     })
                 });
             unord.push(do_symmetric_nat_fut);
@@ -478,11 +511,12 @@ impl DiscoveryContext {
         }
 
         // Manual Mapping Detection
+        // If we have no external address that matches our local port, then lets try that port
+        // on our best external address and see if there's a port forward someone added manually
         ///////////
         let this = self.clone();
-        let local_port = self.unlocked_inner.port;
-        if external_1.dial_info.port() != local_port {
-            let c_external_1 = external_1.clone();
+        if local_port_matching_external_info.is_none() && best_external_info.is_some() {
+            let c_external_1 = best_external_info.as_ref().unwrap().clone();
             let c_this = this.clone();
             let do_manual_map_fut: SendPinBoxFuture<Option<DetectionResult>> =
                 Box::pin(async move {
@@ -501,6 +535,7 @@ impl DiscoveryContext {
                     {
                         // Add public dial info with Direct dialinfo class
                         return Some(DetectionResult {
+                            config: c_this.unlocked_inner.config,
                             ddi: DetectedDialInfo::Detected(DialInfoDetail {
                                 dial_info: external_1_dial_info_with_local_port,
                                 class: DialInfoClass::Direct,
@@ -508,7 +543,6 @@ impl DiscoveryContext {
                             external_address_types: AddressTypeSet::only(
                                 c_external_1.address.address_type(),
                             ),
-                            local_port: c_this.unlocked_inner.port,
                         });
                     }
 
@@ -534,7 +568,7 @@ impl DiscoveryContext {
                 let mut ord = FuturesOrdered::new();
 
                 let c_this = this.clone();
-                let c_external_1 = external_1.clone();
+                let c_external_1 = external_info.first().cloned().unwrap();
                 let do_full_cone_fut: SendPinBoxFuture<Option<DetectionResult>> =
                     Box::pin(async move {
                         // Let's see what kind of NAT we have
@@ -551,6 +585,7 @@ impl DiscoveryContext {
                             // Add public dial info with full cone NAT network class
 
                             return Some(DetectionResult {
+                                config: c_this.unlocked_inner.config,
                                 ddi: DetectedDialInfo::Detected(DialInfoDetail {
                                     dial_info: c_external_1.dial_info,
                                     class: DialInfoClass::FullConeNAT,
@@ -558,7 +593,6 @@ impl DiscoveryContext {
                                 external_address_types: AddressTypeSet::only(
                                     c_external_1.address.address_type(),
                                 ),
-                                local_port: c_this.unlocked_inner.port,
                             });
                         }
                         None
@@ -566,8 +600,8 @@ impl DiscoveryContext {
                 ord.push_back(do_full_cone_fut);
 
                 let c_this = this.clone();
-                let c_external_1 = external_1.clone();
-                let c_external_2 = external_2.clone();
+                let c_external_1 = external_info.first().cloned().unwrap();
+                let c_external_2 = external_info.get(1).cloned().unwrap();
                 let do_restricted_cone_fut: SendPinBoxFuture<Option<DetectionResult>> =
                     Box::pin(async move {
                         // We are restricted, determine what kind of restriction
@@ -586,6 +620,7 @@ impl DiscoveryContext {
                         {
                             // Got a reply from a non-default port, which means we're only address restricted
                             return Some(DetectionResult {
+                                config: c_this.unlocked_inner.config,
                                 ddi: DetectedDialInfo::Detected(DialInfoDetail {
                                     dial_info: c_external_1.dial_info.clone(),
                                     class: DialInfoClass::AddressRestrictedNAT,
@@ -593,11 +628,11 @@ impl DiscoveryContext {
                                 external_address_types: AddressTypeSet::only(
                                     c_external_1.address.address_type(),
                                 ),
-                                local_port: c_this.unlocked_inner.port,
                             });
                         }
                         // Didn't get a reply from a non-default port, which means we are also port restricted
                         Some(DetectionResult {
+                            config: c_this.unlocked_inner.config,
                             ddi: DetectedDialInfo::Detected(DialInfoDetail {
                                 dial_info: c_external_1.dial_info.clone(),
                                 class: DialInfoClass::PortRestrictedNAT,
@@ -605,7 +640,6 @@ impl DiscoveryContext {
                             external_address_types: AddressTypeSet::only(
                                 c_external_1.address.address_type(),
                             ),
-                            local_port: c_this.unlocked_inner.port,
                         })
                     });
                 ord.push_back(do_restricted_cone_fut);
@@ -656,30 +690,6 @@ impl DiscoveryContext {
             return;
         }
 
-        // Did external address change from the last time we made dialinfo?
-        // Disregard port for this because we only need to know if the ip address has changed
-        // If the port has changed it will change only for this protocol and will be overwritten individually by each protocol discover()
-        let some_clear_network_callback = {
-            let inner = self.inner.lock();
-            let ext_1 = inner.external_1.as_ref().unwrap().address.address();
-            let ext_2 = inner.external_2.as_ref().unwrap().address.address();
-            if (ext_1 != ext_2)
-                || Some(ext_1)
-                    != self
-                        .unlocked_inner
-                        .existing_external_address
-                        .map(|ea| ea.address())
-            {
-                // External address was not found, or has changed, go ahead and clear the network so we can do better
-                Some(self.unlocked_inner.clear_network_callback.clone())
-            } else {
-                None
-            }
-        };
-        if let Some(clear_network_callback) = some_clear_network_callback {
-            clear_network_callback().in_current_span().await;
-        }
-
         // UPNP Automatic Mapping
         ///////////
         if enable_upnp {
@@ -691,6 +701,7 @@ impl DiscoveryContext {
                 if let Some(external_mapped_dial_info) = this.try_upnp_port_mapping().await {
                     // Got a port mapping, let's use it
                     return Some(DetectionResult {
+                        config: this.unlocked_inner.config,
                         ddi: DetectedDialInfo::Detected(DialInfoDetail {
                             dial_info: external_mapped_dial_info.clone(),
                             class: DialInfoClass::Mapped,
@@ -698,7 +709,6 @@ impl DiscoveryContext {
                         external_address_types: AddressTypeSet::only(
                             external_mapped_dial_info.address_type(),
                         ),
-                        local_port: this.unlocked_inner.port,
                     });
                 }
                 None
@@ -710,9 +720,20 @@ impl DiscoveryContext {
         ///////////
 
         // If our local interface list contains external_1 then there is no NAT in place
-        let external_1 = self.inner.lock().external_1.as_ref().unwrap().clone();
+        let local_address_in_external_info = self
+            .inner
+            .lock()
+            .external_info
+            .iter()
+            .find_map(|ei| {
+                self.unlocked_inner
+                    .intf_addrs
+                    .contains(&ei.address)
+                    .then_some(true)
+            })
+            .unwrap_or_default();
 
-        if self.unlocked_inner.intf_addrs.contains(&external_1.address) {
+        if local_address_in_external_info {
             self.protocol_process_no_nat(unord).await;
         } else {
             self.protocol_process_nat(unord).await;

@@ -124,8 +124,9 @@ impl VeilidClient {
             }
         } else {
             // Change a specific layer
-            let f = filters.get(layer.as_str()).unwrap();
-            f.set_max_level(log_level);
+            if let Some(f) = filters.get(layer.as_str()) {
+                f.set_max_level(log_level);
+            }
         }
     }
 
@@ -142,10 +143,11 @@ impl VeilidClient {
             }
         } else {
             // Change a specific layer
-            let f = filters.get(layer.as_str()).unwrap();
-            let mut ignore_list = f.ignore_list();
-            VeilidLayerFilter::apply_ignore_change_list(&mut ignore_list, &changes);
-            f.set_ignore_list(Some(ignore_list));
+            if let Some(f) = filters.get(layer.as_str()) {
+                let mut ignore_list = f.ignore_list();
+                VeilidLayerFilter::apply_ignore_change_list(&mut ignore_list, &changes);
+                f.set_ignore_list(Some(ignore_list));
+            }
         }
     }
     /// Shut down Veilid and terminate the API.

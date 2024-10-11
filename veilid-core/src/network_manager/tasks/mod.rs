@@ -1,5 +1,3 @@
-pub mod local_network_address_check;
-pub mod public_internet_address_check;
 pub mod rolling_transfers;
 
 use super::*;
@@ -13,20 +11,6 @@ impl NetworkManager {
                 .rolling_transfers_task
                 .set_routine(move |s, l, t| {
                     Box::pin(this.clone().rolling_transfers_task_routine(
-                        s,
-                        Timestamp::new(l),
-                        Timestamp::new(t),
-                    ))
-                });
-        }
-
-        // Set public internet address check task
-        {
-            let this = self.clone();
-            self.unlocked_inner
-                .public_internet_address_check_task
-                .set_routine(move |s, l, t| {
-                    Box::pin(this.clone().public_internet_address_check_task_routine(
                         s,
                         Timestamp::new(l),
                         Timestamp::new(t),

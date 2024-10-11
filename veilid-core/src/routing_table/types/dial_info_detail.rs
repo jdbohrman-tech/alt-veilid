@@ -7,6 +7,12 @@ pub struct DialInfoDetail {
     pub dial_info: DialInfo,
 }
 
+impl fmt::Display for DialInfoDetail {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}:{}", self.class, self.dial_info)
+    }
+}
+
 impl MatchesDialInfoFilter for DialInfoDetail {
     fn matches_filter(&self, filter: &DialInfoFilter) -> bool {
         self.dial_info.matches_filter(filter)

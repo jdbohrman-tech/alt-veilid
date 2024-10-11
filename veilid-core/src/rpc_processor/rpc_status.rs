@@ -1,8 +1,14 @@
 use super::*;
 
-#[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash, Default)]
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash, Default)]
 pub struct SenderInfo {
     pub socket_address: SocketAddress,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash, Default)]
+pub struct StatusResult {
+    pub opt_sender_info: Option<SenderInfo>,
+    pub opt_previous_sender_info: Option<SenderInfo>,
 }
 
 impl RPCProcessor {
@@ -19,7 +25,7 @@ impl RPCProcessor {
     pub async fn rpc_call_status(
         self,
         dest: Destination,
-    ) -> RPCNetworkResult<Answer<Option<SenderInfo>>> {
+    ) -> RPCNetworkResult<Answer<StatusResult>> {
         let _guard = self
             .unlocked_inner
             .startup_lock
@@ -105,6 +111,7 @@ impl RPCProcessor {
         // Don't need to validate these addresses for the current routing domain
         // the address itself is irrelevant, and the remote node can lie anyway
         let mut opt_sender_info = None;
+        let mut opt_previous_sender_info = None;
         match dest {
             Destination::Direct {
                 node: target,
@@ -120,24 +127,23 @@ impl RPCProcessor {
                         {
                             // Directly requested status that actually gets sent directly and not over a relay will tell us what our IP address appears as
                             // If this changes, we'd want to know about that to reset the networking stack
-                            match routing_domain {
-                                RoutingDomain::PublicInternet => self
-                                    .network_manager()
-                                    .report_public_internet_socket_address(
-                                        sender_info.socket_address,
-                                        send_data_method.unique_flow.flow,
-                                        target.unfiltered(),
-                                    ),
-                                RoutingDomain::LocalNetwork => {
-                                    self.network_manager().report_local_network_socket_address(
-                                        sender_info.socket_address,
-                                        send_data_method.unique_flow.flow,
-                                        target.unfiltered(),
-                                    )
-                                }
-                            }
+                            opt_previous_sender_info = target.report_sender_info(
+                                routing_domain,
+                                send_data_method.unique_flow.flow.protocol_type(),
+                                send_data_method.unique_flow.flow.address_type(),
+                                sender_info,
+                            );
                         };
-                        opt_sender_info = Some(sender_info.clone());
+                        opt_sender_info = Some(sender_info);
+
+                        // Report ping status results to network manager
+                        self.network_manager().report_socket_address_change(
+                            routing_domain,
+                            sender_info.socket_address,
+                            opt_previous_sender_info.map(|s| s.socket_address),
+                            send_data_method.unique_flow.flow,
+                            target.unfiltered(),
+                        );
                     }
                 }
             }
@@ -156,7 +162,10 @@ impl RPCProcessor {
         Ok(NetworkResult::value(Answer::new(
             latency,
             reply_private_route,
-            opt_sender_info,
+            StatusResult {
+                opt_sender_info,
+                opt_previous_sender_info,
+            },
         )))
     }
 
