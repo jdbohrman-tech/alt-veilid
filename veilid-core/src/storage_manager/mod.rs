@@ -18,9 +18,9 @@ pub use record_store::{WatchParameters, WatchResult};
 pub use types::*;
 
 /// The maximum size of a single subkey
-const MAX_SUBKEY_SIZE: usize = ValueData::MAX_LEN;
+pub(crate) const MAX_SUBKEY_SIZE: usize = ValueData::MAX_LEN;
 /// The maximum total size of all subkeys of a record
-const MAX_RECORD_DATA_SIZE: usize = 1_048_576;
+pub(crate) const MAX_RECORD_DATA_SIZE: usize = 1_048_576;
 /// Frequency to flush record stores to disk
 const FLUSH_RECORD_STORES_INTERVAL_SECS: u32 = 1;
 /// Frequency to check for offline subkeys writes to send to the network

@@ -1,4 +1,5 @@
 use super::*;
+use crate::storage_manager::{MAX_RECORD_DATA_SIZE, MAX_SUBKEY_SIZE};
 
 /// Simple DHT Schema (SMPL) Member
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
@@ -100,11 +101,22 @@ impl DHTSchemaSMPL {
     ) -> bool {
         let mut cur_subkey = subkey as usize;
 
+        let max_value_len = usize::min(
+            MAX_SUBKEY_SIZE,
+            MAX_RECORD_DATA_SIZE / (self.max_subkey() + 1) as usize,
+        );
+
         // Check if subkey is in owner range
         if cur_subkey < (self.o_cnt as usize) {
             // Check value data has valid writer
             if value_data.writer() == owner {
-                return true;
+                // Ensure value size is within additional limit
+                if value_data.data_size() <= max_value_len {
+                    return true;
+                }
+
+                // Value too big
+                return false;
             }
             // Wrong writer
             return false;
@@ -117,7 +129,13 @@ impl DHTSchemaSMPL {
             if cur_subkey < (m.m_cnt as usize) {
                 // Check value data has valid writer
                 if value_data.writer() == &m.m_key {
-                    return true;
+                    // Ensure value size is in allowed range
+                    if value_data.data_size() <= max_value_len {
+                        return true;
+                    }
+
+                    // Value too big
+                    return false;
                 }
                 // Wrong writer
                 return false;
