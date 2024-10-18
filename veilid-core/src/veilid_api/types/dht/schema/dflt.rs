@@ -1,4 +1,5 @@
 use super::*;
+use crate::storage_manager::{MAX_RECORD_DATA_SIZE, MAX_SUBKEY_SIZE};
 
 /// Default DHT Schema (DFLT)
 #[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize, JsonSchema)]
@@ -64,8 +65,18 @@ impl DHTSchemaDFLT {
         if subkey < (self.o_cnt as usize) {
             // Check value data has valid writer
             if value_data.writer() == owner {
+                let max_value_len =
+                    usize::min(MAX_SUBKEY_SIZE, MAX_RECORD_DATA_SIZE / self.o_cnt as usize);
+
+                // Ensure value size is within additional limit
+                if value_data.data_size() <= max_value_len {
+                    return true;
+                }
+
+                // Value too big
                 return true;
             }
+
             // Wrong writer
             return false;
         }
