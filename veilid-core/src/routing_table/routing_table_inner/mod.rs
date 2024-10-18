@@ -334,10 +334,7 @@ impl RoutingTableInner {
 
     /// Attempt to remove last_connections from entries
     pub fn purge_last_connections(&mut self) {
-        log_rtab!(
-            "Starting routing table last_connections purge. Table currently has {} nodes",
-            self.bucket_entry_count()
-        );
+        log_rtab!("Starting routing table last_connections purge.");
         for ck in VALID_CRYPTO_KINDS {
             for bucket in &self.buckets[&ck] {
                 for entry in bucket.entries() {
@@ -347,12 +344,7 @@ impl RoutingTableInner {
                 }
             }
         }
-        self.all_entries.remove_expired();
-
-        log_rtab!(debug
-            "Routing table last_connections purge complete. Routing table now has {} nodes",
-            self.bucket_entry_count()
-        );
+        log_rtab!(debug "Routing table last_connections purge complete.");
     }
 
     /// Attempt to settle buckets and remove entries down to the desired number
@@ -366,13 +358,6 @@ impl RoutingTableInner {
             self.all_entries.remove_expired();
 
             log_rtab!(debug "Bucket {}:{} kicked Routing table now has {} nodes\nKicked nodes:{:#?}", bucket_index.0, bucket_index.1, self.bucket_entry_count(), dead_node_ids);
-
-            // Now purge the routing table inner vectors
-            //let filter = |k: &DHTKey| dead_node_ids.contains(k);
-            //inner.closest_reliable_nodes.retain(filter);
-            //inner.fastest_reliable_nodes.retain(filter);
-            //inner.closest_nodes.retain(filter);
-            //inner.fastest_nodes.retain(filter);
         }
     }
 
@@ -611,21 +596,38 @@ impl RoutingTableInner {
     }
 
     // Update buckets with new node ids we may have learned belong to this entry
-    fn update_bucket_entries(
+    fn update_bucket_entry_node_ids(
         &mut self,
         entry: Arc<BucketEntry>,
         node_ids: &[TypedKey],
     ) -> EyreResult<()> {
         entry.with_mut_inner(|e| {
-            let existing_node_ids = e.node_ids();
+            let mut existing_node_ids = e.node_ids();
+
+            // Peer infos for all routing domains we have
+            let mut old_peer_infos = vec![];
+
             for node_id in node_ids {
+                let ck = node_id.kind;
+                let is_existing_node_id = existing_node_ids.contains(node_id);
+
+                existing_node_ids.remove(ck);
+
                 // Skip node ids that exist already
-                if existing_node_ids.contains(node_id) {
+                if is_existing_node_id {
                     continue;
                 }
 
+                // New node id, get the old peer info if we don't have it yet
+                if old_peer_infos.is_empty() {
+                    for rd in RoutingDomainSet::all() {
+                        if let Some(old_peer_info) = e.make_peer_info(rd) {
+                            old_peer_infos.push(old_peer_info);
+                        }
+                    }
+                }
+
                 // Add new node id to entry
-                let ck = node_id.kind;
                 if let Some(old_node_id) = e.add_node_id(*node_id)? {
                     // Remove any old node id for this crypto kind
                     if VALID_CRYPTO_KINDS.contains(&ck) {
@@ -644,6 +646,35 @@ impl RoutingTableInner {
 
                     // Kick bucket
                     self.unlocked_inner.kick_queue.lock().insert(bucket_index);
+                }
+            }
+
+            // Remove from buckets if node id wasn't seen in new peer info list
+            for node_id in existing_node_ids.iter() {
+                let ck = node_id.kind;
+                if VALID_CRYPTO_KINDS.contains(&ck) {
+                    let bucket_index = self.unlocked_inner.calculate_bucket_index(node_id);
+                    let bucket = self.get_bucket_mut(bucket_index);
+                    bucket.remove_entry(&node_id.value);
+                    entry.with_mut_inner(|e| e.remove_node_id(ck));
+                }
+            }
+
+            // New node id, get the old peer info if we don't have it yet
+            if !old_peer_infos.is_empty() {
+                let mut new_peer_infos = vec![];
+                for rd in RoutingDomainSet::all() {
+                    if let Some(new_peer_info) = e.make_peer_info(rd) {
+                        new_peer_infos.push(new_peer_info);
+                    }
+                }
+
+                // adding a node id should never change what routing domains peers are in
+                // so we should have a 1:1 ordered mapping here to update with the new nodeids
+                assert_eq!(old_peer_infos.len(), new_peer_infos.len());
+                for (old_pi, new_pi) in old_peer_infos.into_iter().zip(new_peer_infos.into_iter()) {
+                    assert_eq!(old_pi.routing_domain(), new_pi.routing_domain());
+                    self.on_entry_peer_info_updated(Some(old_pi), Some(new_pi));
                 }
             }
             Ok(())
@@ -694,7 +725,7 @@ impl RoutingTableInner {
         // If the entry does exist already, update it
         if let Some(best_entry) = best_entry {
             // Update the entry with all of the node ids
-            if let Err(e) = self.update_bucket_entries(best_entry.clone(), node_ids) {
+            if let Err(e) = self.update_bucket_entry_node_ids(best_entry.clone(), node_ids) {
                 bail!("Not registering new ids for existing node: {}", e);
             }
 
@@ -717,7 +748,7 @@ impl RoutingTableInner {
         self.unlocked_inner.kick_queue.lock().insert(bucket_entry);
 
         // Update the other bucket entries with the remaining node ids
-        if let Err(e) = self.update_bucket_entries(new_entry.clone(), node_ids) {
+        if let Err(e) = self.update_bucket_entry_node_ids(new_entry.clone(), node_ids) {
             bail!("Not registering new node: {}", e);
         }
 
@@ -870,51 +901,97 @@ impl RoutingTableInner {
         let (_routing_domain, node_ids, signed_node_info) =
             Arc::unwrap_or_clone(peer_info).destructure();
         let mut updated = false;
+        let mut old_peer_info = None;
         let nr = self.create_node_ref(outer_self, &node_ids, |_rti, e| {
-            updated = e.update_signed_node_info(routing_domain, signed_node_info);
+            old_peer_info = e.make_peer_info(routing_domain);
+            updated = e.update_signed_node_info(routing_domain, &signed_node_info);
         })?;
 
-        if updated {
-            // If this is our relay, then redo our own peerinfo because
-            // if we have relayed peerinfo, then changing the relay's peerinfo
-            // changes our own peer info
-            self.with_routing_domain(routing_domain, |rd| {
-                let opt_our_relay_node_ids = rd
-                    .relay_node()
-                    .map(|relay_nr| relay_nr.locked(self).node_ids());
-                if let Some(our_relay_node_ids) = opt_our_relay_node_ids {
-                    if our_relay_node_ids.contains_any(&node_ids) {
-                        rd.refresh();
-                        rd.publish_peer_info(self);
-                    }
-                }
-            });
+        // Process any new or updated PeerInfo
+        if old_peer_info.is_none() || updated {
+            let new_peer_info = nr.locked(self).make_peer_info(routing_domain);
+            self.on_entry_peer_info_updated(old_peer_info, new_peer_info);
         }
 
         Ok(nr.custom_filtered(NodeRefFilter::new().with_routing_domain(routing_domain)))
     }
 
     /// Shortcut function to add a node to our routing table if it doesn't exist
-    /// and add the last peer address we have for it, since that's pretty common
+    /// Returns a noderef filtered to
+    /// the routing domain in which this node was registered for convenience.
     #[instrument(level = "trace", skip_all, err)]
-    pub fn register_node_with_existing_connection(
+    pub fn register_node_with_id(
         &mut self,
         outer_self: RoutingTable,
         routing_domain: RoutingDomain,
         node_id: TypedKey,
-        flow: Flow,
         timestamp: Timestamp,
     ) -> EyreResult<FilteredNodeRef> {
         let nr = self.create_node_ref(outer_self, &TypedKeyGroup::from(node_id), |_rti, e| {
             //e.make_not_dead(timestamp);
             e.touch_last_seen(timestamp);
         })?;
-        // set the most recent node address for connection finding and udp replies
-        nr.locked_mut(self).set_last_flow(flow, timestamp);
 
         // Enforce routing domain
         let nr = nr.custom_filtered(NodeRefFilter::new().with_routing_domain(routing_domain));
         Ok(nr)
+    }
+
+    /// Called whenever a routing table entry is:
+    /// 1. created or updated with new peer information
+    /// 2. has a node id added or removed (per CryptoKind)
+    ///   * by a new peer info showing up with a different overlapping node id list
+    ///   * by a bucket kick removing an entry from a bucket for some cryptokind
+    /// 3. (todo) is removed from some routing domain (peer info gone)
+    ///
+    /// It is not called when:
+    /// 1. nodes are registered by id for an existing connection but have no peer info yet
+    /// 2. nodes are removed that don't have any peer info
+    fn on_entry_peer_info_updated(
+        &mut self,
+        old_peer_info: Option<PeerInfo>,
+        new_peer_info: Option<PeerInfo>,
+    ) {
+        let (routing_domain, node_ids) = match (old_peer_info.as_ref(), new_peer_info.as_ref()) {
+            (None, None) => {
+                return;
+            }
+            (None, Some(new_pi)) => (new_pi.routing_domain(), new_pi.node_ids().clone()),
+            (Some(old_pi), None) => (old_pi.routing_domain(), old_pi.node_ids().clone()),
+            (Some(old_pi), Some(new_pi)) => {
+                assert_eq!(
+                    old_pi.routing_domain(),
+                    new_pi.routing_domain(),
+                    "routing domains should be the same here",
+                );
+                let mut node_ids = old_pi.node_ids().clone();
+                node_ids.add_all(new_pi.node_ids());
+                (new_pi.routing_domain(), node_ids)
+            }
+        };
+
+        // If this is our relay, then redo our own peerinfo because
+        // if we have relayed peerinfo, then changing the relay's peerinfo
+        // changes our own peer info
+        self.with_routing_domain(routing_domain, |rd| {
+            let opt_our_relay_node_ids = rd
+                .relay_node()
+                .map(|relay_nr| relay_nr.locked(self).node_ids());
+            if let Some(our_relay_node_ids) = opt_our_relay_node_ids {
+                if our_relay_node_ids.contains_any(&node_ids) {
+                    rd.refresh();
+                    rd.publish_peer_info(self);
+                }
+            }
+        });
+
+        // Update tables that use peer info
+        // if let Some(_old_pi) = old_peer_info {
+        //     // Remove old info
+        // }
+        // if let Some(_new_pi) = new_peer_info {
+        //     // Add new info
+        // }
     }
 
     //////////////////////////////////////////////////////////////////////

@@ -81,10 +81,11 @@ where
         }
         self.items.sort()
     }
-    pub fn remove(&mut self, kind: CryptoKind) {
+    pub fn remove(&mut self, kind: CryptoKind) -> Option<CryptoTyped<K>> {
         if let Some(idx) = self.items.iter().position(|x| x.kind == kind) {
-            self.items.remove(idx);
+            return Some(self.items.remove(idx));
         }
+        None
     }
     pub fn remove_all(&mut self, kinds: &[CryptoKind]) {
         for k in kinds {

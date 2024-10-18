@@ -158,7 +158,7 @@ impl Bucket {
             }
             extra_entries -= 1;
 
-            // if this entry has references we can't drop it yet
+            // if this entry has NodeRef references we can't drop it yet
             if entry.1.ref_count.load(Ordering::Acquire) > 0 {
                 continue;
             }
@@ -170,11 +170,16 @@ impl Bucket {
 
             // if no references, lets evict it
             dead_node_ids.insert(entry.0);
+
+            // And remove the node id from the entry
+            entry.1.with_mut_inner(|e| e.remove_node_id(self.kind));
         }
 
         // Now purge the dead node ids
         for id in &dead_node_ids {
             // Remove the entry
+            // The entry may not be completely gone after this happens
+            // because it may still be in another bucket for a different CryptoKind
             self.remove_entry(id);
         }
 

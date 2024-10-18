@@ -6,6 +6,8 @@ use stop_token::future::FutureExt;
 
 const PROTECTED_CONNECTION_DROP_SPAN: TimestampDuration = TimestampDuration::new_secs(10);
 const PROTECTED_CONNECTION_DROP_COUNT: usize = 3;
+const NEW_CONNECTION_RETRY_COUNT: usize = 1;
+const NEW_CONNECTION_RETRY_DELAY_MS: u32 = 500;
 
 ///////////////////////////////////////////////////////////
 // Connection manager
@@ -381,10 +383,13 @@ impl ConnectionManager {
         self.arc.connection_table.touch_connection_by_id(id)
     }
 
-    // Protects a network connection if one already is established
+    /// Keep track of the number of things using a network connection if one already is established
+    /// to keep it from being removed from the table during use
     fn connection_ref(&self, id: NetworkConnectionId, kind: ConnectionRefKind) -> bool {
         self.arc.connection_table.ref_connection_by_id(id, kind)
     }
+
+    /// Scope guard for connection ref to keep connection alive when we're using it
     pub fn try_connection_ref_scope(&self, id: NetworkConnectionId) -> Option<ConnectionRefScope> {
         let Ok(_guard) = self.arc.startup_lock.enter() else {
             return None;
@@ -446,7 +451,7 @@ impl ConnectionManager {
         }
 
         // Attempt new connection
-        let mut retry_count = 1;
+        let mut retry_count = NEW_CONNECTION_RETRY_COUNT;
 
         let prot_conn = network_result_try!(loop {
             let result_net_res = ProtocolNetworkConnection::connect(
@@ -477,7 +482,7 @@ impl ConnectionManager {
 
             // Release the preferred local address if things can't connect due to a low-level collision we dont have a record of
             preferred_local_address = None;
-            sleep(500).await;
+            sleep(NEW_CONNECTION_RETRY_DELAY_MS).await;
         });
 
         // Add to the connection table
@@ -490,6 +495,15 @@ impl ConnectionManager {
         };
 
         self.on_new_protocol_network_connection(inner, prot_conn, Some(dial_info))
+    }
+
+    /// Register a flow as relaying through our node
+    pub fn add_relaying_flow(&self, flow: Flow) {
+        let Ok(_guard) = self.arc.startup_lock.enter() else {
+            return;
+        };
+
+        self.arc.connection_table.add_priority_flow(flow);
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////

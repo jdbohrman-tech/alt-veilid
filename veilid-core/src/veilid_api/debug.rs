@@ -714,7 +714,6 @@ impl VeilidAPI {
     async fn debug_nodeinfo(&self, _args: String) -> VeilidAPIResult<String> {
         // Dump routing table entry
         let routing_table = self.network_manager()?.routing_table();
-        let connection_manager = self.network_manager()?.connection_manager();
         let nodeinfo = routing_table.debug_info_nodeinfo();
 
         // Dump core state
@@ -737,7 +736,12 @@ impl VeilidAPI {
         }
 
         // Dump connection table
-        let connman = connection_manager.debug_print().await;
+        let connman =
+            if let Some(connection_manager) = self.network_manager()?.opt_connection_manager() {
+                connection_manager.debug_print().await
+            } else {
+                "Connection manager unavailable when detached".to_owned()
+            };
 
         Ok(format!("{}\n{}\n{}\n", nodeinfo, peertable, connman))
     }

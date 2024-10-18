@@ -60,6 +60,14 @@ impl DialInfoFilter {
         }
         // return ordered sort and filter with ensure applied
     }
+    pub fn is_ordered_only(&self) -> bool {
+        for pt in self.protocol_type_set {
+            if !pt.is_ordered() {
+                return false;
+            }
+        }
+        true
+    }
 }
 
 impl fmt::Debug for DialInfoFilter {

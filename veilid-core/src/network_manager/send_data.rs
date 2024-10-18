@@ -90,7 +90,7 @@ impl NetworkManager {
                             this.send_data_ncm_signal_reverse(relay_nr.clone(), target_node_ref.clone(), data.clone())
                                 .await?;
                         if matches!(nres, NetworkResult::Timeout) {
-                            // Failed to holepunch, fallback to inbound relay
+                            // Failed to reverse-connect, fallback to inbound relay
                             let success = REVERSE_CONNECT_SUCCESS.load(Ordering::Acquire);
                             let failure = REVERSE_CONNECT_FAILURE.fetch_add(1, Ordering::AcqRel) + 1;
                             let rate = (success as f64 * 100.0) / ((success + failure) as f64);
@@ -181,7 +181,7 @@ impl NetworkManager {
         };
 
         // Update timestamp for this last connection since we just sent to it
-        target_node_ref.set_last_flow(flow, Timestamp::now());
+        self.set_last_flow(target_node_ref.unfiltered(), flow, Timestamp::now());
 
         Ok(NetworkResult::value(SendDataMethod {
             contact_method: NodeContactMethod::Existing,
@@ -216,7 +216,7 @@ impl NetworkManager {
         };
 
         // Update timestamp for this last connection since we just sent to it
-        target_node_ref.set_last_flow(flow, Timestamp::now());
+        self.set_last_flow(target_node_ref.unfiltered(), flow, Timestamp::now());
 
         Ok(NetworkResult::value(SendDataMethod {
             contact_method: NodeContactMethod::Existing,
@@ -233,12 +233,28 @@ impl NetworkManager {
         target_node_ref: FilteredNodeRef,
         data: Vec<u8>,
     ) -> EyreResult<NetworkResult<SendDataMethod>> {
+        // Make a noderef that meets the sequencing requirements
+        // But is not protocol-specific, or address-family-specific
+        // as a signalled node gets to choose its own dial info for the reverse connection.
+        let (_sorted, seq_dif) = target_node_ref
+            .dial_info_filter()
+            .apply_sequencing(target_node_ref.sequencing());
+        let seq_target_node_ref = if seq_dif.is_ordered_only() {
+            target_node_ref
+                .unfiltered()
+                .sequencing_filtered(Sequencing::EnsureOrdered)
+        } else {
+            target_node_ref
+                .unfiltered()
+                .sequencing_filtered(Sequencing::NoPreference)
+        };
+
         // First try to send data to the last socket we've seen this peer on
-        let data = if let Some(flow) = target_node_ref.last_flow() {
+        let data = if let Some(flow) = seq_target_node_ref.last_flow() {
             match self.net().send_data_to_existing_flow(flow, data).await? {
                 SendDataToExistingFlowResult::Sent(unique_flow) => {
                     // Update timestamp for this last connection since we just sent to it
-                    target_node_ref.set_last_flow(flow, Timestamp::now());
+                    self.set_last_flow(target_node_ref.unfiltered(), flow, Timestamp::now());
 
                     return Ok(NetworkResult::value(SendDataMethod {
                         contact_method: NodeContactMethod::Existing,
@@ -254,6 +270,12 @@ impl NetworkManager {
             }
         } else {
             // No last connection
+            #[cfg(feature = "verbose-tracing")]
+            log_net!(debug
+                "No last flow in reverse connect for {:?}",
+                target_node_ref
+            );
+
             data
         };
 
@@ -281,7 +303,7 @@ impl NetworkManager {
             match self.net().send_data_to_existing_flow(flow, data).await? {
                 SendDataToExistingFlowResult::Sent(unique_flow) => {
                     // Update timestamp for this last connection since we just sent to it
-                    target_node_ref.set_last_flow(flow, Timestamp::now());
+                    self.set_last_flow(target_node_ref.unfiltered(), flow, Timestamp::now());
 
                     return Ok(NetworkResult::value(SendDataMethod {
                         contact_method: NodeContactMethod::Existing,
@@ -297,6 +319,12 @@ impl NetworkManager {
             }
         } else {
             // No last connection
+            #[cfg(feature = "verbose-tracing")]
+            log_net!(debug
+                "No last flow in hole punch for {:?}",
+                target_node_ref
+            );
+
             data
         };
 
@@ -333,7 +361,7 @@ impl NetworkManager {
             match self.net().send_data_to_existing_flow(flow, data).await? {
                 SendDataToExistingFlowResult::Sent(unique_flow) => {
                     // Update timestamp for this last connection since we just sent to it
-                    node_ref.set_last_flow(flow, Timestamp::now());
+                    self.set_last_flow(node_ref.unfiltered(), flow, Timestamp::now());
 
                     return Ok(NetworkResult::value(SendDataMethod {
                         contact_method: NodeContactMethod::Existing,
@@ -359,7 +387,7 @@ impl NetworkManager {
         );
 
         // If we connected to this node directly, save off the last connection so we can use it again
-        node_ref.set_last_flow(unique_flow.flow, Timestamp::now());
+        self.set_last_flow(node_ref.unfiltered(), unique_flow.flow, Timestamp::now());
 
         Ok(NetworkResult::value(SendDataMethod {
             contact_method: NodeContactMethod::Direct(dial_info),

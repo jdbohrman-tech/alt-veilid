@@ -281,10 +281,10 @@ impl DiscoveryContext {
         {
             let mut inner = self.inner.lock();
             inner.external_info = external_address_infos;
-            log_net!(debug "External Addresses: ({:?}:{:?})[{}]",
+            log_net!(debug "External Addresses ({:?}:{:?}):\n{}",
                 protocol_type,
                 address_type,
-                inner.external_info.iter().map(|x| format!("{} <- {}",x.address, x.node)).collect::<Vec<_>>().join(", "));
+                inner.external_info.iter().map(|x| format!("    {} <- {}",x.address, x.node)).collect::<Vec<_>>().join("\n"));
         }
 
         true

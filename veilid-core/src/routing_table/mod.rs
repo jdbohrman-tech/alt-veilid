@@ -703,22 +703,18 @@ impl RoutingTable {
     }
 
     /// Shortcut function to add a node to our routing table if it doesn't exist
-    /// and add the last peer address we have for it, since that's pretty common
+    /// Returns a noderef filtered to
+    /// the routing domain in which this node was registered for convenience.
     #[instrument(level = "trace", skip_all, err)]
-    pub fn register_node_with_existing_connection(
+    pub fn register_node_with_id(
         &self,
         routing_domain: RoutingDomain,
         node_id: TypedKey,
-        flow: Flow,
         timestamp: Timestamp,
     ) -> EyreResult<FilteredNodeRef> {
-        self.inner.write().register_node_with_existing_connection(
-            self.clone(),
-            routing_domain,
-            node_id,
-            flow,
-            timestamp,
-        )
+        self.inner
+            .write()
+            .register_node_with_id(self.clone(), routing_domain, node_id, timestamp)
     }
 
     //////////////////////////////////////////////////////////////////////

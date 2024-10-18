@@ -99,7 +99,7 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                 return false;
             }
 
-            // If we need a relay and we don't have one, don't publish yet
+            // If we need a relay and we don't have one, d  on't publish yet
             if let Some(_relay_kind) = self.requires_relay() {
                 if pi.signed_node_info().relay_ids().is_empty() {
                     log_rtab!(debug "[PublicInternet] Not publishing peer info that wants relay until we have a relay");
