@@ -211,6 +211,8 @@ impl RoutingTable {
             out += &format!("{:?}: {}: {}\n", routing_domain, crypto_kind, count);
         }
         for ck in &VALID_CRYPTO_KINDS {
+            let our_node_id = self.unlocked_inner.node_id(*ck);
+
             let mut filtered_total = 0;
             let mut b = 0;
             let blen = inner.buckets[ck].len();
@@ -236,17 +238,28 @@ impl RoutingTable {
                             .relay_node(RoutingDomain::PublicInternet)
                             .map(|r| r.same_bucket_entry(e.1))
                             .unwrap_or(false);
-                        let relay_tag = if is_relay {
-                            "R"
-                        } else if can_be_relay {
-                            "r"
-                        } else {
-                            "-"
-                        };
+
+                        let is_relaying =
+                            e.1.with(inner, |_rti, e| {
+                                e.signed_node_info(RoutingDomain::PublicInternet)
+                                    .map(|sni| sni.relay_ids().contains(&our_node_id))
+                            })
+                            .unwrap_or(false);
+                        let relay_tag = format!(
+                            "{}{}",
+                            if is_relay {
+                                "R"
+                            } else if can_be_relay {
+                                "r"
+                            } else {
+                                "-"
+                            },
+                            if is_relaying { ">" } else { "-" }
+                        );
 
                         out += "    ";
                         out += &e.1.with(inner, |_rti, e| {
-                            Self::format_entry(cur_ts, TypedKey::new(*ck, node), e, relay_tag)
+                            Self::format_entry(cur_ts, TypedKey::new(*ck, node), e, &relay_tag)
                         });
                         out += "\n";
                     }
@@ -267,7 +280,9 @@ impl RoutingTable {
     ) -> String {
         let cur_ts = Timestamp::now();
         let relay_node_filter = self.make_public_internet_relay_node_filter();
+        let our_node_ids = self.unlocked_inner.node_ids();
         let mut relay_count = 0usize;
+        let mut relaying_count = 0usize;
 
         let mut filters = VecDeque::new();
         filters.push_front(
@@ -297,28 +312,43 @@ impl RoutingTable {
                 .relay_node(RoutingDomain::PublicInternet)
                 .map(|r| r.same_entry(&node))
                 .unwrap_or(false);
-            let relay_tag = if is_relay {
-                "R"
-            } else if can_be_relay {
-                "r"
-            } else {
-                "-"
-            };
+
+            let is_relaying = node
+                .operate(|_rti, e| {
+                    e.signed_node_info(RoutingDomain::PublicInternet)
+                        .map(|sni| sni.relay_ids().contains_any(&our_node_ids))
+                })
+                .unwrap_or(false);
+            let relay_tag = format!(
+                "{}{}",
+                if is_relay {
+                    "R"
+                } else if can_be_relay {
+                    "r"
+                } else {
+                    "-"
+                },
+                if is_relaying { ">" } else { "-" }
+            );
             if can_be_relay {
                 relay_count += 1;
+            }
+            if is_relaying {
+                relaying_count += 1;
             }
 
             out += "    ";
             out += &node
-                .operate(|_rti, e| Self::format_entry(cur_ts, node.best_node_id(), e, relay_tag));
+                .operate(|_rti, e| Self::format_entry(cur_ts, node.best_node_id(), e, &relay_tag));
             out += "\n";
         }
 
         out += &format!(
-            "Entries: {}  Relays: {}  Relay %: {:.2}\n",
+            "Entries: {}\nRelay Capable: {}  Relay Capable %: {:.2}\nRelaying Through This Node: {}\n",
             entry_count,
             relay_count,
-            (relay_count as f64) * 100.0 / (entry_count as f64)
+            (relay_count as f64) * 100.0 / (entry_count as f64),
+            relaying_count,
         );
 
         out

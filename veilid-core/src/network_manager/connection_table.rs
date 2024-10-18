@@ -2,6 +2,10 @@ use super::*;
 use futures_util::StreamExt;
 use hashlink::LruCache;
 
+/// Allow 25% of the table size to be occupied by priority flows
+/// that will not be subject to LRU termination.
+const PRIORITY_FLOW_PERCENTAGE: usize = 25;
+
 ///////////////////////////////////////////////////////////////////////////////
 #[derive(ThisError, Debug)]
 pub(in crate::network_manager) enum ConnectionTableAddError {
@@ -41,6 +45,7 @@ struct ConnectionTableInner {
     id_by_flow: BTreeMap<Flow, NetworkConnectionId>,
     ids_by_remote: BTreeMap<PeerAddress, Vec<NetworkConnectionId>>,
     address_filter: AddressFilter,
+    priority_flows: Vec<LruCache<Flow, ()>>,
 }
 
 #[derive(Debug)]
@@ -60,16 +65,19 @@ impl ConnectionTable {
         };
         Self {
             inner: Arc::new(Mutex::new(ConnectionTableInner {
-                max_connections,
-                conn_by_id: vec![
-                    LruCache::new_unbounded(),
-                    LruCache::new_unbounded(),
-                    LruCache::new_unbounded(),
-                ],
+                conn_by_id: max_connections
+                    .iter()
+                    .map(|_| LruCache::new_unbounded())
+                    .collect(),
                 protocol_index_by_id: BTreeMap::new(),
                 id_by_flow: BTreeMap::new(),
                 ids_by_remote: BTreeMap::new(),
                 address_filter,
+                priority_flows: max_connections
+                    .iter()
+                    .map(|x| LruCache::new(x * PRIORITY_FLOW_PERCENTAGE / 100))
+                    .collect(),
+                max_connections,
             })),
         }
     }
@@ -144,6 +152,56 @@ impl ConnectionTable {
         false
     }
 
+    /// Add a priority flow, which is protected from eviction but without the
+    /// punishment expectations of a fully 'protected' connection.
+    /// This is an LRU set, so there is no removing the flows by hand, and
+    /// they are kept in a 'best effort' fashion.
+    /// If connections 'should' stay alive, use this mechanism.
+    /// If connections 'must' stay alive, use 'NetworkConnection::protect'.
+    pub fn add_priority_flow(&self, flow: Flow) {
+        let mut inner = self.inner.lock();
+        let protocol_index = Self::protocol_to_index(flow.protocol_type());
+        inner.priority_flows[protocol_index].insert(flow, ());
+    }
+
+    /// The mechanism for selecting which connections get evicted from the connection table
+    /// when it is getting full while adding a new connection.
+    /// Factored out into its own function for clarity.
+    fn lru_out_connection_inner(
+        inner: &mut ConnectionTableInner,
+        protocol_index: usize,
+    ) -> Result<Option<NetworkConnection>, ()> {
+        // If nothing needs to be LRUd out right now, then just return
+        if inner.conn_by_id[protocol_index].len() < inner.max_connections[protocol_index] {
+            return Ok(None);
+        }
+
+        // Find a free connection to terminate to make room
+        let dead_k = {
+            let Some(lruk) = inner.conn_by_id[protocol_index].iter().find_map(|(k, v)| {
+                // Ensure anything being LRU evicted isn't protected somehow
+                // 1. connections that are 'in-use' are kept
+                // 2. connections with flows in the priority list are kept
+                // 3. connections that are protected are kept
+                if !v.is_in_use()
+                    && !inner.priority_flows[protocol_index].contains_key(&v.flow())
+                    && v.protected_node_ref().is_none()
+                {
+                    Some(*k)
+                } else {
+                    None
+                }
+            }) else {
+                // Can't make room, connection table is full
+                return Err(());
+            };
+            lruk
+        };
+
+        let dead_conn = Self::remove_connection_records(inner, dead_k);
+        Ok(Some(dead_conn))
+    }
+
     #[instrument(level = "trace", skip(self), ret)]
     pub fn add_connection(
         &self,
@@ -190,26 +248,12 @@ impl ConnectionTable {
 
         // if we have reached the maximum number of connections per protocol type
         // then drop the least recently used connection that is not protected or referenced
-        let mut out_conn = None;
-        if inner.conn_by_id[protocol_index].len() >= inner.max_connections[protocol_index] {
-            // Find a free connection to terminate to make room
-            let dead_k = {
-                let Some(lruk) = inner.conn_by_id[protocol_index].iter().find_map(|(k, v)| {
-                    if !v.is_in_use() && v.protected_node_ref().is_none() {
-                        Some(*k)
-                    } else {
-                        None
-                    }
-                }) else {
-                    // Can't make room, connection table is full
-                    return Err(ConnectionTableAddError::table_full(network_connection));
-                };
-                lruk
-            };
-
-            let dead_conn = Self::remove_connection_records(&mut inner, dead_k);
-            out_conn = Some(dead_conn);
-        }
+        let out_conn = match Self::lru_out_connection_inner(&mut inner, protocol_index) {
+            Ok(v) => v,
+            Err(()) => {
+                return Err(ConnectionTableAddError::table_full(network_connection));
+            }
+        };
 
         // Add the connection to the table
         let res = inner.conn_by_id[protocol_index].insert(id, network_connection);
@@ -450,7 +494,26 @@ impl ConnectionTable {
             );
 
             for (_, conn) in &inner.conn_by_id[t] {
-                out += &format!("    {}\n", conn.debug_print(cur_ts));
+                let is_priority_flow = inner.priority_flows[t].contains_key(&conn.flow());
+
+                out += &format!(
+                    "    {}{}\n",
+                    conn.debug_print(cur_ts),
+                    if is_priority_flow { "PRIORITY" } else { "" }
+                );
+            }
+        }
+
+        for t in 0..inner.priority_flows.len() {
+            out += &format!(
+                "  {} Priority Flows: ({}/{})\n",
+                Self::index_to_protocol(t),
+                inner.priority_flows[t].len(),
+                inner.priority_flows[t].capacity(),
+            );
+
+            for (flow, _) in &inner.priority_flows[t] {
+                out += &format!("    {}\n", flow);
             }
         }
         out

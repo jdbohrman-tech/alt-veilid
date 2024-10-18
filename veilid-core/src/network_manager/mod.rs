@@ -840,7 +840,7 @@ impl NetworkManager {
                 sleep(HOLE_PUNCH_DELAY_MS).await;
 
                 // Set the hole punch as our 'last connection' to ensure we return the receipt over the direct hole punch
-                peer_nr.set_last_flow(unique_flow.flow, Timestamp::now());
+                self.set_last_flow(peer_nr.unfiltered(), unique_flow.flow, Timestamp::now());
 
                 // Return the receipt using the same dial info send the receipt to it
                 rpc.rpc_call_return_receipt(Destination::direct(peer_nr), receipt)
@@ -1185,11 +1185,10 @@ impl NetworkManager {
             }
         };
 
-        // Cache the envelope information in the routing table
-        let source_noderef = match routing_table.register_node_with_existing_connection(
+        // Add the node without its peer info
+        let source_noderef = match routing_table.register_node_with_id(
             routing_domain,
             envelope.get_sender_typed_id(),
-            flow,
             ts,
         ) {
             Ok(v) => v,
@@ -1199,7 +1198,12 @@ impl NetworkManager {
                 return Ok(false);
             }
         };
+
+        // Set the envelope version for the peer
         source_noderef.add_envelope_version(envelope.get_version());
+
+        // Set the last flow for the peer
+        self.set_last_flow(source_noderef.unfiltered(), flow, ts);
 
         // Pass message to RPC system
         if let Err(e) =
@@ -1214,12 +1218,36 @@ impl NetworkManager {
         Ok(true)
     }
 
+    /// Record the last flow for a peer in the routing table and the  connection table appropriately
+    pub(super) fn set_last_flow(&self, node_ref: NodeRef, flow: Flow, timestamp: Timestamp) {
+        // Get the routing domain for the flow
+        let Some(routing_domain) = self
+            .routing_table()
+            .routing_domain_for_address(flow.remote_address().address())
+        else {
+            error!(
+                "flow found with no routing domain: {} for {}",
+                flow, node_ref
+            );
+            return;
+        };
+
+        // Set the last flow on the routing table entry
+        node_ref.set_last_flow(flow, timestamp);
+
+        // Inform the connection table about the flow's priority
+        let is_relaying_flow = node_ref.is_relaying(routing_domain);
+        if is_relaying_flow && flow.protocol_type().is_ordered() {
+            self.connection_manager().add_relaying_flow(flow);
+        }
+    }
+
     pub fn restart_network(&self) {
         self.net().restart_network();
     }
 
-    // If some other subsystem believes our dial info is no longer valid, this will trigger
-    // a re-check of the dial info and network class
+    /// If some other subsystem believes our dial info is no longer valid, this will trigger
+    /// a re-check of the dial info and network class
     pub fn set_needs_dial_info_check(&self, routing_domain: RoutingDomain) {
         match routing_domain {
             RoutingDomain::LocalNetwork => {

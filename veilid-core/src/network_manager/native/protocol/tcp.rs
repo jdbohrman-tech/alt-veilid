@@ -4,7 +4,7 @@ use sockets::*;
 
 pub struct RawTcpNetworkConnection {
     flow: Flow,
-    stream: AsyncPeekStream,
+    stream: Mutex<Option<AsyncPeekStream>>,
 }
 
 impl fmt::Debug for RawTcpNetworkConnection {
@@ -15,7 +15,10 @@ impl fmt::Debug for RawTcpNetworkConnection {
 
 impl RawTcpNetworkConnection {
     pub fn new(flow: Flow, stream: AsyncPeekStream) -> Self {
-        Self { flow, stream }
+        Self {
+            flow,
+            stream: Mutex::new(Some(stream)),
+        }
     }
 
     pub fn flow(&self) -> Flow {
@@ -24,24 +27,10 @@ impl RawTcpNetworkConnection {
 
     #[instrument(level = "trace", target = "protocol", err, skip_all)]
     pub async fn close(&self) -> io::Result<NetworkResult<()>> {
-        let mut stream = self.stream.clone();
-        let _ = stream.close().await;
+        // Drop the stream, without calling close, which calls shutdown, which causes TIME_WAIT regardless of SO_LINGER settings
+        drop(self.stream.lock().take());
+        // let _ = stream.close().await;
         Ok(NetworkResult::value(()))
-
-        // // Then shut down the write side of the socket to effect a clean close
-        // cfg_if! {
-        //     if #[cfg(feature="rt-async-std")] {
-        //         self.tcp_stream
-        //             .shutdown(async_std::net::Shutdown::Write)
-        //     } else if #[cfg(feature="rt-tokio")] {
-        //         use tokio::io::AsyncWriteExt;
-        //         self.tcp_stream.get_mut()
-        //             .shutdown()
-        //             .await
-        //     } else {
-        //          compile_error!("needs executor implementation");
-        //      }
-        // }
     }
 
     #[instrument(level = "trace", target = "protocol", err, skip_all)]
@@ -63,7 +52,9 @@ impl RawTcpNetworkConnection {
 
     #[instrument(level="trace", target="protocol", err, skip(self, message), fields(network_result, message.len = message.len()))]
     pub async fn send(&self, message: Vec<u8>) -> io::Result<NetworkResult<()>> {
-        let mut stream = self.stream.clone();
+        let Some(mut stream) = self.stream.lock().clone() else {
+            bail_io_error_other!("already closed");
+        };
         let out = Self::send_internal(&mut stream, message).await?;
         #[cfg(feature = "verbose-tracing")]
         tracing::Span::current().record("network_result", &tracing::field::display(&out));
@@ -96,7 +87,9 @@ impl RawTcpNetworkConnection {
 
     #[instrument(level = "trace", target = "protocol", err, skip_all)]
     pub async fn recv(&self) -> io::Result<NetworkResult<Vec<u8>>> {
-        let mut stream = self.stream.clone();
+        let Some(mut stream) = self.stream.lock().clone() else {
+            bail_io_error_other!("already closed");
+        };
         let out = Self::recv_internal(&mut stream).await?;
         #[cfg(feature = "verbose-tracing")]
         tracing::Span::current().record("network_result", &tracing::field::display(&out));
@@ -156,7 +149,7 @@ impl RawTcpProtocolHandler {
         Ok(Some(conn))
     }
 
-    #[instrument(level = "trace", target = "protocol", err, skip_all)]
+    #[instrument(level = "trace", target = "protocol", err)]
     pub async fn connect(
         local_address: Option<SocketAddr>,
         socket_addr: SocketAddr,

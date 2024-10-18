@@ -81,22 +81,65 @@ impl InteractiveUI {
         CursiveUI::set_start_time();
 
         // Wait for connection to be established
-        loop {
-            match connection_state_receiver.recv_async().await {
-                Ok(ConnectionState::ConnectedTCP(_, _))
-                | Ok(ConnectionState::ConnectedIPC(_, _)) => {
-                    break;
-                }
-                Ok(ConnectionState::RetryingTCP(_, _)) | Ok(ConnectionState::RetryingIPC(_, _)) => {
-                }
-                Ok(ConnectionState::Disconnected) => {}
-                Err(e) => {
-                    eprintln!("Error: {:?}", e);
-                    self.inner.lock().done.take();
-                    break;
+        let done2 = done.clone();
+        let self2 = self.clone();
+        let mut stdout2 = stdout.clone();
+        let connection_state_jh = spawn("connection state handler", async move {
+            loop {
+                match connection_state_receiver
+                    .recv_async()
+                    .timeout_at(done2.clone())
+                    .await
+                {
+                    Ok(Ok(ConnectionState::ConnectedTCP(sa, st))) => {
+                        let tstr = st
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .map(|n| display_ts(n.as_micros() as u64))
+                            .unwrap_or_else(|_| "???".to_string());
+                        let _ = writeln!(stdout2, "Connected TCP: {} @ {}", sa, tstr);
+                    }
+                    Ok(Ok(ConnectionState::ConnectedIPC(pb, st))) => {
+                        let tstr = st
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .map(|n| display_ts(n.as_micros() as u64))
+                            .unwrap_or_else(|_| "???".to_string());
+                        let _ = writeln!(
+                            stdout2,
+                            "Connected IPC: {} @ {}",
+                            pb.to_string_lossy(),
+                            tstr
+                        );
+                    }
+                    Ok(Ok(ConnectionState::RetryingTCP(sa, st))) => {
+                        let tstr = st
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .map(|n| display_ts(n.as_micros() as u64))
+                            .unwrap_or_else(|_| "???".to_string());
+                        let _ = writeln!(stdout2, "Retrying TCP: {} @ {}", sa, tstr);
+                    }
+
+                    Ok(Ok(ConnectionState::RetryingIPC(pb, st))) => {
+                        let tstr = st
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .map(|n| display_ts(n.as_micros() as u64))
+                            .unwrap_or_else(|_| "???".to_string());
+                        let _ =
+                            writeln!(stdout2, "Retrying IPC: {} @ {}", pb.to_string_lossy(), tstr);
+                    }
+                    Ok(Ok(ConnectionState::Disconnected)) => {
+                        let _ = writeln!(stdout2, "Disconnected");
+                    }
+                    Ok(Err(e)) => {
+                        eprintln!("Error: {:?}", e);
+                        self2.inner.lock().done.take();
+                        break;
+                    }
+                    Err(_) => {
+                        break;
+                    }
                 }
             }
-        }
+        });
 
         loop {
             if let Some(e) = self.inner.lock().error.clone() {
@@ -227,6 +270,11 @@ impl InteractiveUI {
             }
         }
         let _ = readline.flush();
+
+        // Drop the stopper if we just broke out
+        let _ = self.inner.lock().done.take();
+
+        connection_state_jh.await;
     }
 }
 

@@ -98,7 +98,7 @@ pub(in crate::network_manager) struct NetworkConnection {
     established_time: Timestamp,
     /// Statistics about network traffic
     stats: Arc<Mutex<NetworkConnectionStats>>,
-    /// To send data out this connection, it is places in this channel
+    /// To send data out this connection, it is placed in this channel
     sender: flume::Sender<(Option<Id>, Vec<u8>)>,
     /// Drop this when we want to drop the connection
     stop_source: Option<StopSource>,

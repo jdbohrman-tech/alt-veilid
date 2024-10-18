@@ -25,6 +25,15 @@
   - If set_value is partial / in-flight, it should still be in offline_subkey_writes
   - Make inflight_subkey_writes list and probably some bit for 'written_while_inflight' so we dont clear the offline_subkey_writes until they're really written
 
+- Networking:
+  - Fix TIME_WAIT states on Windows
+  - Attempt to give priority to relaying flows
+
+- UI:
+  - Make veilid-cli display the connection state when reconnecting, and exit more cleanly on ctrl-c
+
+- Misc:
+  - Fixes for python DHT test
 
 - API Additions:
   - VeilidConfigInner::new parameteriztion for easier config from rust apps

@@ -299,6 +299,20 @@ impl BucketEntryInner {
         node_ids.add(node_id);
         Ok(None)
     }
+
+    /// Remove a node id for a particular crypto kind.
+    /// Returns Some(node) any previous existing node id associated with that crypto kind
+    /// Returns None if no previous existing node id was associated with that crypto kind
+    pub fn remove_node_id(&mut self, crypto_kind: CryptoKind) -> Option<TypedKey> {
+        let node_ids = if VALID_CRYPTO_KINDS.contains(&crypto_kind) {
+            &mut self.validated_node_ids
+        } else {
+            &mut self.unsupported_node_ids
+        };
+
+        node_ids.remove(crypto_kind)
+    }
+
     pub fn best_node_id(&self) -> TypedKey {
         self.validated_node_ids.best().unwrap()
     }
@@ -395,10 +409,13 @@ impl BucketEntryInner {
         move |e1, e2| Self::cmp_fastest_reliable(cur_ts, e1, e2)
     }
 
+    // xxx: if we ever implement a 'remove_signed_node_info' to take nodes out of a routing domain
+    // then we need to call 'on_entry_node_info_updated' with that removal. as of right now
+    // this never happens, because we only have one routing domain implemented.
     pub fn update_signed_node_info(
         &mut self,
         routing_domain: RoutingDomain,
-        signed_node_info: SignedNodeInfo,
+        signed_node_info: &SignedNodeInfo,
     ) -> bool {
         // Get the correct signed_node_info for the chosen routing domain
         let opt_current_sni = match routing_domain {
@@ -439,7 +456,7 @@ impl BucketEntryInner {
 
         // Update the signed node info
         // Let the node try to live again but don't mark it as seen yet
-        *opt_current_sni = Some(Box::new(signed_node_info));
+        *opt_current_sni = Some(Box::new(signed_node_info.clone()));
         self.set_envelope_support(envelope_support);
         self.updated_since_last_network_change = true;
         self.make_not_dead(Timestamp::now());
@@ -550,7 +567,7 @@ impl BucketEntryInner {
     }
 
     // Stores a flow in this entry's table of last flows
-    pub fn set_last_flow(&mut self, last_flow: Flow, timestamp: Timestamp) {
+    pub(super) fn set_last_flow(&mut self, last_flow: Flow, timestamp: Timestamp) {
         if self.punishment.is_some() {
             // Don't record connection if this entry is currently punished
             return;
@@ -560,18 +577,18 @@ impl BucketEntryInner {
     }
 
     // Removes a flow in this entry's table of last flows
-    pub fn remove_last_flow(&mut self, last_flow: Flow) {
+    pub(super) fn remove_last_flow(&mut self, last_flow: Flow) {
         let key = self.flow_to_key(last_flow);
         self.last_flows.remove(&key);
     }
 
     // Clears the table of last flows to ensure we create new ones and drop any existing ones
-    pub fn clear_last_flows(&mut self) {
+    pub(super) fn clear_last_flows(&mut self) {
         self.last_flows.clear();
     }
 
     // Clears the table of last flows except the most recent one
-    pub fn clear_last_flows_except_latest(&mut self) {
+    pub(super) fn clear_last_flows_except_latest(&mut self) {
         if self.last_flows.is_empty() {
             // No last_connections
             return;
@@ -658,7 +675,7 @@ impl BucketEntryInner {
         out
     }
 
-    pub fn add_envelope_version(&mut self, envelope_version: u8) {
+    pub(super) fn add_envelope_version(&mut self, envelope_version: u8) {
         if self.envelope_support.contains(&envelope_version) {
             return;
         }
@@ -667,7 +684,7 @@ impl BucketEntryInner {
         self.envelope_support.dedup();
     }
 
-    pub fn set_envelope_support(&mut self, mut envelope_support: Vec<u8>) {
+    pub(super) fn set_envelope_support(&mut self, mut envelope_support: Vec<u8>) {
         envelope_support.sort();
         envelope_support.dedup();
         self.envelope_support = envelope_support;

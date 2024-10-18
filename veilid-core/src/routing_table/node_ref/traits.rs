@@ -245,6 +245,19 @@ pub trait NodeRefCommonTrait: NodeRefAccessorsTrait + NodeRefOperateTrait {
         })
     }
 
+    fn is_relaying(&self, routing_domain: RoutingDomain) -> bool {
+        self.operate(|rti, e| {
+            let Some(relay_ids) = e
+                .signed_node_info(routing_domain)
+                .map(|sni| sni.relay_ids())
+            else {
+                return false;
+            };
+            let our_node_ids = rti.unlocked_inner.node_ids();
+            our_node_ids.contains_any(&relay_ids)
+        })
+    }
+
     fn has_any_dial_info(&self) -> bool {
         self.operate(|_rti, e| {
             for rtd in RoutingDomain::all() {

@@ -457,7 +457,7 @@ async def test_dht_write_read_local():
                 await rc0.set_dht_value(desc.key, ValueSubkey(0), TEST_DATA)
                 await rc0.set_dht_value(desc.key, ValueSubkey(1), TEST_DATA2)
 
-                print(f'  {n}')
+                print(f'  {n}: {desc.key} {desc.owner}:{desc.owner_secret}')
             
             print('syncing records to the network')
 
@@ -476,6 +476,9 @@ async def test_dht_write_read_local():
                 print(f'  {len(syncrecords)} records {subkeysleft} subkeys left')
                 time.sleep(1)
 
+            for desc0 in records:
+                await rc0.close_dht_record(desc0.key)
+
             await api0.debug("record purge local")
             await api0.debug("record purge remote")
 
@@ -483,7 +486,6 @@ async def test_dht_write_read_local():
             print(f'reading {COUNT} records')
             n = 0
             for desc0 in records:
-                await rc0.close_dht_record(desc0.key)
                 desc1 = await rc0.open_dht_record(desc0.key)
                 
                 vd0 = await rc0.get_dht_value(desc1.key, ValueSubkey(0), force_refresh=True)

@@ -97,6 +97,7 @@ where
             Err(e) => err_to_network_result(e),
         };
 
+        // This close does not do a TCP shutdown so it is safe and will not cause TIME_WAIT
         let _ = stream.close().await;
 
         Ok(out)

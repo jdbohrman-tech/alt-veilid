@@ -863,7 +863,7 @@ impl Settings {
     pub fn get_default_config_path(subpath: &str) -> PathBuf {
         #[cfg(unix)]
         {
-            let globalpath = PathBuf::from("/var/db/veilid-server");
+            let globalpath = PathBuf::from("/etc/veilid-server");
 
             if globalpath.exists() {
                 return globalpath.join(subpath);
@@ -910,7 +910,6 @@ impl Settings {
         true
     }
 
-    #[cfg_attr(windows, expect(dead_code))]
     fn get_default_directory(subpath: &str) -> PathBuf {
         #[cfg(unix)]
         {
