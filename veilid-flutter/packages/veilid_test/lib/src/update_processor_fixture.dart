@@ -29,7 +29,9 @@ class UpdateProcessorFixture {
         processorConnectionState.attachment = VeilidStateAttachment(
             state: update.state,
             publicInternetReady: update.publicInternetReady,
-            localNetworkReady: update.localNetworkReady);
+            localNetworkReady: update.localNetworkReady,
+            uptime: update.uptime,
+            attachedUptime: update.attachedUptime);
       }
     });
   }
