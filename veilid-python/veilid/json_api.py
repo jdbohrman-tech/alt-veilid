@@ -197,7 +197,7 @@ class _JsonVeilidAPI(VeilidAPI):
         if reqfuture is not None:
             reqfuture.set_result(j)
         else:
-            print("Missing id: {}", id)
+            print(f"Missing id: {id}, you may be missing a '.release()' or 'async with'")
 
     async def handle_recv_messages(self):
         # Read lines until we're done
@@ -210,6 +210,8 @@ class _JsonVeilidAPI(VeilidAPI):
 
                 # Parse line as ndjson
                 j = json.loads(linebytes.strip())
+
+                # print(f"j: {j}")
 
                 if self.validate_schema:
                     _schema_validate(_VALIDATOR_RECV_MESSAGE, j)

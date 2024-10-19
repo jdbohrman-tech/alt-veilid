@@ -74,7 +74,7 @@ impl DHTSchemaDFLT {
                 }
 
                 // Value too big
-                return true;
+                return false;
             }
 
             // Wrong writer
