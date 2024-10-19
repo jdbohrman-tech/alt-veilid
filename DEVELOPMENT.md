@@ -246,3 +246,23 @@ of the build steps configured, consult the `Earthfile`, or you may use the
 ```shell
 earthly ls
 ```
+
+## Updating bindings
+
+When changing Veilid API, bindings must be updated to reflect the changes.
+For each language, perform the listed steps and commit changed files.
+
+### Dart
+
+1. Update sources in `veilid-flutter/lib`, ignoring `*.freezed.*` and `*.g.*`
+2. Run `dart run build_runner build` inside `veilid-flutter`, allow to delete existing files if asked
+
+### Python
+
+1. Run `cargo build --bin=veilid-server`
+2. Run `./veilid-python/update_schema.sh`
+3. Update sources in `veilid-python/veilid`
+
+### WASM
+
+1. Update sources in `veilid-wasm/src`

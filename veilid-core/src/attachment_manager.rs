@@ -8,6 +8,7 @@ struct AttachmentManagerInner {
     last_attachment_state: AttachmentState,
     last_routing_table_health: Option<RoutingTableHealth>,
     maintain_peers: bool,
+    started_ts: Timestamp,
     attach_ts: Option<Timestamp>,
     update_callback: Option<UpdateCallback>,
     attachment_maintainer_jh: Option<MustJoinHandle<()>>,
@@ -49,6 +50,7 @@ impl AttachmentManager {
             last_attachment_state: AttachmentState::Detached,
             last_routing_table_health: None,
             maintain_peers: false,
+            started_ts: Timestamp::now(),
             attach_ts: None,
             update_callback: None,
             attachment_maintainer_jh: None,
@@ -177,6 +179,9 @@ impl AttachmentManager {
     }
 
     fn update_attaching_detaching_state(&self, state: AttachmentState) {
+        let uptime;
+        let attached_uptime;
+
         let update_callback = {
             let mut inner = self.inner.lock();
 
@@ -197,6 +202,10 @@ impl AttachmentManager {
                 unreachable!("don't use this for attached states, use update_attachment()");
             }
 
+            let now = Timestamp::now();
+            uptime = now - inner.started_ts;
+            attached_uptime = inner.attach_ts.map(|ts| now - ts);
+
             // Get callback
             inner.update_callback.clone()
         };
@@ -207,6 +216,8 @@ impl AttachmentManager {
                 state,
                 public_internet_ready: false,
                 local_network_ready: false,
+                uptime,
+                attached_uptime,
             })))
         }
     }
@@ -355,6 +366,10 @@ impl AttachmentManager {
     // }
 
     fn get_veilid_state_inner(inner: &AttachmentManagerInner) -> Box<VeilidStateAttachment> {
+        let now = Timestamp::now();
+        let uptime = now - inner.started_ts;
+        let attached_uptime = inner.attach_ts.map(|ts| now - ts);
+
         Box::new(VeilidStateAttachment {
             state: inner.last_attachment_state,
             public_internet_ready: inner
@@ -367,6 +382,8 @@ impl AttachmentManager {
                 .as_ref()
                 .map(|x| x.local_network_ready)
                 .unwrap_or(false),
+            uptime,
+            attached_uptime,
         })
     }
 

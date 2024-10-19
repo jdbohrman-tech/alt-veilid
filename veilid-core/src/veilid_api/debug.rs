@@ -7,6 +7,7 @@ use hashlink::LinkedHashMap;
 use network_manager::*;
 use once_cell::sync::Lazy;
 use routing_table::*;
+use std::fmt::Write;
 
 #[derive(Default)]
 pub(crate) struct DebugCache {
@@ -2004,6 +2005,7 @@ impl VeilidAPI {
     nodeinfo - display detailed information about this node
     dialinfo - display the dialinfo in the routing domains of this node
     peerinfo [routingdomain] [published|current] - display the full PeerInfo for a routing domain of this node
+    uptime - display node uptime
 
 Routing:
     buckets [dead|reliable] - Display the routing table bucket statistics (default is only non-dead nodes)
@@ -2093,6 +2095,24 @@ TableDB Operations:
         .to_owned())
     }
 
+    /// Get node uptime info.
+    pub async fn debug_uptime(&self, _args: String) -> VeilidAPIResult<String> {
+        let mut result = String::new();
+
+        writeln!(result, "Uptime...").ok();
+
+        let state = self.get_state().await?;
+
+        let uptime = state.attachment.uptime;
+        writeln!(result, "  since launch: {uptime}").ok();
+
+        if let Some(attached_uptime) = state.attachment.attached_uptime {
+            writeln!(result, "  since attachment: {attached_uptime}").ok();
+        }
+
+        Ok(result)
+    }
+
     /// Execute an 'internal debug command'.
     pub async fn debug(&self, args: String) -> VeilidAPIResult<String> {
         let res = {
@@ -2156,6 +2176,8 @@ TableDB Operations:
                 self.debug_punish(rest).await
             } else if arg == "table" {
                 self.debug_table(rest).await
+            } else if arg == "uptime" {
+                self.debug_uptime(rest).await
             } else {
                 Err(VeilidAPIError::generic("Unknown debug command"))
             }

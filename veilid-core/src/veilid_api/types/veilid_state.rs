@@ -73,11 +73,15 @@ impl TryFrom<String> for AttachmentState {
 pub struct VeilidStateAttachment {
     /// The overall quality of the routing table if attached, or the current state the attachment state machine.
     pub state: AttachmentState,
-    /// If attached and there are enough eachable nodes in the routing table to perform all the actions of the PublicInternet RoutingDomain,
+    /// If attached and there are enough reachable nodes in the routing table to perform all the actions of the PublicInternet RoutingDomain,
     /// including things like private/safety route allocation and DHT operations.
     pub public_internet_ready: bool,
-    /// If attached and there are enough eachable nodes in the routing table to perform all the actions of the LocalNetwork RoutingDomain.
+    /// If attached and there are enough reachable nodes in the routing table to perform all the actions of the LocalNetwork RoutingDomain.
     pub local_network_ready: bool,
+    /// Node uptime
+    pub uptime: TimestampDuration,
+    /// Uptime since last attach, empty if the node is currently detached
+    pub attached_uptime: Option<TimestampDuration>,
 }
 
 /// Describe a recently accessed peer

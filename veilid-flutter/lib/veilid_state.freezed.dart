@@ -2434,8 +2434,12 @@ mixin _$VeilidUpdate {
             Typed<FixedEncodedString43>? sender,
             String? routeId)
         appCall,
-    required TResult Function(AttachmentState state, bool publicInternetReady,
-            bool localNetworkReady)
+    required TResult Function(
+            AttachmentState state,
+            bool publicInternetReady,
+            bool localNetworkReady,
+            TimestampDuration uptime,
+            TimestampDuration? attachedUptime)
         attachment,
     required TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
             List<PeerTableData> peers)
@@ -2463,8 +2467,12 @@ mixin _$VeilidUpdate {
             Typed<FixedEncodedString43>? sender,
             String? routeId)?
         appCall,
-    TResult? Function(AttachmentState state, bool publicInternetReady,
-            bool localNetworkReady)?
+    TResult? Function(
+            AttachmentState state,
+            bool publicInternetReady,
+            bool localNetworkReady,
+            TimestampDuration uptime,
+            TimestampDuration? attachedUptime)?
         attachment,
     TResult? Function(bool started, BigInt bpsDown, BigInt bpsUp,
             List<PeerTableData> peers)?
@@ -2491,8 +2499,12 @@ mixin _$VeilidUpdate {
             Typed<FixedEncodedString43>? sender,
             String? routeId)?
         appCall,
-    TResult Function(AttachmentState state, bool publicInternetReady,
-            bool localNetworkReady)?
+    TResult Function(
+            AttachmentState state,
+            bool publicInternetReady,
+            bool localNetworkReady,
+            TimestampDuration uptime,
+            TimestampDuration? attachedUptime)?
         attachment,
     TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
             List<PeerTableData> peers)?
@@ -2681,8 +2693,12 @@ class _$VeilidLogImpl implements VeilidLog {
             Typed<FixedEncodedString43>? sender,
             String? routeId)
         appCall,
-    required TResult Function(AttachmentState state, bool publicInternetReady,
-            bool localNetworkReady)
+    required TResult Function(
+            AttachmentState state,
+            bool publicInternetReady,
+            bool localNetworkReady,
+            TimestampDuration uptime,
+            TimestampDuration? attachedUptime)
         attachment,
     required TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
             List<PeerTableData> peers)
@@ -2713,8 +2729,12 @@ class _$VeilidLogImpl implements VeilidLog {
             Typed<FixedEncodedString43>? sender,
             String? routeId)?
         appCall,
-    TResult? Function(AttachmentState state, bool publicInternetReady,
-            bool localNetworkReady)?
+    TResult? Function(
+            AttachmentState state,
+            bool publicInternetReady,
+            bool localNetworkReady,
+            TimestampDuration uptime,
+            TimestampDuration? attachedUptime)?
         attachment,
     TResult? Function(bool started, BigInt bpsDown, BigInt bpsUp,
             List<PeerTableData> peers)?
@@ -2744,8 +2764,12 @@ class _$VeilidLogImpl implements VeilidLog {
             Typed<FixedEncodedString43>? sender,
             String? routeId)?
         appCall,
-    TResult Function(AttachmentState state, bool publicInternetReady,
-            bool localNetworkReady)?
+    TResult Function(
+            AttachmentState state,
+            bool publicInternetReady,
+            bool localNetworkReady,
+            TimestampDuration uptime,
+            TimestampDuration? attachedUptime)?
         attachment,
     TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
             List<PeerTableData> peers)?
@@ -2957,8 +2981,12 @@ class _$VeilidAppMessageImpl implements VeilidAppMessage {
             Typed<FixedEncodedString43>? sender,
             String? routeId)
         appCall,
-    required TResult Function(AttachmentState state, bool publicInternetReady,
-            bool localNetworkReady)
+    required TResult Function(
+            AttachmentState state,
+            bool publicInternetReady,
+            bool localNetworkReady,
+            TimestampDuration uptime,
+            TimestampDuration? attachedUptime)
         attachment,
     required TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
             List<PeerTableData> peers)
@@ -2989,8 +3017,12 @@ class _$VeilidAppMessageImpl implements VeilidAppMessage {
             Typed<FixedEncodedString43>? sender,
             String? routeId)?
         appCall,
-    TResult? Function(AttachmentState state, bool publicInternetReady,
-            bool localNetworkReady)?
+    TResult? Function(
+            AttachmentState state,
+            bool publicInternetReady,
+            bool localNetworkReady,
+            TimestampDuration uptime,
+            TimestampDuration? attachedUptime)?
         attachment,
     TResult? Function(bool started, BigInt bpsDown, BigInt bpsUp,
             List<PeerTableData> peers)?
@@ -3020,8 +3052,12 @@ class _$VeilidAppMessageImpl implements VeilidAppMessage {
             Typed<FixedEncodedString43>? sender,
             String? routeId)?
         appCall,
-    TResult Function(AttachmentState state, bool publicInternetReady,
-            bool localNetworkReady)?
+    TResult Function(
+            AttachmentState state,
+            bool publicInternetReady,
+            bool localNetworkReady,
+            TimestampDuration uptime,
+            TimestampDuration? attachedUptime)?
         attachment,
     TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
             List<PeerTableData> peers)?
@@ -3243,8 +3279,12 @@ class _$VeilidAppCallImpl implements VeilidAppCall {
             Typed<FixedEncodedString43>? sender,
             String? routeId)
         appCall,
-    required TResult Function(AttachmentState state, bool publicInternetReady,
-            bool localNetworkReady)
+    required TResult Function(
+            AttachmentState state,
+            bool publicInternetReady,
+            bool localNetworkReady,
+            TimestampDuration uptime,
+            TimestampDuration? attachedUptime)
         attachment,
     required TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
             List<PeerTableData> peers)
@@ -3275,8 +3315,12 @@ class _$VeilidAppCallImpl implements VeilidAppCall {
             Typed<FixedEncodedString43>? sender,
             String? routeId)?
         appCall,
-    TResult? Function(AttachmentState state, bool publicInternetReady,
-            bool localNetworkReady)?
+    TResult? Function(
+            AttachmentState state,
+            bool publicInternetReady,
+            bool localNetworkReady,
+            TimestampDuration uptime,
+            TimestampDuration? attachedUptime)?
         attachment,
     TResult? Function(bool started, BigInt bpsDown, BigInt bpsUp,
             List<PeerTableData> peers)?
@@ -3306,8 +3350,12 @@ class _$VeilidAppCallImpl implements VeilidAppCall {
             Typed<FixedEncodedString43>? sender,
             String? routeId)?
         appCall,
-    TResult Function(AttachmentState state, bool publicInternetReady,
-            bool localNetworkReady)?
+    TResult Function(
+            AttachmentState state,
+            bool publicInternetReady,
+            bool localNetworkReady,
+            TimestampDuration uptime,
+            TimestampDuration? attachedUptime)?
         attachment,
     TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
             List<PeerTableData> peers)?
@@ -3416,7 +3464,9 @@ abstract class _$$VeilidUpdateAttachmentImplCopyWith<$Res> {
   $Res call(
       {AttachmentState state,
       bool publicInternetReady,
-      bool localNetworkReady});
+      bool localNetworkReady,
+      TimestampDuration uptime,
+      TimestampDuration? attachedUptime});
 }
 
 /// @nodoc
@@ -3436,6 +3486,8 @@ class __$$VeilidUpdateAttachmentImplCopyWithImpl<$Res>
     Object? state = null,
     Object? publicInternetReady = null,
     Object? localNetworkReady = null,
+    Object? uptime = null,
+    Object? attachedUptime = freezed,
   }) {
     return _then(_$VeilidUpdateAttachmentImpl(
       state: null == state
@@ -3450,6 +3502,14 @@ class __$$VeilidUpdateAttachmentImplCopyWithImpl<$Res>
           ? _value.localNetworkReady
           : localNetworkReady // ignore: cast_nullable_to_non_nullable
               as bool,
+      uptime: null == uptime
+          ? _value.uptime
+          : uptime // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      attachedUptime: freezed == attachedUptime
+          ? _value.attachedUptime
+          : attachedUptime // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration?,
     ));
   }
 }
@@ -3461,6 +3521,8 @@ class _$VeilidUpdateAttachmentImpl implements VeilidUpdateAttachment {
       {required this.state,
       required this.publicInternetReady,
       required this.localNetworkReady,
+      required this.uptime,
+      required this.attachedUptime,
       final String? $type})
       : $type = $type ?? 'Attachment';
 
@@ -3473,13 +3535,17 @@ class _$VeilidUpdateAttachmentImpl implements VeilidUpdateAttachment {
   final bool publicInternetReady;
   @override
   final bool localNetworkReady;
+  @override
+  final TimestampDuration uptime;
+  @override
+  final TimestampDuration? attachedUptime;
 
   @JsonKey(name: 'kind')
   final String $type;
 
   @override
   String toString() {
-    return 'VeilidUpdate.attachment(state: $state, publicInternetReady: $publicInternetReady, localNetworkReady: $localNetworkReady)';
+    return 'VeilidUpdate.attachment(state: $state, publicInternetReady: $publicInternetReady, localNetworkReady: $localNetworkReady, uptime: $uptime, attachedUptime: $attachedUptime)';
   }
 
   @override
@@ -3491,13 +3557,16 @@ class _$VeilidUpdateAttachmentImpl implements VeilidUpdateAttachment {
             (identical(other.publicInternetReady, publicInternetReady) ||
                 other.publicInternetReady == publicInternetReady) &&
             (identical(other.localNetworkReady, localNetworkReady) ||
-                other.localNetworkReady == localNetworkReady));
+                other.localNetworkReady == localNetworkReady) &&
+            (identical(other.uptime, uptime) || other.uptime == uptime) &&
+            (identical(other.attachedUptime, attachedUptime) ||
+                other.attachedUptime == attachedUptime));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, state, publicInternetReady, localNetworkReady);
+  int get hashCode => Object.hash(runtimeType, state, publicInternetReady,
+      localNetworkReady, uptime, attachedUptime);
 
   /// Create a copy of VeilidUpdate
   /// with the given fields replaced by the non-null parameter values.
@@ -3525,8 +3594,12 @@ class _$VeilidUpdateAttachmentImpl implements VeilidUpdateAttachment {
             Typed<FixedEncodedString43>? sender,
             String? routeId)
         appCall,
-    required TResult Function(AttachmentState state, bool publicInternetReady,
-            bool localNetworkReady)
+    required TResult Function(
+            AttachmentState state,
+            bool publicInternetReady,
+            bool localNetworkReady,
+            TimestampDuration uptime,
+            TimestampDuration? attachedUptime)
         attachment,
     required TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
             List<PeerTableData> peers)
@@ -3539,7 +3612,8 @@ class _$VeilidUpdateAttachmentImpl implements VeilidUpdateAttachment {
             List<ValueSubkeyRange> subkeys, int count, ValueData? value)
         valueChange,
   }) {
-    return attachment(state, publicInternetReady, localNetworkReady);
+    return attachment(
+        state, publicInternetReady, localNetworkReady, uptime, attachedUptime);
   }
 
   @override
@@ -3557,8 +3631,12 @@ class _$VeilidUpdateAttachmentImpl implements VeilidUpdateAttachment {
             Typed<FixedEncodedString43>? sender,
             String? routeId)?
         appCall,
-    TResult? Function(AttachmentState state, bool publicInternetReady,
-            bool localNetworkReady)?
+    TResult? Function(
+            AttachmentState state,
+            bool publicInternetReady,
+            bool localNetworkReady,
+            TimestampDuration uptime,
+            TimestampDuration? attachedUptime)?
         attachment,
     TResult? Function(bool started, BigInt bpsDown, BigInt bpsUp,
             List<PeerTableData> peers)?
@@ -3570,7 +3648,8 @@ class _$VeilidUpdateAttachmentImpl implements VeilidUpdateAttachment {
             List<ValueSubkeyRange> subkeys, int count, ValueData? value)?
         valueChange,
   }) {
-    return attachment?.call(state, publicInternetReady, localNetworkReady);
+    return attachment?.call(
+        state, publicInternetReady, localNetworkReady, uptime, attachedUptime);
   }
 
   @override
@@ -3588,8 +3667,12 @@ class _$VeilidUpdateAttachmentImpl implements VeilidUpdateAttachment {
             Typed<FixedEncodedString43>? sender,
             String? routeId)?
         appCall,
-    TResult Function(AttachmentState state, bool publicInternetReady,
-            bool localNetworkReady)?
+    TResult Function(
+            AttachmentState state,
+            bool publicInternetReady,
+            bool localNetworkReady,
+            TimestampDuration uptime,
+            TimestampDuration? attachedUptime)?
         attachment,
     TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
             List<PeerTableData> peers)?
@@ -3603,7 +3686,8 @@ class _$VeilidUpdateAttachmentImpl implements VeilidUpdateAttachment {
     required TResult orElse(),
   }) {
     if (attachment != null) {
-      return attachment(state, publicInternetReady, localNetworkReady);
+      return attachment(state, publicInternetReady, localNetworkReady, uptime,
+          attachedUptime);
     }
     return orElse();
   }
@@ -3667,9 +3751,12 @@ class _$VeilidUpdateAttachmentImpl implements VeilidUpdateAttachment {
 
 abstract class VeilidUpdateAttachment implements VeilidUpdate {
   const factory VeilidUpdateAttachment(
-      {required final AttachmentState state,
-      required final bool publicInternetReady,
-      required final bool localNetworkReady}) = _$VeilidUpdateAttachmentImpl;
+          {required final AttachmentState state,
+          required final bool publicInternetReady,
+          required final bool localNetworkReady,
+          required final TimestampDuration uptime,
+          required final TimestampDuration? attachedUptime}) =
+      _$VeilidUpdateAttachmentImpl;
 
   factory VeilidUpdateAttachment.fromJson(Map<String, dynamic> json) =
       _$VeilidUpdateAttachmentImpl.fromJson;
@@ -3677,6 +3764,8 @@ abstract class VeilidUpdateAttachment implements VeilidUpdate {
   AttachmentState get state;
   bool get publicInternetReady;
   bool get localNetworkReady;
+  TimestampDuration get uptime;
+  TimestampDuration? get attachedUptime;
 
   /// Create a copy of VeilidUpdate
   /// with the given fields replaced by the non-null parameter values.
@@ -3813,8 +3902,12 @@ class _$VeilidUpdateNetworkImpl implements VeilidUpdateNetwork {
             Typed<FixedEncodedString43>? sender,
             String? routeId)
         appCall,
-    required TResult Function(AttachmentState state, bool publicInternetReady,
-            bool localNetworkReady)
+    required TResult Function(
+            AttachmentState state,
+            bool publicInternetReady,
+            bool localNetworkReady,
+            TimestampDuration uptime,
+            TimestampDuration? attachedUptime)
         attachment,
     required TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
             List<PeerTableData> peers)
@@ -3845,8 +3938,12 @@ class _$VeilidUpdateNetworkImpl implements VeilidUpdateNetwork {
             Typed<FixedEncodedString43>? sender,
             String? routeId)?
         appCall,
-    TResult? Function(AttachmentState state, bool publicInternetReady,
-            bool localNetworkReady)?
+    TResult? Function(
+            AttachmentState state,
+            bool publicInternetReady,
+            bool localNetworkReady,
+            TimestampDuration uptime,
+            TimestampDuration? attachedUptime)?
         attachment,
     TResult? Function(bool started, BigInt bpsDown, BigInt bpsUp,
             List<PeerTableData> peers)?
@@ -3876,8 +3973,12 @@ class _$VeilidUpdateNetworkImpl implements VeilidUpdateNetwork {
             Typed<FixedEncodedString43>? sender,
             String? routeId)?
         appCall,
-    TResult Function(AttachmentState state, bool publicInternetReady,
-            bool localNetworkReady)?
+    TResult Function(
+            AttachmentState state,
+            bool publicInternetReady,
+            bool localNetworkReady,
+            TimestampDuration uptime,
+            TimestampDuration? attachedUptime)?
         attachment,
     TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
             List<PeerTableData> peers)?
@@ -4078,8 +4179,12 @@ class _$VeilidUpdateConfigImpl implements VeilidUpdateConfig {
             Typed<FixedEncodedString43>? sender,
             String? routeId)
         appCall,
-    required TResult Function(AttachmentState state, bool publicInternetReady,
-            bool localNetworkReady)
+    required TResult Function(
+            AttachmentState state,
+            bool publicInternetReady,
+            bool localNetworkReady,
+            TimestampDuration uptime,
+            TimestampDuration? attachedUptime)
         attachment,
     required TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
             List<PeerTableData> peers)
@@ -4110,8 +4215,12 @@ class _$VeilidUpdateConfigImpl implements VeilidUpdateConfig {
             Typed<FixedEncodedString43>? sender,
             String? routeId)?
         appCall,
-    TResult? Function(AttachmentState state, bool publicInternetReady,
-            bool localNetworkReady)?
+    TResult? Function(
+            AttachmentState state,
+            bool publicInternetReady,
+            bool localNetworkReady,
+            TimestampDuration uptime,
+            TimestampDuration? attachedUptime)?
         attachment,
     TResult? Function(bool started, BigInt bpsDown, BigInt bpsUp,
             List<PeerTableData> peers)?
@@ -4141,8 +4250,12 @@ class _$VeilidUpdateConfigImpl implements VeilidUpdateConfig {
             Typed<FixedEncodedString43>? sender,
             String? routeId)?
         appCall,
-    TResult Function(AttachmentState state, bool publicInternetReady,
-            bool localNetworkReady)?
+    TResult Function(
+            AttachmentState state,
+            bool publicInternetReady,
+            bool localNetworkReady,
+            TimestampDuration uptime,
+            TimestampDuration? attachedUptime)?
         attachment,
     TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
             List<PeerTableData> peers)?
@@ -4357,8 +4470,12 @@ class _$VeilidUpdateRouteChangeImpl implements VeilidUpdateRouteChange {
             Typed<FixedEncodedString43>? sender,
             String? routeId)
         appCall,
-    required TResult Function(AttachmentState state, bool publicInternetReady,
-            bool localNetworkReady)
+    required TResult Function(
+            AttachmentState state,
+            bool publicInternetReady,
+            bool localNetworkReady,
+            TimestampDuration uptime,
+            TimestampDuration? attachedUptime)
         attachment,
     required TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
             List<PeerTableData> peers)
@@ -4389,8 +4506,12 @@ class _$VeilidUpdateRouteChangeImpl implements VeilidUpdateRouteChange {
             Typed<FixedEncodedString43>? sender,
             String? routeId)?
         appCall,
-    TResult? Function(AttachmentState state, bool publicInternetReady,
-            bool localNetworkReady)?
+    TResult? Function(
+            AttachmentState state,
+            bool publicInternetReady,
+            bool localNetworkReady,
+            TimestampDuration uptime,
+            TimestampDuration? attachedUptime)?
         attachment,
     TResult? Function(bool started, BigInt bpsDown, BigInt bpsUp,
             List<PeerTableData> peers)?
@@ -4420,8 +4541,12 @@ class _$VeilidUpdateRouteChangeImpl implements VeilidUpdateRouteChange {
             Typed<FixedEncodedString43>? sender,
             String? routeId)?
         appCall,
-    TResult Function(AttachmentState state, bool publicInternetReady,
-            bool localNetworkReady)?
+    TResult Function(
+            AttachmentState state,
+            bool publicInternetReady,
+            bool localNetworkReady,
+            TimestampDuration uptime,
+            TimestampDuration? attachedUptime)?
         attachment,
     TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
             List<PeerTableData> peers)?
@@ -4666,8 +4791,12 @@ class _$VeilidUpdateValueChangeImpl implements VeilidUpdateValueChange {
             Typed<FixedEncodedString43>? sender,
             String? routeId)
         appCall,
-    required TResult Function(AttachmentState state, bool publicInternetReady,
-            bool localNetworkReady)
+    required TResult Function(
+            AttachmentState state,
+            bool publicInternetReady,
+            bool localNetworkReady,
+            TimestampDuration uptime,
+            TimestampDuration? attachedUptime)
         attachment,
     required TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
             List<PeerTableData> peers)
@@ -4698,8 +4827,12 @@ class _$VeilidUpdateValueChangeImpl implements VeilidUpdateValueChange {
             Typed<FixedEncodedString43>? sender,
             String? routeId)?
         appCall,
-    TResult? Function(AttachmentState state, bool publicInternetReady,
-            bool localNetworkReady)?
+    TResult? Function(
+            AttachmentState state,
+            bool publicInternetReady,
+            bool localNetworkReady,
+            TimestampDuration uptime,
+            TimestampDuration? attachedUptime)?
         attachment,
     TResult? Function(bool started, BigInt bpsDown, BigInt bpsUp,
             List<PeerTableData> peers)?
@@ -4729,8 +4862,12 @@ class _$VeilidUpdateValueChangeImpl implements VeilidUpdateValueChange {
             Typed<FixedEncodedString43>? sender,
             String? routeId)?
         appCall,
-    TResult Function(AttachmentState state, bool publicInternetReady,
-            bool localNetworkReady)?
+    TResult Function(
+            AttachmentState state,
+            bool publicInternetReady,
+            bool localNetworkReady,
+            TimestampDuration uptime,
+            TimestampDuration? attachedUptime)?
         attachment,
     TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
             List<PeerTableData> peers)?
@@ -4838,6 +4975,8 @@ mixin _$VeilidStateAttachment {
   AttachmentState get state => throw _privateConstructorUsedError;
   bool get publicInternetReady => throw _privateConstructorUsedError;
   bool get localNetworkReady => throw _privateConstructorUsedError;
+  TimestampDuration get uptime => throw _privateConstructorUsedError;
+  TimestampDuration? get attachedUptime => throw _privateConstructorUsedError;
 
   /// Serializes this VeilidStateAttachment to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -4858,7 +4997,9 @@ abstract class $VeilidStateAttachmentCopyWith<$Res> {
   $Res call(
       {AttachmentState state,
       bool publicInternetReady,
-      bool localNetworkReady});
+      bool localNetworkReady,
+      TimestampDuration uptime,
+      TimestampDuration? attachedUptime});
 }
 
 /// @nodoc
@@ -4880,6 +5021,8 @@ class _$VeilidStateAttachmentCopyWithImpl<$Res,
     Object? state = null,
     Object? publicInternetReady = null,
     Object? localNetworkReady = null,
+    Object? uptime = null,
+    Object? attachedUptime = freezed,
   }) {
     return _then(_value.copyWith(
       state: null == state
@@ -4894,6 +5037,14 @@ class _$VeilidStateAttachmentCopyWithImpl<$Res,
           ? _value.localNetworkReady
           : localNetworkReady // ignore: cast_nullable_to_non_nullable
               as bool,
+      uptime: null == uptime
+          ? _value.uptime
+          : uptime // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      attachedUptime: freezed == attachedUptime
+          ? _value.attachedUptime
+          : attachedUptime // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration?,
     ) as $Val);
   }
 }
@@ -4910,7 +5061,9 @@ abstract class _$$VeilidStateAttachmentImplCopyWith<$Res>
   $Res call(
       {AttachmentState state,
       bool publicInternetReady,
-      bool localNetworkReady});
+      bool localNetworkReady,
+      TimestampDuration uptime,
+      TimestampDuration? attachedUptime});
 }
 
 /// @nodoc
@@ -4930,6 +5083,8 @@ class __$$VeilidStateAttachmentImplCopyWithImpl<$Res>
     Object? state = null,
     Object? publicInternetReady = null,
     Object? localNetworkReady = null,
+    Object? uptime = null,
+    Object? attachedUptime = freezed,
   }) {
     return _then(_$VeilidStateAttachmentImpl(
       state: null == state
@@ -4944,6 +5099,14 @@ class __$$VeilidStateAttachmentImplCopyWithImpl<$Res>
           ? _value.localNetworkReady
           : localNetworkReady // ignore: cast_nullable_to_non_nullable
               as bool,
+      uptime: null == uptime
+          ? _value.uptime
+          : uptime // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      attachedUptime: freezed == attachedUptime
+          ? _value.attachedUptime
+          : attachedUptime // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration?,
     ));
   }
 }
@@ -4954,7 +5117,9 @@ class _$VeilidStateAttachmentImpl implements _VeilidStateAttachment {
   const _$VeilidStateAttachmentImpl(
       {required this.state,
       required this.publicInternetReady,
-      required this.localNetworkReady});
+      required this.localNetworkReady,
+      required this.uptime,
+      required this.attachedUptime});
 
   factory _$VeilidStateAttachmentImpl.fromJson(Map<String, dynamic> json) =>
       _$$VeilidStateAttachmentImplFromJson(json);
@@ -4965,10 +5130,14 @@ class _$VeilidStateAttachmentImpl implements _VeilidStateAttachment {
   final bool publicInternetReady;
   @override
   final bool localNetworkReady;
+  @override
+  final TimestampDuration uptime;
+  @override
+  final TimestampDuration? attachedUptime;
 
   @override
   String toString() {
-    return 'VeilidStateAttachment(state: $state, publicInternetReady: $publicInternetReady, localNetworkReady: $localNetworkReady)';
+    return 'VeilidStateAttachment(state: $state, publicInternetReady: $publicInternetReady, localNetworkReady: $localNetworkReady, uptime: $uptime, attachedUptime: $attachedUptime)';
   }
 
   @override
@@ -4980,13 +5149,16 @@ class _$VeilidStateAttachmentImpl implements _VeilidStateAttachment {
             (identical(other.publicInternetReady, publicInternetReady) ||
                 other.publicInternetReady == publicInternetReady) &&
             (identical(other.localNetworkReady, localNetworkReady) ||
-                other.localNetworkReady == localNetworkReady));
+                other.localNetworkReady == localNetworkReady) &&
+            (identical(other.uptime, uptime) || other.uptime == uptime) &&
+            (identical(other.attachedUptime, attachedUptime) ||
+                other.attachedUptime == attachedUptime));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, state, publicInternetReady, localNetworkReady);
+  int get hashCode => Object.hash(runtimeType, state, publicInternetReady,
+      localNetworkReady, uptime, attachedUptime);
 
   /// Create a copy of VeilidStateAttachment
   /// with the given fields replaced by the non-null parameter values.
@@ -5007,9 +5179,12 @@ class _$VeilidStateAttachmentImpl implements _VeilidStateAttachment {
 
 abstract class _VeilidStateAttachment implements VeilidStateAttachment {
   const factory _VeilidStateAttachment(
-      {required final AttachmentState state,
-      required final bool publicInternetReady,
-      required final bool localNetworkReady}) = _$VeilidStateAttachmentImpl;
+          {required final AttachmentState state,
+          required final bool publicInternetReady,
+          required final bool localNetworkReady,
+          required final TimestampDuration uptime,
+          required final TimestampDuration? attachedUptime}) =
+      _$VeilidStateAttachmentImpl;
 
   factory _VeilidStateAttachment.fromJson(Map<String, dynamic> json) =
       _$VeilidStateAttachmentImpl.fromJson;
@@ -5020,6 +5195,10 @@ abstract class _VeilidStateAttachment implements VeilidStateAttachment {
   bool get publicInternetReady;
   @override
   bool get localNetworkReady;
+  @override
+  TimestampDuration get uptime;
+  @override
+  TimestampDuration? get attachedUptime;
 
   /// Create a copy of VeilidStateAttachment
   /// with the given fields replaced by the non-null parameter values.

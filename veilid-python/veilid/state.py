@@ -31,16 +31,22 @@ class VeilidStateAttachment:
     state: AttachmentState
     public_internet_ready: bool
     local_network_ready: bool
+    uptime: TimestampDuration
+    attached_uptime: Optional[TimestampDuration]
 
     def __init__(
         self,
         state: AttachmentState,
         public_internet_ready: bool,
         local_network_ready: bool,
+        uptime: TimestampDuration,
+        attached_uptime: Optional[TimestampDuration],
     ):
         self.state = state
         self.public_internet_ready = public_internet_ready
         self.local_network_ready = local_network_ready
+        self.uptime = uptime
+        self.attached_uptime = attached_uptime
 
     @classmethod
     def from_json(cls, j: dict) -> Self:
@@ -49,6 +55,8 @@ class VeilidStateAttachment:
             AttachmentState(j["state"]),
             j["public_internet_ready"],
             j["local_network_ready"],
+            j["uptime"],
+            j["attached_uptime"],
         )
 
 

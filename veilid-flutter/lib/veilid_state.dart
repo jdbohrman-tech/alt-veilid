@@ -215,7 +215,9 @@ sealed class VeilidUpdate with _$VeilidUpdate {
   const factory VeilidUpdate.attachment(
       {required AttachmentState state,
       required bool publicInternetReady,
-      required bool localNetworkReady}) = VeilidUpdateAttachment;
+      required bool localNetworkReady,
+      required TimestampDuration uptime,
+      required TimestampDuration? attachedUptime}) = VeilidUpdateAttachment;
   const factory VeilidUpdate.network(
       {required bool started,
       required BigInt bpsDown,
@@ -247,7 +249,9 @@ class VeilidStateAttachment with _$VeilidStateAttachment {
   const factory VeilidStateAttachment(
       {required AttachmentState state,
       required bool publicInternetReady,
-      required bool localNetworkReady}) = _VeilidStateAttachment;
+      required bool localNetworkReady,
+      required TimestampDuration uptime,
+      required TimestampDuration? attachedUptime}) = _VeilidStateAttachment;
 
   factory VeilidStateAttachment.fromJson(dynamic json) =>
       _$VeilidStateAttachmentFromJson(json as Map<String, dynamic>);
