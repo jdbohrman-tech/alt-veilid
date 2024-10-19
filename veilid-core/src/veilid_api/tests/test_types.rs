@@ -213,6 +213,8 @@ pub async fn test_veilidstateattachment() {
         state: AttachmentState::OverAttached,
         public_internet_ready: true,
         local_network_ready: false,
+        uptime: TimestampDuration::new_secs(10),
+        attached_uptime: Some(TimestampDuration::new_secs(10)),
     };
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();
 
@@ -277,6 +279,8 @@ pub async fn test_veilidstate() {
             state: AttachmentState::OverAttached,
             public_internet_ready: true,
             local_network_ready: false,
+            uptime: TimestampDuration::new_secs(900),
+            attached_uptime: Some(TimestampDuration::new_secs(600)),
         }),
         network: Box::new(VeilidStateNetwork {
             started: true,

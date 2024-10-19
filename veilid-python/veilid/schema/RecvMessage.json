@@ -2588,9 +2588,17 @@
             "kind",
             "local_network_ready",
             "public_internet_ready",
-            "state"
+            "state",
+            "uptime"
           ],
           "properties": {
+            "attached_uptime": {
+              "description": "Uptime since last attach, empty if the node is currently detached",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "kind": {
               "type": "string",
               "enum": [
@@ -2598,11 +2606,11 @@
               ]
             },
             "local_network_ready": {
-              "description": "If attached and there are enough eachable nodes in the routing table to perform all the actions of the LocalNetwork RoutingDomain.",
+              "description": "If attached and there are enough reachable nodes in the routing table to perform all the actions of the LocalNetwork RoutingDomain.",
               "type": "boolean"
             },
             "public_internet_ready": {
-              "description": "If attached and there are enough eachable nodes in the routing table to perform all the actions of the PublicInternet RoutingDomain, including things like private/safety route allocation and DHT operations.",
+              "description": "If attached and there are enough reachable nodes in the routing table to perform all the actions of the PublicInternet RoutingDomain, including things like private/safety route allocation and DHT operations.",
               "type": "boolean"
             },
             "state": {
@@ -2612,6 +2620,10 @@
                   "$ref": "#/definitions/AttachmentState"
                 }
               ]
+            },
+            "uptime": {
+              "description": "Node uptime",
+              "type": "string"
             }
           }
         },
@@ -4618,15 +4630,23 @@
       "required": [
         "local_network_ready",
         "public_internet_ready",
-        "state"
+        "state",
+        "uptime"
       ],
       "properties": {
+        "attached_uptime": {
+          "description": "Uptime since last attach, empty if the node is currently detached",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "local_network_ready": {
-          "description": "If attached and there are enough eachable nodes in the routing table to perform all the actions of the LocalNetwork RoutingDomain.",
+          "description": "If attached and there are enough reachable nodes in the routing table to perform all the actions of the LocalNetwork RoutingDomain.",
           "type": "boolean"
         },
         "public_internet_ready": {
-          "description": "If attached and there are enough eachable nodes in the routing table to perform all the actions of the PublicInternet RoutingDomain, including things like private/safety route allocation and DHT operations.",
+          "description": "If attached and there are enough reachable nodes in the routing table to perform all the actions of the PublicInternet RoutingDomain, including things like private/safety route allocation and DHT operations.",
           "type": "boolean"
         },
         "state": {
@@ -4636,6 +4656,10 @@
               "$ref": "#/definitions/AttachmentState"
             }
           ]
+        },
+        "uptime": {
+          "description": "Node uptime",
+          "type": "string"
         }
       }
     },

@@ -268,6 +268,10 @@ _$VeilidUpdateAttachmentImpl _$$VeilidUpdateAttachmentImplFromJson(
       state: AttachmentState.fromJson(json['state']),
       publicInternetReady: json['public_internet_ready'] as bool,
       localNetworkReady: json['local_network_ready'] as bool,
+      uptime: TimestampDuration.fromJson(json['uptime']),
+      attachedUptime: json['attached_uptime'] == null
+          ? null
+          : TimestampDuration.fromJson(json['attached_uptime']),
       $type: json['kind'] as String?,
     );
 
@@ -277,6 +281,8 @@ Map<String, dynamic> _$$VeilidUpdateAttachmentImplToJson(
       'state': instance.state.toJson(),
       'public_internet_ready': instance.publicInternetReady,
       'local_network_ready': instance.localNetworkReady,
+      'uptime': instance.uptime.toJson(),
+      'attached_uptime': instance.attachedUptime?.toJson(),
       'kind': instance.$type,
     };
 
@@ -363,6 +369,10 @@ _$VeilidStateAttachmentImpl _$$VeilidStateAttachmentImplFromJson(
       state: AttachmentState.fromJson(json['state']),
       publicInternetReady: json['public_internet_ready'] as bool,
       localNetworkReady: json['local_network_ready'] as bool,
+      uptime: TimestampDuration.fromJson(json['uptime']),
+      attachedUptime: json['attached_uptime'] == null
+          ? null
+          : TimestampDuration.fromJson(json['attached_uptime']),
     );
 
 Map<String, dynamic> _$$VeilidStateAttachmentImplToJson(
@@ -371,6 +381,8 @@ Map<String, dynamic> _$$VeilidStateAttachmentImplToJson(
       'state': instance.state.toJson(),
       'public_internet_ready': instance.publicInternetReady,
       'local_network_ready': instance.localNetworkReady,
+      'uptime': instance.uptime.toJson(),
+      'attached_uptime': instance.attachedUptime?.toJson(),
     };
 
 _$VeilidStateNetworkImpl _$$VeilidStateNetworkImplFromJson(
