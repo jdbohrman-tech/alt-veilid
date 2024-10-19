@@ -8,12 +8,10 @@ import pytest_asyncio
 import veilid
 from veilid.json_api import _JsonVeilidAPI
 
-
 pytest_plugins = ("pytest_asyncio",)
 
-
 async def simple_update_callback(update: veilid.VeilidUpdate):
-    print(f"VeilidUpdate: {update}")
+    pass
 
 
 @pytest_asyncio.fixture
