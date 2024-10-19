@@ -234,7 +234,7 @@ impl RoutingTable {
                         let node = *e.0;
 
                         let can_be_relay = e.1.with(inner, |_rti, e| relay_node_filter(e));
-                        let is_relay = self
+                        let is_relay = inner
                             .relay_node(RoutingDomain::PublicInternet)
                             .map(|r| r.same_bucket_entry(e.1))
                             .unwrap_or(false);
