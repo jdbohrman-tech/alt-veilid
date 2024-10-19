@@ -1,4 +1,4 @@
-import { veilidClient } from 'veilid-wasm';
+import { veilidClient, VeilidRoutingContext, TypedKey } from 'veilid-wasm';
 
 export const waitForMs = (milliseconds: number) => {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -57,5 +57,11 @@ export const waitForDetached = async () => {
       break;
     }
     await waitForMs(1000);
+  }
+}
+
+export const waitForOfflineSubkeyWrite = async (routingContext: VeilidRoutingContext, key: TypedKey) => {
+  while ((await routingContext.inspectDhtRecord(key)).offline_subkeys.length != 0) {
+    await waitForMs(200);
   }
 }

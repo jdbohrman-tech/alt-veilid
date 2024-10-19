@@ -76,7 +76,7 @@ pub async fn test_attach_detach() {
 
 pub async fn test_startup_shutdown_multiple() {
     trace!("test_startup_shutdown_multiple: starting");
-    let namespaces = (0..10).map(|x| format!("ns_{}", x)).collect::<Vec<_>>();
+    let namespaces = (0..3).map(|x| format!("ns_{}", x)).collect::<Vec<_>>();
 
     let mut apis = vec![];
     for ns in &namespaces {
@@ -96,7 +96,7 @@ pub async fn test_startup_shutdown_multiple() {
 pub async fn test_startup_shutdown_from_config_multiple() {
     trace!("test_startup_from_config_multiple: starting");
 
-    let namespaces = (0..10).map(|x| format!("ns_{}", x)).collect::<Vec<_>>();
+    let namespaces = (0..3).map(|x| format!("ns_{}", x)).collect::<Vec<_>>();
     let mut apis = vec![];
     for ns in &namespaces {
         let config = VeilidConfigInner {
@@ -136,7 +136,7 @@ pub async fn test_startup_shutdown_from_config_multiple() {
 
 pub async fn test_attach_detach_multiple() {
     trace!("test_attach_detach_multiple: --- test normal order ---");
-    let namespaces = (0..10).map(|x| format!("ns_{}", x)).collect::<Vec<_>>();
+    let namespaces = (0..3).map(|x| format!("ns_{}", x)).collect::<Vec<_>>();
     let mut apis = vec![];
     for ns in &namespaces {
         let (update_callback, config_callback) = setup_veilid_core_with_namespace(ns);

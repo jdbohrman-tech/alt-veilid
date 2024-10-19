@@ -12,7 +12,7 @@ import {
   veilidCrypto,
 } from 'veilid-wasm';
 import { textEncoder, textDecoder } from './utils/marshalling-utils';
-import { asyncCallWithTimeout, waitForPublicAttachment } from './utils/wait-utils';
+import { asyncCallWithTimeout, waitForPublicAttachment, waitForOfflineSubkeyWrite } from './utils/wait-utils';
 
 describe('VeilidRoutingContext', () => {
   before('veilid startup', async () => {
@@ -255,9 +255,12 @@ describe('VeilidRoutingContext', () => {
           "Local",
         );
         expect(inspectRes).toBeDefined();
-        expect(inspectRes.subkeys).toEqual([[0, 0]]);
+        expect(inspectRes.subkeys.concat(inspectRes.offline_subkeys)).toEqual([[0, 0]]);
         expect(inspectRes.local_seqs).toEqual([0]);
         expect(inspectRes.network_seqs).toEqual([]);
+
+        // Wait for synchronization
+        await waitForOfflineSubkeyWrite(routingContext, dhtRecord.key);
 
         // Inspect network
         const inspectRes2 = await routingContext.inspectDhtRecord(
@@ -266,7 +269,8 @@ describe('VeilidRoutingContext', () => {
           "SyncGet",
         );
         expect(inspectRes2).toBeDefined();
-        expect(inspectRes2.subkeys).toEqual([[0, 0]]);
+        expect(inspectRes.subkeys).toEqual([[0, 0]]);
+        expect(inspectRes.offline_subkeys).toEqual([]);
         expect(inspectRes2.local_seqs).toEqual([0]);
         expect(inspectRes2.network_seqs).toEqual([0]);
       });
@@ -284,7 +288,7 @@ describe('VeilidRoutingContext', () => {
           dhtRecord.key,
         );
         expect(inspectRes).toBeDefined();
-        expect(inspectRes.subkeys).toEqual([[0, 0]]);
+        expect(inspectRes.subkeys.concat(inspectRes.offline_subkeys)).toEqual([[0, 0]]);
         expect(inspectRes.local_seqs).toEqual([0]);
         expect(inspectRes.network_seqs).toEqual([]);
       });
