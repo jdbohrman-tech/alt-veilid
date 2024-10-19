@@ -1,4 +1,7 @@
-**Changed in Veilid 0.3.5** _WIP_
+**Changed in Veilid 0.4.0**
+
+- RFC-0001: Constrain DHT Subkey Size, issue #406
+
 - Dialinfo detection issues:
   - Add a publish() as well as a commit() for routing domain editor
   - Should only publish our peer info after we're sure we done editing it (end of public address detection task)
@@ -31,6 +34,7 @@
 
 - UI:
   - Make veilid-cli display the connection state when reconnecting, and exit more cleanly on ctrl-c
+  - Added 'uptime' veilid-cli debug command
 
 - Misc:
   - Fixes for python DHT test
@@ -39,6 +43,7 @@
   - VeilidConfigInner::new parameteriztion for easier config from rust apps
   - Remove veilid-server specific paths from veilid-core defaults
   - Lots more stats about node performance in PeerStats
+  - Uptime stats in VeilidStateAttachment/VeilidUpdateAttachment, issue #317
 
 **Changed in Veilid 0.3.4**
 - Crates updates
