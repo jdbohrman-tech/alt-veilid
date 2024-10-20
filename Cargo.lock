@@ -2128,19 +2128,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gloo-utils"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b5555354113b18c547c1d3a98fbf7fb32a9ff4f6fa112ce823a21641a0ba3aa"
-dependencies = [
- "js-sys",
- "serde",
- "serde_json",
- "wasm-bindgen",
- "web-sys",
-]
-
-[[package]]
 name = "grpcio"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2384,17 +2371,6 @@ dependencies = [
  "libc",
  "match_cfg",
  "winapi",
-]
-
-[[package]]
-name = "hostname"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9c7c7c8ac16c798734b8a24560c1362120597c40d5e1459f09498f8f6c8f2ba"
-dependencies = [
- "cfg-if 1.0.0",
- "libc",
- "windows 0.52.0",
 ]
 
 [[package]]
@@ -4238,7 +4214,7 @@ version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "52e44394d2086d010551b14b53b1f24e31647570cd1deb0379e2c21b329aba00"
 dependencies = [
- "hostname 0.3.1",
+ "hostname",
  "quick-error",
 ]
 
@@ -5587,7 +5563,7 @@ version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6b26cf145f2f3b9ff84e182c448eaf05468e247f148cf3d2a7d67d78ff023a0"
 dependencies = [
- "gloo-utils 0.1.7",
+ "gloo-utils",
  "serde",
  "serde-wasm-bindgen 0.5.0",
  "serde_json",
@@ -5775,7 +5751,7 @@ dependencies = [
 
 [[package]]
 name = "veilid-cli"
-version = "0.3.4"
+version = "0.4.0"
 dependencies = [
  "arboard",
  "async-std",
@@ -5783,7 +5759,7 @@ dependencies = [
  "cfg-if 1.0.0",
  "chrono",
  "clap 4.5.15",
- "config 0.14.0",
+ "config 0.13.4",
  "console",
  "crossbeam-channel",
  "cursive",
@@ -5800,7 +5776,7 @@ dependencies = [
  "log",
  "lru",
  "owning_ref",
- "parking_lot 0.12.3",
+ "parking_lot 0.11.2",
  "rustyline-async",
  "serde",
  "serde_derive",
@@ -5816,7 +5792,7 @@ dependencies = [
 
 [[package]]
 name = "veilid-core"
-version = "0.3.4"
+version = "0.4.0"
 dependencies = [
  "argon2",
  "async-io 1.13.0",
@@ -5920,7 +5896,7 @@ dependencies = [
 
 [[package]]
 name = "veilid-flutter"
-version = "0.3.4"
+version = "0.4.0"
 dependencies = [
  "allo-isolate",
  "android_log-sys 0.3.1",
@@ -5931,7 +5907,7 @@ dependencies = [
  "data-encoding",
  "ffi-support",
  "futures-util",
- "hostname 0.3.1",
+ "hostname",
  "jni",
  "lazy_static",
  "libc-print",
@@ -5978,7 +5954,7 @@ dependencies = [
 
 [[package]]
 name = "veilid-server"
-version = "0.3.4"
+version = "0.4.0"
 dependencies = [
  "ansi_term",
  "async-std",
@@ -5995,7 +5971,7 @@ dependencies = [
  "directories",
  "flume",
  "futures-util",
- "hostname 0.4.0",
+ "hostname",
  "json",
  "lazy_static",
  "nix 0.29.0",
@@ -6033,7 +6009,7 @@ dependencies = [
 
 [[package]]
 name = "veilid-tools"
-version = "0.3.4"
+version = "0.4.0"
 dependencies = [
  "android_logger 0.13.3",
  "async-lock 3.4.0",
@@ -6091,17 +6067,17 @@ dependencies = [
 
 [[package]]
 name = "veilid-wasm"
-version = "0.3.4"
+version = "0.4.0"
 dependencies = [
  "cfg-if 1.0.0",
  "console_error_panic_hook",
  "data-encoding",
  "futures-util",
- "gloo-utils 0.2.0",
+ "gloo-utils",
  "js-sys",
  "lazy_static",
  "parking_lot 0.12.3",
- "send_wrapper 0.6.0",
+ "send_wrapper 0.4.0",
  "serde",
  "serde-wasm-bindgen 0.6.5",
  "serde_bytes",
