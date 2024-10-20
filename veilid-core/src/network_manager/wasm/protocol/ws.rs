@@ -64,7 +64,9 @@ impl WebsocketNetworkConnection {
         instrument(level = "trace", err, skip(self))
     )]
     pub async fn close(&self) -> io::Result<NetworkResult<()>> {
+        #[allow(unused_variables)]
         let x = self.inner.ws_meta.close().await.map_err(to_io);
+        #[cfg(feature = "verbose-tracing")]
         log_net!(debug "close result: {:?}", x);
         Ok(NetworkResult::value(()))
     }
