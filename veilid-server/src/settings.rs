@@ -328,10 +328,11 @@ pub struct ParsedUrl {
 
 impl ParsedUrl {
     pub fn offset_port(&mut self, offset: u16) -> EyreResult<()> {
+        let new_port = self.url.port().unwrap() + offset;
         // Bump port on url
         self.url
-            .set_port(Some(self.url.port().unwrap() + offset))
-            .map_err(|_| eyre!("failed to set port on url"))?;
+            .set_port(Some(new_port))
+            .map_err(|_| eyre!("failed to set port {new_port} on url {}", self.url.as_str()))?;
         self.urlstring = self.url.to_string();
         Ok(())
     }
@@ -766,7 +767,7 @@ impl Settings {
                 if inner.client_api.ipc_enabled
                     && !Self::get_or_create_private_directory(&inner.client_api.ipc_directory, true)
                 {
-                    bail!("unable to create default IPC directory");
+                    bail!("unable to create default IPC directory {:?}", inner.client_api.ipc_directory);
                 }
             }
         }
@@ -1163,7 +1164,7 @@ impl Settings {
         set_config_value!(inner.core.network.protocol.wss.listen_address, value);
         set_config_value!(inner.core.network.protocol.wss.path, value);
         set_config_value!(inner.core.network.protocol.wss.url, value);
-        Err(eyre!("settings key not found"))
+        Err(eyre!("settings key '{key}' not found"))
     }
 
     pub fn get_core_config_callback(&self) -> veilid_core::ConfigCallback {

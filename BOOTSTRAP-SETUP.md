@@ -2,11 +2,11 @@
 
 ## Instance Recommended Setup
 
-CPU: Single
-RAM: 1GB
-Storage: 25GB
-IP: Static v4 & v6
-Firewall: 5150/TCP/UDP inbound allow all
+CPU: Single<br>
+RAM: 1GB<br>
+Storage: 25GB<br>
+IP: Static v4 & v6<br>
+Firewall: 5150/TCP/UDP inbound allow all<br>
 
 ## Install Veilid
 

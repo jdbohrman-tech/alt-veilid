@@ -36,14 +36,14 @@ impl AttachmentState {
 impl fmt::Display for AttachmentState {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         let out = match self {
-            AttachmentState::Attaching => "attaching".to_owned(),
-            AttachmentState::AttachedWeak => "attached_weak".to_owned(),
-            AttachmentState::AttachedGood => "attached_good".to_owned(),
-            AttachmentState::AttachedStrong => "attached_strong".to_owned(),
-            AttachmentState::FullyAttached => "fully_attached".to_owned(),
-            AttachmentState::OverAttached => "over_attached".to_owned(),
-            AttachmentState::Detaching => "detaching".to_owned(),
-            AttachmentState::Detached => "detached".to_owned(),
+            AttachmentState::Attaching => "attaching",
+            AttachmentState::AttachedWeak => "attached_weak",
+            AttachmentState::AttachedGood => "attached_good",
+            AttachmentState::AttachedStrong => "attached_strong",
+            AttachmentState::FullyAttached => "fully_attached",
+            AttachmentState::OverAttached => "over_attached",
+            AttachmentState::Detaching => "detaching",
+            AttachmentState::Detached => "detached",
         };
         write!(f, "{}", out)
     }
@@ -53,7 +53,15 @@ impl TryFrom<String> for AttachmentState {
     type Error = ();
 
     fn try_from(s: String) -> Result<Self, Self::Error> {
-        Ok(match s.as_str() {
+        AttachmentState::try_from(s.as_ref())
+    }
+}
+
+impl TryFrom<&str> for AttachmentState {
+    type Error = ();
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        Ok(match s {
             "attaching" => AttachmentState::Attaching,
             "attached_weak" => AttachmentState::AttachedWeak,
             "attached_good" => AttachmentState::AttachedGood,
