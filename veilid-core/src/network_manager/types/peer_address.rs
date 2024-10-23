@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize)]
-pub struct PeerAddress {
+pub(crate) struct PeerAddress {
     protocol_type: ProtocolType,
     #[serde(with = "as_human_string")]
     socket_address: SocketAddress,

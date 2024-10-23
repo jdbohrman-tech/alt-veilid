@@ -23,9 +23,9 @@ pub const ADDRESS_CHECK_CACHE_SIZE: usize = 10;
 //     TimestampDuration::new(3_600_000_000_u64); // 60 minutes
 
 /// Address checker config
-pub(crate) struct AddressCheckConfig {
-    pub(crate) detect_address_changes: bool,
-    pub(crate) ip6_prefix_size: usize,
+pub struct AddressCheckConfig {
+    pub detect_address_changes: bool,
+    pub ip6_prefix_size: usize,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Hash)]
@@ -33,7 +33,7 @@ struct AddressCheckCacheKey(RoutingDomain, ProtocolType, AddressType);
 
 /// Address checker - keep track of how other nodes are seeing our node's address on a per-protocol basis
 /// Used to determine if our address has changed and if we should re-publish new PeerInfo
-pub(crate) struct AddressCheck {
+pub struct AddressCheck {
     config: AddressCheckConfig,
     net: Network,
     current_network_class: BTreeMap<RoutingDomain, NetworkClass>,

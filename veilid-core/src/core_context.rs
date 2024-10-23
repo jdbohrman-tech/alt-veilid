@@ -11,10 +11,11 @@ pub type UpdateCallback = Arc<dyn Fn(VeilidUpdate) + Send + Sync>;
 /// Internal services startup mechanism.
 /// Ensures that everything is started up, and shut down in the right order
 /// and provides an atomic state for if the system is properly operational.
-struct ServicesContext {
+struct StartupShutdownContext {
     pub config: VeilidConfig,
     pub update_callback: UpdateCallback,
 
+    pub event_bus: Option<EventBus>,
     pub protected_store: Option<ProtectedStore>,
     pub table_store: Option<TableStore>,
     #[cfg(feature = "unstable-blockstore")]
@@ -24,11 +25,12 @@ struct ServicesContext {
     pub storage_manager: Option<StorageManager>,
 }
 
-impl ServicesContext {
+impl StartupShutdownContext {
     pub fn new_empty(config: VeilidConfig, update_callback: UpdateCallback) -> Self {
         Self {
             config,
             update_callback,
+            event_bus: None,
             protected_store: None,
             table_store: None,
             #[cfg(feature = "unstable-blockstore")]
@@ -39,9 +41,11 @@ impl ServicesContext {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn new_full(
         config: VeilidConfig,
         update_callback: UpdateCallback,
+        event_bus: EventBus,
         protected_store: ProtectedStore,
         table_store: TableStore,
         #[cfg(feature = "unstable-blockstore")] block_store: BlockStore,
@@ -52,6 +56,7 @@ impl ServicesContext {
         Self {
             config,
             update_callback,
+            event_bus: Some(event_bus),
             protected_store: Some(protected_store),
             table_store: Some(table_store),
             #[cfg(feature = "unstable-blockstore")]
@@ -75,8 +80,17 @@ impl ServicesContext {
         ApiTracingLayer::add_callback(program_name, namespace, self.update_callback.clone())
             .await?;
 
+        // Add the event bus
+        let event_bus = EventBus::new();
+        if let Err(e) = event_bus.startup().await {
+            error!("failed to start up event bus: {}", e);
+            self.shutdown().await;
+            return Err(e.into());
+        }
+        self.event_bus = Some(event_bus.clone());
+
         // Set up protected store
-        let protected_store = ProtectedStore::new(self.config.clone());
+        let protected_store = ProtectedStore::new(event_bus.clone(), self.config.clone());
         if let Err(e) = protected_store.init().await {
             error!("failed to init protected store: {}", e);
             self.shutdown().await;
@@ -85,8 +99,12 @@ impl ServicesContext {
         self.protected_store = Some(protected_store.clone());
 
         // Set up tablestore and crypto system
-        let table_store = TableStore::new(self.config.clone(), protected_store.clone());
-        let crypto = Crypto::new(self.config.clone(), table_store.clone());
+        let table_store = TableStore::new(
+            event_bus.clone(),
+            self.config.clone(),
+            protected_store.clone(),
+        );
+        let crypto = Crypto::new(event_bus.clone(), self.config.clone(), table_store.clone());
         table_store.set_crypto(crypto.clone());
 
         // Initialize table store first, so crypto code can load caches
@@ -110,7 +128,7 @@ impl ServicesContext {
         // Set up block store
         #[cfg(feature = "unstable-blockstore")]
         {
-            let block_store = BlockStore::new(self.config.clone());
+            let block_store = BlockStore::new(event_bus.clone(), self.config.clone());
             if let Err(e) = block_store.init().await {
                 error!("failed to init block store: {}", e);
                 self.shutdown().await;
@@ -123,6 +141,7 @@ impl ServicesContext {
         let update_callback = self.update_callback.clone();
 
         let storage_manager = StorageManager::new(
+            event_bus.clone(),
             self.config.clone(),
             self.crypto.clone().unwrap(),
             self.table_store.clone().unwrap(),
@@ -139,6 +158,7 @@ impl ServicesContext {
         // Set up attachment manager
         let update_callback = self.update_callback.clone();
         let attachment_manager = AttachmentManager::new(
+            event_bus.clone(),
             self.config.clone(),
             storage_manager,
             table_store,
@@ -180,6 +200,9 @@ impl ServicesContext {
         if let Some(protected_store) = &mut self.protected_store {
             protected_store.terminate().await;
         }
+        if let Some(event_bus) = &mut self.event_bus {
+            event_bus.shutdown().await;
+        }
 
         info!("Veilid API shutdown complete");
 
@@ -199,9 +222,11 @@ impl ServicesContext {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-pub(crate) struct VeilidCoreContext {
+pub struct VeilidCoreContext {
     pub config: VeilidConfig,
     pub update_callback: UpdateCallback,
+    // Event bus
+    pub event_bus: EventBus,
     // Services
     pub storage_manager: StorageManager,
     pub protected_store: ProtectedStore,
@@ -249,12 +274,13 @@ impl VeilidCoreContext {
             }
         }
 
-        let mut sc = ServicesContext::new_empty(config.clone(), update_callback);
+        let mut sc = StartupShutdownContext::new_empty(config.clone(), update_callback);
         sc.startup().await.map_err(VeilidAPIError::generic)?;
 
         Ok(VeilidCoreContext {
             config: sc.config,
             update_callback: sc.update_callback,
+            event_bus: sc.event_bus.unwrap(),
             storage_manager: sc.storage_manager.unwrap(),
             protected_store: sc.protected_store.unwrap(),
             table_store: sc.table_store.unwrap(),
@@ -267,9 +293,10 @@ impl VeilidCoreContext {
 
     #[instrument(level = "trace", target = "core_context", skip_all)]
     async fn shutdown(self) {
-        let mut sc = ServicesContext::new_full(
+        let mut sc = StartupShutdownContext::new_full(
             self.config.clone(),
             self.update_callback.clone(),
+            self.event_bus,
             self.protected_store,
             self.table_store,
             #[cfg(feature = "unstable-blockstore")]
@@ -397,7 +424,7 @@ pub async fn api_startup_config(
 }
 
 #[instrument(level = "trace", target = "core_context", skip_all)]
-pub(crate) async fn api_shutdown(context: VeilidCoreContext) {
+pub async fn api_shutdown(context: VeilidCoreContext) {
     let mut initialized_lock = INITIALIZED.lock().await;
 
     let init_key = {

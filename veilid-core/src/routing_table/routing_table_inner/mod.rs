@@ -14,7 +14,7 @@ pub type EntryCounts = BTreeMap<(RoutingDomain, CryptoKind), usize>;
 //////////////////////////////////////////////////////////////////////////
 
 /// RoutingTable rwlock-internal data
-pub(crate) struct RoutingTableInner {
+pub struct RoutingTableInner {
     /// Extra pointer to unlocked members to simplify access
     pub(super) unlocked_inner: Arc<RoutingTableUnlockedInner>,
     /// Routing table buckets that hold references to entries, per crypto kind
@@ -1388,7 +1388,7 @@ impl RoutingTableInner {
 }
 
 #[instrument(level = "trace", skip_all)]
-pub(crate) fn make_closest_noderef_sort(
+pub fn make_closest_noderef_sort(
     crypto: Crypto,
     node_id: TypedKey,
 ) -> impl Fn(&LockedNodeRef, &LockedNodeRef) -> core::cmp::Ordering {
@@ -1417,7 +1417,7 @@ pub(crate) fn make_closest_noderef_sort(
     }
 }
 
-pub(crate) fn make_closest_node_id_sort(
+pub fn make_closest_node_id_sort(
     crypto: Crypto,
     node_id: TypedKey,
 ) -> impl Fn(&CryptoKey, &CryptoKey) -> core::cmp::Ordering {

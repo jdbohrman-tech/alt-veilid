@@ -43,7 +43,7 @@ impl RPCOperationCancelTunnelQ {
 
 #[cfg(feature = "unstable-tunnels")]
 #[derive(Debug, Clone)]
-pub(in crate::rpc_processor) enum RPCOperationCancelTunnelA {
+pub enum RPCOperationCancelTunnelA {
     Tunnel(TunnelId),
     Error(TunnelError),
 }

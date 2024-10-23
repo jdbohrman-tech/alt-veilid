@@ -28,7 +28,7 @@ impl RPCProcessor {
     }
 
     #[instrument(level = "trace", target = "rpc", skip(self, msg), fields(msg.operation.op_id), ret, err)]
-    pub(crate) async fn process_return_receipt(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
+    pub(super) async fn process_return_receipt(&self, msg: Message) -> RPCNetworkResult<()> {
         // Get the statement
         let (_, _, kind) = msg.operation.destructure();
         let receipt = match kind {

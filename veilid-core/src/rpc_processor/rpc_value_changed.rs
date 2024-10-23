@@ -36,7 +36,7 @@ impl RPCProcessor {
     ////////////////////////////////////////////////////////////////////////////////////////////////
 
     #[instrument(level = "trace", target = "rpc", skip_all)]
-    pub(crate) async fn process_value_changed(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
+    pub(super) async fn process_value_changed(&self, msg: Message) -> RPCNetworkResult<()> {
         // Get the statement
         let (_, _, kind) = msg.operation.destructure();
         let (key, subkeys, count, watch_id, value) = match kind {

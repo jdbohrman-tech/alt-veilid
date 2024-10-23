@@ -3,7 +3,7 @@ pub use keyvaluedb_sqlite::*;
 use std::path::PathBuf;
 
 #[derive(Clone)]
-pub(crate) struct TableStoreDriver {
+pub(in crate::table_store) struct TableStoreDriver {
     config: VeilidConfig,
 }
 

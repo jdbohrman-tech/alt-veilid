@@ -117,7 +117,7 @@ impl RoutingTable {
 
     // Bootstrap lookup process
     #[instrument(level = "trace", skip(self), ret, err)]
-    pub(crate) async fn resolve_bootstrap(
+    pub async fn resolve_bootstrap(
         &self,
         bootstrap: Vec<String>,
     ) -> EyreResult<Vec<BootstrapRecord>> {
@@ -254,7 +254,7 @@ impl RoutingTable {
     }
 
     //#[instrument(level = "trace", skip(self), err)]
-    pub(crate) fn bootstrap_with_peer(
+    pub fn bootstrap_with_peer(
         self,
         crypto_kinds: Vec<CryptoKind>,
         pi: Arc<PeerInfo>,
@@ -324,7 +324,7 @@ impl RoutingTable {
     }
 
     #[instrument(level = "trace", skip(self), err)]
-    pub(crate) async fn bootstrap_with_peer_list(
+    pub async fn bootstrap_with_peer_list(
         self,
         peers: Vec<Arc<PeerInfo>>,
         stop_token: StopToken,
@@ -364,7 +364,7 @@ impl RoutingTable {
     }
 
     #[instrument(level = "trace", skip(self), err)]
-    pub(crate) async fn bootstrap_task_routine(self, stop_token: StopToken) -> EyreResult<()> {
+    pub async fn bootstrap_task_routine(self, stop_token: StopToken) -> EyreResult<()> {
         let bootstrap = self
             .unlocked_inner
             .with_config(|c| c.network.routing_table.bootstrap.clone());

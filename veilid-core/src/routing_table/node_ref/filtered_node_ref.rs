@@ -1,6 +1,6 @@
 use super::*;
 
-pub struct FilteredNodeRef {
+pub(crate) struct FilteredNodeRef {
     routing_table: RoutingTable,
     entry: Arc<BucketEntry>,
     filter: NodeRefFilter,

@@ -25,7 +25,7 @@ impl RPCProcessor {
     ////////////////////////////////////////////////////////////////////////////////////////////////
 
     #[instrument(level = "trace", target = "rpc", skip(self, msg), fields(msg.operation.op_id), ret, err)]
-    pub(crate) async fn process_app_message(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
+    pub(super) async fn process_app_message(&self, msg: Message) -> RPCNetworkResult<()> {
         // Ignore if disabled
         let routing_table = self.routing_table();
         let has_capability_app_message = routing_table

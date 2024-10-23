@@ -5,16 +5,16 @@ mod wss;
 
 use super::*;
 
-pub use tcp::*;
-pub use udp::*;
-pub use ws::*;
-pub use wss::*;
+pub(crate) use tcp::*;
+pub(crate) use udp::*;
+pub(crate) use ws::*;
+pub(crate) use wss::*;
 
 // Keep member order appropriate for sorting < preference
 // Must match ProtocolType order
 #[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind")]
-pub enum DialInfo {
+pub(crate) enum DialInfo {
     UDP(DialInfoUDP),
     TCP(DialInfoTCP),
     WS(DialInfoWS),

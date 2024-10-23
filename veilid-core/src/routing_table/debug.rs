@@ -2,7 +2,7 @@ use super::*;
 use routing_table::tasks::bootstrap::BOOTSTRAP_TXT_VERSION_0;
 
 impl RoutingTable {
-    pub(crate) async fn debug_info_txtrecord(&self) -> String {
+    pub async fn debug_info_txtrecord(&self) -> String {
         let mut out = String::new();
 
         let gdis = self.dial_info_details(RoutingDomain::PublicInternet);
@@ -55,7 +55,7 @@ impl RoutingTable {
         out
     }
 
-    pub(crate) fn debug_info_nodeid(&self) -> String {
+    pub fn debug_info_nodeid(&self) -> String {
         let mut out = String::new();
         for nid in self.unlocked_inner.node_ids().iter() {
             out += &format!("{}\n", nid);
@@ -63,7 +63,7 @@ impl RoutingTable {
         out
     }
 
-    pub(crate) fn debug_info_nodeinfo(&self) -> String {
+    pub fn debug_info_nodeinfo(&self) -> String {
         let mut out = String::new();
         let inner = self.inner.read();
         out += &format!("Node Ids: {}\n", self.unlocked_inner.node_ids());
@@ -76,7 +76,7 @@ impl RoutingTable {
         out
     }
 
-    pub(crate) fn debug_info_dialinfo(&self) -> String {
+    pub fn debug_info_dialinfo(&self) -> String {
         let ldis = self.dial_info_details(RoutingDomain::LocalNetwork);
         let gdis = self.dial_info_details(RoutingDomain::PublicInternet);
         let mut out = String::new();
@@ -92,11 +92,7 @@ impl RoutingTable {
         out
     }
 
-    pub(crate) fn debug_info_peerinfo(
-        &self,
-        routing_domain: RoutingDomain,
-        published: bool,
-    ) -> String {
+    pub fn debug_info_peerinfo(&self, routing_domain: RoutingDomain, published: bool) -> String {
         let mut out = String::new();
         if published {
             let pistr = if let Some(pi) = self.get_published_peer_info(routing_domain) {
@@ -189,7 +185,7 @@ impl RoutingTable {
         )
     }
 
-    pub(crate) fn debug_info_entries(
+    pub fn debug_info_entries(
         &self,
         min_state: BucketEntryState,
         capabilities: Vec<FourCC>,
@@ -272,7 +268,7 @@ impl RoutingTable {
         out
     }
 
-    pub(crate) fn debug_info_entries_fastest(
+    pub fn debug_info_entries_fastest(
         &self,
         min_state: BucketEntryState,
         capabilities: Vec<FourCC>,
@@ -354,7 +350,7 @@ impl RoutingTable {
         out
     }
 
-    pub(crate) fn debug_info_entry(&self, node_ref: NodeRef) -> String {
+    pub fn debug_info_entry(&self, node_ref: NodeRef) -> String {
         let cur_ts = Timestamp::now();
 
         let mut out = String::new();
@@ -369,7 +365,7 @@ impl RoutingTable {
         out
     }
 
-    pub(crate) fn debug_info_buckets(&self, min_state: BucketEntryState) -> String {
+    pub fn debug_info_buckets(&self, min_state: BucketEntryState) -> String {
         let inner = self.inner.read();
         let inner = &*inner;
         let cur_ts = Timestamp::now();

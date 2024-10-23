@@ -122,10 +122,10 @@ impl SignedNodeInfo {
         match self {
             SignedNodeInfo::Direct(d) => match other {
                 SignedNodeInfo::Direct(pd) => d.equivalent(pd),
-                SignedNodeInfo::Relayed(_) => true,
+                SignedNodeInfo::Relayed(_) => false,
             },
             SignedNodeInfo::Relayed(r) => match other {
-                SignedNodeInfo::Direct(_) => true,
+                SignedNodeInfo::Direct(_) => false,
                 SignedNodeInfo::Relayed(pr) => r.equivalent(pr),
             },
         }

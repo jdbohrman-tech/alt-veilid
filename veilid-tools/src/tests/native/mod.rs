@@ -100,6 +100,15 @@ cfg_if! {
 
         #[test]
         #[serial]
+        fn run_test_event_bus() {
+            setup();
+            block_on(async {
+                test_event_bus::test_all().await;
+            });
+        }
+
+        #[test]
+        #[serial]
         fn run_test_network_interfaces() {
             setup();
             block_on(async {

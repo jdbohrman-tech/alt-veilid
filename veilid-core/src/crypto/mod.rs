@@ -79,6 +79,7 @@ struct CryptoInner {
 }
 
 struct CryptoUnlockedInner {
+    _event_bus: EventBus,
     config: VeilidConfig,
     table_store: TableStore,
 }
@@ -102,9 +103,10 @@ impl Crypto {
         }
     }
 
-    pub fn new(config: VeilidConfig, table_store: TableStore) -> Self {
+    pub fn new(event_bus: EventBus, config: VeilidConfig, table_store: TableStore) -> Self {
         let out = Self {
             unlocked_inner: Arc::new(CryptoUnlockedInner {
+                _event_bus: event_bus,
                 config,
                 table_store,
             }),

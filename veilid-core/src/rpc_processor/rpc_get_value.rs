@@ -16,7 +16,7 @@ impl RPCProcessor {
     /// replying to this request received over a private route will leak
     /// the identity of the node and defeat the private route.
 
-    #[instrument(level = "trace", target = "rpc", skip(self, last_descriptor), 
+    #[instrument(level = "trace", target = "rpc", skip(self, last_descriptor),
             fields(ret.value.data.len,
                 ret.value.data.seq,
                 ret.value.data.writer,
@@ -45,7 +45,7 @@ impl RPCProcessor {
         };
 
         // Get the target node id
-        let Some(vcrypto) = self.crypto.get(key.kind) else {
+        let Some(vcrypto) = self.crypto().get(key.kind) else {
             return Err(RPCError::internal("unsupported cryptosystem"));
         };
         let Some(target_node_id) = target_node_ids.get(key.kind) else {
@@ -178,7 +178,7 @@ impl RPCProcessor {
     ////////////////////////////////////////////////////////////////////////////////////////////////
 
     #[instrument(level = "trace", target = "rpc", skip(self, msg), fields(msg.operation.op_id), ret, err)]
-    pub(crate) async fn process_get_value_q(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
+    pub(super) async fn process_get_value_q(&self, msg: Message) -> RPCNetworkResult<()> {
         // Ensure this never came over a private route, safety route is okay though
         match &msg.header.detail {
             RPCMessageHeaderDetail::Direct(_) | RPCMessageHeaderDetail::SafetyRouted(_) => {}
@@ -231,10 +231,7 @@ impl RPCProcessor {
         }
 
         // See if we would have accepted this as a set
-        let set_value_count = {
-            let c = self.config.get();
-            c.network.dht.set_value_count as usize
-        };
+        let set_value_count = self.with_config(|c| c.network.dht.set_value_count as usize);
         let (get_result_value, get_result_descriptor) =
             if closer_to_key_peers.len() >= set_value_count {
                 // Not close enough

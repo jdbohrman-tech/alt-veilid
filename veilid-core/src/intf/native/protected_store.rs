@@ -9,6 +9,7 @@ pub struct ProtectedStoreInner {
 
 #[derive(Clone)]
 pub struct ProtectedStore {
+    _event_bus: EventBus,
     config: VeilidConfig,
     inner: Arc<Mutex<ProtectedStoreInner>>,
 }
@@ -20,8 +21,9 @@ impl ProtectedStore {
         }
     }
 
-    pub fn new(config: VeilidConfig) -> Self {
+    pub fn new(event_bus: EventBus, config: VeilidConfig) -> Self {
         Self {
+            _event_bus: event_bus,
             config,
             inner: Arc::new(Mutex::new(Self::new_inner())),
         }

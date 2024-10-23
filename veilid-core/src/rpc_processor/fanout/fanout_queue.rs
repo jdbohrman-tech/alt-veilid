@@ -5,7 +5,7 @@
 use super::*;
 
 #[derive(Debug)]
-pub(in crate::rpc_processor) struct FanoutQueue {
+pub struct FanoutQueue {
     crypto_kind: CryptoKind,
     current_nodes: VecDeque<NodeRef>,
     returned_nodes: HashSet<TypedKey>,

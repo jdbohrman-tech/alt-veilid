@@ -15,18 +15,20 @@ struct AttachmentManagerInner {
 }
 
 struct AttachmentManagerUnlockedInner {
+    _event_bus: EventBus,
     config: VeilidConfig,
     network_manager: NetworkManager,
 }
 
 #[derive(Clone)]
-pub(crate) struct AttachmentManager {
+pub struct AttachmentManager {
     inner: Arc<Mutex<AttachmentManagerInner>>,
     unlocked_inner: Arc<AttachmentManagerUnlockedInner>,
 }
 
 impl AttachmentManager {
     fn new_unlocked_inner(
+        event_bus: EventBus,
         config: VeilidConfig,
         storage_manager: StorageManager,
         table_store: TableStore,
@@ -34,8 +36,10 @@ impl AttachmentManager {
         crypto: Crypto,
     ) -> AttachmentManagerUnlockedInner {
         AttachmentManagerUnlockedInner {
+            _event_bus: event_bus.clone(),
             config: config.clone(),
             network_manager: NetworkManager::new(
+                event_bus,
                 config,
                 storage_manager,
                 table_store,
@@ -57,6 +61,7 @@ impl AttachmentManager {
         }
     }
     pub fn new(
+        event_bus: EventBus,
         config: VeilidConfig,
         storage_manager: StorageManager,
         table_store: TableStore,
@@ -66,6 +71,7 @@ impl AttachmentManager {
         Self {
             inner: Arc::new(Mutex::new(Self::new_inner())),
             unlocked_inner: Arc::new(Self::new_unlocked_inner(
+                event_bus,
                 config,
                 storage_manager,
                 table_store,

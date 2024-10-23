@@ -2,7 +2,7 @@ use super::*;
 
 // Ordering here matters, IPV6 is preferred to IPV4 in dial info sorts
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize)]
-pub enum Address {
+pub(crate) enum Address {
     IPV6(Ipv6Addr),
     IPV4(Ipv4Addr),
 }

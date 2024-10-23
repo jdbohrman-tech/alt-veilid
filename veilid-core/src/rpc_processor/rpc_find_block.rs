@@ -2,7 +2,7 @@ use super::*;
 
 impl RPCProcessor {
     #[instrument(level = "trace", target = "rpc", skip(self, msg), fields(msg.operation.op_id), ret, err)]
-    pub(crate) async fn process_find_block_q(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
+    pub(super) async fn process_find_block_q(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
         // Ignore if disabled
         #[cfg(feature = "unstable-blockstore")]
         {

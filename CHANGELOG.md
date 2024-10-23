@@ -1,3 +1,12 @@
+**Changed in Veilid 0.4.1**
+
+- Implement top level event bus to do asynchronous lock-free communication between subsystems
+- Fix deadlock in socket address change event
+- Fix deadlock in peer info change event
+- Fix incorrect node info equivalence check
+- Ping relays every second instead of every 10 seconds
+- MR !328 'tiny improvements'
+
 **Changed in Veilid 0.4.0**
 
 - RFC-0001: Constrain DHT Subkey Size, issue #406

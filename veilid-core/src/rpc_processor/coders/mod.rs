@@ -27,23 +27,21 @@ mod tunnel;
 mod typed_key;
 mod typed_signature;
 
-pub(crate) use operations::MAX_INSPECT_VALUE_A_SEQS_LEN;
-pub(in crate::rpc_processor) use operations::*;
-
-pub(crate) use address::*;
-pub(crate) use address_type_set::*;
-pub(crate) use dial_info::*;
-pub(crate) use dial_info_class::*;
-pub(crate) use dial_info_detail::*;
-pub(crate) use key256::*;
-pub(crate) use network_class::*;
-pub(crate) use node_info::*;
-pub(crate) use node_status::*;
-pub(crate) use nonce::*;
-pub(crate) use peer_info::*;
-pub(crate) use private_safety_route::*;
-pub(crate) use protocol_type_set::*;
-pub(crate) use sender_info::*;
+pub use address::*;
+pub use address_type_set::*;
+pub use dial_info::*;
+pub use dial_info_class::*;
+pub use dial_info_detail::*;
+pub use key256::*;
+pub use network_class::*;
+pub use node_info::*;
+pub use node_status::*;
+pub use nonce::*;
+pub use operations::*;
+pub use peer_info::*;
+pub use private_safety_route::*;
+pub use protocol_type_set::*;
+pub use sender_info::*;
 pub use sequencing::*;
 pub use signal_info::*;
 pub use signature512::*;
@@ -62,20 +60,30 @@ use super::*;
 
 #[derive(Debug, Clone)]
 #[allow(clippy::enum_variant_names)]
-pub(in crate::rpc_processor) enum QuestionContext {
+pub enum QuestionContext {
     GetValue(ValidateGetValueContext),
     SetValue(ValidateSetValueContext),
     InspectValue(ValidateInspectValueContext),
 }
 
 #[derive(Clone)]
-pub(in crate::rpc_processor) struct RPCValidateContext {
+pub struct RPCValidateContext {
     pub crypto: Crypto,
     // pub rpc_processor: RPCProcessor,
     pub question_context: Option<QuestionContext>,
 }
 
 #[derive(Clone)]
-pub(crate) struct RPCDecodeContext {
+pub struct RPCDecodeContext {
     pub routing_domain: RoutingDomain,
+}
+
+#[instrument(level = "trace", target = "rpc", skip_all, err)]
+pub fn builder_to_vec<'a, T>(builder: capnp::message::Builder<T>) -> Result<Vec<u8>, RPCError>
+where
+    T: capnp::message::Allocator + 'a,
+{
+    let mut buffer = vec![];
+    capnp::serialize_packed::write_message(&mut buffer, &builder).map_err(RPCError::protocol)?;
+    Ok(buffer)
 }

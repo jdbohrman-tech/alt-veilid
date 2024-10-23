@@ -7,7 +7,7 @@ use routing_table::*;
 use stop_token::future::FutureExt;
 
 #[derive(Clone, Debug)]
-pub(crate) enum ReceiptEvent {
+pub enum ReceiptEvent {
     ReturnedOutOfBand,
     ReturnedInBand {
         inbound_noderef: FilteredNodeRef,
@@ -29,7 +29,7 @@ pub(super) enum ReceiptReturned {
     Private { private_route: PublicKey },
 }
 
-pub(crate) trait ReceiptCallback: Send + 'static {
+pub trait ReceiptCallback: Send + 'static {
     fn call(
         &self,
         event: ReceiptEvent,
@@ -143,7 +143,6 @@ impl PartialOrd for ReceiptRecordTimestampSort {
 ///////////////////////////////////
 
 struct ReceiptManagerInner {
-    network_manager: NetworkManager,
     records_by_nonce: BTreeMap<Nonce, Arc<Mutex<ReceiptRecord>>>,
     next_oldest_ts: Option<Timestamp>,
     stop_source: Option<StopSource>,
@@ -161,9 +160,8 @@ pub(super) struct ReceiptManager {
 }
 
 impl ReceiptManager {
-    fn new_inner(network_manager: NetworkManager) -> ReceiptManagerInner {
+    fn new_inner() -> ReceiptManagerInner {
         ReceiptManagerInner {
-            network_manager,
             records_by_nonce: BTreeMap::new(),
             next_oldest_ts: None,
             stop_source: None,
@@ -171,17 +169,13 @@ impl ReceiptManager {
         }
     }
 
-    pub fn new(network_manager: NetworkManager) -> Self {
+    pub fn new() -> Self {
         Self {
-            inner: Arc::new(Mutex::new(Self::new_inner(network_manager))),
+            inner: Arc::new(Mutex::new(Self::new_inner())),
             unlocked_inner: Arc::new(ReceiptManagerUnlockedInner {
                 startup_lock: StartupLock::new(),
             }),
         }
-    }
-
-    pub fn network_manager(&self) -> NetworkManager {
-        self.inner.lock().network_manager.clone()
     }
 
     pub async fn startup(&self) -> EyreResult<()> {
@@ -322,8 +316,6 @@ impl ReceiptManager {
             return;
         };
 
-        let network_manager = self.network_manager();
-
         // Stop all tasks
         let timeout_task = {
             let mut inner = self.inner.lock();
@@ -338,7 +330,7 @@ impl ReceiptManager {
             panic!("joining timeout task failed");
         }
 
-        *self.inner.lock() = Self::new_inner(network_manager);
+        *self.inner.lock() = Self::new_inner();
 
         guard.success();
         log_net!(debug "finished receipt manager shutdown");

@@ -8,7 +8,7 @@ const PRIORITY_FLOW_PERCENTAGE: usize = 25;
 
 ///////////////////////////////////////////////////////////////////////////////
 #[derive(ThisError, Debug)]
-pub(in crate::network_manager) enum ConnectionTableAddError {
+pub enum ConnectionTableAddError {
     #[error("Connection already added to table")]
     AlreadyExists(NetworkConnection),
     #[error("Connection address was filtered")]
@@ -30,7 +30,7 @@ impl ConnectionTableAddError {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub(crate) enum ConnectionRefKind {
+pub enum ConnectionRefKind {
     AddRef,
     RemoveRef,
 }
@@ -49,7 +49,7 @@ struct ConnectionTableInner {
 }
 
 #[derive(Debug)]
-pub(in crate::network_manager) struct ConnectionTable {
+pub struct ConnectionTable {
     inner: Arc<Mutex<ConnectionTableInner>>,
 }
 

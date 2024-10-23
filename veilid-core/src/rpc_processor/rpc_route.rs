@@ -28,7 +28,7 @@ impl RPCProcessor {
         // Get next hop node ref
         let Some(next_hop_nr) = route_hop
             .node
-            .node_ref(self.routing_table.clone(), safety_route.public_key.kind)
+            .node_ref(self.routing_table(), safety_route.public_key.kind)
         else {
             return Ok(NetworkResult::invalid_message(format!(
                 "could not get route node hop ref: {}",
@@ -73,7 +73,7 @@ impl RPCProcessor {
 
         // Get next hop node ref
         let Some(next_hop_nr) =
-            next_route_node.node_ref(self.routing_table.clone(), safety_route_public_key.kind)
+            next_route_node.node_ref(self.routing_table(), safety_route_public_key.kind)
         else {
             return Ok(NetworkResult::invalid_message(format!(
                 "could not get route node hop ref: {}",
@@ -116,7 +116,9 @@ impl RPCProcessor {
     ) -> RPCNetworkResult<()> {
         // Now that things are valid, decrypt the routed operation with DEC(nonce, DH(the SR's public key, the PR's (or node's) secret)
         // xxx: punish nodes that send messages that fail to decrypt eventually? How to do this for safety routes?
-        let node_id_secret = self.routing_table.node_id_secret_key(remote_sr_pubkey.kind);
+        let node_id_secret = self
+            .routing_table()
+            .node_id_secret_key(remote_sr_pubkey.kind);
         let Ok(dh_secret) = vcrypto.cached_dh(&remote_sr_pubkey.value, &node_id_secret) else {
             return Ok(NetworkResult::invalid_message(
                 "dh failed for remote safety route for safety routed operation",
@@ -168,7 +170,7 @@ impl RPCProcessor {
 
         // Look up the private route and ensure it's one in our spec store
         // Ensure the route is validated, and construct a return safetyspec that matches the inbound preferences
-        let rss = self.routing_table.route_spec_store();
+        let rss = self.routing_table().route_spec_store();
         let preferred_route = rss.get_route_id_for_key(&pr_pubkey.value);
         let Some((secret_key, safety_spec)) = rss.with_signature_validated_route(
             &pr_pubkey,
@@ -234,7 +236,7 @@ impl RPCProcessor {
     ) -> RPCNetworkResult<()> {
         // If the private route public key is our node id, then this was sent via safety route to our node directly
         // so there will be no signatures to validate
-        if self.routing_table.node_ids().contains(&pr_pubkey) {
+        if self.routing_table().node_ids().contains(&pr_pubkey) {
             // The private route was a stub
             self.process_safety_routed_operation(
                 detail,
@@ -328,14 +330,14 @@ impl RPCProcessor {
     ) -> RPCNetworkResult<RouteHop> {
         // Get crypto kind
         let crypto_kind = pr_pubkey.kind;
-        let Some(vcrypto) = self.crypto.get(crypto_kind) else {
+        let Some(vcrypto) = self.crypto().get(crypto_kind) else {
             return Ok(NetworkResult::invalid_message(
                 "private route hop data crypto is not supported",
             ));
         };
 
         // Decrypt the blob with DEC(nonce, DH(the PR's public key, this hop's secret)
-        let node_id_secret = self.routing_table.node_id_secret_key(crypto_kind);
+        let node_id_secret = self.routing_table().node_id_secret_key(crypto_kind);
         let dh_secret = vcrypto
             .cached_dh(&pr_pubkey.value, &node_id_secret)
             .map_err(RPCError::protocol)?;
@@ -353,7 +355,7 @@ impl RPCProcessor {
                 )));
             }
         };
-        let dec_blob_reader = RPCMessageData::new(dec_blob_data).get_reader()?;
+        let dec_blob_reader = MessageData::new(dec_blob_data).get_reader()?;
 
         // Decode next RouteHop
         let route_hop = {
@@ -368,14 +370,14 @@ impl RPCProcessor {
 
         // Validate the RouteHop
         route_hop
-            .validate(self.crypto.clone())
+            .validate(self.crypto())
             .map_err(RPCError::protocol)?;
 
         // Sign the operation if this is not our last hop
         // as the last hop is already signed by the envelope
         if route_hop.next_hop.is_some() {
-            let node_id = self.routing_table.node_id(crypto_kind);
-            let node_id_secret = self.routing_table.node_id_secret_key(crypto_kind);
+            let node_id = self.routing_table().node_id(crypto_kind);
+            let node_id_secret = self.routing_table().node_id_secret_key(crypto_kind);
             let sig = vcrypto
                 .sign(&node_id.value, &node_id_secret, routed_operation.data())
                 .map_err(RPCError::internal)?;
@@ -386,7 +388,7 @@ impl RPCProcessor {
     }
 
     #[instrument(level = "trace", target = "rpc", skip(self), ret, err)]
-    pub(crate) async fn process_route(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
+    pub(super) async fn process_route(&self, msg: Message) -> RPCNetworkResult<()> {
         // Ignore if disabled
         let routing_table = self.routing_table();
 
@@ -428,7 +430,7 @@ impl RPCProcessor {
 
         // Get crypto kind
         let crypto_kind = route.safety_route().crypto_kind();
-        let Some(vcrypto) = self.crypto.get(crypto_kind) else {
+        let Some(vcrypto) = self.crypto().get(crypto_kind) else {
             return Ok(NetworkResult::invalid_message(
                 "routed operation crypto is not supported",
             ));
@@ -440,7 +442,7 @@ impl RPCProcessor {
             // There is a safety route hop
             SafetyRouteHops::Data(ref route_hop_data) => {
                 // Decrypt the blob with DEC(nonce, DH(the SR's public key, this hop's secret)
-                let node_id_secret = self.routing_table.node_id_secret_key(crypto_kind);
+                let node_id_secret = self.routing_table().node_id_secret_key(crypto_kind);
                 let Ok(dh_secret) =
                     vcrypto.cached_dh(&safety_route.public_key.value, &node_id_secret)
                 else {
@@ -464,7 +466,7 @@ impl RPCProcessor {
                     return Ok(NetworkResult::invalid_message("no bytes in blob"));
                 };
 
-                let Ok(dec_blob_reader) = RPCMessageData::new(dec_blob_data).get_reader() else {
+                let Ok(dec_blob_reader) = MessageData::new(dec_blob_data).get_reader() else {
                     return Ok(NetworkResult::invalid_message(
                         "Failed to decode RPCMessageData from blob",
                     ));
@@ -494,7 +496,7 @@ impl RPCProcessor {
                     };
 
                     // Validate the private route
-                    if private_route.validate(self.crypto.clone()).is_err() {
+                    if private_route.validate(self.crypto()).is_err() {
                         return Ok(NetworkResult::invalid_message(
                             "failed to validate private route",
                         ));
@@ -531,7 +533,7 @@ impl RPCProcessor {
                     };
 
                     // Validate the route hop
-                    if route_hop.validate(self.crypto.clone()).is_err() {
+                    if route_hop.validate(self.crypto()).is_err() {
                         return Ok(NetworkResult::invalid_message(
                             "failed to validate route hop",
                         ));

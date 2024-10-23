@@ -10,7 +10,7 @@ impl RoutingTable {
     // Kick the queued buckets in the routing table to free dead nodes if necessary
     // Attempts to keep the size of the routing table down to the bucket depth
     #[instrument(level = "trace", skip(self), err)]
-    pub(crate) async fn kick_buckets_task_routine(
+    pub async fn kick_buckets_task_routine(
         self,
         _stop_token: StopToken,
         _last_ts: Timestamp,

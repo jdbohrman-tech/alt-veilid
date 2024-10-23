@@ -75,7 +75,7 @@ struct NetworkUnlockedInner {
 }
 
 #[derive(Clone)]
-pub(in crate::network_manager) struct Network {
+pub(super) struct Network {
     config: VeilidConfig,
     inner: Arc<Mutex<NetworkInner>>,
     unlocked_inner: Arc<NetworkUnlockedInner>,
@@ -510,7 +510,7 @@ impl Network {
 
     //////////////////////////////////////////
     #[instrument(level = "trace", target = "net", name = "Network::tick", skip_all, err)]
-    pub(crate) async fn tick(&self) -> EyreResult<()> {
+    pub async fn tick(&self) -> EyreResult<()> {
         let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
             log_net!(debug "ignoring due to not started up");
             return Ok(());

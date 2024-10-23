@@ -1,13 +1,13 @@
 use super::*;
 
-pub type LockedMutNodeRef<'a> = NodeRefLockMut<'a, NodeRef>;
-pub type LockedMutFilteredNodeRef<'a> = NodeRefLockMut<'a, FilteredNodeRef>;
+pub(crate) type LockedMutNodeRef<'a> = NodeRefLockMut<'a, NodeRef>;
+pub(crate) type LockedMutFilteredNodeRef<'a> = NodeRefLockMut<'a, FilteredNodeRef>;
 
 /// Mutable locked reference to a routing table entry
 /// For internal use inside the RoutingTable module where you have
 /// already locked a RoutingTableInner
 /// Keeps entry in the routing table until all references are gone
-pub struct NodeRefLockMut<
+pub(crate) struct NodeRefLockMut<
     'a,
     N: NodeRefAccessorsTrait + NodeRefOperateTrait + fmt::Debug + fmt::Display + Clone,
 > {

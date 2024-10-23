@@ -3,7 +3,7 @@ use super::*;
 #[derive(
     Copy, Default, Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash, Serialize, Deserialize,
 )]
-pub struct SocketAddress {
+pub(crate) struct SocketAddress {
     address: Address,
     port: u16,
 }

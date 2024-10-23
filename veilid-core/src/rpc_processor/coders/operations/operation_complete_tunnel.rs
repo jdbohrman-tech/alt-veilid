@@ -80,7 +80,7 @@ impl RPCOperationCompleteTunnelQ {
 
 #[cfg(feature = "unstable-tunnels")]
 #[derive(Debug, Clone)]
-pub(in crate::rpc_processor) enum RPCOperationCompleteTunnelA {
+pub enum RPCOperationCompleteTunnelA {
     Tunnel(FullTunnel),
     Error(TunnelError),
 }

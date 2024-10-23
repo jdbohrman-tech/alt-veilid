@@ -10,10 +10,7 @@ impl RoutingTable {
     /// Ask our closest peers to give us more peers close to ourselves. This will
     /// assist with the DHT and other algorithms that utilize the distance metric.
     #[instrument(level = "trace", skip(self), err)]
-    pub(crate) async fn closest_peers_refresh_task_routine(
-        self,
-        stop_token: StopToken,
-    ) -> EyreResult<()> {
+    pub async fn closest_peers_refresh_task_routine(self, stop_token: StopToken) -> EyreResult<()> {
         let mut unord = FuturesUnordered::new();
 
         for crypto_kind in VALID_CRYPTO_KINDS {

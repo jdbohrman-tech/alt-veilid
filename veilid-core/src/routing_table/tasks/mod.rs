@@ -10,7 +10,7 @@ pub mod update_statistics;
 use super::*;
 
 impl RoutingTable {
-    pub(crate) fn setup_tasks(&self) {
+    pub fn setup_tasks(&self) {
         // Set rolling transfers tick task
         {
             let this = self.clone();
@@ -287,12 +287,12 @@ impl RoutingTable {
 
         Ok(())
     }
-    pub(crate) async fn pause_tasks(&self) -> AsyncTagLockGuard<&'static str> {
+    pub async fn pause_tasks(&self) -> AsyncTagLockGuard<&'static str> {
         let critical_sections = self.inner.read().critical_sections.clone();
         critical_sections.lock_tag(LOCK_TAG_TICK).await
     }
 
-    pub(crate) async fn cancel_tasks(&self) {
+    pub async fn cancel_tasks(&self) {
         // Cancel all tasks being ticked
         log_rtab!(debug "stopping rolling transfers task");
         if let Err(e) = self.unlocked_inner.rolling_transfers_task.stop().await {

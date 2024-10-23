@@ -3,7 +3,7 @@ use super::*;
 impl StorageManager {
     // Flush records stores to disk and remove dead records
     #[instrument(level = "trace", target = "stor", skip_all, err)]
-    pub(crate) async fn flush_record_stores_task_routine(
+    pub(super) async fn flush_record_stores_task_routine(
         self,
         _stop_token: StopToken,
         _last_ts: Timestamp,

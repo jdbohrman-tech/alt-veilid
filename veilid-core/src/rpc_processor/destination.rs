@@ -30,7 +30,7 @@ pub(crate) enum Destination {
 
 /// Routing configuration for destination
 #[derive(Debug, Clone)]
-pub struct UnsafeRoutingInfo {
+pub(crate) struct UnsafeRoutingInfo {
     pub opt_node: Option<NodeRef>,
     pub opt_relay: Option<NodeRef>,
     pub opt_routing_domain: Option<RoutingDomain>,
@@ -450,7 +450,7 @@ impl RPCProcessor {
     /// Convert the 'RespondTo' into a 'Destination' for a response
     pub(super) fn get_respond_to_destination(
         &self,
-        request: &RPCMessage,
+        request: &Message,
     ) -> NetworkResult<Destination> {
         // Get the question 'respond to'
         let respond_to = match request.operation.kind() {
@@ -487,7 +487,7 @@ impl RPCProcessor {
                     NetworkResult::value(Destination::direct(peer_noderef))
                 } else {
                     // Look up the sender node, we should have added it via senderNodeInfo before getting here.
-                    let res = match self.routing_table.lookup_node_ref(sender_node_id) {
+                    let res = match self.routing_table().lookup_node_ref(sender_node_id) {
                         Ok(v) => v,
                         Err(e) => {
                             return NetworkResult::invalid_message(format!(

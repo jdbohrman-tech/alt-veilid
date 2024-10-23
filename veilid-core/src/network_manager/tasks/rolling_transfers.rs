@@ -3,7 +3,7 @@ use super::*;
 impl NetworkManager {
     // Compute transfer statistics for the low level network
     #[instrument(level = "trace", skip(self), err)]
-    pub(crate) async fn rolling_transfers_task_routine(
+    pub async fn rolling_transfers_task_routine(
         self,
         _stop_token: StopToken,
         last_ts: Timestamp,

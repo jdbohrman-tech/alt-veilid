@@ -7,7 +7,7 @@ pub mod send_value_changes;
 use super::*;
 
 impl StorageManager {
-    pub(crate) fn setup_tasks(&self) {
+    pub(super) fn setup_tasks(&self) {
         // Set flush records tick task
         log_stor!(debug "starting flush record stores task");
         {
@@ -111,7 +111,7 @@ impl StorageManager {
     }
 
     #[instrument(level = "trace", target = "stor", skip_all)]
-    pub(crate) async fn cancel_tasks(&self) {
+    pub(super) async fn cancel_tasks(&self) {
         log_stor!(debug "stopping check watched records task");
         if let Err(e) = self.unlocked_inner.check_watched_records_task.stop().await {
             warn!("check_watched_records_task not stopped: {}", e);

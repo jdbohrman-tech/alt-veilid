@@ -144,9 +144,13 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
             pi
         };
 
-        rti.unlocked_inner
-            .network_manager()
-            .report_peer_info_change(peer_info);
+        if let Err(e) = rti
+            .unlocked_inner
+            .event_bus
+            .post(PeerInfoChangeEvent { peer_info })
+        {
+            log_rtab!(debug "Failed to post event: {}", e);
+        }
 
         true
     }
@@ -162,7 +166,7 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
         let can_contain_address = self.can_contain_address(address);
 
         if !can_contain_address {
-            log_rtab!(debug "[LocalNetwork] can not add dial info to this routing domain: {:?}", dial_info);
+            log_network_result!(debug "[LocalNetwork] can not add dial info to this routing domain: {:?}", dial_info);
             return false;
         }
         if !dial_info.is_valid() {

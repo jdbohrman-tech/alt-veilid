@@ -9,7 +9,7 @@ where
 }
 
 #[derive(Debug, Copy, Clone)]
-pub(crate) enum FanoutResultKind {
+pub enum FanoutResultKind {
     Partial,
     Timeout,
     Finished,
@@ -22,12 +22,12 @@ impl FanoutResultKind {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct FanoutResult {
+pub struct FanoutResult {
     pub kind: FanoutResultKind,
     pub value_nodes: Vec<NodeRef>,
 }
 
-pub(crate) fn debug_fanout_result(result: &FanoutResult) -> String {
+pub fn debug_fanout_result(result: &FanoutResult) -> String {
     let kc = match result.kind {
         FanoutResultKind::Partial => "P",
         FanoutResultKind::Timeout => "T",
@@ -37,7 +37,7 @@ pub(crate) fn debug_fanout_result(result: &FanoutResult) -> String {
     format!("{}:{}", kc, result.value_nodes.len())
 }
 
-pub(crate) fn debug_fanout_results(results: &[FanoutResult]) -> String {
+pub fn debug_fanout_results(results: &[FanoutResult]) -> String {
     let mut col = 0;
     let mut out = String::new();
     let mut left = results.len();
@@ -59,18 +59,18 @@ pub(crate) fn debug_fanout_results(results: &[FanoutResult]) -> String {
 }
 
 #[derive(Debug)]
-pub(crate) struct FanoutCallOutput {
+pub struct FanoutCallOutput {
     pub peer_info_list: Vec<Arc<PeerInfo>>,
 }
 
-pub(crate) type FanoutCallResult = RPCNetworkResult<FanoutCallOutput>;
-pub(crate) type FanoutNodeInfoFilter = Arc<dyn Fn(&[TypedKey], &NodeInfo) -> bool + Send + Sync>;
+pub type FanoutCallResult = RPCNetworkResult<FanoutCallOutput>;
+pub type FanoutNodeInfoFilter = Arc<dyn Fn(&[TypedKey], &NodeInfo) -> bool + Send + Sync>;
 
-pub(crate) fn empty_fanout_node_info_filter() -> FanoutNodeInfoFilter {
+pub fn empty_fanout_node_info_filter() -> FanoutNodeInfoFilter {
     Arc::new(|_, _| true)
 }
 
-pub(crate) fn capability_fanout_node_info_filter(caps: Vec<Capability>) -> FanoutNodeInfoFilter {
+pub fn capability_fanout_node_info_filter(caps: Vec<Capability>) -> FanoutNodeInfoFilter {
     Arc::new(move |_, ni| ni.has_all_capabilities(&caps))
 }
 

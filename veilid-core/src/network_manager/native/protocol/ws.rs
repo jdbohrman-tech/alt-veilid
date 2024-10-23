@@ -181,7 +181,7 @@ struct WebsocketProtocolHandlerArc {
 }
 
 #[derive(Clone)]
-pub(in crate::network_manager) struct WebsocketProtocolHandler
+pub struct WebsocketProtocolHandler
 where
     Self: ProtocolAcceptHandler,
 {

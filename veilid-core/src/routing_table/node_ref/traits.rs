@@ -1,7 +1,7 @@
 use super::*;
 
 // Field accessors
-pub trait NodeRefAccessorsTrait {
+pub(crate) trait NodeRefAccessorsTrait {
     fn routing_table(&self) -> RoutingTable;
     fn entry(&self) -> Arc<BucketEntry>;
     fn sequencing(&self) -> Sequencing;
@@ -14,7 +14,7 @@ pub trait NodeRefAccessorsTrait {
 }
 
 // Operate on entry
-pub trait NodeRefOperateTrait {
+pub(crate) trait NodeRefOperateTrait {
     fn operate<T, F>(&self, f: F) -> T
     where
         F: FnOnce(&RoutingTableInner, &BucketEntryInner) -> T;
@@ -24,7 +24,7 @@ pub trait NodeRefOperateTrait {
 }
 
 // Common Operations
-pub trait NodeRefCommonTrait: NodeRefAccessorsTrait + NodeRefOperateTrait {
+pub(crate) trait NodeRefCommonTrait: NodeRefAccessorsTrait + NodeRefOperateTrait {
     fn same_entry<T: NodeRefAccessorsTrait>(&self, other: &T) -> bool {
         Arc::ptr_eq(&self.entry(), &other.entry())
     }

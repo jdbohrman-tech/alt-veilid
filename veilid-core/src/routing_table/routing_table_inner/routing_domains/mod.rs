@@ -9,7 +9,7 @@ pub use local_network::*;
 pub use public_internet::*;
 
 /// General trait for all routing domains
-pub(crate) trait RoutingDomainDetail {
+pub trait RoutingDomainDetail {
     // Common accessors
     #[expect(dead_code)]
     fn routing_domain(&self) -> RoutingDomain;

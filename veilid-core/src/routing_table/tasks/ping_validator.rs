@@ -2,10 +2,10 @@ use super::*;
 
 /// Keepalive pings are done occasionally to ensure holepunched public dialinfo
 /// remains valid, as well as to make sure we remain in any relay node's routing table
-const RELAY_KEEPALIVE_PING_INTERVAL_SECS: u32 = 10;
+const RELAY_KEEPALIVE_PING_INTERVAL_SECS: u32 = 1;
 
 /// Keepalive pings are done for active watch nodes to make sure they are still there
-const ACTIVE_WATCH_KEEPALIVE_PING_INTERVAL_SECS: u32 = 10;
+const ACTIVE_WATCH_KEEPALIVE_PING_INTERVAL_SECS: u32 = 1;
 
 /// Ping queue processing depth per validator
 const MAX_PARALLEL_PINGS: usize = 8;
@@ -17,7 +17,7 @@ type PingValidatorFuture = SendPinBoxFuture<Result<(), RPCError>>;
 impl RoutingTable {
     // Task routine for PublicInternet status pings
     #[instrument(level = "trace", skip(self), err)]
-    pub(crate) async fn ping_validator_public_internet_task_routine(
+    pub async fn ping_validator_public_internet_task_routine(
         self,
         stop_token: StopToken,
         _last_ts: Timestamp,
@@ -36,7 +36,7 @@ impl RoutingTable {
 
     // Task routine for LocalNetwork status pings
     #[instrument(level = "trace", skip(self), err)]
-    pub(crate) async fn ping_validator_local_network_task_routine(
+    pub async fn ping_validator_local_network_task_routine(
         self,
         stop_token: StopToken,
         _last_ts: Timestamp,
@@ -55,7 +55,7 @@ impl RoutingTable {
 
     // Task routine for PublicInternet relay keepalive pings
     #[instrument(level = "trace", skip(self), err)]
-    pub(crate) async fn ping_validator_public_internet_relay_task_routine(
+    pub async fn ping_validator_public_internet_relay_task_routine(
         self,
         stop_token: StopToken,
         _last_ts: Timestamp,
@@ -74,7 +74,7 @@ impl RoutingTable {
 
     // Task routine for active watch keepalive pings
     #[instrument(level = "trace", skip(self), err)]
-    pub(crate) async fn ping_validator_active_watch_task_routine(
+    pub async fn ping_validator_active_watch_task_routine(
         self,
         stop_token: StopToken,
         _last_ts: Timestamp,

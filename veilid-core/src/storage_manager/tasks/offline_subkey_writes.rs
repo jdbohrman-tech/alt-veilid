@@ -217,7 +217,7 @@ impl StorageManager {
     }
 
     #[instrument(level = "trace", target = "stor", skip_all, err)]
-    pub(crate) async fn process_offline_subkey_writes(
+    pub(super) async fn process_offline_subkey_writes(
         self,
         stop_token: StopToken,
         work_items: Arc<Mutex<VecDeque<WorkItem>>>,
@@ -242,7 +242,7 @@ impl StorageManager {
 
     // Best-effort write subkeys to the network that were written offline
     #[instrument(level = "trace", target = "stor", skip_all, err)]
-    pub(crate) async fn offline_subkey_writes_task_routine(
+    pub(super) async fn offline_subkey_writes_task_routine(
         self,
         stop_token: StopToken,
         _last_ts: Timestamp,

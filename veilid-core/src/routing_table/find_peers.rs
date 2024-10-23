@@ -165,7 +165,7 @@ impl RoutingTable {
 
     /// Determine if set of peers is closer to key_near than key_far is to key_near
     #[instrument(level = "trace", target = "rtab", skip_all, err)]
-    pub(crate) fn verify_peers_closer(
+    pub fn verify_peers_closer(
         vcrypto: CryptoSystemVersion,
         key_far: TypedKey,
         key_near: TypedKey,

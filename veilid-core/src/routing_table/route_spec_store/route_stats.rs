@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub(crate) struct RouteStats {
+pub struct RouteStats {
     /// Consecutive failed to send count
     #[serde(skip)]
     pub failed_to_send: u32,

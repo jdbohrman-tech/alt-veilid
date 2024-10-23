@@ -3,7 +3,7 @@ pub mod rolling_transfers;
 use super::*;
 
 impl NetworkManager {
-    pub(crate) fn setup_tasks(&self) {
+    pub fn setup_tasks(&self) {
         // Set rolling transfers tick task
         {
             let this = self.clone();
@@ -60,7 +60,7 @@ impl NetworkManager {
         Ok(())
     }
 
-    pub(crate) async fn cancel_tasks(&self) {
+    pub async fn cancel_tasks(&self) {
         log_net!(debug "stopping rolling transfers task");
         if let Err(e) = self.unlocked_inner.rolling_transfers_task.stop().await {
             warn!("rolling_transfers_task not stopped: {}", e);

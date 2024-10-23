@@ -15,7 +15,7 @@ use route_spec_store_cache::*;
 use route_spec_store_content::*;
 
 pub(crate) use route_spec_store_cache::CompiledRoute;
-pub(crate) use route_stats::*;
+pub use route_stats::*;
 
 /// The size of the remote private route cache
 const REMOTE_PRIVATE_ROUTE_CACHE_SIZE: usize = 1024;
