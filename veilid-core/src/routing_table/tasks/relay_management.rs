@@ -53,7 +53,7 @@ impl RoutingTable {
 
     // Keep relays assigned and accessible
     #[instrument(level = "trace", skip_all, err)]
-    pub(crate) async fn relay_management_task_routine(
+    pub async fn relay_management_task_routine(
         self,
         _stop_token: StopToken,
         _last_ts: Timestamp,

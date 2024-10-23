@@ -2,7 +2,7 @@ use super::*;
 
 #[derive(ThisError, Debug, Clone, PartialOrd, PartialEq, Eq, Ord)]
 #[must_use]
-pub enum RPCError {
+pub(crate) enum RPCError {
     #[error("[RPCError: Unimplemented({0})]")]
     Unimplemented(String),
     #[error("[RPCError: InvalidFormat({0})]")]
@@ -20,6 +20,7 @@ pub enum RPCError {
 }
 
 impl RPCError {
+    #[expect(dead_code)]
     pub fn unimplemented<X: ToString>(x: X) -> Self {
         Self::Unimplemented(x.to_string())
     }
@@ -47,9 +48,11 @@ impl RPCError {
     pub fn network<X: ToString>(x: X) -> Self {
         Self::Network(x.to_string())
     }
+    #[expect(dead_code)]
     pub fn map_network<M: ToString, X: ToString>(message: M) -> impl FnOnce(X) -> Self {
         move |x| Self::Network(format!("{}: {}", message.to_string(), x.to_string()))
     }
+    #[cfg_attr(target_arch = "wasm32", expect(dead_code))]
     pub fn try_again<X: ToString>(x: X) -> Self {
         Self::TryAgain(x.to_string())
     }
@@ -59,6 +62,7 @@ impl RPCError {
     pub fn ignore<X: ToString>(x: X) -> Self {
         Self::Ignore(x.to_string())
     }
+    #[expect(dead_code)]
     pub fn map_ignore<M: ToString, X: ToString>(message: M) -> impl FnOnce(X) -> Self {
         move |x| Self::Ignore(format!("{}: {}", message.to_string(), x.to_string()))
     }
@@ -81,7 +85,7 @@ impl From<RPCError> for VeilidAPIError {
     }
 }
 
-pub(crate) type RPCNetworkResult<T> = Result<NetworkResult<T>, RPCError>;
+pub type RPCNetworkResult<T> = Result<NetworkResult<T>, RPCError>;
 
 pub(crate) trait ToRPCNetworkResult<T> {
     fn to_rpc_network_result(self) -> RPCNetworkResult<T>;

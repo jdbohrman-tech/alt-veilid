@@ -39,6 +39,13 @@ async fn run_test_host_interface() {
 }
 
 #[wasm_bindgen_test]
+async fn run_test_event_bus() {
+    setup();
+
+    test_event_bus::test_all().await;
+}
+
+#[wasm_bindgen_test]
 async fn run_test_async_tag_lock() {
     setup();
 

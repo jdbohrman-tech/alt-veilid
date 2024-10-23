@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(crate) struct RouteSpecDetail {
+pub struct RouteSpecDetail {
     /// Crypto kind
     pub crypto_kind: CryptoKind,
     /// Secret key
@@ -11,7 +11,7 @@ pub(crate) struct RouteSpecDetail {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(crate) struct RouteSetSpecDetail {
+pub struct RouteSetSpecDetail {
     /// Route set per crypto kind
     route_set: BTreeMap<PublicKey, RouteSpecDetail>,
     /// Route noderefs

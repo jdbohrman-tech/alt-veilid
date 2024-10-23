@@ -2,7 +2,7 @@ use super::*;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-pub(crate) fn encode_route_hop_data(
+pub fn encode_route_hop_data(
     route_hop_data: &RouteHopData,
     builder: &mut veilid_capnp::route_hop_data::Builder,
 ) -> Result<(), RPCError> {
@@ -24,7 +24,7 @@ pub(crate) fn encode_route_hop_data(
     Ok(())
 }
 
-pub(crate) fn decode_route_hop_data(
+pub fn decode_route_hop_data(
     reader: &veilid_capnp::route_hop_data::Reader,
 ) -> Result<RouteHopData, RPCError> {
     let nonce = decode_nonce(
@@ -45,7 +45,7 @@ pub(crate) fn decode_route_hop_data(
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-pub(crate) fn encode_route_hop(
+pub fn encode_route_hop(
     route_hop: &RouteHop,
     builder: &mut veilid_capnp::route_hop::Builder,
 ) -> Result<(), RPCError> {
@@ -67,7 +67,7 @@ pub(crate) fn encode_route_hop(
     Ok(())
 }
 
-pub(crate) fn decode_route_hop(
+pub fn decode_route_hop(
     decode_context: &RPCDecodeContext,
     reader: &veilid_capnp::route_hop::Reader,
 ) -> Result<RouteHop, RPCError> {
@@ -100,7 +100,7 @@ pub(crate) fn decode_route_hop(
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-pub(crate) fn encode_private_route(
+pub fn encode_private_route(
     private_route: &PrivateRoute,
     builder: &mut veilid_capnp::private_route::Builder,
 ) -> Result<(), RPCError> {
@@ -126,7 +126,7 @@ pub(crate) fn encode_private_route(
     Ok(())
 }
 
-pub(crate) fn decode_private_route(
+pub fn decode_private_route(
     decode_context: &RPCDecodeContext,
     reader: &veilid_capnp::private_route::Reader,
 ) -> Result<PrivateRoute, RPCError> {
@@ -156,7 +156,7 @@ pub(crate) fn decode_private_route(
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-pub(crate) fn encode_safety_route(
+pub fn encode_safety_route(
     safety_route: &SafetyRoute,
     builder: &mut veilid_capnp::safety_route::Builder,
 ) -> Result<(), RPCError> {
@@ -180,7 +180,7 @@ pub(crate) fn encode_safety_route(
     Ok(())
 }
 
-pub(crate) fn decode_safety_route(
+pub fn decode_safety_route(
     decode_context: &RPCDecodeContext,
     reader: &veilid_capnp::safety_route::Reader,
 ) -> Result<SafetyRoute, RPCError> {

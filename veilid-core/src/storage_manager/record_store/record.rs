@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub(in crate::storage_manager) struct Record<D>
+pub struct Record<D>
 where
     D: fmt::Debug + Serialize + Clone,
 {

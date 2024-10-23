@@ -21,13 +21,14 @@ pub(super) use limited_size::*;
 pub(super) use local_record_detail::*;
 pub(super) use opened_record::*;
 pub(super) use record::*;
-pub(super) use record_data::*;
 pub(super) use record_store_limits::*;
 pub(super) use remote_record_detail::*;
 pub(super) use watch::*;
 pub use watch::{WatchParameters, WatchResult};
 
 use super::*;
+use record_data::*;
+
 use hashlink::LruCache;
 
 #[derive(Debug, Clone)]
@@ -587,7 +588,7 @@ where
     }
 
     #[instrument(level = "trace", target = "stor", skip_all, err)]
-    pub(crate) async fn peek_subkey(
+    pub async fn peek_subkey(
         &self,
         key: TypedKey,
         subkey: ValueSubkey,

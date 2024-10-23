@@ -12,10 +12,7 @@ impl RoutingTable {
     // nodes for their PublicInternet peers, which is a very fast way to get
     // a new node online.
     #[instrument(level = "trace", skip(self), err)]
-    pub(crate) async fn peer_minimum_refresh_task_routine(
-        self,
-        stop_token: StopToken,
-    ) -> EyreResult<()> {
+    pub async fn peer_minimum_refresh_task_routine(self, stop_token: StopToken) -> EyreResult<()> {
         // Get counts by crypto kind
         let entry_count = self.inner.read().cached_entry_counts();
 

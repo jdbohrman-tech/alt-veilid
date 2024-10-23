@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PunishmentReason {
+pub(crate) enum PunishmentReason {
     // IP-level punishments
     FailedToDecryptEnvelopeBody,
     FailedToDecodeEnvelope,
@@ -17,7 +17,7 @@ pub enum PunishmentReason {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Punishment {
+pub(crate) struct Punishment {
     pub reason: PunishmentReason,
     pub timestamp: Timestamp,
 }

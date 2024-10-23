@@ -168,7 +168,7 @@ impl RoutingTable {
 
     /// Keep private routes assigned and accessible
     #[instrument(level = "trace", skip(self, stop_token), err)]
-    pub(crate) async fn private_route_management_task_routine(
+    pub async fn private_route_management_task_routine(
         self,
         stop_token: StopToken,
         _last_ts: Timestamp,

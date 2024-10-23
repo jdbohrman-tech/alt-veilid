@@ -6,16 +6,16 @@ mod traits;
 
 use super::*;
 
-pub use filtered_node_ref::*;
-pub use node_ref_filter::*;
-pub use node_ref_lock::*;
-pub use node_ref_lock_mut::*;
-pub use traits::*;
+pub(crate) use filtered_node_ref::*;
+pub(crate) use node_ref_filter::*;
+pub(crate) use node_ref_lock::*;
+pub(crate) use node_ref_lock_mut::*;
+pub(crate) use traits::*;
 
 ///////////////////////////////////////////////////////////////////////////
 // Default NodeRef
 
-pub struct NodeRef {
+pub(crate) struct NodeRef {
     routing_table: RoutingTable,
     entry: Arc<BucketEntry>,
     #[cfg(feature = "tracking")]

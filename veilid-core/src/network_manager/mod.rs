@@ -23,12 +23,11 @@ pub mod tests;
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
-pub(crate) use connection_manager::*;
-pub(crate) use network_connection::*;
-pub(crate) use receipt_manager::*;
-pub(crate) use stats::*;
-
-pub use types::*;
+pub use connection_manager::*;
+pub use network_connection::*;
+pub use receipt_manager::*;
+pub use stats::*;
+pub(crate) use types::*;
 
 ////////////////////////////////////////////////////////////////////////////////////////
 use address_check::*;
@@ -76,7 +75,7 @@ struct ClientAllowlistEntry {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct SendDataMethod {
+pub struct SendDataMethod {
     /// How the data was sent, possibly to a relay
     pub contact_method: NodeContactMethod,
     /// Pre-relayed contact method
@@ -87,7 +86,7 @@ pub(crate) struct SendDataMethod {
 
 /// Mechanism required to contact another node
 #[derive(Clone, Debug)]
-pub(crate) enum NodeContactMethod {
+pub enum NodeContactMethod {
     /// Node is not reachable by any means
     Unreachable,
     /// Connection should have already existed
@@ -134,6 +133,7 @@ struct NetworkManagerInner {
 
 struct NetworkManagerUnlockedInner {
     // Handles
+    event_bus: EventBus,
     config: VeilidConfig,
     storage_manager: StorageManager,
     table_store: TableStore,
@@ -170,6 +170,7 @@ impl NetworkManager {
         }
     }
     fn new_unlocked_inner(
+        event_bus: EventBus,
         config: VeilidConfig,
         storage_manager: StorageManager,
         table_store: TableStore,
@@ -178,6 +179,7 @@ impl NetworkManager {
         network_key: Option<SharedSecret>,
     ) -> NetworkManagerUnlockedInner {
         NetworkManagerUnlockedInner {
+            event_bus,
             config: config.clone(),
             storage_manager,
             table_store,
@@ -202,6 +204,7 @@ impl NetworkManager {
     }
 
     pub fn new(
+        event_bus: EventBus,
         config: VeilidConfig,
         storage_manager: StorageManager,
         table_store: TableStore,
@@ -238,6 +241,7 @@ impl NetworkManager {
         let this = Self {
             inner: Arc::new(Mutex::new(Self::new_inner())),
             unlocked_inner: Arc::new(Self::new_unlocked_inner(
+                event_bus,
                 config,
                 storage_manager,
                 table_store,
@@ -251,6 +255,9 @@ impl NetworkManager {
         this.setup_tasks();
 
         this
+    }
+    pub fn event_bus(&self) -> EventBus {
+        self.unlocked_inner.event_bus.clone()
     }
     pub fn config(&self) -> VeilidConfig {
         self.unlocked_inner.config.clone()
@@ -404,7 +411,7 @@ impl NetworkManager {
                 .unwrap()
                 .clone(),
         );
-        let receipt_manager = ReceiptManager::new(self.clone());
+        let receipt_manager = ReceiptManager::new();
         *self.unlocked_inner.components.write() = Some(NetworkComponents {
             net: net.clone(),
             connection_manager: connection_manager.clone(),
@@ -436,6 +443,22 @@ impl NetworkManager {
 
         rpc_processor.startup().await?;
         receipt_manager.startup().await?;
+
+        // Register event handlers
+        let this = self.clone();
+        self.event_bus().subscribe(move |evt| {
+            let this = this.clone();
+            Box::pin(async move {
+                this.peer_info_change_event_handler(evt);
+            })
+        });
+        let this = self.clone();
+        self.event_bus().subscribe(move |evt| {
+            let this = this.clone();
+            Box::pin(async move {
+                this.socket_address_change_event_handler(evt);
+            })
+        });
 
         log_net!("NetworkManager::internal_startup end");
 
@@ -1260,32 +1283,25 @@ impl NetworkManager {
     }
 
     // Report peer info changes
-    pub fn report_peer_info_change(&mut self, peer_info: Arc<PeerInfo>) {
+    fn peer_info_change_event_handler(&self, evt: Arc<PeerInfoChangeEvent>) {
         let mut inner = self.inner.lock();
         if let Some(address_check) = inner.address_check.as_mut() {
-            address_check.report_peer_info_change(peer_info);
+            address_check.report_peer_info_change(evt.peer_info.clone());
         }
     }
 
     // Determine if our IP address has changed
     // this means we should recreate our public dial info if it is not static and rediscover it
     // Wait until we have received confirmation from N different peers
-    pub fn report_socket_address_change(
-        &self,
-        routing_domain: RoutingDomain, // the routing domain this flow is over
-        socket_address: SocketAddress, // the socket address as seen by the remote peer
-        old_socket_address: Option<SocketAddress>, // the socket address previously for this peer
-        flow: Flow,                    // the flow used
-        reporting_peer: NodeRef,       // the peer's noderef reporting the socket address
-    ) {
+    fn socket_address_change_event_handler(&self, evt: Arc<SocketAddressChangeEvent>) {
         let mut inner = self.inner.lock();
         if let Some(address_check) = inner.address_check.as_mut() {
             address_check.report_socket_address_change(
-                routing_domain,
-                socket_address,
-                old_socket_address,
-                flow,
-                reporting_peer,
+                evt.routing_domain,
+                evt.socket_address,
+                evt.old_socket_address,
+                evt.flow,
+                evt.reporting_peer.clone(),
             );
         }
     }

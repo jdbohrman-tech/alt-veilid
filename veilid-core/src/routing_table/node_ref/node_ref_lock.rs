@@ -1,13 +1,13 @@
 use super::*;
 
-pub type LockedNodeRef<'a> = NodeRefLock<'a, NodeRef>;
-pub type LockedFilteredNodeRef<'a> = NodeRefLock<'a, FilteredNodeRef>;
+pub(crate) type LockedNodeRef<'a> = NodeRefLock<'a, NodeRef>;
+pub(crate) type LockedFilteredNodeRef<'a> = NodeRefLock<'a, FilteredNodeRef>;
 
 /// Locked reference to a routing table entry
 /// For internal use inside the RoutingTable module where you have
 /// already locked a RoutingTableInner
 /// Keeps entry in the routing table until all references are gone
-pub struct NodeRefLock<
+pub(crate) struct NodeRefLock<
     'a,
     N: NodeRefAccessorsTrait + NodeRefOperateTrait + fmt::Debug + fmt::Display + Clone,
 > {

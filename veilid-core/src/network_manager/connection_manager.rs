@@ -1,5 +1,5 @@
 use super::*;
-pub(crate) use connection_table::ConnectionRefKind;
+use connection_table::ConnectionRefKind;
 use connection_table::*;
 use network_connection::*;
 use stop_token::future::FutureExt;
@@ -19,7 +19,7 @@ enum ConnectionManagerEvent {
 }
 
 #[derive(Debug)]
-pub(crate) struct ConnectionRefScope {
+pub struct ConnectionRefScope {
     connection_manager: ConnectionManager,
     id: NetworkConnectionId,
 }
@@ -78,7 +78,7 @@ impl core::fmt::Debug for ConnectionManagerArc {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct ConnectionManager {
+pub struct ConnectionManager {
     arc: Arc<ConnectionManagerArc>,
 }
 

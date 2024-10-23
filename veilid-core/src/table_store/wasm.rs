@@ -2,12 +2,12 @@ use super::*;
 pub use keyvaluedb_web::*;
 
 #[derive(Clone)]
-pub struct TableStoreDriver {
+pub(in crate::table_store) struct TableStoreDriver {
     config: VeilidConfig,
 }
 
 impl TableStoreDriver {
-    pub(crate) fn new(config: VeilidConfig) -> Self {
+    pub fn new(config: VeilidConfig) -> Self {
         Self { config }
     }
 

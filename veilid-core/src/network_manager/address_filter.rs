@@ -7,7 +7,7 @@ const DIAL_INFO_FAILURE_DURATION_MIN: usize = 10;
 const MAX_DIAL_INFO_FAILURES: usize = 65536;
 
 #[derive(ThisError, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AddressFilterError {
+pub(crate) enum AddressFilterError {
     #[error("Count exceeded")]
     CountExceeded,
     #[error("Rate exceeded")]

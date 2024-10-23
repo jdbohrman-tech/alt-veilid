@@ -12,7 +12,7 @@ use super::*;
 ///
 
 #[derive(Copy, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct Flow {
+pub(crate) struct Flow {
     remote: PeerAddress,
     local: Option<SocketAddress>,
 }
@@ -75,7 +75,7 @@ impl MatchesDialInfoFilter for Flow {
 /// The NetworkConnectionId associated with each flow may represent a low level network connection
 /// and will be unique with high probability per low-level connection
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct UniqueFlow {
+pub(crate) struct UniqueFlow {
     pub flow: Flow,
     pub connection_id: Option<NetworkConnectionId>,
 }
@@ -95,4 +95,4 @@ impl fmt::Display for UniqueFlow {
     }
 }
 
-pub type NetworkConnectionId = AlignedU64;
+pub(crate) type NetworkConnectionId = AlignedU64;

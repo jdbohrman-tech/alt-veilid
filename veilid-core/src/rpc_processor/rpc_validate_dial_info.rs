@@ -21,9 +21,11 @@ impl RPCProcessor {
             .ok_or(RPCError::try_again("not started up"))?;
 
         let network_manager = self.network_manager();
-        let receipt_time = TimestampDuration::new_ms(
-            self.unlocked_inner.validate_dial_info_receipt_time_ms as u64,
-        );
+
+        let validate_dial_info_receipt_time_ms =
+            self.with_config(|c| c.network.dht.validate_dial_info_receipt_time_ms as u64);
+
+        let receipt_time = TimestampDuration::new_ms(validate_dial_info_receipt_time_ms);
 
         // Generate receipt and waitable eventual so we can see if we get the receipt back
         let (receipt, eventual_value) = network_manager
@@ -80,7 +82,7 @@ impl RPCProcessor {
     ////////////////////////////////////////////////////////////////////////////////////////////////
 
     #[instrument(level = "trace", target = "rpc", skip(self, msg), fields(msg.operation.op_id), ret, err)]
-    pub(crate) async fn process_validate_dial_info(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
+    pub(super) async fn process_validate_dial_info(&self, msg: Message) -> RPCNetworkResult<()> {
         // Ensure this never came over a private route, safety route is okay though
         let detail = match msg.header.detail {
             RPCMessageHeaderDetail::Direct(detail) => detail,
@@ -128,10 +130,7 @@ impl RPCProcessor {
             // an ipv6 address
             let sender_node_id = detail.envelope.get_sender_typed_id();
             let routing_domain = detail.routing_domain;
-            let node_count = {
-                let c = self.config.get();
-                c.network.dht.max_find_node_count as usize
-            };
+            let node_count = self.with_config(|c| c.network.dht.max_find_node_count as usize);
 
             // Filter on nodes that can validate dial info, and can reach a specific dial info
             let outbound_dial_info_entry_filter =

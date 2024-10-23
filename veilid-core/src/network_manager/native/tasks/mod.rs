@@ -5,7 +5,7 @@ mod upnp_task;
 use super::*;
 
 impl Network {
-    pub(crate) fn setup_tasks(&self) {
+    pub fn setup_tasks(&self) {
         // Set update network class tick task
         {
             let this = self.clone();
@@ -45,7 +45,7 @@ impl Network {
     }
 
     #[instrument(level = "trace", target = "net", name = "Network::tick", skip_all, err)]
-    pub(crate) async fn tick(&self) -> EyreResult<()> {
+    pub async fn tick(&self) -> EyreResult<()> {
         let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
             log_net!(debug "ignoring due to not started up");
             return Ok(());

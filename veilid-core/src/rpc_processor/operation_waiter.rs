@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Debug)]
-pub struct OperationWaitHandle<T, C>
+pub(super) struct OperationWaitHandle<T, C>
 where
     T: Unpin,
     C: Unpin + Clone,
@@ -34,7 +34,7 @@ where
 }
 
 #[derive(Debug)]
-pub struct OperationWaitingOp<T, C>
+struct OperationWaitingOp<T, C>
 where
     T: Unpin,
     C: Unpin + Clone,
@@ -45,7 +45,7 @@ where
 }
 
 #[derive(Debug)]
-pub struct OperationWaiterInner<T, C>
+struct OperationWaiterInner<T, C>
 where
     T: Unpin,
     C: Unpin + Clone,
@@ -54,7 +54,7 @@ where
 }
 
 #[derive(Debug)]
-pub struct OperationWaiter<T, C>
+pub(super) struct OperationWaiter<T, C>
 where
     T: Unpin,
     C: Unpin + Clone,

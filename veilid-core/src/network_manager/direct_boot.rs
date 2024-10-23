@@ -3,7 +3,7 @@ use super::*;
 impl NetworkManager {
     // Direct bootstrap request handler (separate fallback mechanism from cheaper TXT bootstrap mechanism)
     #[instrument(level = "trace", target = "net", skip(self), ret, err)]
-    pub(crate) async fn handle_boot_request(&self, flow: Flow) -> EyreResult<NetworkResult<()>> {
+    pub async fn handle_boot_request(&self, flow: Flow) -> EyreResult<NetworkResult<()>> {
         let routing_table = self.routing_table();
 
         // Get a bunch of nodes with the various

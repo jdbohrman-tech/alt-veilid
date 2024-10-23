@@ -5,12 +5,16 @@ use web_sys::*;
 
 #[derive(Clone)]
 pub struct ProtectedStore {
+    _event_bus: EventBus,
     config: VeilidConfig,
 }
 
 impl ProtectedStore {
-    pub fn new(config: VeilidConfig) -> Self {
-        Self { config }
+    pub fn new(event_bus: EventBus, config: VeilidConfig) -> Self {
+        Self {
+            _event_bus: event_bus,
+            config,
+        }
     }
 
     #[instrument(level = "trace", skip(self), err)]

@@ -11,7 +11,7 @@ cfg_if::cfg_if! {
         ///////////////////////////////////////////////////////////
         // Accept
 
-        pub(in crate::network_manager) trait ProtocolAcceptHandler: ProtocolAcceptHandlerClone + Send + Sync {
+        pub(crate) trait ProtocolAcceptHandler: ProtocolAcceptHandlerClone + Send + Sync {
             fn on_accept(
                 &self,
                 stream: AsyncPeekStream,
@@ -20,7 +20,7 @@ cfg_if::cfg_if! {
             ) -> SendPinBoxFuture<io::Result<Option<ProtocolNetworkConnection>>>;
         }
 
-        pub(in crate::network_manager)  trait ProtocolAcceptHandlerClone {
+        pub(crate) trait ProtocolAcceptHandlerClone {
             fn clone_box(&self) -> Box<dyn ProtocolAcceptHandler>;
         }
 
@@ -38,7 +38,7 @@ cfg_if::cfg_if! {
             }
         }
 
-        pub(in crate::network_manager) type NewProtocolAcceptHandler =
+        pub(crate) type NewProtocolAcceptHandler =
             dyn Fn(VeilidConfig, bool) -> Box<dyn ProtocolAcceptHandler> + Send;
     }
 }
@@ -84,7 +84,7 @@ pub struct NetworkConnectionStats {
 
 /// Represents a connection in the connection table for connection-oriented protocols
 #[derive(Debug)]
-pub(in crate::network_manager) struct NetworkConnection {
+pub(crate) struct NetworkConnection {
     /// A unique id for this connection
     connection_id: NetworkConnectionId,
     /// The dial info used to make this connection if it was made with 'connect'

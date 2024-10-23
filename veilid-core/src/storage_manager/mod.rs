@@ -44,6 +44,7 @@ struct ValueChangedInfo {
 }
 
 struct StorageManagerUnlockedInner {
+    _event_bus: EventBus,
     config: VeilidConfig,
     crypto: Crypto,
     table_store: TableStore,
@@ -69,6 +70,7 @@ pub(crate) struct StorageManager {
 
 impl StorageManager {
     fn new_unlocked_inner(
+        event_bus: EventBus,
         config: VeilidConfig,
         crypto: Crypto,
         table_store: TableStore,
@@ -83,6 +85,7 @@ impl StorageManager {
         }
 
         StorageManagerUnlockedInner {
+            _event_bus: event_bus,
             config,
             crypto,
             table_store,
@@ -117,12 +120,14 @@ impl StorageManager {
     }
 
     pub fn new(
+        event_bus: EventBus,
         config: VeilidConfig,
         crypto: Crypto,
         table_store: TableStore,
         #[cfg(feature = "unstable-blockstore")] block_store: BlockStore,
     ) -> StorageManager {
         let unlocked_inner = Arc::new(Self::new_unlocked_inner(
+            event_bus,
             config,
             crypto,
             table_store,
@@ -1012,12 +1017,12 @@ impl StorageManager {
                     self.unlocked_inner.config.get().network.dht.get_value_count as usize;
                 let value_node_count = fanout_result.value_nodes.len();
                 if value_node_count < get_consensus {
-                    log_stor!(debug "timeout with insufficient consensus ({}<{}), adding offline subkey: {}:{}", 
+                    log_stor!(debug "timeout with insufficient consensus ({}<{}), adding offline subkey: {}:{}",
                         value_node_count, get_consensus,
                         key, subkey);
                     true
                 } else {
-                    log_stor!(debug "timeout with sufficient consensus ({}>={}): set_value {}:{}", 
+                    log_stor!(debug "timeout with sufficient consensus ({}>={}): set_value {}:{}",
                         value_node_count, get_consensus,
                         key, subkey);
                     false
@@ -1028,12 +1033,12 @@ impl StorageManager {
                     self.unlocked_inner.config.get().network.dht.get_value_count as usize;
                 let value_node_count = fanout_result.value_nodes.len();
                 if value_node_count < get_consensus {
-                    log_stor!(debug "exhausted with insufficient consensus ({}<{}), adding offline subkey: {}:{}", 
+                    log_stor!(debug "exhausted with insufficient consensus ({}<{}), adding offline subkey: {}:{}",
                         value_node_count, get_consensus,
                         key, subkey);
                     true
                 } else {
-                    log_stor!(debug "exhausted with sufficient consensus ({}>={}): set_value {}:{}", 
+                    log_stor!(debug "exhausted with sufficient consensus ({}>={}): set_value {}:{}",
                         value_node_count, get_consensus,
                         key, subkey);
                     false

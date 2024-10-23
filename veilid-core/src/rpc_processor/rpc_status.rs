@@ -1,11 +1,6 @@
 use super::*;
 
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash, Default)]
-pub struct SenderInfo {
-    pub socket_address: SocketAddress,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash, Default)]
 pub struct StatusResult {
     pub opt_sender_info: Option<SenderInfo>,
     pub opt_previous_sender_info: Option<SenderInfo>,
@@ -38,7 +33,7 @@ impl RPCProcessor {
             opt_relay,
             opt_routing_domain,
         }) =
-            dest.get_unsafe_routing_info(self.routing_table.clone())
+            dest.get_unsafe_routing_info(self.routing_table())
         {
             let Some(routing_domain) = opt_routing_domain else {
                 // Because this exits before calling 'question()',
@@ -137,13 +132,15 @@ impl RPCProcessor {
                         opt_sender_info = Some(sender_info);
 
                         // Report ping status results to network manager
-                        self.network_manager().report_socket_address_change(
+                        if let Err(e) = self.event_bus().post(SocketAddressChangeEvent {
                             routing_domain,
-                            sender_info.socket_address,
-                            opt_previous_sender_info.map(|s| s.socket_address),
-                            send_data_method.unique_flow.flow,
-                            target.unfiltered(),
-                        );
+                            socket_address: sender_info.socket_address,
+                            old_socket_address: opt_previous_sender_info.map(|s| s.socket_address),
+                            flow: send_data_method.unique_flow.flow,
+                            reporting_peer: target.unfiltered(),
+                        }) {
+                            log_rpc!(debug "Failed to post event: {}", e);
+                        }
                     }
                 }
             }
@@ -172,7 +169,7 @@ impl RPCProcessor {
     ////////////////////////////////////////////////////////////////////////////////////////////////
 
     #[instrument(level = "trace", target = "rpc", skip(self, msg), fields(msg.operation.op_id), ret, err)]
-    pub(crate) async fn process_status_q(&self, msg: RPCMessage) -> RPCNetworkResult<()> {
+    pub(super) async fn process_status_q(&self, msg: Message) -> RPCNetworkResult<()> {
         // Get the question
         let kind = msg.operation.kind().clone();
         let status_q = match kind {

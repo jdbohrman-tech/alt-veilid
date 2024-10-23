@@ -1,9 +1,7 @@
 use super::*;
 use core::convert::TryInto;
 
-pub(crate) fn decode_dial_info(
-    reader: &veilid_capnp::dial_info::Reader,
-) -> Result<DialInfo, RPCError> {
+pub fn decode_dial_info(reader: &veilid_capnp::dial_info::Reader) -> Result<DialInfo, RPCError> {
     match reader
         .reborrow()
         .which()
@@ -62,7 +60,7 @@ pub(crate) fn decode_dial_info(
     }
 }
 
-pub(crate) fn encode_dial_info(
+pub fn encode_dial_info(
     dial_info: &DialInfo,
     builder: &mut veilid_capnp::dial_info::Builder,
 ) -> Result<(), RPCError> {

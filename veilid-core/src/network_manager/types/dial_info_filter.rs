@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct DialInfoFilter {
+pub(crate) struct DialInfoFilter {
     pub protocol_type_set: ProtocolTypeSet,
     pub address_type_set: AddressTypeSet,
 }

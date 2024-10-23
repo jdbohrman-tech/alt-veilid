@@ -30,6 +30,8 @@ mod operation_complete_tunnel;
 #[cfg(feature = "unstable-tunnels")]
 mod operation_start_tunnel;
 
+pub use operation_inspect_value::MAX_INSPECT_VALUE_A_SEQS_LEN;
+
 pub(in crate::rpc_processor) use answer::*;
 pub(in crate::rpc_processor) use operation::*;
 pub(in crate::rpc_processor) use operation_app_call::*;
@@ -62,5 +64,3 @@ pub(in crate::rpc_processor) use operation_complete_tunnel::*;
 pub(in crate::rpc_processor) use operation_start_tunnel::*;
 
 use super::*;
-
-pub(crate) use operation_inspect_value::MAX_INSPECT_VALUE_A_SEQS_LEN;

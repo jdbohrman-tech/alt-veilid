@@ -77,6 +77,7 @@ struct TableStoreInner {
 /// Database for storing key value pairs persistently and securely across runs.
 #[derive(Clone)]
 pub struct TableStore {
+    _event_bus: EventBus,
     config: VeilidConfig,
     protected_store: ProtectedStore,
     table_store_driver: TableStoreDriver,
@@ -94,11 +95,16 @@ impl TableStore {
             crypto: None,
         }
     }
-    pub(crate) fn new(config: VeilidConfig, protected_store: ProtectedStore) -> Self {
+    pub(crate) fn new(
+        event_bus: EventBus,
+        config: VeilidConfig,
+        protected_store: ProtectedStore,
+    ) -> Self {
         let inner = Self::new_inner();
         let table_store_driver = TableStoreDriver::new(config.clone());
 
         Self {
+            _event_bus: event_bus,
             config,
             protected_store,
             inner: Arc::new(Mutex::new(inner)),

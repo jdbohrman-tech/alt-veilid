@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
-pub enum RelayKind {
+pub(crate) enum RelayKind {
     Inbound = 0,
     Outbound = 1,
 }

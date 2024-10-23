@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-pub(in crate::storage_manager) struct RecordData {
+pub(super) struct RecordData {
     signed_value_data: Arc<SignedValueData>,
 }
 

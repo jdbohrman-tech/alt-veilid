@@ -1,6 +1,6 @@
 use super::*;
 
-pub(crate) fn encode_dial_info_detail(
+pub fn encode_dial_info_detail(
     dial_info_detail: &DialInfoDetail,
     builder: &mut veilid_capnp::dial_info_detail::Builder,
 ) -> Result<(), RPCError> {
@@ -11,7 +11,7 @@ pub(crate) fn encode_dial_info_detail(
     Ok(())
 }
 
-pub(crate) fn decode_dial_info_detail(
+pub fn decode_dial_info_detail(
     reader: &veilid_capnp::dial_info_detail::Reader,
 ) -> Result<DialInfoDetail, RPCError> {
     let dial_info = decode_dial_info(

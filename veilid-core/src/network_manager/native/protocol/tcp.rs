@@ -42,11 +42,16 @@ impl RawTcpNetworkConnection {
         if message.len() > MAX_MESSAGE_SIZE {
             bail_io_error_other!("sending too large TCP message");
         }
+
         let len = message.len() as u16;
         let header = [b'V', b'L', len as u8, (len >> 8) as u8];
 
-        network_result_try!(stream.write_all(&header).await.into_network_result()?);
-        network_result_try!(stream.write_all(&message).await.into_network_result()?);
+        let mut data = Vec::with_capacity(message.len() + 4);
+        data.extend_from_slice(&header);
+        data.extend_from_slice(&message);
+
+        network_result_try!(stream.write_all(&data).await.into_network_result()?);
+
         stream.flush().await.into_network_result()
     }
 
@@ -100,7 +105,7 @@ impl RawTcpNetworkConnection {
 ///////////////////////////////////////////////////////////
 
 #[derive(Clone)]
-pub(in crate::network_manager) struct RawTcpProtocolHandler
+pub struct RawTcpProtocolHandler
 where
     Self: ProtocolAcceptHandler,
 {

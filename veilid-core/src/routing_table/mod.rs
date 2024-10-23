@@ -12,6 +12,14 @@ mod types;
 
 pub mod tests;
 
+pub(crate) use bucket_entry::*;
+pub(crate) use node_ref::*;
+pub(crate) use privacy::*;
+pub(crate) use route_spec_store::*;
+pub(crate) use routing_table_inner::*;
+pub(crate) use stats_accounting::*;
+pub use types::*;
+
 use super::*;
 
 use crate::crypto::*;
@@ -20,15 +28,6 @@ use crate::rpc_processor::*;
 
 use bucket::*;
 use hashlink::LruCache;
-
-pub(crate) use bucket_entry::*;
-pub(crate) use node_ref::*;
-pub(crate) use privacy::*;
-pub(crate) use route_spec_store::*;
-pub(crate) use routing_table_inner::*;
-pub(crate) use stats_accounting::*;
-
-pub use types::*;
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -61,14 +60,14 @@ pub struct LowLevelPortInfo {
     pub low_level_protocol_ports: LowLevelProtocolPorts,
     pub protocol_to_port: ProtocolToPortMapping,
 }
-pub(crate) type RoutingTableEntryFilter<'t> =
+pub type RoutingTableEntryFilter<'t> =
     Box<dyn FnMut(&RoutingTableInner, Option<Arc<BucketEntry>>) -> bool + Send + 't>;
 
 type SerializedBuckets = Vec<Vec<u8>>;
 type SerializedBucketMap = BTreeMap<CryptoKind, SerializedBuckets>;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub(crate) struct RoutingTableHealth {
+pub struct RoutingTableHealth {
     /// Number of reliable (long-term responsive) entries in the routing table
     pub reliable_entry_count: usize,
     /// Number of unreliable (occasionally unresponsive) entries in the routing table
@@ -86,12 +85,13 @@ pub(crate) struct RoutingTableHealth {
 pub type BucketIndex = (CryptoKind, usize);
 
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct RecentPeersEntry {
+pub struct RecentPeersEntry {
     pub last_connection: Flow,
 }
 
 pub(crate) struct RoutingTableUnlockedInner {
     // Accessors
+    event_bus: EventBus,
     config: VeilidConfig,
     network_manager: NetworkManager,
 
@@ -214,12 +214,14 @@ pub(crate) struct RoutingTable {
 
 impl RoutingTable {
     fn new_unlocked_inner(
+        event_bus: EventBus,
         config: VeilidConfig,
         network_manager: NetworkManager,
     ) -> RoutingTableUnlockedInner {
         let c = config.get();
 
         RoutingTableUnlockedInner {
+            event_bus,
             config: config.clone(),
             network_manager,
             node_id: c.network.routing_table.node_id.clone(),
@@ -268,8 +270,9 @@ impl RoutingTable {
         }
     }
     pub fn new(network_manager: NetworkManager) -> Self {
+        let event_bus = network_manager.event_bus();
         let config = network_manager.config();
-        let unlocked_inner = Arc::new(Self::new_unlocked_inner(config, network_manager));
+        let unlocked_inner = Arc::new(Self::new_unlocked_inner(event_bus, config, network_manager));
         let inner = Arc::new(RwLock::new(RoutingTableInner::new(unlocked_inner.clone())));
         let this = Self {
             inner,

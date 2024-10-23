@@ -30,6 +30,7 @@ pub mod async_peek_stream;
 pub mod async_tag_lock;
 pub mod clone_stream;
 pub mod deferred_stream_processor;
+pub mod event_bus;
 pub mod eventual;
 pub mod eventual_base;
 pub mod eventual_value;
@@ -193,6 +194,8 @@ pub use async_tag_lock::*;
 pub use clone_stream::*;
 #[doc(inline)]
 pub use deferred_stream_processor::*;
+#[doc(inline)]
+pub use event_bus::*;
 #[doc(inline)]
 pub use eventual::*;
 #[doc(inline)]

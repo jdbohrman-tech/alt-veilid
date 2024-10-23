@@ -2,7 +2,7 @@ use super::*;
 
 /// Parameter for Signal operation
 #[derive(Clone, Debug)]
-pub enum SignalInfo {
+pub(crate) enum SignalInfo {
     /// UDP Hole Punch Request
     HolePunch {
         /// /// Receipt to be returned after the hole punch

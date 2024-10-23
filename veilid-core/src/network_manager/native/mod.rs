@@ -7,6 +7,8 @@ mod protocol;
 mod start_protocols;
 mod tasks;
 
+pub(super) use protocol::*;
+
 use super::*;
 use crate::routing_table::*;
 use connection_manager::*;
@@ -16,7 +18,6 @@ use network_tcp::*;
 use protocol::tcp::RawTcpProtocolHandler;
 use protocol::udp::RawUdpProtocolHandler;
 use protocol::ws::WebsocketProtocolHandler;
-pub(in crate::network_manager) use protocol::*;
 use start_protocols::*;
 
 use async_tls::TlsAcceptor;
@@ -133,7 +134,7 @@ struct NetworkUnlockedInner {
 }
 
 #[derive(Clone)]
-pub(in crate::network_manager) struct Network {
+pub(super) struct Network {
     config: VeilidConfig,
     inner: Arc<Mutex<NetworkInner>>,
     unlocked_inner: Arc<NetworkUnlockedInner>,

@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
-pub enum NetworkClass {
+pub(crate) enum NetworkClass {
     InboundCapable = 0, // I = Inbound capable without relay, may require signal
     OutboundOnly = 1, // O = Outbound only, inbound relay required except with reverse connect signal
     WebApp = 2,       // W = PWA, outbound relay is required in most cases

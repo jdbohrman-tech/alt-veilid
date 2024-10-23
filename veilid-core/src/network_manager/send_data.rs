@@ -16,7 +16,7 @@ impl NetworkManager {
     /// NodeContactMethod calculation requires first calculating the per-RoutingDomain ContactMethod
     /// between the source and destination PeerInfo, which is a stateless operation.
     #[instrument(level = "trace", target = "net", skip_all, err)]
-    pub(crate) async fn send_data(
+    pub async fn send_data(
         &self,
         destination_node_ref: FilteredNodeRef,
         data: Vec<u8>,
@@ -34,7 +34,7 @@ impl NetworkManager {
     }
 
     #[instrument(level = "trace", target = "net", skip_all)]
-    pub(crate) fn try_possibly_relayed_contact_method(
+    pub fn try_possibly_relayed_contact_method(
         &self,
         possibly_relayed_contact_method: NodeContactMethod,
         destination_node_ref: FilteredNodeRef,
@@ -400,7 +400,7 @@ impl NetworkManager {
     /// Uses NodeRefs to ensure nodes are referenced, this is not a part of 'RoutingTable' because RoutingTable is not
     /// allowed to use NodeRefs due to recursive locking
     #[instrument(level = "trace", target = "net", skip_all, err)]
-    pub(crate) fn get_node_contact_method(
+    pub fn get_node_contact_method(
         &self,
         target_node_ref: FilteredNodeRef,
     ) -> EyreResult<NodeContactMethod> {
