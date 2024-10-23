@@ -256,7 +256,7 @@ impl TableStore {
         let kind = FourCC::try_from(&dek_bytes[0..4]).unwrap();
         let crypto = self.inner.lock().crypto.as_ref().unwrap().clone();
         let Some(vcrypto) = crypto.get(kind) else {
-            bail!("unsupported cryptosystem");
+            bail!("unsupported cryptosystem '{kind}'");
         };
 
         if !device_encryption_key_password.is_empty() {
@@ -312,7 +312,7 @@ impl TableStore {
         // Get cryptosystem
         let crypto = self.inner.lock().crypto.as_ref().unwrap().clone();
         let Some(vcrypto) = crypto.get(dek.kind) else {
-            bail!("unsupported cryptosystem");
+            bail!("unsupported cryptosystem '{}'", dek.kind);
         };
 
         let nonce = vcrypto.random_nonce();

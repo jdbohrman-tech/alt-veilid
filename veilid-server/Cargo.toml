@@ -81,7 +81,7 @@ flume = { version = "^0", features = ["async"] }
 rpassword = "^7"
 hostname = "^0"
 stop-token = { version = "^0", default-features = false }
-sysinfo = { version = "^0.30.13" }
+sysinfo = { version = "^0.30.13", default-features = false }
 wg = { version = "^0.9.1", features = ["future"] }
 tracing-flame = "0.2.0"
 time = { version = "0.3.36", features = ["local-offset"] }
