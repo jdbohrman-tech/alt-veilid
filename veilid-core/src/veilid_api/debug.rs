@@ -2321,3 +2321,16 @@ where
         out
     }
 }
+
+pub trait StripTrailingNewline {
+    fn strip_trailing_newline(&self) -> &str;
+}
+
+impl<T: AsRef<str>> StripTrailingNewline for T {
+    fn strip_trailing_newline(&self) -> &str {
+        self.as_ref()
+            .strip_suffix("\r\n")
+            .or(self.as_ref().strip_suffix("\n"))
+            .unwrap_or(self.as_ref())
+    }
+}

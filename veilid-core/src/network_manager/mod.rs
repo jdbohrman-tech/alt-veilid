@@ -373,6 +373,23 @@ impl NetworkManager {
         *self.unlocked_inner.routing_table.write() = Some(routing_table.clone());
         *self.unlocked_inner.address_filter.write() = Some(address_filter);
         *self.unlocked_inner.update_callback.write() = Some(update_callback);
+
+        // Register event handlers
+        let this = self.clone();
+        self.event_bus().subscribe(move |evt| {
+            let this = this.clone();
+            Box::pin(async move {
+                this.peer_info_change_event_handler(evt);
+            })
+        });
+        let this = self.clone();
+        self.event_bus().subscribe(move |evt| {
+            let this = this.clone();
+            Box::pin(async move {
+                this.socket_address_change_event_handler(evt);
+            })
+        });
+
         Ok(())
     }
 
@@ -443,22 +460,6 @@ impl NetworkManager {
 
         rpc_processor.startup().await?;
         receipt_manager.startup().await?;
-
-        // Register event handlers
-        let this = self.clone();
-        self.event_bus().subscribe(move |evt| {
-            let this = this.clone();
-            Box::pin(async move {
-                this.peer_info_change_event_handler(evt);
-            })
-        });
-        let this = self.clone();
-        self.event_bus().subscribe(move |evt| {
-            let this = this.clone();
-            Box::pin(async move {
-                this.socket_address_change_event_handler(evt);
-            })
-        });
 
         log_net!("NetworkManager::internal_startup end");
 

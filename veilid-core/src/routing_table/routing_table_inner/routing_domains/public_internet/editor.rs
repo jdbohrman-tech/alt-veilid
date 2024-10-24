@@ -170,6 +170,7 @@ impl RoutingDomainEditorCommonTrait for RoutingDomainEditorPublicInternet {
                         info!(
                             "[PublicInternet] removed dial info:\n{}",
                             indent_all_string(&removed_dial_info.to_multiline_string())
+                                .strip_trailing_newline()
                         );
                         peer_info_changed = true;
                     }
@@ -181,6 +182,7 @@ impl RoutingDomainEditorCommonTrait for RoutingDomainEditorPublicInternet {
                         info!(
                             "[PublicInternet] added dial info:\n{}",
                             indent_all_string(&added_dial_info.to_multiline_string())
+                                .strip_trailing_newline()
                         );
                         peer_info_changed = true;
                     }
@@ -197,35 +199,35 @@ impl RoutingDomainEditorCommonTrait for RoutingDomainEditorPublicInternet {
                     }
                     if old_outbound_protocols != new_outbound_protocols {
                         info!(
-                            "[PublicInternet] changed network: outbound {:?}->{:?}\n",
+                            "[PublicInternet] changed network: outbound {:?}->{:?}",
                             old_outbound_protocols, new_outbound_protocols
                         );
                         peer_info_changed = true;
                     }
                     if old_inbound_protocols != new_inbound_protocols {
                         info!(
-                            "[PublicInternet] changed network: inbound {:?}->{:?}\n",
+                            "[PublicInternet] changed network: inbound {:?}->{:?}",
                             old_inbound_protocols, new_inbound_protocols,
                         );
                         peer_info_changed = true;
                     }
                     if old_address_types != new_address_types {
                         info!(
-                            "[PublicInternet] changed network: address types {:?}->{:?}\n",
+                            "[PublicInternet] changed network: address types {:?}->{:?}",
                             old_address_types, new_address_types,
                         );
                         peer_info_changed = true;
                     }
                     if old_capabilities != new_capabilities {
                         info!(
-                            "[PublicInternet] changed network: capabilities {:?}->{:?}\n",
+                            "[PublicInternet] changed network: capabilities {:?}->{:?}",
                             old_capabilities, new_capabilities
                         );
                         peer_info_changed = true;
                     }
                     if old_network_class != new_network_class {
                         info!(
-                            "[PublicInternet] changed network class: {:?}->{:?}\n",
+                            "[PublicInternet] changed network class: {:?}->{:?}",
                             old_network_class, new_network_class
                         );
                         peer_info_changed = true;
