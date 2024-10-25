@@ -1,7 +1,7 @@
 [package]
 # --- Bumpversion match - do not reorder
 name = "veilid-wasm"
-version = "0.4.0"
+version = "0.4.1"
 # ---
 description = "Veilid bindings for WebAssembly"
 repository = "https://gitlab.com/veilid/veilid"
@@ -20,7 +20,7 @@ default = ["veilid-core/default-wasm"]
 crypto-test = ["veilid-core/crypto-test"]
 
 [dependencies]
-veilid-core = { version = "0.4.0", path = "../veilid-core", default-features = false }
+veilid-core = { version = "0.4.1", path = "../veilid-core", default-features = false }
 
 tracing = { version = "^0", features = ["log", "attributes"] }
 tracing-wasm = "^0"
