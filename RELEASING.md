@@ -20,7 +20,7 @@ Releases happen via a CI/CD pipeline. The release process flows as follows:
 
     2.1 Update your local copy of `main` to mirror the newly merged upstream `main`
 
-    2.2 Ensure the [CHANGELOG](./CHANGELOG.md) is updated.
+    2.2 Ensure the [CHANGELOG](./CHANGELOG.md) is updated and committed.
 
     2.3 Activate your bumpversion Python venv (see bumpversion setup section for details)
 
@@ -32,11 +32,9 @@ Releases happen via a CI/CD pipeline. The release process flows as follows:
 
     2.7 Create the Git tag `git tag v{new_version}`
 
-    2.8 Push your local 'main' to the upstream origin 'main' `git push`
+    2.8 Push your local the tagged code to trigger the release pipeline `git push -o ci.skip && git push --tags`
 
-    2.9 Push the new tag to the upstream origin `git push origin {tag name made in step 2.7}` i.e. `git push origin v0.1.5`
-
-    2.10 Ensure the package/release/distribute pipeline autostarted in the Gitlab UI
+    2.9 Ensure the package/release/distribute pipeline autostarted in the Gitlab UI
 
 Git tags serve as a historical record of what repo versions were successfully released at which version numbers.
 
