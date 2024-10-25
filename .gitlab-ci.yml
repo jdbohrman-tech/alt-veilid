@@ -417,3 +417,5 @@ failed_pipeline_actions:
     - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh delete arm64-deb
     - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh delete amd64-rpm
   when: on_failure
+
+  #CI comment
