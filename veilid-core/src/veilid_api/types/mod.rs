@@ -1,6 +1,8 @@
 #[macro_use]
 mod aligned_u64;
 mod app_message_call;
+#[cfg(feature = "geolocation")]
+mod country_code;
 mod dht;
 mod fourcc;
 mod safety;
@@ -16,6 +18,8 @@ use super::*;
 
 pub use aligned_u64::*;
 pub use app_message_call::*;
+#[cfg(feature = "geolocation")]
+pub use country_code::*;
 pub use dht::*;
 pub use fourcc::*;
 pub use safety::*;

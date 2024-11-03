@@ -57,6 +57,9 @@ debug-locks = ["veilid-tools/debug-locks"]
 unstable-blockstore = []
 unstable-tunnels = []
 
+# GeoIP
+geolocation = ["maxminddb", "reqwest"]
+
 ### DEPENDENCIES
 
 [dependencies]
@@ -153,6 +156,7 @@ bugsalot = { package = "veilid-bugsalot", version = "0.2.0" }
 chrono = "0.4.38"
 libc = "0.2.155"
 nix = "0.27.1"
+maxminddb = { version = "0.24.0", optional = true }
 
 # System
 async-std = { version = "1.12.0", features = ["unstable"], optional = true }
@@ -278,6 +282,7 @@ glob = "0.3.1"
 filetime = "0.2.23"
 sha2 = "0.10.8"
 hex = "0.4.3"
+reqwest = { version = "0.11", features = ["blocking"], optional = true }
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ["-O", "--enable-mutable-globals"]

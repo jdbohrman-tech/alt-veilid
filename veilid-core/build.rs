@@ -190,6 +190,50 @@ fn fix_android_emulator() {
     }
 }
 
+#[cfg(feature = "geolocation")]
+fn download_file(url: &str, filename: impl AsRef<Path>) -> Result<(), Box<dyn std::error::Error>> {
+    let content = reqwest::blocking::get(url)?.bytes()?;
+    std::fs::write(filename, content)?;
+    Ok(())
+}
+
+#[cfg(feature = "geolocation")]
+fn download_geoip_database_files() -> Result<(), Box<dyn std::error::Error>> {
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR")?;
+    let target_dir = std::path::PathBuf::from(manifest_dir).join("../target");
+
+    // Source: https://github.com/sapics/ip-location-db
+    let files = [
+        (
+            "https://cdn.jsdelivr.net/npm/@ip-location-db/asn-country-mmdb/asn-country-ipv4.mmdb",
+            Path::new(&target_dir).join("ipv4.mmdb"),
+        ),
+        (
+            "https://cdn.jsdelivr.net/npm/@ip-location-db/asn-country-mmdb/asn-country-ipv6.mmdb",
+            Path::new(&target_dir).join("ipv6.mmdb"),
+        ),
+    ];
+
+    for (url, filename) in files {
+        if !filename.exists() {
+            println!("Downloading {url}");
+            download_file(url, &filename)?;
+            continue;
+        }
+
+        let modified = std::fs::metadata(&filename)?.modified()?;
+        let now = std::time::SystemTime::now();
+        let time_diff = now.duration_since(modified)?;
+
+        if time_diff > std::time::Duration::from_secs(60 * 60 * 24) {
+            println!("Downloading {url}");
+            download_file(url, &filename)?;
+        }
+    }
+
+    Ok(())
+}
+
 fn main() {
     if std::env::var("DOCS_RS").is_ok()
         || std::env::var("CARGO_CFG_DOC").is_ok()
@@ -204,4 +248,7 @@ fn main() {
     }
 
     fix_android_emulator();
+
+    #[cfg(feature = "geolocation")]
+    download_geoip_database_files().expect("failed to download geoip database files");
 }
