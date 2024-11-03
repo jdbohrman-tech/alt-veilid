@@ -2,6 +2,8 @@ mod bucket;
 mod bucket_entry;
 mod debug;
 mod find_peers;
+#[cfg(feature = "geolocation")]
+mod geolocation;
 mod node_ref;
 mod privacy;
 mod route_spec_store;
