@@ -1,4 +1,4 @@
-pub static DEFAULT_LOG_FACILITIES_IGNORE_LIST: [&str; 29] = [
+pub static DEFAULT_LOG_FACILITIES_IGNORE_LIST: &[&str] = &[
     "mio",
     "h2",
     "hyper",
@@ -28,9 +28,11 @@ pub static DEFAULT_LOG_FACILITIES_IGNORE_LIST: [&str; 29] = [
     "fanout",
     "receipt",
     "rpc_message",
+    #[cfg(feature = "geolocation")]
+    "maxminddb",
 ];
 
-pub static FLAME_LOG_FACILITIES_IGNORE_LIST: [&str; 22] = [
+pub static FLAME_LOG_FACILITIES_IGNORE_LIST: &[&str] = &[
     "mio",
     "h2",
     "hyper",
@@ -53,9 +55,11 @@ pub static FLAME_LOG_FACILITIES_IGNORE_LIST: [&str; 22] = [
     "hickory_proto",
     "attohttpc",
     "ws_stream_wasm",
+    #[cfg(feature = "geolocation")]
+    "maxminddb",
 ];
 
-pub static DEFAULT_LOG_FACILITIES_ENABLED_LIST: [&str; 8] = [
+pub static DEFAULT_LOG_FACILITIES_ENABLED_LIST: &[&str] = &[
     "net",
     "rpc",
     "rtab",
@@ -66,7 +70,7 @@ pub static DEFAULT_LOG_FACILITIES_ENABLED_LIST: [&str; 8] = [
     "crypto",
 ];
 
-pub static DURATION_LOG_FACILITIES: [&str; 1] = ["veilid_api"];
+pub static DURATION_LOG_FACILITIES: &[&str] = &["veilid_api"];
 
 #[macro_export]
 macro_rules! fn_string {

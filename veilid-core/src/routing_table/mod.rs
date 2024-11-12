@@ -493,8 +493,15 @@ impl RoutingTable {
     ) -> EyreResult<()> {
         let mut all_entries: Vec<Arc<BucketEntry>> = Vec::with_capacity(all_entry_bytes.len());
         for entry_bytes in all_entry_bytes {
-            let entryinner = deserialize_json_bytes(&entry_bytes)
+            #[allow(unused_mut)]
+            let mut entryinner: BucketEntryInner = deserialize_json_bytes(&entry_bytes)
                 .wrap_err("failed to deserialize bucket entry")?;
+
+            #[cfg(feature = "geolocation")]
+            {
+                entryinner.update_geolocation_info();
+            }
+
             let entry = Arc::new(BucketEntry::new_with_inner(entryinner));
 
             // Keep strong reference in table

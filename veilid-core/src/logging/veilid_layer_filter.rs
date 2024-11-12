@@ -19,8 +19,9 @@ impl VeilidLayerFilter {
         ignore_change_list: &[String],
     ) -> VeilidLayerFilter {
         let mut ignore_list = DEFAULT_LOG_FACILITIES_IGNORE_LIST
-            .map(|x| x.to_owned())
-            .to_vec();
+            .iter()
+            .map(|&x| x.to_owned())
+            .collect::<Vec<_>>();
         Self::apply_ignore_change_list(&mut ignore_list, ignore_change_list);
         Self {
             inner: Arc::new(RwLock::new(VeilidLayerFilterInner {
@@ -64,8 +65,9 @@ impl VeilidLayerFilter {
             let mut inner = self.inner.write();
             inner.ignore_list = ignore_list.unwrap_or_else(|| {
                 DEFAULT_LOG_FACILITIES_IGNORE_LIST
-                    .map(|x| x.to_owned())
-                    .to_vec()
+                    .iter()
+                    .map(|&x| x.to_owned())
+                    .collect::<Vec<_>>()
             });
         }
         callsite::rebuild_interest_cache();

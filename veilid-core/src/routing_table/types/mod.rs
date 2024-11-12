@@ -1,6 +1,8 @@
 mod contact_method;
 mod dial_info_detail;
 mod direction;
+#[cfg(feature = "geolocation")]
+mod geolocation_info;
 mod node_info;
 mod node_status;
 mod peer_info;
@@ -14,6 +16,8 @@ use super::*;
 pub use contact_method::*;
 pub use dial_info_detail::*;
 pub use direction::*;
+#[cfg(feature = "geolocation")]
+pub use geolocation_info::*;
 pub use node_info::*;
 pub use node_status::*;
 pub use peer_info::*;

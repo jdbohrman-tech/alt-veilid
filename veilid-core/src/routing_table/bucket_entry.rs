@@ -174,6 +174,10 @@ pub(crate) struct BucketEntryInner {
     last_sender_info: HashMap<LastSenderInfoKey, SenderInfo>,
     /// The node info for this entry on the publicinternet routing domain
     public_internet: BucketEntryPublicInternet,
+    /// Node location
+    #[cfg(feature = "geolocation")]
+    #[serde(skip)]
+    geolocation_info: GeolocationInfo,
     /// The node info for this entry on the localnetwork routing domain
     local_network: BucketEntryLocalNetwork,
     /// Statistics gathered for the peer
@@ -461,6 +465,12 @@ impl BucketEntryInner {
         self.updated_since_last_network_change = true;
         self.make_not_dead(Timestamp::now());
 
+        // Update geolocation info
+        #[cfg(feature = "geolocation")]
+        {
+            self.geolocation_info = signed_node_info.get_geolocation_info(routing_domain);
+        }
+
         // If we're updating an entry's node info, purge all
         // but the last connection in our last connections list
         // because the dial info could have changed and it's safer to just reconnect.
@@ -471,6 +481,13 @@ impl BucketEntryInner {
         }
 
         node_info_changed
+    }
+
+    #[cfg(feature = "geolocation")]
+    pub(super) fn update_geolocation_info(&mut self) {
+        if let Some(ref sni) = self.public_internet.signed_node_info {
+            self.geolocation_info = sni.get_geolocation_info(RoutingDomain::PublicInternet);
+        }
     }
 
     pub fn has_node_info(&self, routing_domain_set: RoutingDomainSet) -> bool {
@@ -724,6 +741,11 @@ impl BucketEntryInner {
 
     pub fn state(&self, cur_ts: Timestamp) -> BucketEntryState {
         self.state_reason(cur_ts).into()
+    }
+
+    #[cfg(feature = "geolocation")]
+    pub fn geolocation_info(&self) -> &GeolocationInfo {
+        &self.geolocation_info
     }
 
     pub fn set_punished(&mut self, punished: Option<PunishmentReason>) {
@@ -1099,6 +1121,8 @@ impl BucketEntry {
                 signed_node_info: None,
                 node_status: None,
             },
+            #[cfg(feature = "geolocation")]
+            geolocation_info: Default::default(),
             peer_stats: PeerStats {
                 time_added: now,
                 rpc_stats: RPCStats::default(),
