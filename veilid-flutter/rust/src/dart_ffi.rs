@@ -321,7 +321,10 @@ pub extern "C" fn initialize_veilid_core(platform_config: FfiStr) {
     if platform_config.logging.flame.enabled {
         let filter = veilid_core::VeilidLayerFilter::new_no_default(
             veilid_core::VeilidConfigLogLevel::Trace,
-            &veilid_core::FLAME_LOG_FACILITIES_IGNORE_LIST.map(|x| x.to_string()),
+            &veilid_core::FLAME_LOG_FACILITIES_IGNORE_LIST
+                .iter()
+                .map(|&x| x.to_string())
+                .collect::<Vec<_>>(),
         );
         let (flame_layer, guard) =
             FlameLayer::with_file(&platform_config.logging.flame.path).unwrap();

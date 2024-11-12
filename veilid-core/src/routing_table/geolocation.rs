@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 use crate::CountryCode;
 use maxminddb::MaxMindDBError;
 use once_cell::sync::Lazy;
@@ -63,6 +61,7 @@ pub fn query_country_code(addr: IpAddr) -> Option<CountryCode> {
 mod tests {
     use crate::CountryCode;
     use core::str::FromStr;
+    use maxminddb::WithinItem;
 
     #[test]
     fn test_query_country_code() {
@@ -90,5 +89,31 @@ mod tests {
         assert!(super::query_country_code("127.0.0.1".parse().unwrap()).is_none());
         assert!(super::query_country_code("10.0.0.1".parse().unwrap()).is_none());
         assert!(super::query_country_code("::1".parse().unwrap()).is_none());
+    }
+
+    #[test]
+    fn test_iter_over_ipv4_mmdb() {
+        let db = super::IPV4.as_ref().unwrap();
+
+        let count = db
+            .within("0.0.0.0/0".parse().unwrap())
+            .unwrap()
+            .map(|item: Result<WithinItem<super::Country>, _>| item.unwrap())
+            .count();
+
+        assert!(count > 100, "Expecting some IPv4 subnets in IPv4 MMDB");
+    }
+
+    #[test]
+    fn test_iter_over_ipv6_mmdb() {
+        let db = super::IPV6.as_ref().unwrap();
+
+        let count = db
+            .within("::/0".parse().unwrap())
+            .unwrap()
+            .map(|item: Result<WithinItem<super::Country>, _>| item.unwrap())
+            .count();
+
+        assert!(count > 100, "Expecting some IPv6 subnets in IPv6 MMDB");
     }
 }

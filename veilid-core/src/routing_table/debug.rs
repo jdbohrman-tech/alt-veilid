@@ -144,45 +144,88 @@ impl RoutingTable {
         e: &BucketEntryInner,
         relay_tag: &str,
     ) -> String {
-        format!(
+        let state_reason = Self::format_state_reason(e.state_reason(cur_ts));
+
+        let average_latency = e
+            .peer_stats()
+            .latency
+            .as_ref()
+            .map(|l| l.to_string())
+            .unwrap_or_else(|| "???".to_string());
+
+        let capabilities = if let Some(ni) = e.node_info(RoutingDomain::PublicInternet) {
+            ni.capabilities()
+                .iter()
+                .map(|x| x.to_string())
+                .collect::<Vec<String>>()
+                .join(",")
+        } else {
+            "???".to_owned()
+        };
+
+        let since_last_question = e
+            .peer_stats()
+            .rpc_stats
+            .last_question_ts
+            .as_ref()
+            .map(|l| cur_ts.saturating_sub(*l).to_string())
+            .unwrap_or_else(|| "???".to_string());
+
+        let since_last_seen = e
+            .peer_stats()
+            .rpc_stats
+            .last_seen_ts
+            .as_ref()
+            .map(|l| cur_ts.saturating_sub(*l).to_string())
+            .unwrap_or_else(|| "???".to_string());
+
+        #[allow(unused_mut)]
+        let mut result = format!(
             "    {} [{}][{}] {} [{}] lastq@{} seen@{}",
             // node id
             node,
             // state reason
-            Self::format_state_reason(e.state_reason(cur_ts)),
+            state_reason,
             // Relay tag
             relay_tag,
             // average latency
-            e.peer_stats()
-                .latency
-                .as_ref()
-                .map(|l| l.to_string())
-                .unwrap_or_else(|| "???".to_string()),
+            average_latency,
             // capabilities
-            if let Some(ni) = e.node_info(RoutingDomain::PublicInternet) {
-                ni.capabilities()
-                    .iter()
-                    .map(|x| x.to_string())
-                    .collect::<Vec<String>>()
-                    .join(",")
-            } else {
-                "???".to_owned()
-            },
+            capabilities,
             // duration since last question
-            e.peer_stats()
-                .rpc_stats
-                .last_question_ts
-                .as_ref()
-                .map(|l| cur_ts.saturating_sub(*l).to_string())
-                .unwrap_or_else(|| "???".to_string()),
+            since_last_question,
             // duration since last seen
-            e.peer_stats()
-                .rpc_stats
-                .last_seen_ts
-                .as_ref()
-                .map(|l| cur_ts.saturating_sub(*l).to_string())
-                .unwrap_or_else(|| "???".to_string()),
-        )
+            since_last_seen,
+        );
+
+        #[cfg(feature = "geolocation")]
+        {
+            let geolocation_info = e.geolocation_info();
+
+            if let Some(cc) = geolocation_info.country_code() {
+                result += &format!(" {cc}");
+            } else {
+                result += " ??";
+            }
+
+            if !geolocation_info.relay_country_codes().is_empty() {
+                result += "/";
+            }
+
+            for (i, cc) in geolocation_info.relay_country_codes().iter().enumerate() {
+                if i > 0 {
+                    result += ",";
+                }
+
+                if let Some(cc) = cc {
+                    result += &format!("{cc}");
+                } else {
+                    result += "??";
+                }
+            }
+        }
+
+        result
     }
 
     pub fn debug_info_entries(

@@ -95,7 +95,10 @@ impl VeilidLogs {
         if settingsr.logging.flame.enabled {
             let filter = veilid_core::VeilidLayerFilter::new_no_default(
                 veilid_core::VeilidConfigLogLevel::Trace,
-                &veilid_core::FLAME_LOG_FACILITIES_IGNORE_LIST.map(|x| x.to_string()),
+                &veilid_core::FLAME_LOG_FACILITIES_IGNORE_LIST
+                    .iter()
+                    .map(|&x| x.to_string())
+                    .collect::<Vec<_>>(),
             );
             let (flame_layer, guard) = FlameLayer::with_file(&settingsr.logging.flame.path)?;
             flame_guard = Some(guard);
@@ -115,7 +118,10 @@ impl VeilidLogs {
         if settingsr.logging.perfetto.enabled {
             let filter = veilid_core::VeilidLayerFilter::new_no_default(
                 veilid_core::VeilidConfigLogLevel::Trace,
-                &veilid_core::FLAME_LOG_FACILITIES_IGNORE_LIST.map(|x| x.to_string()),
+                &veilid_core::FLAME_LOG_FACILITIES_IGNORE_LIST
+                    .iter()
+                    .map(|&x| x.to_string())
+                    .collect::<Vec<_>>(),
             );
             let perfetto_layer = PerfettoLayer::new(std::sync::Mutex::new(std::fs::File::create(
                 &settingsr.logging.perfetto.path,
