@@ -191,9 +191,9 @@ impl WebsocketProtocolHandler {
     pub fn new(config: VeilidConfig, tls: bool) -> Self {
         let c = config.get();
         let path = if tls {
-            format!("GET /{}", c.network.protocol.ws.path.trim_end_matches('/'))
-        } else {
             format!("GET /{}", c.network.protocol.wss.path.trim_end_matches('/'))
+        } else {
+            format!("GET /{}", c.network.protocol.ws.path.trim_end_matches('/'))
         };
         let connection_initial_timeout_ms = if tls {
             c.network.tls.connection_initial_timeout_ms
