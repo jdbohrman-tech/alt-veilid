@@ -85,27 +85,28 @@ test_build:
     - earthly --use-inline-cache +unit-tests-linux --BASE=container $project_args
   resource_group: test
   rules:
-    - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
-      when: never
-    - if: $IS_NIGHTLY == "true"
-      when: never
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_PIPELINE_SOURCE == "push"
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-    - changes:
+      changes:
         - veilid-*/**
         - '**/*[Cc]argo*'
+      when: always
+    - if: $CI_PIPELINE_SOURCE == "push"
+      changes:
+        - veilid-*/**
+        - '**/*[Cc]argo*'
+      when: always
+    - when: never
 
 semgrep:
   # A Docker image with Semgrep installed.
   image: semgrep/semgrep
 
   rules:
-    # Scan changed files in MRs, (diff-aware scanning):
-    - if: $CI_MERGE_REQUEST_IID
-
-    # Scan mainline (default) branches and report all findings.
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"  # Include all merge requests
+    - if: $CI_PIPELINE_SOURCE == "push"  # Include all commits
+    - if: $CI_PIPELINE_SOURCE == "schedule"  # Optionally include scheduled pipelines
+    - when: always  # Ensure it runs if the pipeline is triggered for any other reason
+  
 
   variables:
     # Connect to Semgrep AppSec Platform through your SEMGREP_APP_TOKEN.
