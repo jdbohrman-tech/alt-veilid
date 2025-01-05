@@ -76,7 +76,7 @@ _REPEAT FOR EACH BOOTSTRAP SERVER_
 
 Create the following DNS Records for your domain:
 
-(This example assumes two bootstrap serves are being created)
+(This example assumes two bootstrap servers are being created)
 
 | Record    | Value                       | Record Type |
 |-----------|-----------------------------|-------------|
