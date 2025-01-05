@@ -3,20 +3,25 @@
 name = "veilid"
 version = "0.4.1"
 # ---
-description = ""
+description = "Create an application in Python using the distributed Veilid framework for private, E2EE, app-to-app communication."
 authors = ["Veilid Team <contact@veilid.com>"]
 readme = "README.md"
+license = "MPL-2.0"
 packages = [{ include = "veilid" }]
+
+[tool.poetry.urls]
+homepage = "https://veilid.com"
+repository = "https://gitlab.com/veilid/veilid"
 
 [tool.poetry.dependencies]
 python = "^3.12.5"
 jsonschema = "^4.17.3"
+appdirs = "^1.4.4"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.3.2"
 pytest-cov = "^5.0.0"
 pytest-asyncio = "^0.21.0"
-appdirs = "^1.4.4"
 
 [build-system]
 requires = ["poetry-core"]
