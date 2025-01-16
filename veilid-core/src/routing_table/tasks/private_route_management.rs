@@ -207,11 +207,15 @@ impl RoutingTable {
             for _n in 0..routes_to_allocate {
                 // Parameters here must be the most inclusive safety route spec
                 // These will be used by test_remote_route as well
+                let safety_spec = SafetySpec {
+                    preferred_route: None,
+                    hop_count: default_route_hop_count,
+                    stability: Stability::Reliable,
+                    sequencing: Sequencing::PreferOrdered,
+                };
                 match rss.allocate_route(
                     &VALID_CRYPTO_KINDS,
-                    Stability::Reliable,
-                    Sequencing::PreferOrdered,
-                    default_route_hop_count,
+                    &safety_spec,
                     DirectionSet::all(),
                     &[],
                     true,

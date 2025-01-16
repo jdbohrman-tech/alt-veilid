@@ -275,6 +275,28 @@ pub struct VeilidConfigProtocol {
     pub wss: VeilidConfigWSS,
 }
 
+/// Privacy preferences for routes.
+///
+/// ```yaml
+/// privacy:
+///     country_code_denylist: []
+/// ```
+#[cfg(feature = "geolocation")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+pub struct VeilidConfigPrivacy {
+    pub country_code_denylist: Vec<CountryCode>,
+}
+
+#[cfg(feature = "geolocation")]
+impl Default for VeilidConfigPrivacy {
+    fn default() -> Self {
+        Self {
+            country_code_denylist: Vec::new(),
+        }
+    }
+}
+
 /// Configure TLS.
 ///
 /// ```yaml
@@ -503,6 +525,8 @@ pub struct VeilidConfigNetwork {
     pub tls: VeilidConfigTLS,
     pub application: VeilidConfigApplication,
     pub protocol: VeilidConfigProtocol,
+    #[cfg(feature = "geolocation")]
+    pub privacy: VeilidConfigPrivacy,
 }
 
 impl Default for VeilidConfigNetwork {
@@ -527,6 +551,8 @@ impl Default for VeilidConfigNetwork {
             tls: VeilidConfigTLS::default(),
             application: VeilidConfigApplication::default(),
             protocol: VeilidConfigProtocol::default(),
+            #[cfg(feature = "geolocation")]
+            privacy: VeilidConfigPrivacy::default(),
         }
     }
 }
@@ -970,6 +996,8 @@ impl VeilidConfig {
             get_config!(inner.network.protocol.wss.listen_address);
             get_config!(inner.network.protocol.wss.path);
             get_config!(inner.network.protocol.wss.url);
+            #[cfg(feature = "geolocation")]
+            get_config!(inner.network.privacy.country_code_denylist);
             Ok(())
         })
     }

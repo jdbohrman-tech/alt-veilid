@@ -42,6 +42,8 @@ tracking = ["veilid-core/tracking"]
 debug-json-api = []
 debug-locks = ["veilid-core/debug-locks"]
 
+geolocation = ["veilid-core/geolocation"]
+
 [dependencies]
 veilid-core = { path = "../veilid-core", default-features = false }
 tracing = { version = "^0.1.40", features = ["log", "attributes"] }

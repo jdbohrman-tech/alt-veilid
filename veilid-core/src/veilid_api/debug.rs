@@ -185,6 +185,7 @@ fn get_safety_selection(routing_table: RoutingTable) -> impl Fn(&str) -> Option<
                     sequencing = s;
                 }
             }
+
             let ss = SafetySpec {
                 preferred_route,
                 hop_count,
@@ -1146,21 +1147,21 @@ impl VeilidAPI {
             ai += 1;
         }
 
-        // Allocate route
-        let out = match rss.allocate_route(
-            &VALID_CRYPTO_KINDS,
+        let safety_spec = SafetySpec {
+            preferred_route: None,
+            hop_count,
             stability,
             sequencing,
-            hop_count,
-            directions,
-            &[],
-            false,
-        ) {
-            Ok(v) => v.to_string(),
-            Err(e) => {
-                format!("Route allocation failed: {}", e)
-            }
         };
+
+        // Allocate route
+        let out =
+            match rss.allocate_route(&VALID_CRYPTO_KINDS, &safety_spec, directions, &[], false) {
+                Ok(v) => v.to_string(),
+                Err(e) => {
+                    format!("Route allocation failed: {}", e)
+                }
+            };
 
         Ok(out)
     }

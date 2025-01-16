@@ -300,16 +300,16 @@ impl VeilidAPI {
             c.network.rpc.default_route_hop_count.into()
         };
 
-        let rss = self.routing_table()?.route_spec_store();
-        let route_id = rss.allocate_route(
-            crypto_kinds,
+        let safety_spec = SafetySpec {
+            preferred_route: None,
+            hop_count: default_route_hop_count,
             stability,
             sequencing,
-            default_route_hop_count,
-            DirectionSet::all(),
-            &[],
-            false,
-        )?;
+        };
+
+        let rss = self.routing_table()?.route_spec_store();
+        let route_id =
+            rss.allocate_route(crypto_kinds, &safety_spec, DirectionSet::all(), &[], false)?;
         match rss.test_route(route_id).await? {
             Some(true) => {
                 // route tested okay
