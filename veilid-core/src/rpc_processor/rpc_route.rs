@@ -172,6 +172,7 @@ impl RPCProcessor {
         // Ensure the route is validated, and construct a return safetyspec that matches the inbound preferences
         let rss = self.routing_table().route_spec_store();
         let preferred_route = rss.get_route_id_for_key(&pr_pubkey.value);
+
         let Some((secret_key, safety_spec)) = rss.with_signature_validated_route(
             &pr_pubkey,
             routed_operation.signatures(),

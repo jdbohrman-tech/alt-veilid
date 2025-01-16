@@ -282,6 +282,8 @@ pub fn config_callback(key: String) -> ConfigCallbackReturn {
         "network.protocol.wss.listen_address" => Ok(Box::new("".to_owned())),
         "network.protocol.wss.path" => Ok(Box::new(String::from("ws"))),
         "network.protocol.wss.url" => Ok(Box::new(Option::<String>::None)),
+        #[cfg(feature = "geolocation")]
+        "network.privacy.country_code_denylist" => Ok(Box::new(Vec::<CountryCode>::new())),
         _ => {
             let err = format!("config key '{}' doesn't exist", key);
             debug!("{}", err);
@@ -419,6 +421,9 @@ pub async fn test_config() {
     assert_eq!(inner.network.protocol.wss.listen_address, "");
     assert_eq!(inner.network.protocol.wss.path, "ws");
     assert_eq!(inner.network.protocol.wss.url, None);
+
+    #[cfg(feature = "geolocation")]
+    assert_eq!(inner.network.privacy.country_code_denylist, Vec::new());
 }
 
 pub async fn test_all() {

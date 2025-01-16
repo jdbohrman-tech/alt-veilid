@@ -175,9 +175,7 @@ impl RouteSpecStore {
     pub fn allocate_route(
         &self,
         crypto_kinds: &[CryptoKind],
-        stability: Stability,
-        sequencing: Sequencing,
-        hop_count: usize,
+        safety_spec: &SafetySpec,
         directions: DirectionSet,
         avoid_nodes: &[TypedKey],
         automatic: bool,
@@ -190,9 +188,7 @@ impl RouteSpecStore {
             inner,
             rti,
             crypto_kinds,
-            stability,
-            sequencing,
-            hop_count,
+            safety_spec,
             directions,
             avoid_nodes,
             automatic,
@@ -206,14 +202,16 @@ impl RouteSpecStore {
         inner: &mut RouteSpecStoreInner,
         rti: &mut RoutingTableInner,
         crypto_kinds: &[CryptoKind],
-        stability: Stability,
-        sequencing: Sequencing,
-        hop_count: usize,
+        safety_spec: &SafetySpec,
         directions: DirectionSet,
         avoid_nodes: &[TypedKey],
         automatic: bool,
     ) -> VeilidAPIResult<RouteId> {
         use core::cmp::Ordering;
+
+        if safety_spec.preferred_route.is_some() {
+            apibail_generic!("safety_spec.preferred_route must be empty when allocating new route");
+        }
 
         let ip6_prefix_size = rti
             .unlocked_inner
@@ -222,19 +220,19 @@ impl RouteSpecStore {
             .network
             .max_connections_per_ip6_prefix_size as usize;
 
-        if hop_count < 1 {
+        if safety_spec.hop_count < 1 {
             apibail_invalid_argument!(
                 "Not allocating route less than one hop in length",
                 "hop_count",
-                hop_count
+                safety_spec.hop_count
             );
         }
 
-        if hop_count > self.unlocked_inner.max_route_hop_count {
+        if safety_spec.hop_count > self.unlocked_inner.max_route_hop_count {
             apibail_invalid_argument!(
                 "Not allocating route longer than max route hop count",
                 "hop_count",
-                hop_count
+                safety_spec.hop_count
             );
         }
 
@@ -290,6 +288,83 @@ impl RouteSpecStore {
                     let Some(sni) = e.signed_node_info(RoutingDomain::PublicInternet) else {
                         return false;
                     };
+
+                    // Exclude nodes from blacklisted countries
+                    #[cfg(feature = "geolocation")]
+                    {
+                        let country_code_denylist = self
+                            .unlocked_inner
+                            .routing_table
+                            .config
+                            .get()
+                            .network
+                            .privacy
+                            .country_code_denylist
+                            .clone();
+
+                        if !country_code_denylist.is_empty() {
+                            let geolocation_info =
+                                sni.get_geolocation_info(RoutingDomain::PublicInternet);
+
+                            // Since denylist is used, consider nodes with unknown countries to be automatically
+                            // excluded as well
+                            if geolocation_info.country_code().is_none() {
+                                log_rtab!(
+                                    debug "allocate_route_inner: skipping node {} from unknown country",
+                                    e.best_node_id()
+                                );
+                                return false;
+                            }
+                            // Same thing applies to relays used by the node
+                            if geolocation_info
+                                .relay_country_codes()
+                                .iter()
+                                .any(Option::is_none)
+                            {
+                                log_rtab!(
+                                    debug "allocate_route_inner: skipping node {} using relay from unknown country",
+                                    e.best_node_id()
+                                );
+                                return false;
+                            }
+
+                            // Ensure that node is not excluded
+                            // Safe to unwrap here, checked above
+                            if country_code_denylist.contains(&geolocation_info.country_code().unwrap())
+                            {
+                                log_rtab!(
+                                    debug "allocate_route_inner: skipping node {} from excluded country {}",
+                                    e.best_node_id(),
+                                    geolocation_info.country_code().unwrap()
+                                );
+                                return false;
+                            }
+
+                            // Ensure that node relays are not excluded
+                            // Safe to unwrap here, checked above
+                            if geolocation_info
+                                .relay_country_codes()
+                                .iter()
+                                .cloned()
+                                .map(Option::unwrap)
+                                .any(|cc| country_code_denylist.contains(&cc))
+                            {
+                                log_rtab!(
+                                    debug "allocate_route_inner: skipping node {} using relay from excluded country {:?}",
+                                    e.best_node_id(),
+                                    geolocation_info
+                                        .relay_country_codes()
+                                        .iter()
+                                        .cloned()
+                                        .map(Option::unwrap)
+                                        .filter(|cc| country_code_denylist.contains(&cc))
+                                        .next()
+                                        .unwrap()
+                                );
+                                return false;
+                            }
+                        }
+                    }
 
                     // Exclude nodes on our same ipblock, or their relay is on our same ipblock
                     // or our relay is on their ipblock, or their relay is on our relays same ipblock
@@ -350,7 +425,7 @@ impl RouteSpecStore {
                 entry.with_inner(|e| {
                     e.signed_node_info(RoutingDomain::PublicInternet)
                         .map(|sni| {
-                            sni.has_sequencing_matched_dial_info(sequencing)
+                            sni.has_sequencing_matched_dial_info(safety_spec.sequencing)
                                 && sni.node_info().has_capability(CAP_ROUTE)
                         })
                         .unwrap_or(false)
@@ -387,16 +462,16 @@ impl RouteSpecStore {
             // apply sequencing preference
             // ensureordered will be taken care of by filter
             // and nopreference doesn't care
-            if matches!(sequencing, Sequencing::PreferOrdered) {
+            if matches!(safety_spec.sequencing, Sequencing::PreferOrdered) {
                 let cmp_seq = entry1.with_inner(|e1| {
                     entry2.with_inner(|e2| {
                         let e1_can_do_ordered = e1
                             .signed_node_info(RoutingDomain::PublicInternet)
-                            .map(|sni| sni.has_sequencing_matched_dial_info(sequencing))
+                            .map(|sni| sni.has_sequencing_matched_dial_info(safety_spec.sequencing))
                             .unwrap_or(false);
                         let e2_can_do_ordered = e2
                             .signed_node_info(RoutingDomain::PublicInternet)
-                            .map(|sni| sni.has_sequencing_matched_dial_info(sequencing))
+                            .map(|sni| sni.has_sequencing_matched_dial_info(safety_spec.sequencing))
                             .unwrap_or(false);
                         // Reverse this comparison because ordered is preferable (less)
                         e2_can_do_ordered.cmp(&e1_can_do_ordered)
@@ -410,7 +485,7 @@ impl RouteSpecStore {
             // apply stability preference
             // always prioritize reliable nodes, but sort by oldest or fastest
             entry1.with_inner(|e1| {
-                entry2.with_inner(|e2| match stability {
+                entry2.with_inner(|e2| match safety_spec.stability {
                     Stability::LowLatency => BucketEntryInner::cmp_fastest_reliable(cur_ts, e1, e2),
                     Stability::Reliable => BucketEntryInner::cmp_oldest_reliable(cur_ts, e1, e2),
                 })
@@ -427,7 +502,7 @@ impl RouteSpecStore {
             rti.find_peers_with_sort_and_filter(usize::MAX, cur_ts, filters, compare, transform);
 
         // If we couldn't find enough nodes, wait until we have more nodes in the routing table
-        if nodes.len() < hop_count {
+        if nodes.len() < safety_spec.hop_count {
             apibail_try_again!("not enough nodes to construct route at this time");
         }
 
@@ -498,7 +573,7 @@ impl RouteSpecStore {
                         previous_node.clone(),
                         current_node.clone(),
                         DialInfoFilter::all(),
-                        sequencing,
+                        safety_spec.sequencing,
                         None,
                     );
                     if matches!(cm, ContactMethod::Unreachable) {
@@ -537,7 +612,7 @@ impl RouteSpecStore {
                         next_node.clone(),
                         current_node.clone(),
                         DialInfoFilter::all(),
-                        sequencing,
+                        safety_spec.sequencing,
                         None,
                     );
                     if matches!(cm, ContactMethod::Unreachable) {
@@ -573,9 +648,11 @@ impl RouteSpecStore {
         let mut route_nodes: Vec<usize> = Vec::new();
         let mut can_do_sequenced: bool = true;
 
-        for start in 0..(nodes.len() - hop_count) {
+        for start in 0..(nodes.len() - safety_spec.hop_count) {
             // Try the permutations available starting with 'start'
-            if let Some((rn, cds)) = with_route_permutations(hop_count, start, &mut perm_func) {
+            if let Some((rn, cds)) =
+                with_route_permutations(safety_spec.hop_count, start, &mut perm_func)
+            {
                 route_nodes = rn;
                 can_do_sequenced = cds;
                 break;
@@ -625,7 +702,7 @@ impl RouteSpecStore {
             route_set,
             hop_node_refs,
             directions,
-            stability,
+            safety_spec.stability,
             can_do_sequenced,
             automatic,
         );
@@ -1333,9 +1410,7 @@ impl RouteSpecStore {
                 inner,
                 rti,
                 &[crypto_kind],
-                safety_spec.stability,
-                safety_spec.sequencing,
-                safety_spec.hop_count,
+                safety_spec,
                 direction,
                 avoid_nodes,
                 true,

@@ -237,6 +237,10 @@ pub fn fix_veilidconfiginner() -> VeilidConfigInner {
                     url: Some("https://veilid.com/wss".to_string()),
                 },
             },
+            #[cfg(feature = "geolocation")]
+            privacy: VeilidConfigPrivacy {
+                country_code_denylist: vec![CountryCode([b'N', b'Z'])],
+            },
         },
     }
 }

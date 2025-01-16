@@ -32,6 +32,14 @@ lazy_static! {
 }
 
 pub fn load_default_config() -> EyreResult<config::Config> {
+    #[cfg(not(feature = "geolocation"))]
+    let privacy_section = "";
+    #[cfg(feature = "geolocation")]
+    let privacy_section = r#"
+        privacy:
+            country_code_denylist: []
+    "#;
+
     let mut default_config = String::from(
         r#"---
 daemon:
@@ -188,6 +196,7 @@ core:
                 listen_address: ':5150'
                 path: 'ws'
                 # url: ''
+        %PRIVACY_SECTION%
         "#,
     )
     .replace(
@@ -217,7 +226,8 @@ core:
     .replace(
         "%REMOTE_MAX_SUBKEY_CACHE_MEMORY_MB%",
         &Settings::get_default_remote_max_subkey_cache_memory_mb().to_string(),
-    );
+    )
+    .replace("%PRIVACY_SECTION%", privacy_section);
 
     let dek_password = if let Some(dek_password) = std::env::var_os("DEK_PASSWORD") {
         dek_password
@@ -584,6 +594,12 @@ pub struct Protocol {
     pub wss: Wss,
 }
 
+#[cfg(feature = "geolocation")]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Privacy {
+    pub country_code_denylist: Vec<CountryCode>,
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Tls {
     pub certificate_path: String,
@@ -661,6 +677,8 @@ pub struct Network {
     pub tls: Tls,
     pub application: Application,
     pub protocol: Protocol,
+    #[cfg(feature = "geolocation")]
+    pub privacy: Privacy,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -1164,6 +1182,8 @@ impl Settings {
         set_config_value!(inner.core.network.protocol.wss.listen_address, value);
         set_config_value!(inner.core.network.protocol.wss.path, value);
         set_config_value!(inner.core.network.protocol.wss.url, value);
+        #[cfg(feature = "geolocation")]
+        set_config_value!(inner.core.network.privacy.country_code_denylist, value);
         Err(eyre!("settings key '{key}' not found"))
     }
 
@@ -1548,6 +1568,10 @@ impl Settings {
                         .as_ref()
                         .map(|a| a.urlstring.clone()),
                 )),
+                #[cfg(feature = "geolocation")]
+                "network.privacy.country_code_denylist" => Ok(Box::new(
+                    inner.core.network.privacy.country_code_denylist.clone(),
+                )),
                 _ => Err(VeilidAPIError::generic(format!(
                     "config key '{}' doesn't exist",
                     key
@@ -1788,5 +1812,7 @@ mod tests {
         );
         assert_eq!(s.core.network.protocol.wss.url, None);
         //
+        #[cfg(feature = "geolocation")]
+        assert_eq!(s.core.network.privacy.country_code_denylist, &[]);
     }
 }
