@@ -296,7 +296,7 @@ impl JsonRequestProcessor {
                 RoutingContextResponseOp::CreateDhtRecord {
                     result: to_json_api_result(
                         routing_context
-                            .create_dht_record(schema, kind)
+                            .create_dht_record(schema, None, kind)
                             .await
                             .map(Box::new),
                     ),

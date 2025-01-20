@@ -229,12 +229,26 @@ impl StorageManager {
             .collect()
     }
 
-    /// Create a local record from scratch with a new owner key, open it, and return the opened descriptor
+    /// Builds the record key for a given schema and owner
     #[instrument(level = "trace", target = "stor", skip_all)]
+    pub async fn get_record_key(
+        &self,
+        kind: CryptoKind,
+        schema: DHTSchema,
+        owner_key: &PublicKey,
+    ) -> VeilidAPIResult<TypedKey> {
+        let inner = self.lock().await?;
+        schema.validate()?;
+
+        inner.get_record_key(kind, owner_key, schema).await
+    }
+
+    /// Create a local record from scratch with a new owner key, open it, and return the opened descriptor
     pub async fn create_record(
         &self,
         kind: CryptoKind,
         schema: DHTSchema,
+        owner: Option<KeyPair>,
         safety_selection: SafetySelection,
     ) -> VeilidAPIResult<DHTRecordDescriptor> {
         let mut inner = self.lock().await?;
@@ -242,7 +256,7 @@ impl StorageManager {
 
         // Create a new owned local record from scratch
         let (key, owner) = inner
-            .create_new_owned_local_record(kind, schema, safety_selection)
+            .create_new_owned_local_record(kind, schema, owner, safety_selection)
             .await?;
 
         // Now that the record is made we should always succeed to open the existing record

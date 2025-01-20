@@ -1478,7 +1478,7 @@ impl VeilidAPI {
         };
 
         // Do a record create
-        let record = match rc.create_dht_record(schema, Some(csv.kind())).await {
+        let record = match rc.create_dht_record(schema, None, Some(csv.kind())).await {
             Err(e) => return Ok(format!("Can't open DHT record: {}", e)),
             Ok(v) => v,
         };

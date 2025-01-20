@@ -219,6 +219,7 @@ impl StorageManagerInner {
         &mut self,
         kind: CryptoKind,
         schema: DHTSchema,
+        owner: Option<KeyPair>,
         safety_selection: SafetySelection,
     ) -> VeilidAPIResult<(TypedKey, KeyPair)> {
         // Get cryptosystem
@@ -248,8 +249,11 @@ impl StorageManagerInner {
         // Compile the dht schema
         let schema_data = schema.compile();
 
-        // New values require a new owner key
-        let owner = vcrypto.generate_keypair();
+        // New values require a new owner key if not given
+        let owner = owner.unwrap_or_else(|| vcrypto.generate_keypair());
+
+        // Calculate dht key
+        let dht_key = Self::get_key(vcrypto.clone(), &owner.key, &schema_data);
 
         // Make a signed value descriptor for this dht value
         let signed_value_descriptor = Arc::new(SignedValueDescriptor::make_signature(
@@ -258,14 +262,12 @@ impl StorageManagerInner {
             vcrypto.clone(),
             owner.secret,
         )?);
-
         // Add new local value record
         let cur_ts = Timestamp::now();
         let local_record_detail = LocalRecordDetail::new(safety_selection);
         let record =
             Record::<LocalRecordDetail>::new(cur_ts, signed_value_descriptor, local_record_detail)?;
 
-        let dht_key = Self::get_key(vcrypto.clone(), &record);
         local_record_store.new_record(dht_key, record).await?;
 
         Ok((dht_key, owner))
@@ -702,18 +704,29 @@ impl StorageManagerInner {
         })
     }
 
-    /// # DHT Key = Hash(ownerKeyKind) of: [ ownerKeyValue, schema ]
-    #[instrument(level = "trace", target = "stor", skip_all)]
-    fn get_key<D>(vcrypto: CryptoSystemVersion, record: &Record<D>) -> TypedKey
-    where
-        D: fmt::Debug + Clone + Serialize,
-    {
-        let descriptor = record.descriptor();
-        let compiled = descriptor.schema_data();
-        let mut hash_data = Vec::<u8>::with_capacity(PUBLIC_KEY_LENGTH + 4 + compiled.len());
+    pub async fn get_record_key(
+        &self,
+        kind: CryptoKind,
+        owner_key: &PublicKey,
+        schema: DHTSchema,
+    ) -> VeilidAPIResult<TypedKey> {
+        // Get cryptosystem
+        let Some(vcrypto) = self.unlocked_inner.crypto.get(kind) else {
+            apibail_generic!("unsupported cryptosystem");
+        };
+
+        Ok(Self::get_key(vcrypto, owner_key, &schema.compile()))
+    }
+
+    fn get_key(
+        vcrypto: CryptoSystemVersion,
+        owner_key: &PublicKey,
+        schema_data: &[u8],
+    ) -> TypedKey {
+        let mut hash_data = Vec::<u8>::with_capacity(PUBLIC_KEY_LENGTH + 4 + schema_data.len());
         hash_data.extend_from_slice(&vcrypto.kind().0);
-        hash_data.extend_from_slice(&record.owner().bytes);
-        hash_data.extend_from_slice(compiled);
+        hash_data.extend_from_slice(&owner_key.bytes);
+        hash_data.extend_from_slice(schema_data);
         let hash = vcrypto.generate_hash(&hash_data);
         TypedKey::new(vcrypto.kind(), hash)
     }

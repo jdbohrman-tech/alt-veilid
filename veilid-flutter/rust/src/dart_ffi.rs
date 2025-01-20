@@ -671,7 +671,7 @@ pub extern "C" fn routing_context_create_dht_record(port: i64, id: u32, schema: 
             let routing_context = get_routing_context(id, "routing_context_create_dht_record")?;
 
             let dht_record_descriptor = routing_context
-                .create_dht_record(schema, crypto_kind)
+                .create_dht_record(schema, None, crypto_kind)
                 .await?;
             APIResult::Ok(dht_record_descriptor)
         }

@@ -207,7 +207,7 @@ impl VeilidRoutingContext {
         let routing_context = self.getRoutingContext()?;
 
         let dht_record_descriptor = routing_context
-            .create_dht_record(schema, crypto_kind)
+            .create_dht_record(schema, None, crypto_kind)
             .await?;
         APIResult::Ok(dht_record_descriptor)
     }
