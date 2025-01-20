@@ -494,7 +494,7 @@ pub fn routing_context_create_dht_record(id: u32, schema: String, kind: u32) -> 
         let routing_context = get_routing_context(id, "routing_context_create_dht_record")?;
 
         let dht_record_descriptor = routing_context
-            .create_dht_record(schema, crypto_kind)
+            .create_dht_record(schema, None, crypto_kind)
             .await?;
         APIResult::Ok(dht_record_descriptor)
     })

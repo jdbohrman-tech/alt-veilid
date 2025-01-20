@@ -225,27 +225,51 @@ impl RoutingContext {
     ///////////////////////////////////
     /// DHT Records
 
-    /// Creates a new DHT record
-    ///
-    /// The record is considered 'open' after the create operation succeeds.
-    /// * 'schema' - the schema to use when creating the DHT record
-    /// * 'kind' - specify a cryptosystem kind to use. Normally you will leave this as None to choose the 'best' cryptosystem available.
-    /// Returns the newly allocated DHT record's key if successful.    
+    /// Builds the record key for a given schema and owner public key
     #[instrument(target = "veilid_api", level = "debug", ret, err)]
-    pub async fn create_dht_record(
+    pub async fn get_dht_record_key(
         &self,
         schema: DHTSchema,
+        owner_key: &PublicKey,
         kind: Option<CryptoKind>,
-    ) -> VeilidAPIResult<DHTRecordDescriptor> {
+    ) -> VeilidAPIResult<TypedKey> {
         event!(target: "veilid_api", Level::DEBUG, 
-            "RoutingContext::create_dht_record(self: {:?}, schema: {:?}, kind: {:?})", self, schema, kind);
+            "RoutingContext::get_dht_record_key(self: {:?}, schema: {:?}, owner_key: {:?}, kind: {:?})", self, schema, owner_key, kind);
         schema.validate()?;
 
         let kind = kind.unwrap_or(best_crypto_kind());
         Crypto::validate_crypto_kind(kind)?;
         let storage_manager = self.api.storage_manager()?;
         storage_manager
-            .create_record(kind, schema, self.unlocked_inner.safety_selection)
+            .get_record_key(kind, schema, owner_key)
+            .await
+    }
+
+    /// Creates a new DHT record
+    ///
+    /// The record is considered 'open' after the create operation succeeds.
+    /// * 'schema' - the schema to use when creating the DHT record
+    /// * 'owner' - optionally specify an owner keypair to use. If you leave this as None then a random one will be generated
+    /// * 'kind' - specify a cryptosystem kind to use. Normally you will leave this as None to choose the 'best' cryptosystem available.
+    /// Returns the newly allocated DHT record's key if successful.   
+    ///
+    /// Note: if you pass in an owner keypair this call is a deterministic! This means that if you try to create a new record for a given owner and schema that already exists it *will* fail.
+    #[instrument(target = "veilid_api", level = "debug", ret, err)]
+    pub async fn create_dht_record(
+        &self,
+        schema: DHTSchema,
+        owner: Option<KeyPair>,
+        kind: Option<CryptoKind>,
+    ) -> VeilidAPIResult<DHTRecordDescriptor> {
+        event!(target: "veilid_api", Level::DEBUG, 
+            "RoutingContext::create_dht_record(self: {:?}, schema: {:?}, owner: {:?}, kind: {:?})", self, schema, owner, kind);
+        schema.validate()?;
+
+        let kind = kind.unwrap_or(best_crypto_kind());
+        Crypto::validate_crypto_kind(kind)?;
+        let storage_manager = self.api.storage_manager()?;
+        storage_manager
+            .create_record(kind, schema, owner, self.unlocked_inner.safety_selection)
             .await
     }
 
