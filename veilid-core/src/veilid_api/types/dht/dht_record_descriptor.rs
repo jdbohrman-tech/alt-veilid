@@ -3,7 +3,7 @@ use super::*;
 /// DHT Record Descriptor
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(
-    target_arch = "wasm32",
+    all(target_arch = "wasm32", target_os = "unknown"),
     derive(Tsify),
     tsify(from_wasm_abi, into_wasm_abi)
 )]
@@ -17,7 +17,7 @@ pub struct DHTRecordDescriptor {
     /// If this key is being created: Some(the secret key of the owner)
     /// If this key is just being opened: None
     #[schemars(with = "Option<String>")]
-    #[cfg_attr(target_arch = "wasm32", tsify(optional))]
+    #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), tsify(optional))]
     owner_secret: Option<SecretKey>,
     /// The schema in use associated with the key
     schema: DHTSchema,

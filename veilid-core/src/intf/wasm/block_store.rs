@@ -4,28 +4,34 @@ struct BlockStoreInner {
     //
 }
 
-#[derive(Clone)]
-pub struct BlockStore {
-    event_bus: EventBus,
-    config: VeilidConfig,
-    inner: Arc<Mutex<BlockStoreInner>>,
+impl fmt::Debug for BlockStoreInner {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("BlockStoreInner").finish()
+    }
 }
+
+#[derive(Debug)]
+pub struct BlockStore {
+    registry: VeilidComponentRegistry,
+    inner: Mutex<BlockStoreInner>,
+}
+
+impl_veilid_component!(BlockStore);
 
 impl BlockStore {
     fn new_inner() -> BlockStoreInner {
         BlockStoreInner {}
     }
-    pub fn new(event_bus: EventBus, config: VeilidConfig) -> Self {
+    pub fn new(registry: VeilidComponentRegistry) -> Self {
         Self {
-            event_bus,
-            config,
-            inner: Arc::new(Mutex::new(Self::new_inner())),
+            registry,
+            inner: Mutex::new(Self::new_inner()),
         }
     }
 
-    pub async fn init(&self) -> EyreResult<()> {
+    async fn init_async(&self) -> EyreResult<()> {
         Ok(())
     }
 
-    pub async fn terminate(&self) {}
+    async fn terminate_async(&self) {}
 }

@@ -1,6 +1,7 @@
 mod blake3digest512;
 mod dh_cache;
 mod envelope;
+mod guard;
 mod receipt;
 mod types;
 
@@ -16,6 +17,7 @@ pub use blake3digest512::*;
 
 pub use crypto_system::*;
 pub use envelope::*;
+pub use guard::*;
 pub use receipt::*;
 pub use types::*;
 
@@ -29,9 +31,7 @@ use core::convert::TryInto;
 use dh_cache::*;
 use hashlink::linked_hash_map::Entry;
 use hashlink::LruCache;
-
-/// Handle to a particular cryptosystem
-pub type CryptoSystemVersion = Arc<dyn CryptoSystem + Send + Sync>;
+use std::marker::PhantomData;
 
 cfg_if! {
     if #[cfg(all(feature = "enable-crypto-none", feature = "enable-crypto-vld0"))] {
@@ -72,23 +72,40 @@ pub fn best_envelope_version() -> EnvelopeVersion {
 struct CryptoInner {
     dh_cache: DHCache,
     flush_future: Option<SendPinBoxFuture<()>>,
-    #[cfg(feature = "enable-crypto-vld0")]
-    crypto_vld0: Option<Arc<dyn CryptoSystem + Send + Sync>>,
-    #[cfg(feature = "enable-crypto-none")]
-    crypto_none: Option<Arc<dyn CryptoSystem + Send + Sync>>,
 }
 
-struct CryptoUnlockedInner {
-    _event_bus: EventBus,
-    config: VeilidConfig,
-    table_store: TableStore,
+impl fmt::Debug for CryptoInner {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("CryptoInner")
+            //.field("dh_cache", &self.dh_cache)
+            // .field("flush_future", &self.flush_future)
+            // .field("crypto_vld0", &self.crypto_vld0)
+            // .field("crypto_none", &self.crypto_none)
+            .finish()
+    }
 }
 
 /// Crypto factory implementation
-#[derive(Clone)]
 pub struct Crypto {
-    unlocked_inner: Arc<CryptoUnlockedInner>,
-    inner: Arc<Mutex<CryptoInner>>,
+    registry: VeilidComponentRegistry,
+    inner: Mutex<CryptoInner>,
+    #[cfg(feature = "enable-crypto-vld0")]
+    crypto_vld0: Arc<dyn CryptoSystem + Send + Sync>,
+    #[cfg(feature = "enable-crypto-none")]
+    crypto_none: Arc<dyn CryptoSystem + Send + Sync>,
+}
+
+impl_veilid_component!(Crypto);
+
+impl fmt::Debug for Crypto {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Crypto")
+            //.field("registry", &self.registry)
+            .field("inner", &self.inner)
+            // .field("crypto_vld0", &self.crypto_vld0)
+            // .field("crypto_none", &self.crypto_none)
+            .finish()
+    }
 }
 
 impl Crypto {
@@ -96,63 +113,43 @@ impl Crypto {
         CryptoInner {
             dh_cache: DHCache::new(DH_CACHE_SIZE),
             flush_future: None,
+        }
+    }
+
+    pub fn new(registry: VeilidComponentRegistry) -> Self {
+        Self {
+            registry: registry.clone(),
+            inner: Mutex::new(Self::new_inner()),
             #[cfg(feature = "enable-crypto-vld0")]
-            crypto_vld0: None,
+            crypto_vld0: Arc::new(vld0::CryptoSystemVLD0::new(registry.clone())),
             #[cfg(feature = "enable-crypto-none")]
-            crypto_none: None,
+            crypto_none: Arc::new(none::CryptoSystemNONE::new(registry.clone())),
         }
-    }
-
-    pub fn new(event_bus: EventBus, config: VeilidConfig, table_store: TableStore) -> Self {
-        let out = Self {
-            unlocked_inner: Arc::new(CryptoUnlockedInner {
-                _event_bus: event_bus,
-                config,
-                table_store,
-            }),
-            inner: Arc::new(Mutex::new(Self::new_inner())),
-        };
-
-        #[cfg(feature = "enable-crypto-vld0")]
-        {
-            out.inner.lock().crypto_vld0 = Some(Arc::new(vld0::CryptoSystemVLD0::new(out.clone())));
-        }
-
-        #[cfg(feature = "enable-crypto-none")]
-        {
-            out.inner.lock().crypto_none = Some(Arc::new(none::CryptoSystemNONE::new(out.clone())));
-        }
-
-        out
-    }
-
-    pub fn config(&self) -> VeilidConfig {
-        self.unlocked_inner.config.clone()
     }
 
     #[instrument(level = "trace", target = "crypto", skip_all, err)]
-    pub async fn init(&self) -> EyreResult<()> {
-        let table_store = self.unlocked_inner.table_store.clone();
+    async fn init_async(&self) -> EyreResult<()> {
+        // Nothing to initialize at this time
+        Ok(())
+    }
+
+    // Setup called by table store after it get initialized
+    #[instrument(level = "trace", target = "crypto", skip_all, err)]
+    pub(crate) async fn table_store_setup(&self, table_store: &TableStore) -> EyreResult<()> {
         // Init node id from config
-        if let Err(e) = self
-            .unlocked_inner
-            .config
-            .init_node_ids(self.clone(), table_store.clone())
-            .await
-        {
+        if let Err(e) = self.setup_node_ids(table_store).await {
             return Err(e).wrap_err("init node id failed");
         }
 
         // make local copy of node id for easy access
         let mut cache_validity_key: Vec<u8> = Vec::new();
-        {
-            let c = self.unlocked_inner.config.get();
+        self.config().with(|c| {
             for ck in VALID_CRYPTO_KINDS {
                 if let Some(nid) = c.network.routing_table.node_id.get(ck) {
                     cache_validity_key.append(&mut nid.value.bytes.to_vec());
                 }
             }
-        };
+        });
 
         // load caches if they are valid for this node id
         let mut db = table_store
@@ -175,13 +172,17 @@ impl Crypto {
             db.store(0, b"cache_validity_key", &cache_validity_key)
                 .await?;
         }
+        Ok(())
+    }
 
+    #[instrument(level = "trace", target = "crypto", skip_all, err)]
+    async fn post_init_async(&self) -> EyreResult<()> {
         // Schedule flushing
-        let this = self.clone();
+        let registry = self.registry();
         let flush_future = interval("crypto flush", 60000, move || {
-            let this = this.clone();
+            let crypto = registry.crypto();
             async move {
-                if let Err(e) = this.flush().await {
+                if let Err(e) = crypto.flush().await {
                     warn!("flush failed: {}", e);
                 }
             }
@@ -197,16 +198,12 @@ impl Crypto {
             cache_to_bytes(&inner.dh_cache)
         };
 
-        let db = self
-            .unlocked_inner
-            .table_store
-            .open("crypto_caches", 1)
-            .await?;
+        let db = self.table_store().open("crypto_caches", 1).await?;
         db.store(0, b"dh_cache", &cache_bytes).await?;
         Ok(())
     }
 
-    pub async fn terminate(&self) {
+    async fn pre_terminate_async(&self) {
         let flush_future = self.inner.lock().flush_future.take();
         if let Some(f) = flush_future {
             f.await;
@@ -222,21 +219,34 @@ impl Crypto {
         };
     }
 
+    async fn terminate_async(&self) {
+        // Nothing to terminate at this time
+    }
+
     /// Factory method to get a specific crypto version
-    pub fn get(&self, kind: CryptoKind) -> Option<CryptoSystemVersion> {
-        let inner = self.inner.lock();
+    pub fn get(&self, kind: CryptoKind) -> Option<CryptoSystemGuard<'_>> {
         match kind {
             #[cfg(feature = "enable-crypto-vld0")]
-            CRYPTO_KIND_VLD0 => Some(inner.crypto_vld0.clone().unwrap()),
+            CRYPTO_KIND_VLD0 => Some(CryptoSystemGuard::new(self.crypto_vld0.clone())),
             #[cfg(feature = "enable-crypto-none")]
-            CRYPTO_KIND_NONE => Some(inner.crypto_none.clone().unwrap()),
+            CRYPTO_KIND_NONE => Some(CryptoSystemGuard::new(self.crypto_none.clone())),
             _ => None,
         }
     }
 
+    /// Factory method to get a specific crypto version for async use
+    pub fn get_async(&self, kind: CryptoKind) -> Option<AsyncCryptoSystemGuard<'_>> {
+        self.get(kind).map(|x| x.as_async())
+    }
+
     // Factory method to get the best crypto version
-    pub fn best(&self) -> CryptoSystemVersion {
+    pub fn best(&self) -> CryptoSystemGuard<'_> {
         self.get(best_crypto_kind()).unwrap()
+    }
+
+    // Factory method to get the best crypto version for async use
+    pub fn best_async(&self) -> AsyncCryptoSystemGuard<'_> {
+        self.get_async(best_crypto_kind()).unwrap()
     }
 
     /// Signature set verification
@@ -329,6 +339,122 @@ impl Crypto {
         if !VALID_CRYPTO_KINDS.contains(&kind) {
             apibail_generic!("invalid crypto kind");
         }
+        Ok(())
+    }
+
+    #[cfg(not(test))]
+    async fn setup_node_id(
+        &self,
+        vcrypto: AsyncCryptoSystemGuard<'_>,
+        table_store: &TableStore,
+    ) -> VeilidAPIResult<(TypedKey, TypedSecret)> {
+        let config = self.config();
+        let ck = vcrypto.kind();
+        let (mut node_id, mut node_id_secret) = config.with(|c| {
+            (
+                c.network.routing_table.node_id.get(ck),
+                c.network.routing_table.node_id_secret.get(ck),
+            )
+        });
+
+        // See if node id was previously stored in the table store
+        let config_table = table_store.open("__veilid_config", 1).await?;
+
+        let table_key_node_id = format!("node_id_{}", ck);
+        let table_key_node_id_secret = format!("node_id_secret_{}", ck);
+
+        if node_id.is_none() {
+            log_crypto!(debug "pulling {} from storage", table_key_node_id);
+            if let Ok(Some(stored_node_id)) = config_table
+                .load_json::<TypedKey>(0, table_key_node_id.as_bytes())
+                .await
+            {
+                log_crypto!(debug "{} found in storage", table_key_node_id);
+                node_id = Some(stored_node_id);
+            } else {
+                log_crypto!(debug "{} not found in storage", table_key_node_id);
+            }
+        }
+
+        // See if node id secret was previously stored in the protected store
+        if node_id_secret.is_none() {
+            log_crypto!(debug "pulling {} from storage", table_key_node_id_secret);
+            if let Ok(Some(stored_node_id_secret)) = config_table
+                .load_json::<TypedSecret>(0, table_key_node_id_secret.as_bytes())
+                .await
+            {
+                log_crypto!(debug "{} found in storage", table_key_node_id_secret);
+                node_id_secret = Some(stored_node_id_secret);
+            } else {
+                log_crypto!(debug "{} not found in storage", table_key_node_id_secret);
+            }
+        }
+
+        // If we have a node id from storage, check it
+        let (node_id, node_id_secret) =
+            if let (Some(node_id), Some(node_id_secret)) = (node_id, node_id_secret) {
+                // Validate node id
+                if !vcrypto
+                    .validate_keypair(&node_id.value, &node_id_secret.value)
+                    .await
+                {
+                    apibail_generic!(format!(
+                        "node_id_secret_{} and node_id_key_{} don't match",
+                        ck, ck
+                    ));
+                }
+                (node_id, node_id_secret)
+            } else {
+                // If we still don't have a valid node id, generate one
+                log_crypto!(debug "generating new node_id_{}", ck);
+                let kp = vcrypto.generate_keypair().await;
+                (TypedKey::new(ck, kp.key), TypedSecret::new(ck, kp.secret))
+            };
+        info!("Node Id: {}", node_id);
+
+        // Save the node id / secret in storage
+        config_table
+            .store_json(0, table_key_node_id.as_bytes(), &node_id)
+            .await?;
+        config_table
+            .store_json(0, table_key_node_id_secret.as_bytes(), &node_id_secret)
+            .await?;
+
+        Ok((node_id, node_id_secret))
+    }
+
+    /// Get the node id from config if one is specified.
+    /// Must be done -after- protected store is initialized, during table store init
+    #[cfg_attr(test, allow(unused_variables))]
+    async fn setup_node_ids(&self, table_store: &TableStore) -> VeilidAPIResult<()> {
+        let mut out_node_id = TypedKeyGroup::new();
+        let mut out_node_id_secret = TypedSecretGroup::new();
+
+        for ck in VALID_CRYPTO_KINDS {
+            let vcrypto = self
+                .get_async(ck)
+                .expect("Valid crypto kind is not actually valid.");
+
+            #[cfg(test)]
+            let (node_id, node_id_secret) = {
+                let kp = vcrypto.generate_keypair().await;
+                (TypedKey::new(ck, kp.key), TypedSecret::new(ck, kp.secret))
+            };
+            #[cfg(not(test))]
+            let (node_id, node_id_secret) = self.setup_node_id(vcrypto, table_store).await?;
+
+            // Save for config
+            out_node_id.add(node_id);
+            out_node_id_secret.add(node_id_secret);
+        }
+
+        // Commit back to config
+        self.config().try_with_mut(|c| {
+            c.network.routing_table.node_id = out_node_id;
+            c.network.routing_table.node_id_secret = out_node_id_secret;
+            Ok(())
+        })?;
+
         Ok(())
     }
 }

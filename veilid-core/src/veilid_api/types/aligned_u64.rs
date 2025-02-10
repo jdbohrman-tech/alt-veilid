@@ -21,13 +21,16 @@ macro_rules! aligned_u64_type {
             Deserialize,
             JsonSchema,
         )]
-        #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+        #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
         #[repr(C, align(8))]
         #[serde(transparent)]
         pub struct $name(
             #[serde(with = "as_human_string")]
             #[schemars(with = "String")]
-            #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))]
+            #[cfg_attr(
+                all(target_arch = "wasm32", target_os = "unknown"),
+                tsify(type = "string")
+            )]
             u64,
         );
 

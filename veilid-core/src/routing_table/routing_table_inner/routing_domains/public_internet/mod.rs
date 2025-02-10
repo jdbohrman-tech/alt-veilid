@@ -122,11 +122,7 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
             pi
         };
 
-        if let Err(e) = rti
-            .unlocked_inner
-            .event_bus
-            .post(PeerInfoChangeEvent { peer_info })
-        {
+        if let Err(e) = rti.event_bus().post(PeerInfoChangeEvent { peer_info }) {
             log_rtab!(debug "Failed to post event: {}", e);
         }
 
@@ -167,11 +163,8 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
         dif_sort: Option<Arc<DialInfoDetailSort>>,
     ) -> ContactMethod {
         let ip6_prefix_size = rti
-            .unlocked_inner
-            .config
-            .get()
-            .network
-            .max_connections_per_ip6_prefix_size as usize;
+            .config()
+            .with(|c| c.network.max_connections_per_ip6_prefix_size as usize);
 
         // Get the nodeinfos for convenience
         let node_a = peer_a.signed_node_info().node_info();

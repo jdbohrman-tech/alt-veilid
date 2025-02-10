@@ -107,7 +107,11 @@ macro_rules! apibail_already_initialized {
 #[derive(
     ThisError, Clone, Debug, PartialOrd, PartialEq, Eq, Ord, Serialize, Deserialize, JsonSchema,
 )]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify), tsify(into_wasm_abi))]
+#[cfg_attr(
+    all(target_arch = "wasm32", target_os = "unknown"),
+    derive(Tsify),
+    tsify(into_wasm_abi)
+)]
 #[serde(tag = "kind")]
 pub enum VeilidAPIError {
     #[error("Not initialized")]

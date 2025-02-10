@@ -1,4 +1,4 @@
-#![cfg_attr(target_arch = "wasm32", expect(dead_code))]
+#![cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), expect(dead_code))]
 
 use super::*;
 
@@ -10,15 +10,15 @@ enum RoutingDomainChangeLocalNetwork {
     Common(RoutingDomainChangeCommon),
 }
 
-pub struct RoutingDomainEditorLocalNetwork {
-    routing_table: RoutingTable,
+pub struct RoutingDomainEditorLocalNetwork<'a> {
+    routing_table: &'a RoutingTable,
     changes: Vec<RoutingDomainChangeLocalNetwork>,
 }
 
-impl RoutingDomainEditorLocalNetwork {
-    pub(in crate::routing_table) fn new(routing_table: RoutingTable) -> Self {
+impl<'a> RoutingDomainEditorLocalNetwork<'a> {
+    pub(in crate::routing_table) fn new(routing_table: &'a RoutingTable) -> Self {
         Self {
-            routing_table: routing_table.clone(),
+            routing_table,
             changes: Vec::new(),
         }
     }
@@ -30,7 +30,7 @@ impl RoutingDomainEditorLocalNetwork {
     }
 }
 
-impl RoutingDomainEditorCommonTrait for RoutingDomainEditorLocalNetwork {
+impl<'a> RoutingDomainEditorCommonTrait for RoutingDomainEditorLocalNetwork<'a> {
     #[instrument(level = "debug", skip(self))]
     fn clear_dial_info_details(
         &mut self,

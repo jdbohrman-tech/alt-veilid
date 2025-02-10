@@ -1,7 +1,7 @@
 use super::*;
 
 cfg_if! {
-    if #[cfg(target_arch = "wasm32")] {
+    if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
 
         pub fn interval<F, FUT>(name: &str, freq_ms: u32, callback: F) -> SendPinBoxFuture<()>
         where

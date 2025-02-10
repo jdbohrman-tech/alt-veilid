@@ -6,13 +6,19 @@ use std::path::Path;
 pub struct ProtectedStoreInner {
     keyring_manager: Option<KeyringManager>,
 }
-
-#[derive(Clone)]
-pub struct ProtectedStore {
-    _event_bus: EventBus,
-    config: VeilidConfig,
-    inner: Arc<Mutex<ProtectedStoreInner>>,
+impl fmt::Debug for ProtectedStoreInner {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ProtectedStoreInner").finish()
+    }
 }
+
+#[derive(Debug)]
+pub struct ProtectedStore {
+    registry: VeilidComponentRegistry,
+    inner: Mutex<ProtectedStoreInner>,
+}
+
+impl_veilid_component!(ProtectedStore);
 
 impl ProtectedStore {
     fn new_inner() -> ProtectedStoreInner {
@@ -21,11 +27,10 @@ impl ProtectedStore {
         }
     }
 
-    pub fn new(event_bus: EventBus, config: VeilidConfig) -> Self {
+    pub fn new(registry: VeilidComponentRegistry) -> Self {
         Self {
-            _event_bus: event_bus,
-            config,
-            inner: Arc::new(Mutex::new(Self::new_inner())),
+            registry,
+            inner: Mutex::new(Self::new_inner()),
         }
     }
 
@@ -42,9 +47,10 @@ impl ProtectedStore {
     }
 
     #[instrument(level = "debug", skip(self), err)]
-    pub async fn init(&self) -> EyreResult<()> {
+    async fn init_async(&self) -> EyreResult<()> {
         let delete = {
-            let c = self.config.get();
+            let config = self.config();
+            let c = config.get();
             let mut inner = self.inner.lock();
             if !c.protected_store.always_use_insecure_storage {
                 // Attempt to open the secure keyring
@@ -101,13 +107,22 @@ impl ProtectedStore {
         Ok(())
     }
 
+    #[instrument(level = "debug", skip(self), err)]
+    async fn post_init_async(&self) -> EyreResult<()> {
+        Ok(())
+    }
+
     #[instrument(level = "debug", skip(self))]
-    pub async fn terminate(&self) {
+    async fn pre_terminate_async(&self) {}
+
+    #[instrument(level = "debug", skip(self))]
+    async fn terminate_async(&self) {
         *self.inner.lock() = Self::new_inner();
     }
 
     fn service_name(&self) -> String {
-        let c = self.config.get();
+        let config = self.config();
+        let c = config.get();
         if c.namespace.is_empty() {
             "veilid_protected_store".to_owned()
         } else {

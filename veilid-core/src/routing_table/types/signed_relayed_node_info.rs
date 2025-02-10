@@ -49,7 +49,7 @@ impl SignedRelayedNodeInfo {
     pub fn validate(
         &self,
         node_ids: &TypedKeyGroup,
-        crypto: Crypto,
+        crypto: &Crypto,
     ) -> VeilidAPIResult<TypedKeyGroup> {
         // Ensure the relay info for the node has a superset of the crypto kinds of the node it is relaying
         if common_crypto_kinds(
@@ -81,7 +81,7 @@ impl SignedRelayedNodeInfo {
     }
 
     pub fn make_signatures(
-        crypto: Crypto,
+        crypto: &Crypto,
         typed_key_pairs: Vec<TypedKeyPair>,
         node_info: NodeInfo,
         relay_ids: TypedKeyGroup,

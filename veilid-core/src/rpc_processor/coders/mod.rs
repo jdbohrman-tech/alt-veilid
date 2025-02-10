@@ -68,10 +68,10 @@ pub enum QuestionContext {
 
 #[derive(Clone)]
 pub struct RPCValidateContext {
-    pub crypto: Crypto,
-    // pub rpc_processor: RPCProcessor,
+    pub registry: VeilidComponentRegistry,
     pub question_context: Option<QuestionContext>,
 }
+impl_veilid_component_registry_accessor!(RPCValidateContext);
 
 #[derive(Clone)]
 pub struct RPCDecodeContext {

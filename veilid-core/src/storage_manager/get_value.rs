@@ -28,31 +28,27 @@ impl StorageManager {
     #[instrument(level = "trace", target = "dht", skip_all, err)]
     pub(super) async fn outbound_get_value(
         &self,
-        rpc_processor: RPCProcessor,
         key: TypedKey,
         subkey: ValueSubkey,
         safety_selection: SafetySelection,
         last_get_result: GetResult,
     ) -> VeilidAPIResult<flume::Receiver<VeilidAPIResult<OutboundGetValueResult>>> {
-        let routing_table = rpc_processor.routing_table();
         let routing_domain = RoutingDomain::PublicInternet;
 
         // Get the DHT parameters for 'GetValue'
-        let (key_count, consensus_count, fanout, timeout_us) = {
-            let c = self.unlocked_inner.config.get();
+        let (key_count, consensus_count, fanout, timeout_us) = self.config().with(|c| {
             (
                 c.network.dht.max_find_node_count as usize,
                 c.network.dht.get_value_count as usize,
                 c.network.dht.get_value_fanout as usize,
                 TimestampDuration::from(ms_to_us(c.network.dht.get_value_timeout_ms)),
             )
-        };
+        });
 
         // Get the nodes we know are caching this value to seed the fanout
         let init_fanout_queue = {
-            let inner = self.inner.lock().await;
-            inner
-                .get_value_nodes(key)?
+            self.get_value_nodes(key)
+                .await?
                 .unwrap_or_default()
                 .into_iter()
                 .filter(|x| {
@@ -85,15 +81,15 @@ impl StorageManager {
         // Routine to call to generate fanout
         let call_routine = {
             let context = context.clone();
-            let rpc_processor = rpc_processor.clone();
+            let registry = self.registry();
             move |next_node: NodeRef| {
                 let context = context.clone();
-                let rpc_processor = rpc_processor.clone();
+                let registry = registry.clone();
                 let last_descriptor = last_get_result.opt_descriptor.clone();
                 async move {
+                    let rpc_processor = registry.rpc_processor();
                     let gva = network_result_try!(
                         rpc_processor
-                            .clone()
                             .rpc_call_get_value(
                                 Destination::direct(next_node.routing_domain_filtered(routing_domain))
                                     .with_safety(safety_selection),
@@ -234,12 +230,14 @@ impl StorageManager {
         };
 
         // Call the fanout in a spawned task
+        let registry = self.registry();
         spawn(
             "outbound_get_value fanout",
             Box::pin(
                 async move {
+                    let routing_table = registry.routing_table();
                     let fanout_call = FanoutCall::new(
-                        routing_table.clone(),
+                        &routing_table,
                         key,
                         key_count,
                         fanout,
@@ -293,21 +291,21 @@ impl StorageManager {
     }
 
     #[instrument(level = "trace", target = "dht", skip_all)]
-    pub(super) fn process_deferred_outbound_get_value_result_inner(
+    pub(super) fn process_deferred_outbound_get_value_result(
         &self,
-        inner: &mut StorageManagerInner,
         res_rx: flume::Receiver<Result<get_value::OutboundGetValueResult, VeilidAPIError>>,
         key: TypedKey,
         subkey: ValueSubkey,
         last_seq: ValueSeqNum,
     ) {
-        let this = self.clone();
-        inner.process_deferred_results(
+        let registry = self.registry();
+        self.process_deferred_results(
             res_rx,
             Box::new(
                 move |result: VeilidAPIResult<get_value::OutboundGetValueResult>| -> SendPinBoxFuture<bool> {
-                    let this = this.clone();
+                    let registry=registry.clone();
                     Box::pin(async move {
+                        let this = registry.storage_manager();
                         let result = match result {
                             Ok(v) => v,
                             Err(e) => {
@@ -330,13 +328,11 @@ impl StorageManager {
                             // If more partial results show up, don't send an update until we're done
                             return true;
                         }
-                        // If we processed the final result, possibly send an update 
+                        // If we processed the final result, possibly send an update
                         // if the sequence number changed since our first partial update
                         // Send with a max count as this is not attached to any watch
                         if last_seq != value_data.seq() {
-                            if let Err(e) = this.update_callback_value_change(key,ValueSubkeyRangeSet::single(subkey), u32::MAX, Some(value_data)).await {
-                                log_rtab!(debug "Failed sending deferred fanout value change: {}", e);
-                            }
+                            this.update_callback_value_change(key,ValueSubkeyRangeSet::single(subkey), u32::MAX, Some(value_data));
                         }
 
                         // Return done
@@ -362,24 +358,27 @@ impl StorageManager {
         };
 
         // Keep the list of nodes that returned a value for later reference
-        let mut inner = self.lock().await?;
+        let mut inner = self.inner.lock().await;
 
-        inner.process_fanout_results(
+        Self::process_fanout_results_inner(
+            &mut inner,
             key,
             core::iter::once((subkey, &result.fanout_result)),
             false,
+            self.config()
+                .with(|c| c.network.dht.set_value_count as usize),
         );
 
         // If we got a new value back then write it to the opened record
         if Some(get_result_value.value_data().seq()) != opt_last_seq {
-            inner
-                .handle_set_local_value(
-                    key,
-                    subkey,
-                    get_result_value.clone(),
-                    WatchUpdateMode::UpdateAll,
-                )
-                .await?;
+            Self::handle_set_local_value_inner(
+                &mut inner,
+                key,
+                subkey,
+                get_result_value.clone(),
+                WatchUpdateMode::UpdateAll,
+            )
+            .await?;
         }
         Ok(Some(get_result_value.value_data().clone()))
     }
@@ -392,12 +391,13 @@ impl StorageManager {
         subkey: ValueSubkey,
         want_descriptor: bool,
     ) -> VeilidAPIResult<NetworkResult<GetResult>> {
-        let mut inner = self.lock().await?;
+        let mut inner = self.inner.lock().await;
 
         // See if this is a remote or local value
         let (_is_local, last_get_result) = {
             // See if the subkey we are getting has a last known local value
-            let mut last_get_result = inner.handle_get_local_value(key, subkey, true).await?;
+            let mut last_get_result =
+                Self::handle_get_local_value_inner(&mut inner, key, subkey, true).await?;
             // If this is local, it must have a descriptor already
             if last_get_result.opt_descriptor.is_some() {
                 if !want_descriptor {
@@ -406,9 +406,9 @@ impl StorageManager {
                 (true, last_get_result)
             } else {
                 // See if the subkey we are getting has a last known remote value
-                let last_get_result = inner
-                    .handle_get_remote_value(key, subkey, want_descriptor)
-                    .await?;
+                let last_get_result =
+                    Self::handle_get_remote_value_inner(&mut inner, key, subkey, want_descriptor)
+                        .await?;
                 (false, last_get_result)
             }
         };

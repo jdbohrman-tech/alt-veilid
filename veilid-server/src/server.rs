@@ -32,8 +32,8 @@ pub fn shutdown() {
     }
 }
 
-//#[instrument(err, skip_all)]
-pub async fn run_veilid_server(
+pub async fn run_veilid_server_subnode(
+    subnode: u16,
     settings: Settings,
     server_mode: ServerMode,
     veilid_logs: VeilidLogs,
@@ -44,17 +44,34 @@ pub async fn run_veilid_server(
         settings_client_api_network_enabled,
         settings_client_api_ipc_directory,
         settings_client_api_listen_address_addrs,
-        subnode_index,
+        subnode_offset,
     ) = {
         let settingsr = settings.read();
+
+        cfg_if! {
+            if #[cfg(feature = "virtual-network")] {
+                let subnode_offset = if inner.core.network.virtual_network.enabled {
+                    // Don't offset ports when using virtual networking
+                    0
+                } else {
+                    subnode
+                };
+            } else {
+                let subnode_offset = subnode;
+            }
+        }
 
         (
             settingsr.auto_attach,
             settingsr.client_api.ipc_enabled,
             settingsr.client_api.network_enabled,
             settingsr.client_api.ipc_directory.clone(),
-            settingsr.client_api.listen_address.addrs.clone(),
-            settingsr.testing.subnode_index,
+            settingsr
+                .client_api
+                .listen_address
+                .with_offset_port(subnode_offset)?
+                .addrs,
+            subnode_offset,
         )
     };
 
@@ -72,7 +89,7 @@ pub async fn run_veilid_server(
             eprintln!("error sending veilid update callback: {:?}", change);
         }
     });
-    let config_callback = settings.get_core_config_callback();
+    let config_callback = settings.get_core_config_callback(subnode, subnode_offset);
 
     // Start Veilid Core and get API
     let veilid_api = veilid_core::api_startup(update_callback, config_callback)
@@ -86,7 +103,7 @@ pub async fn run_veilid_server(
             client_api::ClientApi::new(veilid_api.clone(), veilid_logs.clone(), settings.clone());
         some_capi.clone().run(
             if settings_client_api_ipc_enabled {
-                Some(settings_client_api_ipc_directory.join(subnode_index.to_string()))
+                Some(settings_client_api_ipc_directory.join(subnode.to_string()))
             } else {
                 None
             },
@@ -108,7 +125,7 @@ pub async fn run_veilid_server(
     let capi2 = capi.clone();
     let update_receiver_shutdown = SingleShotEventual::new(Some(()));
     let mut update_receiver_shutdown_instance = update_receiver_shutdown.instance().fuse();
-    let update_receiver_jh = spawn_local(
+    let update_receiver_jh = spawn(
         "update_receiver",
         async move {
             loop {
@@ -116,7 +133,7 @@ pub async fn run_veilid_server(
                     res = receiver.recv_async() => {
                         if let Ok(change) = res {
                             if let Some(capi) = &capi2 {
-                                // Handle state changes on main thread for capnproto rpc
+                                // Handle state changes for JSON API
                                 capi.clone().handle_update(change);
                             }
                         } else {
@@ -201,9 +218,48 @@ pub async fn run_veilid_server(
     // Wait for update receiver to exit
     let _ = update_receiver_jh.await;
 
+    out
+}
+
+//#[instrument(err, skip_all)]
+pub async fn run_veilid_server(
+    settings: Settings,
+    server_mode: ServerMode,
+    veilid_logs: VeilidLogs,
+) -> EyreResult<()> {
+    let (subnode_index, subnode_count) = {
+        let settingsr = settings.read();
+        (
+            settingsr.testing.subnode_index,
+            settingsr.testing.subnode_count,
+        )
+    };
+
+    // Ensure we only try to spawn multiple subnodes in 'normal' execution mode
+    if !matches!(server_mode, ServerMode::Normal) && subnode_count != 1 {
+        bail!("can only have multiple subnodes in 'normal' execution mode");
+    }
+
+    // Run all subnodes
+    let mut all_subnodes_jh = vec![];
+    for subnode in subnode_index..(subnode_index + subnode_count) {
+        debug!("Spawning subnode {}", subnode);
+        let jh = spawn(
+            &format!("subnode{}", subnode),
+            run_veilid_server_subnode(subnode, settings.clone(), server_mode, veilid_logs.clone()),
+        );
+        all_subnodes_jh.push(jh);
+    }
+
+    // Wait for all subnodes to complete
+    for (sn, jh) in all_subnodes_jh.into_iter().enumerate() {
+        jh.await?;
+        debug!("Subnode {} exited", sn);
+    }
+
     // Finally, drop logs
     // this is explicit to ensure we don't accidentally drop them too soon via a move
     drop(veilid_logs);
 
-    out
+    Ok(())
 }

@@ -42,10 +42,9 @@ impl RoutingTable {
         ) as RoutingTableEntryFilter;
         let filters = VecDeque::from([filter]);
 
-        let node_count = {
-            let c = self.config.get();
-            c.network.dht.max_find_node_count as usize
-        };
+        let node_count = self
+            .config()
+            .with(|c| c.network.dht.max_find_node_count as usize);
 
         let closest_nodes = match self.find_preferred_closest_nodes(
             node_count,
@@ -82,11 +81,13 @@ impl RoutingTable {
 
         // find N nodes closest to the target node in our routing table
         // ensure the nodes returned are only the ones closer to the target node than ourself
-        let Some(vcrypto) = self.crypto().get(crypto_kind) else {
+        let crypto = self.crypto();
+        let Some(vcrypto) = crypto.get(crypto_kind) else {
             return NetworkResult::invalid_message("unsupported cryptosystem");
         };
+        let vcrypto = &vcrypto;
+
         let own_distance = vcrypto.distance(&own_node_id.value, &key.value);
-        let vcrypto2 = vcrypto.clone();
 
         let filter = Box::new(
             move |rti: &RoutingTableInner, opt_entry: Option<Arc<BucketEntry>>| {
@@ -121,10 +122,9 @@ impl RoutingTable {
         ) as RoutingTableEntryFilter;
         let filters = VecDeque::from([filter]);
 
-        let node_count = {
-            let c = self.config.get();
-            c.network.dht.max_find_node_count as usize
-        };
+        let node_count = self
+            .config()
+            .with(|c| c.network.dht.max_find_node_count as usize);
 
         //
         let closest_nodes = match self.find_preferred_closest_nodes(
@@ -147,7 +147,7 @@ impl RoutingTable {
 
         // Validate peers returned are, in fact, closer to the key than the node we sent this to
         // This same test is used on the other side so we vet things here
-        let valid = match Self::verify_peers_closer(vcrypto2, own_node_id, key, &closest_nodes) {
+        let valid = match Self::verify_peers_closer(vcrypto, own_node_id, key, &closest_nodes) {
             Ok(v) => v,
             Err(e) => {
                 panic!("missing cryptosystem in peers node ids: {}", e);
@@ -166,7 +166,7 @@ impl RoutingTable {
     /// Determine if set of peers is closer to key_near than key_far is to key_near
     #[instrument(level = "trace", target = "rtab", skip_all, err)]
     pub fn verify_peers_closer(
-        vcrypto: CryptoSystemVersion,
+        vcrypto: &crypto::CryptoSystemGuard<'_>,
         key_far: TypedKey,
         key_near: TypedKey,
         peers: &[Arc<PeerInfo>],

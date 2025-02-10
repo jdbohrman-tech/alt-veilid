@@ -1,6 +1,5 @@
 use super::*;
 use async_tls::TlsAcceptor;
-use sockets::*;
 use stop_token::future::FutureExt;
 
 /////////////////////////////////////////////////////////////////
@@ -122,8 +121,11 @@ impl Network {
             }
         };
         // Check to see if it is punished
-        let address_filter = self.network_manager().address_filter();
-        if address_filter.is_ip_addr_punished(peer_addr.ip()) {
+        if self
+            .network_manager()
+            .address_filter()
+            .is_ip_addr_punished(peer_addr.ip())
+        {
             return;
         }
 
@@ -135,39 +137,12 @@ impl Network {
             }
         };
 
-        #[cfg(all(feature = "rt-async-std", unix))]
+        if let Err(e) = set_tcp_stream_linger(&tcp_stream, Some(core::time::Duration::from_secs(0)))
         {
-            // async-std does not directly support linger on TcpStream yet
-            use std::os::fd::{AsRawFd, FromRawFd, IntoRawFd};
-            if let Err(e) = unsafe {
-                let s = socket2::Socket::from_raw_fd(tcp_stream.as_raw_fd());
-                let res = s.set_linger(Some(core::time::Duration::from_secs(0)));
-                s.into_raw_fd();
-                res
-            } {
-                log_net!(debug "Couldn't set TCP linger: {}", e);
-                return;
-            }
-        }
-        #[cfg(all(feature = "rt-async-std", windows))]
-        {
-            // async-std does not directly support linger on TcpStream yet
-            use std::os::windows::io::{AsRawSocket, FromRawSocket, IntoRawSocket};
-            if let Err(e) = unsafe {
-                let s = socket2::Socket::from_raw_socket(tcp_stream.as_raw_socket());
-                let res = s.set_linger(Some(core::time::Duration::from_secs(0)));
-                s.into_raw_socket();
-                res
-            } {
-                log_net!(debug "Couldn't set TCP linger: {}", e);
-                return;
-            }
-        }
-        #[cfg(not(feature = "rt-async-std"))]
-        if let Err(e) = tcp_stream.set_linger(Some(core::time::Duration::from_secs(0))) {
             log_net!(debug "Couldn't set TCP linger: {}", e);
             return;
         }
+
         if let Err(e) = tcp_stream.set_nodelay(true) {
             log_net!(debug "Couldn't set TCP nodelay: {}", e);
             return;
@@ -249,48 +224,18 @@ impl Network {
     #[instrument(level = "trace", skip_all)]
     async fn spawn_socket_listener(&self, addr: SocketAddr) -> EyreResult<bool> {
         // Get config
-        let (connection_initial_timeout_ms, tls_connection_initial_timeout_ms) = {
-            let c = self.config.get();
-            (
-                c.network.connection_initial_timeout_ms,
-                c.network.tls.connection_initial_timeout_ms,
-            )
-        };
-
-        // Create a socket and bind it
-        let Some(socket) = new_bound_default_tcp_socket(addr)
-            .wrap_err("failed to create default socket listener")?
-        else {
-            return Ok(false);
-        };
-
-        // Drop the socket
-        drop(socket);
+        let (connection_initial_timeout_ms, tls_connection_initial_timeout_ms) =
+            self.config().with(|c| {
+                (
+                    c.network.connection_initial_timeout_ms,
+                    c.network.tls.connection_initial_timeout_ms,
+                )
+            });
 
         // Create a shared socket and bind it once we have determined the port is free
-        let Some(socket) = new_bound_shared_tcp_socket(addr)
-            .wrap_err("failed to create shared socket listener")?
-        else {
+        let Some(listener) = bind_async_tcp_listener(addr)? else {
             return Ok(false);
         };
-
-        // Listen on the socket
-        if socket.listen(128).is_err() {
-            return Ok(false);
-        }
-
-        // Make an async tcplistener from the socket2 socket
-        let std_listener: std::net::TcpListener = socket.into();
-        cfg_if! {
-            if #[cfg(feature="rt-async-std")] {
-                let listener = TcpListener::from(std_listener);
-            } else if #[cfg(feature="rt-tokio")] {
-                std_listener.set_nonblocking(true).expect("failed to set nonblocking");
-                let listener = TcpListener::from_std(std_listener).wrap_err("failed to create tokio tcp listener")?;
-            } else {
-                compile_error!("needs executor implementation");
-            }
-        }
 
         log_net!(debug "spawn_socket_listener: binding successful to {}", addr);
 
@@ -304,22 +249,14 @@ impl Network {
         // Spawn the socket task
         let this = self.clone();
         let stop_token = self.inner.lock().stop_source.as_ref().unwrap().token();
-        let connection_manager = self.connection_manager();
+        let connection_manager = self.network_manager().connection_manager();
 
         ////////////////////////////////////////////////////////////
         let jh = spawn(&format!("TCP listener {}", addr), async move {
             // moves listener object in and get incoming iterator
             // when this task exists, the listener will close the socket
 
-            cfg_if! {
-                if #[cfg(feature="rt-async-std")] {
-                    let incoming_stream = listener.incoming();
-                } else if #[cfg(feature="rt-tokio")] {
-                    let incoming_stream = tokio_stream::wrappers::TcpListenerStream::new(listener);
-                } else {
-                    compile_error!("needs executor implementation");
-                }
-            }
+            let incoming_stream = async_tcp_listener_incoming(listener);
 
             let _ = incoming_stream
                 .for_each_concurrent(None, |tcp_stream| {

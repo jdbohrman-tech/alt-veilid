@@ -24,14 +24,14 @@ impl RPCProcessor {
                 ret.latency
             ),err)]
     pub async fn rpc_call_get_value(
-        self,
+        &self,
         dest: Destination,
         key: TypedKey,
         subkey: ValueSubkey,
         last_descriptor: Option<SignedValueDescriptor>,
     ) -> RPCNetworkResult<Answer<GetValueAnswer>> {
         let _guard = self
-            .unlocked_inner
+            .startup_context
             .startup_lock
             .enter()
             .map_err(RPCError::map_try_again("not started up"))?;
@@ -45,7 +45,8 @@ impl RPCProcessor {
         };
 
         // Get the target node id
-        let Some(vcrypto) = self.crypto().get(key.kind) else {
+        let crypto = self.crypto();
+        let Some(vcrypto) = crypto.get(key.kind) else {
             return Err(RPCError::internal("unsupported cryptosystem"));
         };
         let Some(target_node_id) = target_node_ids.get(key.kind) else {
@@ -74,7 +75,7 @@ impl RPCProcessor {
         let question_context = QuestionContext::GetValue(ValidateGetValueContext {
             last_descriptor,
             subkey,
-            vcrypto: vcrypto.clone(),
+            crypto_kind: vcrypto.kind(),
         });
 
         log_dht!(debug "{}", debug_string);
@@ -137,7 +138,7 @@ impl RPCProcessor {
         }
 
         // Validate peers returned are, in fact, closer to the key than the node we sent this to
-        let valid = match RoutingTable::verify_peers_closer(vcrypto, target_node_id, key, &peers) {
+        let valid = match RoutingTable::verify_peers_closer(&vcrypto, target_node_id, key, &peers) {
             Ok(v) => v,
             Err(e) => {
                 return Ok(NetworkResult::invalid_message(format!(
@@ -231,7 +232,9 @@ impl RPCProcessor {
         }
 
         // See if we would have accepted this as a set
-        let set_value_count = self.with_config(|c| c.network.dht.set_value_count as usize);
+        let set_value_count = self
+            .config()
+            .with(|c| c.network.dht.set_value_count as usize);
         let (get_result_value, get_result_descriptor) =
             if closer_to_key_peers.len() >= set_value_count {
                 // Not close enough

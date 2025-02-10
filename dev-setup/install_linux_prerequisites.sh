@@ -43,14 +43,14 @@ while true; do
         curl -o $HOME/Android/cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-9123335_latest.zip
         cd $HOME/Android
         unzip $HOME/Android/cmdline-tools.zip
-        $HOME/Android/cmdline-tools/bin/sdkmanager --sdk_root=$HOME/Android/Sdk build-tools\;34.0.0 ndk\;26.3.11579264 cmake\;3.22.1 platform-tools platforms\;android-34 cmdline-tools\;latest emulator
+        $HOME/Android/cmdline-tools/bin/sdkmanager --sdk_root=$HOME/Android/Sdk build-tools\;34.0.0 ndk\;27.0.12077973 cmake\;3.22.1 platform-tools platforms\;android-34 cmdline-tools\;latest emulator
         cd $HOME
         rm -rf $HOME/Android/cmdline-tools $HOME/Android/cmdline-tools.zip
 
         # Add environment variables
         cat >>$HOME/.profile <<END
 source "\$HOME/.cargo/env"
-export PATH=\$PATH:\$HOME/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin:\$HOME/Android/Sdk/platform-tools:\$HOME/Android/Sdk/cmdline-tools/latest/bin
+export PATH=\$PATH:\$HOME/Android/Sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin:\$HOME/Android/Sdk/platform-tools:\$HOME/Android/Sdk/cmdline-tools/latest/bin
 export ANDROID_HOME=\$HOME/Android/Sdk
 END
         break

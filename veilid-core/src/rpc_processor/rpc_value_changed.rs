@@ -5,7 +5,7 @@ impl RPCProcessor {
     // Can be sent via all methods including relays and routes but never over a safety route
     #[instrument(level = "trace", target = "rpc", skip(self, value), err)]
     pub async fn rpc_call_value_changed(
-        self,
+        &self,
         dest: Destination,
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
@@ -14,7 +14,7 @@ impl RPCProcessor {
         value: Option<SignedValueData>,
     ) -> RPCNetworkResult<()> {
         let _guard = self
-            .unlocked_inner
+            .startup_context
             .startup_lock
             .enter()
             .map_err(RPCError::map_try_again("not started up"))?;

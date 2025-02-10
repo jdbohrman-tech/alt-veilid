@@ -20,6 +20,7 @@ impl InspectCacheL2 {
     }
 }
 
+#[derive(Debug)]
 pub struct InspectCache {
     cache: LruCache<TypedKey, InspectCacheL2>,
 }

@@ -12,11 +12,16 @@ impl RoutingTable {
     // nodes for their PublicInternet peers, which is a very fast way to get
     // a new node online.
     #[instrument(level = "trace", skip(self), err)]
-    pub async fn peer_minimum_refresh_task_routine(self, stop_token: StopToken) -> EyreResult<()> {
+    pub async fn peer_minimum_refresh_task_routine(
+        &self,
+        stop_token: StopToken,
+        _last_ts: Timestamp,
+        _cur_ts: Timestamp,
+    ) -> EyreResult<()> {
         // Get counts by crypto kind
         let entry_count = self.inner.read().cached_entry_counts();
 
-        let (min_peer_count, min_peer_refresh_time_ms) = self.with_config(|c| {
+        let (min_peer_count, min_peer_refresh_time_ms) = self.config().with(|c| {
             (
                 c.network.dht.min_peer_count as usize,
                 c.network.dht.min_peer_refresh_time_ms,
@@ -39,7 +44,6 @@ impl RoutingTable {
                 continue;
             }
 
-            let routing_table = self.clone();
             let mut filters = VecDeque::new();
             let filter = Box::new(
                 move |rti: &RoutingTableInner, opt_entry: Option<Arc<BucketEntry>>| {
@@ -64,23 +68,18 @@ impl RoutingTable {
             ) as RoutingTableEntryFilter;
             filters.push_front(filter);
 
-            let noderefs = routing_table.find_preferred_fastest_nodes(
+            let noderefs = self.find_preferred_fastest_nodes(
                 min_peer_count,
                 filters,
                 |_rti, entry: Option<Arc<BucketEntry>>| {
-                    NodeRef::new(routing_table.clone(), entry.unwrap().clone())
+                    NodeRef::new(self.registry(), entry.unwrap().clone())
                 },
             );
 
             for nr in noderefs {
-                let routing_table = self.clone();
                 ord.push_back(
-                    async move {
-                        routing_table
-                            .reverse_find_node(crypto_kind, nr, false, vec![])
-                            .await
-                    }
-                    .instrument(Span::current()),
+                    async move { self.reverse_find_node(crypto_kind, nr, false, vec![]).await }
+                        .instrument(Span::current()),
                 );
             }
         }

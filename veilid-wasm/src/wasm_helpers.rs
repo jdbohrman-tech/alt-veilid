@@ -1,7 +1,7 @@
 use super::*;
 
 cfg_if::cfg_if! {
-  if #[cfg(target_arch = "wasm32")] {
+  if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
       pub use wasm_bindgen::prelude::*;
 
       macro_rules! from_impl_to_jsvalue {

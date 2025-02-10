@@ -7,43 +7,56 @@ use stop_token::future::FutureExt as _;
 
 use super::*;
 
+#[derive(Debug)]
+struct DeferredStreamProcessorInner {
+    opt_deferred_stream_channel: Option<flume::Sender<SendPinBoxFuture<()>>>,
+    opt_stopper: Option<StopSource>,
+    opt_join_handle: Option<MustJoinHandle<()>>,
+}
+
 /// Background processor for streams
 /// Handles streams to completion, passing each item from the stream to a callback
 #[derive(Debug)]
 pub struct DeferredStreamProcessor {
-    pub opt_deferred_stream_channel: Option<flume::Sender<SendPinBoxFuture<()>>>,
-    pub opt_stopper: Option<StopSource>,
-    pub opt_join_handle: Option<MustJoinHandle<()>>,
+    inner: Mutex<DeferredStreamProcessorInner>,
 }
 
 impl DeferredStreamProcessor {
     /// Create a new DeferredStreamProcessor
     pub fn new() -> Self {
         Self {
-            opt_deferred_stream_channel: None,
-            opt_stopper: None,
-            opt_join_handle: None,
+            inner: Mutex::new(DeferredStreamProcessorInner {
+                opt_deferred_stream_channel: None,
+                opt_stopper: None,
+                opt_join_handle: None,
+            }),
         }
     }
 
     /// Initialize the processor before use
-    pub async fn init(&mut self) {
+    pub async fn init(&self) {
         let stopper = StopSource::new();
         let stop_token = stopper.token();
-        self.opt_stopper = Some(stopper);
+
+        let mut inner = self.inner.lock();
+        inner.opt_stopper = Some(stopper);
         let (dsc_tx, dsc_rx) = flume::unbounded::<SendPinBoxFuture<()>>();
-        self.opt_deferred_stream_channel = Some(dsc_tx);
-        self.opt_join_handle = Some(spawn(
+        inner.opt_deferred_stream_channel = Some(dsc_tx);
+        inner.opt_join_handle = Some(spawn(
             "deferred stream processor",
             Self::processor(stop_token, dsc_rx),
         ));
     }
 
     /// Terminate the processor and ensure all streams are closed
-    pub async fn terminate(&mut self) {
-        drop(self.opt_deferred_stream_channel.take());
-        drop(self.opt_stopper.take());
-        if let Some(jh) = self.opt_join_handle.take() {
+    pub async fn terminate(&self) {
+        let opt_jh = {
+            let mut inner = self.inner.lock();
+            drop(inner.opt_deferred_stream_channel.take());
+            drop(inner.opt_stopper.take());
+            inner.opt_join_handle.take()
+        };
+        if let Some(jh) = opt_jh {
             jh.await;
         }
     }
@@ -100,15 +113,19 @@ impl DeferredStreamProcessor {
     ///
     /// Returns 'true' if the stream was added for processing, and 'false' if the stream could not be added, possibly due to not being initialized.
     pub fn add<T: Send + 'static, S: futures_util::Stream<Item = T> + Unpin + Send + 'static>(
-        &mut self,
+        &self,
         mut receiver: S,
         mut handler: impl FnMut(T) -> SendPinBoxFuture<bool> + Send + 'static,
     ) -> bool {
-        let Some(st) = self.opt_stopper.as_ref().map(|s| s.token()) else {
-            return false;
-        };
-        let Some(dsc_tx) = self.opt_deferred_stream_channel.clone() else {
-            return false;
+        let (st, dsc_tx) = {
+            let inner = self.inner.lock();
+            let Some(st) = inner.opt_stopper.as_ref().map(|s| s.token()) else {
+                return false;
+            };
+            let Some(dsc_tx) = inner.opt_deferred_stream_channel.clone() else {
+                return false;
+            };
+            (st, dsc_tx)
         };
         let drp = Box::pin(async move {
             while let Ok(Some(res)) = receiver.next().timeout_at(st.clone()).await {

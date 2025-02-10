@@ -47,14 +47,13 @@ pub fn vld0_generate_keypair() -> KeyPair {
 }
 
 /// V0 CryptoSystem
-#[derive(Clone)]
 pub struct CryptoSystemVLD0 {
-    crypto: Crypto,
+    registry: VeilidComponentRegistry,
 }
 
 impl CryptoSystemVLD0 {
-    pub fn new(crypto: Crypto) -> Self {
-        Self { crypto }
+    pub fn new(registry: VeilidComponentRegistry) -> Self {
+        Self { registry }
     }
 }
 
@@ -64,14 +63,14 @@ impl CryptoSystem for CryptoSystemVLD0 {
         CRYPTO_KIND_VLD0
     }
 
-    fn crypto(&self) -> Crypto {
-        self.crypto.clone()
+    fn crypto(&self) -> VeilidComponentGuard<'_, Crypto> {
+        self.registry.lookup::<Crypto>().unwrap()
     }
 
     // Cached Operations
     #[instrument(level = "trace", skip_all)]
     fn cached_dh(&self, key: &PublicKey, secret: &SecretKey) -> VeilidAPIResult<SharedSecret> {
-        self.crypto
+        self.crypto()
             .cached_dh_internal::<CryptoSystemVLD0>(self, key, secret)
     }
 

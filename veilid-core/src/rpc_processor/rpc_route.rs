@@ -9,7 +9,7 @@ impl RPCProcessor {
         safety_route: SafetyRoute,
     ) -> RPCNetworkResult<()> {
         // Make sure hop count makes sense
-        if safety_route.hop_count as usize > self.unlocked_inner.max_route_hop_count {
+        if safety_route.hop_count as usize > self.max_route_hop_count {
             return Ok(NetworkResult::invalid_message(
                 "Safety route hop count too high to process",
             ));
@@ -26,9 +26,10 @@ impl RPCProcessor {
         }
 
         // Get next hop node ref
+        let routing_table = self.routing_table();
         let Some(next_hop_nr) = route_hop
             .node
-            .node_ref(self.routing_table(), safety_route.public_key.kind)
+            .node_ref(&routing_table, safety_route.public_key.kind)
         else {
             return Ok(NetworkResult::invalid_message(format!(
                 "could not get route node hop ref: {}",
@@ -65,15 +66,16 @@ impl RPCProcessor {
         next_private_route: PrivateRoute,
     ) -> RPCNetworkResult<()> {
         // Make sure hop count makes sense
-        if next_private_route.hop_count as usize > self.unlocked_inner.max_route_hop_count {
+        if next_private_route.hop_count as usize > self.max_route_hop_count {
             return Ok(NetworkResult::invalid_message(
                 "Private route hop count too high to process",
             ));
         }
 
         // Get next hop node ref
+        let routing_table = self.routing_table();
         let Some(next_hop_nr) =
-            next_route_node.node_ref(self.routing_table(), safety_route_public_key.kind)
+            next_route_node.node_ref(&routing_table, safety_route_public_key.kind)
         else {
             return Ok(NetworkResult::invalid_message(format!(
                 "could not get route node hop ref: {}",
@@ -110,7 +112,7 @@ impl RPCProcessor {
     fn process_safety_routed_operation(
         &self,
         detail: RPCMessageHeaderDetailDirect,
-        vcrypto: CryptoSystemVersion,
+        vcrypto: &CryptoSystemGuard<'_>,
         routed_operation: RoutedOperation,
         remote_sr_pubkey: TypedKey,
     ) -> RPCNetworkResult<()> {
@@ -156,7 +158,7 @@ impl RPCProcessor {
     fn process_private_routed_operation(
         &self,
         detail: RPCMessageHeaderDetailDirect,
-        vcrypto: CryptoSystemVersion,
+        vcrypto: &CryptoSystemGuard<'_>,
         routed_operation: RoutedOperation,
         remote_sr_pubkey: TypedKey,
         pr_pubkey: TypedKey,
@@ -170,7 +172,8 @@ impl RPCProcessor {
 
         // Look up the private route and ensure it's one in our spec store
         // Ensure the route is validated, and construct a return safetyspec that matches the inbound preferences
-        let rss = self.routing_table().route_spec_store();
+        let routing_table = self.routing_table();
+        let rss = routing_table.route_spec_store();
         let preferred_route = rss.get_route_id_for_key(&pr_pubkey.value);
 
         let Some((secret_key, safety_spec)) = rss.with_signature_validated_route(
@@ -230,7 +233,7 @@ impl RPCProcessor {
     fn process_routed_operation(
         &self,
         detail: RPCMessageHeaderDetailDirect,
-        vcrypto: CryptoSystemVersion,
+        vcrypto: &CryptoSystemGuard<'_>,
         routed_operation: RoutedOperation,
         remote_sr_pubkey: TypedKey,
         pr_pubkey: TypedKey,
@@ -330,8 +333,9 @@ impl RPCProcessor {
         routed_operation: &mut RoutedOperation,
     ) -> RPCNetworkResult<RouteHop> {
         // Get crypto kind
+        let crypto = self.crypto();
         let crypto_kind = pr_pubkey.kind;
-        let Some(vcrypto) = self.crypto().get(crypto_kind) else {
+        let Some(vcrypto) = crypto.get(crypto_kind) else {
             return Ok(NetworkResult::invalid_message(
                 "private route hop data crypto is not supported",
             ));
@@ -370,9 +374,7 @@ impl RPCProcessor {
         };
 
         // Validate the RouteHop
-        route_hop
-            .validate(self.crypto())
-            .map_err(RPCError::protocol)?;
+        route_hop.validate(&crypto).map_err(RPCError::protocol)?;
 
         // Sign the operation if this is not our last hop
         // as the last hop is already signed by the envelope
@@ -392,6 +394,7 @@ impl RPCProcessor {
     pub(super) async fn process_route(&self, msg: Message) -> RPCNetworkResult<()> {
         // Ignore if disabled
         let routing_table = self.routing_table();
+        let crypto = self.crypto();
 
         let Some(published_peer_info) =
             routing_table.get_published_peer_info(msg.header.routing_domain())
@@ -431,7 +434,7 @@ impl RPCProcessor {
 
         // Get crypto kind
         let crypto_kind = route.safety_route().crypto_kind();
-        let Some(vcrypto) = self.crypto().get(crypto_kind) else {
+        let Some(vcrypto) = crypto.get(crypto_kind) else {
             return Ok(NetworkResult::invalid_message(
                 "routed operation crypto is not supported",
             ));
@@ -497,7 +500,7 @@ impl RPCProcessor {
                     };
 
                     // Validate the private route
-                    if private_route.validate(self.crypto()).is_err() {
+                    if private_route.validate(&crypto).is_err() {
                         return Ok(NetworkResult::invalid_message(
                             "failed to validate private route",
                         ));
@@ -534,7 +537,7 @@ impl RPCProcessor {
                     };
 
                     // Validate the route hop
-                    if route_hop.validate(self.crypto()).is_err() {
+                    if route_hop.validate(&crypto).is_err() {
                         return Ok(NetworkResult::invalid_message(
                             "failed to validate route hop",
                         ));
@@ -617,7 +620,7 @@ impl RPCProcessor {
                         // No hops left, time to process the routed operation
                         network_result_try!(self.process_routed_operation(
                             detail,
-                            vcrypto,
+                            &vcrypto,
                             routed_operation,
                             safety_route.public_key,
                             private_route.public_key,

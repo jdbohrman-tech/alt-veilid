@@ -47,6 +47,23 @@ impl<'a> Drop for StartupLockEnterGuard<'a> {
     }
 }
 
+/// RAII-style lock for entry operations on a started-up region of code.
+#[derive(Debug)]
+pub struct StartupLockEnterGuardArc {
+    _guard: AsyncRwLockReadGuardArc<bool>,
+    #[cfg(feature = "debug-locks")]
+    id: usize,
+    #[cfg(feature = "debug-locks")]
+    active_guards: Arc<Mutex<HashMap<usize, backtrace::Backtrace>>>,
+}
+
+#[cfg(feature = "debug-locks")]
+impl Drop for StartupLockEnterGuardArc {
+    fn drop(&mut self) {
+        self.active_guards.lock().remove(&self.id);
+    }
+}
+
 #[cfg(feature = "debug-locks")]
 static GUARD_ID: AtomicUsize = AtomicUsize::new(0);
 
@@ -59,7 +76,7 @@ static GUARD_ID: AtomicUsize = AtomicUsize::new(0);
 /// asynchronous shutdown to wait for operations to finish before proceeding.
 #[derive(Debug)]
 pub struct StartupLock {
-    startup_state: AsyncRwLock<bool>,
+    startup_state: Arc<AsyncRwLock<bool>>,
     stop_source: Mutex<Option<StopSource>>,
     #[cfg(feature = "debug-locks")]
     active_guards: Arc<Mutex<HashMap<usize, backtrace::Backtrace>>>,
@@ -68,7 +85,7 @@ pub struct StartupLock {
 impl StartupLock {
     pub fn new() -> Self {
         Self {
-            startup_state: AsyncRwLock::new(false),
+            startup_state: Arc::new(AsyncRwLock::new(false)),
             stop_source: Mutex::new(None),
             #[cfg(feature = "debug-locks")]
             active_guards: Arc::new(Mutex::new(HashMap::new())),
@@ -154,6 +171,31 @@ impl StartupLock {
             return Err(StartupLockNotStartedError);
         }
         let out = StartupLockEnterGuard {
+            _guard: guard,
+            #[cfg(feature = "debug-locks")]
+            id: GUARD_ID.fetch_add(1, Ordering::AcqRel),
+            #[cfg(feature = "debug-locks")]
+            active_guards: self.active_guards.clone(),
+        };
+
+        #[cfg(feature = "debug-locks")]
+        self.active_guards
+            .lock()
+            .insert(out.id, backtrace::Backtrace::new());
+
+        Ok(out)
+    }
+
+    /// Enter an operation in a started-up module, using an owned lock.
+    /// If this module has not yet started up or is in the process of startup or shutdown
+    /// this will fail.
+    pub fn enter_arc(&self) -> Result<StartupLockEnterGuardArc, StartupLockNotStartedError> {
+        let guard =
+            asyncrwlock_try_read_arc!(self.startup_state).ok_or(StartupLockNotStartedError)?;
+        if !*guard {
+            return Err(StartupLockNotStartedError);
+        }
+        let out = StartupLockEnterGuardArc {
             _guard: guard,
             #[cfg(feature = "debug-locks")]
             id: GUARD_ID.fetch_add(1, Ordering::AcqRel),

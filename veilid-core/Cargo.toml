@@ -4,13 +4,13 @@ name = "veilid-core"
 version = "0.4.1"
 # ---
 description = "Core library used to create a Veilid node and operate it as part of an application"
-repository = "https://gitlab.com/veilid/veilid"
-authors = ["Veilid Team <contact@veilid.com>"]
-edition = "2021"
 build = "build.rs"
-license = "MPL-2.0"
 resolver = "2"
-rust-version = "1.81.0"
+repository.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
 
 [lib]
 crate-type = ["cdylib", "staticlib", "rlib"]
@@ -56,6 +56,8 @@ veilid_core_ios_tests = ["dep:tracing-oslog"]
 debug-locks = ["veilid-tools/debug-locks"]
 unstable-blockstore = []
 unstable-tunnels = []
+virtual-network = ["veilid-tools/virtual-network"]
+virtual-network-server = ["veilid-tools/virtual-network-server"]
 
 # GeoIP
 geolocation = ["maxminddb", "reqwest"]
@@ -133,8 +135,8 @@ hickory-resolver = { version = "0.24.1", optional = true }
 
 # Serialization
 capnp = { version = "0.19.6", default-features = false, features = ["alloc"] }
-serde = { version = "1.0.204", features = ["derive", "rc"] }
-serde_json = { version = "1.0.120" }
+serde = { version = "1.0.214", features = ["derive", "rc"] }
+serde_json = { version = "1.0.132" }
 serde-big-array = "0.5.1"
 json = "0.12.4"
 data-encoding = { version = "2.6.0" }
@@ -148,7 +150,7 @@ sanitize-filename = "0.5.0"
 
 # Dependencies for native builds only
 # Linux, Windows, Mac, iOS, Android
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+[target.'cfg(not(all(target_arch = "wasm32", target_os = "unknown")))'.dependencies]
 
 # Tools
 config = { version = "0.13.4", default-features = false, features = ["yaml"] }
@@ -164,7 +166,6 @@ sysinfo = { version = "^0.30.13", default-features = false }
 tokio = { version = "1.38.1", features = ["full"], optional = true }
 tokio-util = { version = "0.7.11", features = ["compat"], optional = true }
 tokio-stream = { version = "0.1.15", features = ["net"], optional = true }
-async-io = { version = "1.13.0" }
 futures-util = { version = "0.3.30", default-features = false, features = [
     "async-await",
     "sink",
@@ -184,10 +185,9 @@ webpki = "0.22.4"
 webpki-roots = "0.25.4"
 rustls = "0.21.12"
 rustls-pemfile = "1.0.4"
-socket2 = { version = "0.5.7", features = ["all"] }
 
 # Dependencies for WASM builds only
-[target.'cfg(target_arch = "wasm32")'.dependencies]
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
 
 veilid-tools = { version = "0.4.1", path = "../veilid-tools", default-features = false, features = [
     "rt-wasm-bindgen",
@@ -222,7 +222,7 @@ tracing-wasm = "0.2.1"
 keyvaluedb-web = "0.1.2"
 
 ### Configuration for WASM32 'web-sys' crate
-[target.'cfg(target_arch = "wasm32")'.dependencies.web-sys]
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies.web-sys]
 version = "0.3.69"
 features = [
     'Document',
@@ -260,12 +260,12 @@ tracing-oslog = { version = "0.1.2", optional = true }
 
 ### DEV DEPENDENCIES
 
-[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+[target.'cfg(not(all(target_arch = "wasm32", target_os = "unknown")))'.dev-dependencies]
 simplelog = { version = "0.12.2", features = ["test"] }
 serial_test = "2.0.0"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 
-[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dev-dependencies]
 serial_test = { version = "2.0.0", default-features = false, features = [
     "async",
 ] }

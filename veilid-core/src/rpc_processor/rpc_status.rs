@@ -18,22 +18,23 @@ impl RPCProcessor {
     // private -> nothing
     #[instrument(level = "trace", target = "rpc", skip(self), ret, err)]
     pub async fn rpc_call_status(
-        self,
+        &self,
         dest: Destination,
     ) -> RPCNetworkResult<Answer<StatusResult>> {
         let _guard = self
-            .unlocked_inner
+            .startup_context
             .startup_lock
             .enter()
             .map_err(RPCError::map_try_again("not started up"))?;
 
         // Determine routing domain and node status to send
+        let routing_table = self.routing_table();
         let (opt_target_nr, routing_domain, node_status) = if let Some(UnsafeRoutingInfo {
             opt_node,
             opt_relay,
             opt_routing_domain,
         }) =
-            dest.get_unsafe_routing_info(self.routing_table())
+            dest.get_unsafe_routing_info(&routing_table)
         {
             let Some(routing_domain) = opt_routing_domain else {
                 // Because this exits before calling 'question()',

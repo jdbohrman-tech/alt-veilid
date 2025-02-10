@@ -640,7 +640,7 @@ impl BucketEntryInner {
         only_live: bool,
         filter: NodeRefFilter,
     ) -> Vec<(Flow, Timestamp)> {
-        let opt_connection_manager = rti.unlocked_inner.network_manager.opt_connection_manager();
+        let opt_connection_manager = rti.network_manager().opt_connection_manager();
 
         let mut out: Vec<(Flow, Timestamp)> = self
             .last_flows

@@ -5,13 +5,13 @@ enum RoutingDomainChangePublicInternet {
     Common(RoutingDomainChangeCommon),
 }
 
-pub struct RoutingDomainEditorPublicInternet {
-    routing_table: RoutingTable,
+pub struct RoutingDomainEditorPublicInternet<'a> {
+    routing_table: &'a RoutingTable,
     changes: Vec<RoutingDomainChangePublicInternet>,
 }
 
-impl RoutingDomainEditorPublicInternet {
-    pub(in crate::routing_table) fn new(routing_table: RoutingTable) -> Self {
+impl<'a> RoutingDomainEditorPublicInternet<'a> {
+    pub(in crate::routing_table) fn new(routing_table: &'a RoutingTable) -> Self {
         Self {
             routing_table,
             changes: Vec::new(),
@@ -41,7 +41,7 @@ impl RoutingDomainEditorPublicInternet {
     }
 }
 
-impl RoutingDomainEditorCommonTrait for RoutingDomainEditorPublicInternet {
+impl<'a> RoutingDomainEditorCommonTrait for RoutingDomainEditorPublicInternet<'a> {
     #[instrument(level = "debug", skip(self))]
     fn clear_dial_info_details(
         &mut self,
@@ -263,8 +263,7 @@ impl RoutingDomainEditorCommonTrait for RoutingDomainEditorPublicInternet {
 
         if changed {
             // Clear the routespecstore cache if our PublicInternet dial info has changed
-            let rss = self.routing_table.route_spec_store();
-            rss.reset_cache();
+            self.routing_table.route_spec_store().reset_cache();
         }
     }
 

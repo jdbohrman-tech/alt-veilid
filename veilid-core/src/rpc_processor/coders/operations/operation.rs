@@ -100,8 +100,9 @@ impl RPCOperation {
     pub fn validate(&mut self, validate_context: &RPCValidateContext) -> Result<(), RPCError> {
         // Validate sender peer info
         if let Some(sender_peer_info) = &self.sender_peer_info.opt_peer_info {
+            let crypto = validate_context.crypto();
             sender_peer_info
-                .validate(validate_context.crypto.clone())
+                .validate(&crypto)
                 .map_err(RPCError::protocol)?;
         }
 

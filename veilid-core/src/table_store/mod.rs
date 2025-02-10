@@ -5,13 +5,13 @@ pub use table_db::*;
 
 pub mod tests;
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 mod wasm;
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 use wasm::*;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 mod native;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use native::*;
 
 use keyvaluedb::*;
@@ -20,14 +20,14 @@ const ALL_TABLE_NAMES: &[u8] = b"all_table_names";
 
 /// Description of column
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct ColumnInfo {
     pub key_count: AlignedU64,
 }
 
 /// IO Stats for table
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct IOStatsInfo {
     /// Number of transaction.
     pub transactions: AlignedU64,
@@ -51,7 +51,7 @@ pub struct IOStatsInfo {
 
 /// Description of table
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct TableInfo {
     /// Internal table name
     pub table_name: String,
@@ -70,20 +70,40 @@ struct TableStoreInner {
     encryption_key: Option<TypedSharedSecret>,
     all_table_names: HashMap<String, String>,
     all_tables_db: Option<Database>,
-    crypto: Option<Crypto>,
+}
+
+impl fmt::Debug for TableStoreInner {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TableStoreInner")
+            .field("opened", &self.opened)
+            .field("encryption_key", &self.encryption_key)
+            .field("all_table_names", &self.all_table_names)
+            //.field("all_tables_db", &self.all_tables_db)
+            .finish()
+    }
 }
 
 /// Veilid Table Storage.
 /// Database for storing key value pairs persistently and securely across runs.
-#[derive(Clone)]
 pub struct TableStore {
-    _event_bus: EventBus,
-    config: VeilidConfig,
-    protected_store: ProtectedStore,
+    registry: VeilidComponentRegistry,
+    inner: Mutex<TableStoreInner>, // Sync mutex here because TableDB drops can happen at any time
     table_store_driver: TableStoreDriver,
-    inner: Arc<Mutex<TableStoreInner>>, // Sync mutex here because TableDB drops can happen at any time
-    async_lock: Arc<AsyncMutex<()>>,    // Async mutex for operations
+    async_lock: Arc<AsyncMutex<()>>, // Async mutex for operations
 }
+
+impl fmt::Debug for TableStore {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TableStore")
+            .field("registry", &self.registry)
+            .field("inner", &self.inner)
+            //.field("table_store_driver", &self.table_store_driver)
+            .field("async_lock", &self.async_lock)
+            .finish()
+    }
+}
+
+impl_veilid_component!(TableStore);
 
 impl TableStore {
     fn new_inner() -> TableStoreInner {
@@ -92,33 +112,21 @@ impl TableStore {
             encryption_key: None,
             all_table_names: HashMap::new(),
             all_tables_db: None,
-            crypto: None,
         }
     }
-    pub(crate) fn new(
-        event_bus: EventBus,
-        config: VeilidConfig,
-        protected_store: ProtectedStore,
-    ) -> Self {
+    pub(crate) fn new(registry: VeilidComponentRegistry) -> Self {
         let inner = Self::new_inner();
-        let table_store_driver = TableStoreDriver::new(config.clone());
+        let table_store_driver = TableStoreDriver::new(registry.config());
 
         Self {
-            _event_bus: event_bus,
-            config,
-            protected_store,
-            inner: Arc::new(Mutex::new(inner)),
+            registry,
+            inner: Mutex::new(inner),
             table_store_driver,
             async_lock: Arc::new(AsyncMutex::new(())),
         }
     }
 
-    pub(crate) fn set_crypto(&self, crypto: Crypto) {
-        let mut inner = self.inner.lock();
-        inner.crypto = Some(crypto);
-    }
-
-    // Flush internal control state (must not use crypto)
+    // Flush internal control state
     async fn flush(&self) {
         let (all_table_names_value, all_tables_db) = {
             let inner = self.inner.lock();
@@ -142,8 +150,7 @@ impl TableStore {
         {
             apibail_invalid_argument!("table name is invalid", "table", table);
         }
-        let c = self.config.get();
-        let namespace = c.namespace.clone();
+        let namespace = self.config().with(|c| c.namespace.clone());
         Ok(if namespace.is_empty() {
             table.to_string()
         } else {
@@ -248,7 +255,7 @@ impl TableStore {
     }
 
     #[instrument(level = "trace", target = "tstore", skip_all)]
-    pub(crate) fn maybe_unprotect_device_encryption_key(
+    pub(crate) async fn maybe_unprotect_device_encryption_key(
         &self,
         dek_bytes: &[u8],
         device_encryption_key_password: &str,
@@ -260,8 +267,8 @@ impl TableStore {
 
         // Get cryptosystem
         let kind = FourCC::try_from(&dek_bytes[0..4]).unwrap();
-        let crypto = self.inner.lock().crypto.as_ref().unwrap().clone();
-        let Some(vcrypto) = crypto.get(kind) else {
+        let crypto = self.crypto();
+        let Some(vcrypto) = crypto.get_async(kind) else {
             bail!("unsupported cryptosystem '{kind}'");
         };
 
@@ -278,10 +285,14 @@ impl TableStore {
 
             let shared_secret = vcrypto
                 .derive_shared_secret(device_encryption_key_password.as_bytes(), &nonce.bytes)
+                .await
                 .wrap_err("failed to derive shared secret")?;
+
             let unprotected_key = vcrypto
                 .decrypt_aead(protected_key, &nonce, &shared_secret, None)
+                .await
                 .wrap_err("failed to decrypt device encryption key")?;
+
             return Ok(TypedSharedSecret::new(
                 kind,
                 SharedSecret::try_from(unprotected_key.as_slice())
@@ -300,7 +311,7 @@ impl TableStore {
     }
 
     #[instrument(level = "trace", target = "tstore", skip_all)]
-    pub(crate) fn maybe_protect_device_encryption_key(
+    pub(crate) async fn maybe_protect_device_encryption_key(
         &self,
         dek: TypedSharedSecret,
         device_encryption_key_password: &str,
@@ -316,17 +327,19 @@ impl TableStore {
         }
 
         // Get cryptosystem
-        let crypto = self.inner.lock().crypto.as_ref().unwrap().clone();
-        let Some(vcrypto) = crypto.get(dek.kind) else {
+        let crypto = self.crypto();
+        let Some(vcrypto) = crypto.get_async(dek.kind) else {
             bail!("unsupported cryptosystem '{}'", dek.kind);
         };
 
-        let nonce = vcrypto.random_nonce();
+        let nonce = vcrypto.random_nonce().await;
         let shared_secret = vcrypto
             .derive_shared_secret(device_encryption_key_password.as_bytes(), &nonce.bytes)
+            .await
             .wrap_err("failed to derive shared secret")?;
         let mut protected_key = vcrypto
             .encrypt_aead(&dek.value.bytes, &nonce, &shared_secret, None)
+            .await
             .wrap_err("failed to decrypt device encryption key")?;
         let mut out =
             Vec::with_capacity(4 + SHARED_SECRET_LENGTH + vcrypto.aead_overhead() + NONCE_LENGTH);
@@ -340,7 +353,7 @@ impl TableStore {
     #[instrument(level = "trace", target = "tstore", skip_all)]
     async fn load_device_encryption_key(&self) -> EyreResult<Option<TypedSharedSecret>> {
         let dek_bytes: Option<Vec<u8>> = self
-            .protected_store
+            .protected_store()
             .load_user_secret("device_encryption_key")
             .await?;
         let Some(dek_bytes) = dek_bytes else {
@@ -349,15 +362,14 @@ impl TableStore {
         };
 
         // Get device encryption key protection password if we have it
-        let device_encryption_key_password = {
-            let c = self.config.get();
-            c.protected_store.device_encryption_key_password.clone()
-        };
+        let device_encryption_key_password = self
+            .config()
+            .with(|c| c.protected_store.device_encryption_key_password.clone());
 
-        Ok(Some(self.maybe_unprotect_device_encryption_key(
-            &dek_bytes,
-            &device_encryption_key_password,
-        )?))
+        Ok(Some(
+            self.maybe_unprotect_device_encryption_key(&dek_bytes, &device_encryption_key_password)
+                .await?,
+        ))
     }
 
     #[instrument(level = "trace", target = "tstore", skip_all)]
@@ -368,7 +380,7 @@ impl TableStore {
         let Some(device_encryption_key) = device_encryption_key else {
             // Remove the device encryption key
             let existed = self
-                .protected_store
+                .protected_store()
                 .remove_user_secret("device_encryption_key")
                 .await?;
             log_tstore!(debug "removed device encryption key. existed: {}", existed);
@@ -377,15 +389,15 @@ impl TableStore {
 
         // Get new device encryption key protection password if we are changing it
         let new_device_encryption_key_password = {
-            let c = self.config.get();
-            c.protected_store.new_device_encryption_key_password.clone()
+            self.config()
+                .with(|c| c.protected_store.new_device_encryption_key_password.clone())
         };
         let device_encryption_key_password =
             if let Some(new_device_encryption_key_password) = new_device_encryption_key_password {
                 // Change password
                 log_tstore!(debug "changing dek password");
-                self.config
-                    .with_mut(|c| {
+                self.config()
+                    .try_with_mut(|c| {
                         c.protected_store
                             .device_encryption_key_password
                             .clone_from(&new_device_encryption_key_password);
@@ -395,18 +407,20 @@ impl TableStore {
             } else {
                 // Get device encryption key protection password if we have it
                 log_tstore!(debug "saving with existing dek password");
-                let c = self.config.get();
-                c.protected_store.device_encryption_key_password.clone()
+                self.config()
+                    .with(|c| c.protected_store.device_encryption_key_password.clone())
             };
 
-        let dek_bytes = self.maybe_protect_device_encryption_key(
-            device_encryption_key,
-            &device_encryption_key_password,
-        )?;
+        let dek_bytes = self
+            .maybe_protect_device_encryption_key(
+                device_encryption_key,
+                &device_encryption_key_password,
+            )
+            .await?;
 
         // Save the new device encryption key
         let existed = self
-            .protected_store
+            .protected_store()
             .save_user_secret("device_encryption_key", &dek_bytes)
             .await?;
         log_tstore!(debug "saving device encryption key. existed: {}", existed);
@@ -414,87 +428,97 @@ impl TableStore {
     }
 
     #[instrument(level = "trace", target = "tstore", skip_all)]
-    pub(crate) async fn init(&self) -> EyreResult<()> {
-        let _async_guard = self.async_lock.lock().await;
+    async fn init_async(&self) -> EyreResult<()> {
+        {
+            let _async_guard = self.async_lock.lock().await;
 
-        // Get device encryption key from protected store
-        let mut device_encryption_key = self.load_device_encryption_key().await?;
-        let mut device_encryption_key_changed = false;
-        if let Some(device_encryption_key) = device_encryption_key {
-            // If encryption in current use is not the best encryption, then run table migration
-            let best_kind = best_crypto_kind();
-            if device_encryption_key.kind != best_kind {
-                // XXX: Run migration. See issue #209
+            // Get device encryption key from protected store
+            let mut device_encryption_key = self.load_device_encryption_key().await?;
+            let mut device_encryption_key_changed = false;
+            if let Some(device_encryption_key) = device_encryption_key {
+                // If encryption in current use is not the best encryption, then run table migration
+                let best_kind = best_crypto_kind();
+                if device_encryption_key.kind != best_kind {
+                    // XXX: Run migration. See issue #209
+                }
+            } else {
+                // If we don't have an encryption key yet, then make one with the best cryptography and save it
+                let best_kind = best_crypto_kind();
+                let mut shared_secret = SharedSecret::default();
+                random_bytes(&mut shared_secret.bytes);
+
+                device_encryption_key = Some(TypedSharedSecret::new(best_kind, shared_secret));
+                device_encryption_key_changed = true;
             }
-        } else {
-            // If we don't have an encryption key yet, then make one with the best cryptography and save it
-            let best_kind = best_crypto_kind();
-            let mut shared_secret = SharedSecret::default();
-            random_bytes(&mut shared_secret.bytes);
 
-            device_encryption_key = Some(TypedSharedSecret::new(best_kind, shared_secret));
-            device_encryption_key_changed = true;
-        }
+            // Check for password change
+            let changing_password = self.config().with(|c| {
+                c.protected_store
+                    .new_device_encryption_key_password
+                    .is_some()
+            });
 
-        // Check for password change
-        let changing_password = self
-            .config
-            .get()
-            .protected_store
-            .new_device_encryption_key_password
-            .is_some();
+            // Save encryption key if it has changed or if the protecting password wants to change
+            if device_encryption_key_changed || changing_password {
+                self.save_device_encryption_key(device_encryption_key)
+                    .await?;
+            }
 
-        // Save encryption key if it has changed or if the protecting password wants to change
-        if device_encryption_key_changed || changing_password {
-            self.save_device_encryption_key(device_encryption_key)
-                .await?;
-        }
-
-        // Deserialize all table names
-        let all_tables_db = self
-            .table_store_driver
-            .open("__veilid_all_tables", 1)
-            .await
-            .wrap_err("failed to create all tables table")?;
-        match all_tables_db.get(0, ALL_TABLE_NAMES).await {
-            Ok(Some(v)) => match deserialize_json_bytes::<HashMap<String, String>>(&v) {
-                Ok(all_table_names) => {
-                    let mut inner = self.inner.lock();
-                    inner.all_table_names = all_table_names;
+            // Deserialize all table names
+            let all_tables_db = self
+                .table_store_driver
+                .open("__veilid_all_tables", 1)
+                .await
+                .wrap_err("failed to create all tables table")?;
+            match all_tables_db.get(0, ALL_TABLE_NAMES).await {
+                Ok(Some(v)) => match deserialize_json_bytes::<HashMap<String, String>>(&v) {
+                    Ok(all_table_names) => {
+                        let mut inner = self.inner.lock();
+                        inner.all_table_names = all_table_names;
+                    }
+                    Err(e) => {
+                        error!("could not deserialize __veilid_all_tables: {}", e);
+                    }
+                },
+                Ok(None) => {
+                    // No table names yet, that's okay
+                    log_tstore!("__veilid_all_tables is empty");
                 }
                 Err(e) => {
-                    error!("could not deserialize __veilid_all_tables: {}", e);
+                    error!("could not get __veilid_all_tables: {}", e);
                 }
-            },
-            Ok(None) => {
-                // No table names yet, that's okay
-                log_tstore!("__veilid_all_tables is empty");
-            }
-            Err(e) => {
-                error!("could not get __veilid_all_tables: {}", e);
-            }
-        };
+            };
 
-        {
-            let mut inner = self.inner.lock();
-            inner.encryption_key = device_encryption_key;
-            inner.all_tables_db = Some(all_tables_db);
+            {
+                let mut inner = self.inner.lock();
+                inner.encryption_key = device_encryption_key;
+                inner.all_tables_db = Some(all_tables_db);
+            }
+
+            let do_delete = self.config().with(|c| c.table_store.delete);
+
+            if do_delete {
+                self.delete_all().await;
+            }
         }
 
-        let do_delete = {
-            let c = self.config.get();
-            c.table_store.delete
-        };
-
-        if do_delete {
-            self.delete_all().await;
-        }
+        // Set up crypto
+        let crypto = self.crypto();
+        crypto.table_store_setup(self).await?;
 
         Ok(())
     }
 
     #[instrument(level = "trace", target = "tstore", skip_all)]
-    pub(crate) async fn terminate(&self) {
+    async fn post_init_async(&self) -> EyreResult<()> {
+        Ok(())
+    }
+
+    #[instrument(level = "trace", target = "tstore", skip_all)]
+    async fn pre_terminate_async(&self) {}
+
+    #[instrument(level = "trace", target = "tstore", skip_all)]
+    async fn terminate_async(&self) {
         let _async_guard = self.async_lock.lock().await;
 
         self.flush().await;
@@ -599,8 +623,7 @@ impl TableStore {
         let mut inner = self.inner.lock();
         let table_db = TableDB::new(
             table_name.clone(),
-            self.clone(),
-            inner.crypto.as_ref().unwrap().clone(),
+            self.registry(),
             db,
             inner.encryption_key,
             inner.encryption_key,

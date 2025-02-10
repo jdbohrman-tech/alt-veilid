@@ -33,10 +33,10 @@ use veilid_logs::*;
 #[derive(Args, Debug, Clone)]
 #[group(multiple = false)]
 pub struct Logging {
-    /// Turn on debug logging on the terminal
+    /// Turn on debug logging on the terminal and over the client api
     #[arg(long)]
     debug: bool,
-    /// Turn on trace logging on the terminal
+    /// Turn on trace logging on the terminal and over the client api
     #[arg(long)]
     trace: bool,
 }
@@ -93,9 +93,23 @@ pub struct CmdlineArgs {
     #[arg(long, hide = true, value_name = "PATH", num_args=0..=1, require_equals=true, default_missing_value = "")]
     perfetto: Option<OsString>,
 
-    /// Run as an extra daemon on the same machine for testing purposes, specify a number greater than zero to offset the listening ports
+    /// Run as an extra daemon on the same machine for testing purposes
     #[arg(short('n'), long)]
     subnode_index: Option<u16>,
+
+    /// Run several nodes in parallel on the same machine for testing purposes
+    ///
+    /// Will run subnodes N through N+(subnode_count-1), where N is 0 or set via --subnode_index
+    #[arg(long, value_name = "COUNT")]
+    subnode_count: Option<u16>,
+
+    /// Connect to a virtual network router
+    ///
+    /// Specify either an remote tcp or ws url ('tcp://localhost:5149' or 'ws://localhost:5148')
+    /// or '' or 'local' to specify using an internally spawned server
+    #[cfg(feature = "virtual-network")]
+    #[arg(long, value_name = "URL", default_missing_value = "")]
+    virtual_router: Option<String>,
 
     /// Only generate a new keypair and print it
     ///
@@ -200,35 +214,45 @@ fn main() -> EyreResult<()> {
     if args.foreground {
         settingsrw.daemon.enabled = false;
     }
-    if let Some(subnode_index) = args.subnode_index {
-        settingsrw.testing.subnode_index = subnode_index;
-    };
-
     if args.logging.debug {
         settingsrw.logging.terminal.enabled = true;
         settingsrw.logging.terminal.level = LogLevel::Debug;
+        settingsrw.logging.api.enabled = true;
+        settingsrw.logging.api.level = LogLevel::Debug;
     }
     if args.logging.trace {
         settingsrw.logging.terminal.enabled = true;
         settingsrw.logging.terminal.level = LogLevel::Trace;
+        settingsrw.logging.api.enabled = true;
+        settingsrw.logging.api.level = LogLevel::Trace;
     }
+
+    if let Some(subnode_index) = args.subnode_index {
+        settingsrw.testing.subnode_index = subnode_index;
+    };
+    if let Some(subnode_count) = args.subnode_count {
+        if subnode_count == 0 {
+            bail!("subnode count must be positive");
+        }
+        settingsrw.testing.subnode_count = subnode_count;
+    };
+
     #[cfg(feature = "opentelemetry-otlp")]
-    if args.otlp.is_some() {
+    if let Some(otlp) = args.otlp {
         println!("Enabling OTLP tracing");
         settingsrw.logging.otlp.enabled = true;
-        settingsrw.logging.otlp.grpc_endpoint = NamedSocketAddrs::from_str(
-            args.otlp
-                .expect("should not be null because of default missing value")
-                .as_str(),
-        )
-        .wrap_err("failed to parse OTLP address")?;
+        settingsrw.logging.otlp.grpc_endpoint =
+            NamedSocketAddrs::from_str(&otlp).wrap_err("failed to parse OTLP address")?;
         settingsrw.logging.otlp.level = LogLevel::Trace;
     }
     if let Some(flame) = args.flame {
         let flame = if flame.is_empty() {
-            Settings::get_default_flame_path(settingsrw.testing.subnode_index)
-                .to_string_lossy()
-                .to_string()
+            Settings::get_default_flame_path(
+                settingsrw.testing.subnode_index,
+                settingsrw.testing.subnode_count,
+            )
+            .to_string_lossy()
+            .to_string()
         } else {
             flame.to_string_lossy().to_string()
         };
@@ -239,9 +263,12 @@ fn main() -> EyreResult<()> {
     #[cfg(unix)]
     if let Some(perfetto) = args.perfetto {
         let perfetto = if perfetto.is_empty() {
-            Settings::get_default_perfetto_path(settingsrw.testing.subnode_index)
-                .to_string_lossy()
-                .to_string()
+            Settings::get_default_perfetto_path(
+                settingsrw.testing.subnode_index,
+                settingsrw.testing.subnode_count,
+            )
+            .to_string_lossy()
+            .to_string()
         } else {
             perfetto.to_string_lossy().to_string()
         };
@@ -283,6 +310,10 @@ fn main() -> EyreResult<()> {
     }
     let mut node_id_set = false;
     if let Some(key_set) = args.set_node_id {
+        if settingsrw.testing.subnode_count != 1 {
+            bail!("subnode count must be 1 if setting node id/secret");
+        }
+
         node_id_set = true;
         // Turn off terminal logging so we can be interactive
         settingsrw.logging.terminal.enabled = false;
@@ -345,11 +376,6 @@ fn main() -> EyreResult<()> {
             settings.set(k, v)?;
         }
     }
-
-    // Apply subnode index if we're testing
-    settings
-        .apply_subnode_index()
-        .wrap_err("failed to apply subnode index")?;
 
     // --- Verify Config ---
     settings.verify()?;

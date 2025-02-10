@@ -52,7 +52,7 @@ impl RPCError {
     pub fn map_network<M: ToString, X: ToString>(message: M) -> impl FnOnce(X) -> Self {
         move |x| Self::Network(format!("{}: {}", message.to_string(), x.to_string()))
     }
-    #[cfg_attr(target_arch = "wasm32", expect(dead_code))]
+    #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), expect(dead_code))]
     pub fn try_again<X: ToString>(x: X) -> Self {
         Self::TryAgain(x.to_string())
     }

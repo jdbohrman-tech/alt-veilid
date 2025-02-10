@@ -27,7 +27,7 @@ impl SignedNodeInfo {
     pub fn validate(
         &self,
         node_ids: &TypedKeyGroup,
-        crypto: Crypto,
+        crypto: &Crypto,
     ) -> VeilidAPIResult<TypedKeyGroup> {
         match self {
             SignedNodeInfo::Direct(d) => d.validate(node_ids, crypto),

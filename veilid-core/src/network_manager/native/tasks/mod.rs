@@ -7,46 +7,41 @@ use super::*;
 impl Network {
     pub fn setup_tasks(&self) {
         // Set update network class tick task
-        {
-            let this = self.clone();
-            self.unlocked_inner
-                .update_network_class_task
-                .set_routine(move |s, l, t| {
-                    Box::pin(this.clone().update_network_class_task_routine(
-                        s,
-                        Timestamp::new(l),
-                        Timestamp::new(t),
-                    ))
-                });
-        }
+        let this = self.clone();
+        self.update_network_class_task.set_routine(move |s, l, t| {
+            let this = this.clone();
+            Box::pin(async move {
+                this.update_network_class_task_routine(s, Timestamp::new(l), Timestamp::new(t))
+                    .await
+            })
+        });
+
         // Set network interfaces tick task
-        {
-            let this = self.clone();
-            self.unlocked_inner
-                .network_interfaces_task
-                .set_routine(move |s, l, t| {
-                    Box::pin(this.clone().network_interfaces_task_routine(
-                        s,
-                        Timestamp::new(l),
-                        Timestamp::new(t),
-                    ))
-                });
-        }
+        let this = self.clone();
+        self.network_interfaces_task.set_routine(move |s, l, t| {
+            let this = this.clone();
+            Box::pin(async move {
+                this.network_interfaces_task_routine(s, Timestamp::new(l), Timestamp::new(t))
+                    .await
+            })
+        });
+
         // Set upnp tick task
         {
             let this = self.clone();
-            self.unlocked_inner.upnp_task.set_routine(move |s, l, t| {
-                Box::pin(
-                    this.clone()
-                        .upnp_task_routine(s, Timestamp::new(l), Timestamp::new(t)),
-                )
+            self.upnp_task.set_routine(move |s, l, t| {
+                let this = this.clone();
+                Box::pin(async move {
+                    this.upnp_task_routine(s, Timestamp::new(l), Timestamp::new(t))
+                        .await
+                })
             });
         }
     }
 
     #[instrument(level = "trace", target = "net", name = "Network::tick", skip_all, err)]
     pub async fn tick(&self) -> EyreResult<()> {
-        let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
+        let Ok(_guard) = self.startup_lock.enter() else {
             log_net!(debug "ignoring due to not started up");
             return Ok(());
         };
@@ -65,7 +60,7 @@ impl Network {
         // If we need to figure out our network class, tick the task for it
         if detect_address_changes {
             // Check our network interfaces to see if they have changed
-            self.unlocked_inner.network_interfaces_task.tick().await?;
+            self.network_interfaces_task.tick().await?;
 
             // Check our public dial info to see if it has changed
             let public_internet_network_class = self
@@ -95,16 +90,31 @@ impl Network {
                 }
 
                 if has_at_least_two {
-                    self.unlocked_inner.update_network_class_task.tick().await?;
+                    self.update_network_class_task.tick().await?;
                 }
             }
         }
 
         // If we need to tick upnp, do it
         if upnp {
-            self.unlocked_inner.upnp_task.tick().await?;
+            self.upnp_task.tick().await?;
         }
 
         Ok(())
+    }
+
+    pub async fn cancel_tasks(&self) {
+        log_net!(debug "stopping upnp task");
+        if let Err(e) = self.upnp_task.stop().await {
+            warn!("upnp_task not stopped: {}", e);
+        }
+        log_net!(debug "stopping network interfaces task");
+        if let Err(e) = self.network_interfaces_task.stop().await {
+            warn!("network_interfaces_task not stopped: {}", e);
+        }
+        log_net!(debug "stopping update network class task");
+        if let Err(e) = self.update_network_class_task.stop().await {
+            warn!("update_network_class_task not stopped: {}", e);
+        }
     }
 }

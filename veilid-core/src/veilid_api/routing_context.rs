@@ -143,7 +143,7 @@ impl RoutingContext {
         event!(target: "veilid_api", Level::DEBUG, 
             "RoutingContext::get_destination(self: {:?}, target: {:?})", self, target);
 
-        let rpc_processor = self.api.rpc_processor()?;
+        let rpc_processor = self.api.core_context()?.rpc_processor();
         rpc_processor
             .resolve_target_to_destination(target, self.unlocked_inner.safety_selection)
             .await
@@ -166,7 +166,7 @@ impl RoutingContext {
         event!(target: "veilid_api", Level::DEBUG, 
             "RoutingContext::app_call(self: {:?}, target: {:?}, message: {:?})", self, target, message);
 
-        let rpc_processor = self.api.rpc_processor()?;
+        let rpc_processor = self.api.core_context()?.rpc_processor();
 
         // Get destination
         let dest = self.get_destination(target).await?;
@@ -200,7 +200,7 @@ impl RoutingContext {
         event!(target: "veilid_api", Level::DEBUG, 
             "RoutingContext::app_message(self: {:?}, target: {:?}, message: {:?})", self, target, message);
 
-        let rpc_processor = self.api.rpc_processor()?;
+        let rpc_processor = self.api.core_context()?.rpc_processor();
 
         // Get destination
         let dest = self.get_destination(target).await?;
@@ -227,7 +227,7 @@ impl RoutingContext {
 
     /// Builds the record key for a given schema and owner public key
     #[instrument(target = "veilid_api", level = "debug", ret, err)]
-    pub async fn get_dht_record_key(
+    pub fn get_dht_record_key(
         &self,
         schema: DHTSchema,
         owner_key: &PublicKey,
@@ -239,10 +239,8 @@ impl RoutingContext {
 
         let kind = kind.unwrap_or(best_crypto_kind());
         Crypto::validate_crypto_kind(kind)?;
-        let storage_manager = self.api.storage_manager()?;
-        storage_manager
-            .get_record_key(kind, schema, owner_key)
-            .await
+        let storage_manager = self.api.core_context()?.storage_manager();
+        storage_manager.get_record_key(kind, schema, owner_key)
     }
 
     /// Creates a new DHT record
@@ -267,7 +265,8 @@ impl RoutingContext {
 
         let kind = kind.unwrap_or(best_crypto_kind());
         Crypto::validate_crypto_kind(kind)?;
-        let storage_manager = self.api.storage_manager()?;
+
+        let storage_manager = self.api.core_context()?.storage_manager();
         storage_manager
             .create_record(kind, schema, owner, self.unlocked_inner.safety_selection)
             .await
@@ -294,7 +293,8 @@ impl RoutingContext {
             "RoutingContext::open_dht_record(self: {:?}, key: {:?}, default_writer: {:?})", self, key, default_writer);
 
         Crypto::validate_crypto_kind(key.kind)?;
-        let storage_manager = self.api.storage_manager()?;
+
+        let storage_manager = self.api.core_context()?.storage_manager();
         storage_manager
             .open_record(key, default_writer, self.unlocked_inner.safety_selection)
             .await
@@ -309,7 +309,8 @@ impl RoutingContext {
             "RoutingContext::close_dht_record(self: {:?}, key: {:?})", self, key);
 
         Crypto::validate_crypto_kind(key.kind)?;
-        let storage_manager = self.api.storage_manager()?;
+
+        let storage_manager = self.api.core_context()?.storage_manager();
         storage_manager.close_record(key).await
     }
 
@@ -324,7 +325,8 @@ impl RoutingContext {
             "RoutingContext::delete_dht_record(self: {:?}, key: {:?})", self, key);
 
         Crypto::validate_crypto_kind(key.kind)?;
-        let storage_manager = self.api.storage_manager()?;
+
+        let storage_manager = self.api.core_context()?.storage_manager();
         storage_manager.delete_record(key).await
     }
 
@@ -345,7 +347,8 @@ impl RoutingContext {
             "RoutingContext::get_dht_value(self: {:?}, key: {:?}, subkey: {:?}, force_refresh: {:?})", self, key, subkey, force_refresh);
 
         Crypto::validate_crypto_kind(key.kind)?;
-        let storage_manager = self.api.storage_manager()?;
+
+        let storage_manager = self.api.core_context()?.storage_manager();
         storage_manager.get_value(key, subkey, force_refresh).await
     }
 
@@ -368,7 +371,8 @@ impl RoutingContext {
             "RoutingContext::set_dht_value(self: {:?}, key: {:?}, subkey: {:?}, data: len={}, writer: {:?})", self, key, subkey, data.len(), writer);
 
         Crypto::validate_crypto_kind(key.kind)?;
-        let storage_manager = self.api.storage_manager()?;
+
+        let storage_manager = self.api.core_context()?.storage_manager();
         storage_manager.set_value(key, subkey, data, writer).await
     }
 
@@ -404,7 +408,8 @@ impl RoutingContext {
             "RoutingContext::watch_dht_values(self: {:?}, key: {:?}, subkeys: {:?}, expiration: {}, count: {})", self, key, subkeys, expiration, count);
 
         Crypto::validate_crypto_kind(key.kind)?;
-        let storage_manager = self.api.storage_manager()?;
+
+        let storage_manager = self.api.core_context()?.storage_manager();
         storage_manager
             .watch_values(key, subkeys, expiration, count)
             .await
@@ -429,7 +434,8 @@ impl RoutingContext {
             "RoutingContext::cancel_dht_watch(self: {:?}, key: {:?}, subkeys: {:?}", self, key, subkeys);
 
         Crypto::validate_crypto_kind(key.kind)?;
-        let storage_manager = self.api.storage_manager()?;
+
+        let storage_manager = self.api.core_context()?.storage_manager();
         storage_manager.cancel_watch_values(key, subkeys).await
     }
 
@@ -483,7 +489,8 @@ impl RoutingContext {
             "RoutingContext::inspect_dht_record(self: {:?}, key: {:?}, subkeys: {:?}, scope: {:?})", self, key, subkeys, scope);
 
         Crypto::validate_crypto_kind(key.kind)?;
-        let storage_manager = self.api.storage_manager()?;
+
+        let storage_manager = self.api.core_context()?.storage_manager();
         storage_manager.inspect_record(key, subkeys, scope).await
     }
 

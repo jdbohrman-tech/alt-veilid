@@ -1,7 +1,7 @@
 use super::*;
 
 cfg_if! {
-    if #[cfg(target_arch = "wasm32")] {
+    if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
         use async_executors::{Bindgen, LocalSpawnHandleExt, SpawnHandleExt};
 
         pub fn spawn<Out>(_name: &str, future: impl Future<Output = Out> + Send + 'static) -> MustJoinHandle<Out>

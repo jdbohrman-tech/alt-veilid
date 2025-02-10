@@ -2,7 +2,7 @@
 #![deny(clippy::all)]
 #![allow(clippy::comparison_chain, clippy::upper_case_acronyms)]
 #![deny(unused_must_use)]
-#![cfg(target_arch = "wasm32")]
+#![cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 #![no_std]
 
 /// Veilid WASM Bindings for Flutter/Dart, as well as Native Javascript
@@ -142,7 +142,7 @@ where
 // WASM-specific
 
 #[derive(Debug, Deserialize, Serialize)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct VeilidWASMConfigLoggingPerformance {
     pub enabled: bool,
     pub level: veilid_core::VeilidConfigLogLevel,
@@ -152,7 +152,7 @@ pub struct VeilidWASMConfigLoggingPerformance {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct VeilidWASMConfigLoggingAPI {
     pub enabled: bool,
     pub level: veilid_core::VeilidConfigLogLevel,
@@ -160,28 +160,35 @@ pub struct VeilidWASMConfigLoggingAPI {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct VeilidWASMConfigLogging {
     pub performance: VeilidWASMConfigLoggingPerformance,
     pub api: VeilidWASMConfigLoggingAPI,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify), tsify(from_wasm_abi))]
+#[cfg_attr(
+    all(target_arch = "wasm32", target_os = "unknown"),
+    derive(Tsify),
+    tsify(from_wasm_abi)
+)]
 pub struct VeilidWASMConfig {
     pub logging: VeilidWASMConfigLogging,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[cfg_attr(
-    target_arch = "wasm32",
+    all(target_arch = "wasm32", target_os = "unknown"),
     derive(Tsify),
     tsify(from_wasm_abi, into_wasm_abi)
 )]
 pub struct VeilidRouteBlob {
     pub route_id: veilid_core::RouteId,
     #[serde(with = "veilid_core::as_human_base64")]
-    #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))]
+    #[cfg_attr(
+        all(target_arch = "wasm32", target_os = "unknown"),
+        tsify(type = "string")
+    )]
     pub blob: Vec<u8>,
 }
 from_impl_to_jsvalue!(VeilidRouteBlob);
@@ -1587,7 +1594,7 @@ pub fn veilid_version_string() -> String {
 }
 
 #[derive(Serialize)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 #[tsify(into_wasm_abi)]
 pub struct VeilidVersion {
     pub major: u32,

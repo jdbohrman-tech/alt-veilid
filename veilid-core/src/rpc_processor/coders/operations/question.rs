@@ -11,7 +11,8 @@ impl RPCQuestion {
         Self { respond_to, detail }
     }
     pub fn validate(&mut self, validate_context: &RPCValidateContext) -> Result<(), RPCError> {
-        self.respond_to.validate(validate_context.crypto.clone())?;
+        let crypto = validate_context.crypto();
+        self.respond_to.validate(&crypto)?;
         self.detail.validate(validate_context)
     }
     pub fn respond_to(&self) -> &RespondTo {

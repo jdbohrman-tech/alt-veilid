@@ -1,18 +1,18 @@
 buildscript {
-    ext.kotlin_version = '1.6.10'
+    ext.kotlin_version = '1.9.25'
     repositories {
         google()
         mavenCentral()
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:7.2.0'
+        classpath 'com.android.tools.build:gradle:8.8.0'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
 
 plugins {
-    id "org.mozilla.rust-android-gradle.rust-android" version "0.9.3"
+    id "org.mozilla.rust-android-gradle.rust-android" version "0.9.6"
 }
 
 group 'com.veilid.veilid'
@@ -30,10 +30,11 @@ apply plugin: 'kotlin-android'
 
 android {
     compileSdkVersion 31
+    namespace = "com.veilid.veilid"
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 
     kotlinOptions {
@@ -49,7 +50,7 @@ android {
         targetSdkVersion 31
         versionCode 1
         versionName "1.0"
-        
+
         ndk {
             abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
         }
@@ -63,8 +64,8 @@ android {
         }
     }
 
-    ndkVersion '26.3.11579264'
- 
+    ndkVersion '27.0.12077973'
+
     // Required to copy libc++_shared.so
     externalNativeBuild {
         cmake {

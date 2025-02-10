@@ -40,6 +40,29 @@ pub fn load_default_config() -> EyreResult<config::Config> {
             country_code_denylist: []
     "#;
 
+    #[cfg(not(feature = "virtual-network"))]
+    let virtual_network_section = "";
+    #[cfg(feature = "virtual-network")]
+    let virtual_network_section = r#"
+        virtual_network:
+            enabled: false
+            server_address: ''
+    "#;
+
+    #[cfg(not(feature = "virtual-network"))]
+    let virtual_network_server_section = "";
+    #[cfg(feature = "virtual-network")]
+    let virtual_network_server_section = r#"
+    virtual_network_server:
+        enabled: false
+        tcp:
+            listen: true
+            listen_address: 'localhost:5149'
+        ws:
+            listen: true
+            listen_address: 'localhost:5148'
+    "#;
+
     let mut default_config = String::from(
         r#"---
 daemon:
@@ -84,6 +107,8 @@ logging:
         enabled: false
 testing:
     subnode_index: 0
+    subnode_count: 1
+%VIRTUAL_NETWORK_SERVER_SECTION%
 core:
     capabilities:
         disable: []
@@ -196,6 +221,7 @@ core:
                 listen_address: ':5150'
                 path: 'ws'
                 # url: ''
+        %VIRTUAL_NETWORK_SECTION%
         %PRIVACY_SECTION%
         "#,
     )
@@ -227,7 +253,12 @@ core:
         "%REMOTE_MAX_SUBKEY_CACHE_MEMORY_MB%",
         &Settings::get_default_remote_max_subkey_cache_memory_mb().to_string(),
     )
-    .replace("%PRIVACY_SECTION%", privacy_section);
+    .replace("%PRIVACY_SECTION%", privacy_section)
+    .replace("%VIRTUAL_NETWORK_SECTION%", virtual_network_section)
+    .replace(
+        "%VIRTUAL_NETWORK_SERVER_SECTION%",
+        virtual_network_server_section,
+    );
 
     let dek_password = if let Some(dek_password) = std::env::var_os("DEK_PASSWORD") {
         dek_password
@@ -346,6 +377,11 @@ impl ParsedUrl {
         self.urlstring = self.url.to_string();
         Ok(())
     }
+    pub fn with_offset_port(&self, offset: u16) -> EyreResult<Self> {
+        let mut x = self.clone();
+        x.offset_port(offset)?;
+        Ok(x)
+    }
 }
 
 impl FromStr for ParsedUrl {
@@ -449,6 +485,12 @@ impl NamedSocketAddrs {
         }
 
         Ok(true)
+    }
+
+    pub fn with_offset_port(&self, offset: u16) -> EyreResult<Self> {
+        let mut x = self.clone();
+        x.offset_port(offset)?;
+        Ok(x)
     }
 }
 
@@ -679,11 +721,43 @@ pub struct Network {
     pub protocol: Protocol,
     #[cfg(feature = "geolocation")]
     pub privacy: Privacy,
+    #[cfg(feature = "virtual-network")]
+    pub virtual_network: VirtualNetwork,
+}
+
+#[cfg(feature = "virtual-network")]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct VirtualNetwork {
+    pub enabled: bool,
+    pub server_address: String,
+}
+
+#[cfg(feature = "virtual-network")]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct VirtualNetworkServer {
+    pub enabled: bool,
+    pub tcp: VirtualNetworkServerTcp,
+    pub ws: VirtualNetworkServerWs,
+}
+#[cfg(feature = "virtual-network")]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct VirtualNetworkServerTcp {
+    pub listen: bool,
+    pub listen_address: NamedSocketAddrs,
+}
+#[cfg(feature = "virtual-network")]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct VirtualNetworkServerWs {
+    pub listen: bool,
+    pub listen_address: NamedSocketAddrs,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Testing {
     pub subnode_index: u16,
+    pub subnode_count: u16,
+    #[cfg(feature = "virtual-network")]
+    pub virtual_network_server: VirtualNetworkServer,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -800,75 +874,6 @@ impl Settings {
         self.inner.write()
     }
 
-    pub fn apply_subnode_index(&self) -> EyreResult<()> {
-        let mut settingsrw = self.write();
-        let idx = settingsrw.testing.subnode_index;
-        if idx == 0 {
-            return Ok(());
-        }
-
-        // bump client api port
-        settingsrw.client_api.listen_address.offset_port(idx)?;
-
-        // bump protocol ports
-        settingsrw
-            .core
-            .network
-            .protocol
-            .udp
-            .listen_address
-            .offset_port(idx)?;
-        settingsrw
-            .core
-            .network
-            .protocol
-            .tcp
-            .listen_address
-            .offset_port(idx)?;
-        settingsrw
-            .core
-            .network
-            .protocol
-            .ws
-            .listen_address
-            .offset_port(idx)?;
-        if let Some(url) = &mut settingsrw.core.network.protocol.ws.url {
-            url.offset_port(idx)?;
-        }
-        settingsrw
-            .core
-            .network
-            .protocol
-            .wss
-            .listen_address
-            .offset_port(idx)?;
-        if let Some(url) = &mut settingsrw.core.network.protocol.wss.url {
-            url.offset_port(idx)?;
-        }
-        // bump application ports
-        settingsrw
-            .core
-            .network
-            .application
-            .http
-            .listen_address
-            .offset_port(idx)?;
-        if let Some(url) = &mut settingsrw.core.network.application.http.url {
-            url.offset_port(idx)?;
-        }
-        settingsrw
-            .core
-            .network
-            .application
-            .https
-            .listen_address
-            .offset_port(idx)?;
-        if let Some(url) = &mut settingsrw.core.network.application.https.url {
-            url.offset_port(idx)?;
-        }
-        Ok(())
-    }
-
     /// Determine default config path
     ///
     /// In a unix-like environment, veilid-server will look for its config file
@@ -899,22 +904,40 @@ impl Settings {
     }
 
     /// Determine default flamegraph output path
-    pub fn get_default_flame_path(subnode_index: u16) -> PathBuf {
-        std::env::temp_dir().join(if subnode_index == 0 {
-            "veilid-server.folded".to_owned()
+    pub fn get_default_flame_path(subnode_index: u16, subnode_count: u16) -> PathBuf {
+        let name = if subnode_count == 1 {
+            if subnode_index == 0 {
+                "veilid-server.folded".to_owned()
+            } else {
+                format!("veilid-server-{}.folded", subnode_index)
+            }
         } else {
-            format!("veilid-server-{}.folded", subnode_index)
-        })
+            format!(
+                "veilid-server-{}-{}.folded",
+                subnode_index,
+                subnode_index + subnode_count - 1
+            )
+        };
+        std::env::temp_dir().join(name)
     }
 
     /// Determine default perfetto output path
     #[cfg(unix)]
-    pub fn get_default_perfetto_path(subnode_index: u16) -> PathBuf {
-        std::env::temp_dir().join(if subnode_index == 0 {
-            "veilid-server.pftrace".to_owned()
+    pub fn get_default_perfetto_path(subnode_index: u16, subnode_count: u16) -> PathBuf {
+        let name = if subnode_count == 1 {
+            if subnode_index == 0 {
+                "veilid-server.pftrace".to_owned()
+            } else {
+                format!("veilid-server-{}.pftrace", subnode_index)
+            }
         } else {
-            format!("veilid-server-{}.pftrace", subnode_index)
-        })
+            format!(
+                "veilid-server-{}-{}.pftrace",
+                subnode_index,
+                subnode_index + subnode_count - 1
+            )
+        };
+        std::env::temp_dir().join(name)
     }
 
     #[cfg_attr(windows, expect(dead_code))]
@@ -1062,6 +1085,20 @@ impl Settings {
         set_config_value!(inner.logging.perfetto.path, value);
         set_config_value!(inner.logging.console.enabled, value);
         set_config_value!(inner.testing.subnode_index, value);
+        #[cfg(feature = "virtual-network")]
+        {
+            set_config_value!(inner.testing.virtual_network_server.enabled, value);
+            set_config_value!(inner.testing.virtual_network_server.tcp.listen, value);
+            set_config_value!(
+                inner.testing.virtual_network_server.tcp.listen_address,
+                value
+            );
+            set_config_value!(inner.testing.virtual_network_server.ws.listen, value);
+            set_config_value!(
+                inner.testing.virtual_network_server.ws.listen_address,
+                value
+            );
+        }
         set_config_value!(inner.core.capabilities.disable, value);
         set_config_value!(inner.core.protected_store.allow_insecure_fallback, value);
         set_config_value!(
@@ -1184,20 +1221,31 @@ impl Settings {
         set_config_value!(inner.core.network.protocol.wss.url, value);
         #[cfg(feature = "geolocation")]
         set_config_value!(inner.core.network.privacy.country_code_denylist, value);
+        #[cfg(feature = "virtual-network")]
+        {
+            set_config_value!(inner.core.network.virtual_network.enabled, value);
+            set_config_value!(inner.core.network.virtual_network.server_address, value);
+        }
+
         Err(eyre!("settings key '{key}' not found"))
     }
 
-    pub fn get_core_config_callback(&self) -> veilid_core::ConfigCallback {
+    pub fn get_core_config_callback(
+        &self,
+        subnode: u16,
+        subnode_offset: u16,
+    ) -> veilid_core::ConfigCallback {
         let inner = self.inner.clone();
 
         Arc::new(move |key: String| {
             let inner = inner.read();
+
             let out: ConfigCallbackReturn = match key.as_str() {
                 "program_name" => Ok(Box::new("veilid-server".to_owned())),
-                "namespace" => Ok(Box::new(if inner.testing.subnode_index == 0 {
+                "namespace" => Ok(Box::new(if subnode == 0 {
                     "".to_owned()
                 } else {
-                    format!("subnode{}", inner.testing.subnode_index)
+                    format!("subnode{}", subnode)
                 })),
                 "capabilities.disable" => {
                     let mut caps = Vec::<FourCC>::new();
@@ -1409,6 +1457,8 @@ impl Settings {
                         .application
                         .https
                         .listen_address
+                        .with_offset_port(subnode_offset)
+                        .map_err(VeilidAPIError::internal)?
                         .name
                         .clone(),
                 )),
@@ -1422,16 +1472,16 @@ impl Settings {
                         .to_string_lossy()
                         .to_string(),
                 )),
-                "network.application.https.url" => Ok(Box::new(
-                    inner
-                        .core
-                        .network
-                        .application
-                        .https
-                        .url
-                        .as_ref()
-                        .map(|a| a.urlstring.clone()),
-                )),
+                "network.application.https.url" => {
+                    Ok(Box::new(match inner.core.network.application.https.url {
+                        Some(ref a) => Some(
+                            a.with_offset_port(subnode_offset)
+                                .map_err(VeilidAPIError::internal)
+                                .map(|x| x.urlstring.clone())?,
+                        ),
+                        None => None,
+                    }))
+                }
                 "network.application.http.enabled" => {
                     Ok(Box::new(inner.core.network.application.http.enabled))
                 }
@@ -1442,6 +1492,8 @@ impl Settings {
                         .application
                         .http
                         .listen_address
+                        .with_offset_port(subnode_offset)
+                        .map_err(VeilidAPIError::internal)?
                         .name
                         .clone(),
                 )),
@@ -1455,16 +1507,16 @@ impl Settings {
                         .to_string_lossy()
                         .to_string(),
                 )),
-                "network.application.http.url" => Ok(Box::new(
-                    inner
-                        .core
-                        .network
-                        .application
-                        .http
-                        .url
-                        .as_ref()
-                        .map(|a| a.urlstring.clone()),
-                )),
+                "network.application.http.url" => {
+                    Ok(Box::new(match inner.core.network.application.http.url {
+                        Some(ref a) => Some(
+                            a.with_offset_port(subnode_offset)
+                                .map_err(VeilidAPIError::internal)
+                                .map(|x| x.urlstring.clone())?,
+                        ),
+                        None => None,
+                    }))
+                }
                 "network.protocol.udp.enabled" => {
                     Ok(Box::new(inner.core.network.protocol.udp.enabled))
                 }
@@ -1472,7 +1524,16 @@ impl Settings {
                     Ok(Box::new(inner.core.network.protocol.udp.socket_pool_size))
                 }
                 "network.protocol.udp.listen_address" => Ok(Box::new(
-                    inner.core.network.protocol.udp.listen_address.name.clone(),
+                    inner
+                        .core
+                        .network
+                        .protocol
+                        .udp
+                        .listen_address
+                        .with_offset_port(subnode_offset)
+                        .map_err(VeilidAPIError::internal)?
+                        .name
+                        .clone(),
                 )),
                 "network.protocol.udp.public_address" => Ok(Box::new(
                     inner
@@ -1494,7 +1555,16 @@ impl Settings {
                     Ok(Box::new(inner.core.network.protocol.tcp.max_connections))
                 }
                 "network.protocol.tcp.listen_address" => Ok(Box::new(
-                    inner.core.network.protocol.tcp.listen_address.name.clone(),
+                    inner
+                        .core
+                        .network
+                        .protocol
+                        .tcp
+                        .listen_address
+                        .with_offset_port(subnode_offset)
+                        .map_err(VeilidAPIError::internal)?
+                        .name
+                        .clone(),
                 )),
                 "network.protocol.tcp.public_address" => Ok(Box::new(
                     inner
@@ -1514,7 +1584,16 @@ impl Settings {
                     Ok(Box::new(inner.core.network.protocol.ws.max_connections))
                 }
                 "network.protocol.ws.listen_address" => Ok(Box::new(
-                    inner.core.network.protocol.ws.listen_address.name.clone(),
+                    inner
+                        .core
+                        .network
+                        .protocol
+                        .ws
+                        .listen_address
+                        .with_offset_port(subnode_offset)
+                        .map_err(VeilidAPIError::internal)?
+                        .name
+                        .clone(),
                 )),
                 "network.protocol.ws.path" => Ok(Box::new(
                     inner
@@ -1526,16 +1605,16 @@ impl Settings {
                         .to_string_lossy()
                         .to_string(),
                 )),
-                "network.protocol.ws.url" => Ok(Box::new(
-                    inner
-                        .core
-                        .network
-                        .protocol
-                        .ws
-                        .url
-                        .as_ref()
-                        .map(|a| a.urlstring.clone()),
-                )),
+                "network.protocol.ws.url" => {
+                    Ok(Box::new(match inner.core.network.protocol.ws.url {
+                        Some(ref a) => Some(
+                            a.with_offset_port(subnode_offset)
+                                .map_err(VeilidAPIError::internal)
+                                .map(|x| x.urlstring.clone())?,
+                        ),
+                        None => None,
+                    }))
+                }
                 "network.protocol.wss.connect" => {
                     Ok(Box::new(inner.core.network.protocol.wss.connect))
                 }
@@ -1546,7 +1625,16 @@ impl Settings {
                     Ok(Box::new(inner.core.network.protocol.wss.max_connections))
                 }
                 "network.protocol.wss.listen_address" => Ok(Box::new(
-                    inner.core.network.protocol.wss.listen_address.name.clone(),
+                    inner
+                        .core
+                        .network
+                        .protocol
+                        .wss
+                        .listen_address
+                        .with_offset_port(subnode_offset)
+                        .map_err(VeilidAPIError::internal)?
+                        .name
+                        .clone(),
                 )),
                 "network.protocol.wss.path" => Ok(Box::new(
                     inner
@@ -1558,20 +1646,29 @@ impl Settings {
                         .to_string_lossy()
                         .to_string(),
                 )),
-                "network.protocol.wss.url" => Ok(Box::new(
-                    inner
-                        .core
-                        .network
-                        .protocol
-                        .wss
-                        .url
-                        .as_ref()
-                        .map(|a| a.urlstring.clone()),
-                )),
+                "network.protocol.wss.url" => {
+                    Ok(Box::new(match inner.core.network.protocol.wss.url {
+                        Some(ref a) => Some(
+                            a.with_offset_port(subnode_offset)
+                                .map_err(VeilidAPIError::internal)
+                                .map(|x| x.urlstring.clone())?,
+                        ),
+                        None => None,
+                    }))
+                }
                 #[cfg(feature = "geolocation")]
                 "network.privacy.country_code_denylist" => Ok(Box::new(
                     inner.core.network.privacy.country_code_denylist.clone(),
                 )),
+                #[cfg(feature = "virtual-network")]
+                "network.virtual_network.enabled" => {
+                    Ok(Box::new(inner.core.network.virtual_network.enabled))
+                }
+                #[cfg(feature = "virtual-network")]
+                "network.virtual_network.server_address" => Ok(Box::new(
+                    inner.core.network.virtual_network.server_address.clone(),
+                )),
+
                 _ => Err(VeilidAPIError::generic(format!(
                     "config key '{}' doesn't exist",
                     key
@@ -1639,7 +1736,20 @@ mod tests {
         assert_eq!(s.logging.perfetto.path, "");
         assert!(!s.logging.console.enabled);
         assert_eq!(s.testing.subnode_index, 0);
-
+        #[cfg(feature = "virtual-network")]
+        {
+            assert_eq!(s.testing.virtual_network_server.enabled, false);
+            assert_eq!(s.testing.virtual_network_server.tcp.listen, false);
+            assert_eq!(
+                s.testing.virtual_network_server.tcp.listen_address,
+                "localhost:5149"
+            );
+            assert_eq!(s.testing.virtual_network_server.ws.listen, false);
+            assert_eq!(
+                s.testing.virtual_network_server.ws.listen_address,
+                "localhost:5148"
+            );
+        }
         assert_eq!(
             s.core.table_store.directory,
             Settings::get_default_table_store_directory()
@@ -1814,5 +1924,10 @@ mod tests {
         //
         #[cfg(feature = "geolocation")]
         assert_eq!(s.core.network.privacy.country_code_denylist, &[]);
+        #[cfg(feature = "virtual-network")]
+        {
+            assert_eq!(s.core.network.virtual_network.enabled, false);
+            assert_eq!(s.core.network.virtual_network.server_address, "");
+        }
     }
 }

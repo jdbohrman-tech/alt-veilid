@@ -81,7 +81,7 @@ impl RoutingTable {
         }
 
         // If this is our own node id, then we skip it for bootstrap, in case we are a bootstrap node
-        if self.unlocked_inner.matches_own_node_id(&node_ids) {
+        if self.matches_own_node_id(&node_ids) {
             return Ok(None);
         }
 
@@ -255,7 +255,7 @@ impl RoutingTable {
 
     //#[instrument(level = "trace", skip(self), err)]
     pub fn bootstrap_with_peer(
-        self,
+        &self,
         crypto_kinds: Vec<CryptoKind>,
         pi: Arc<PeerInfo>,
         unord: &FuturesUnordered<SendPinBoxFuture<()>>,
@@ -280,19 +280,20 @@ impl RoutingTable {
         for crypto_kind in crypto_kinds {
             // Bootstrap this crypto kind
             let nr = nr.unfiltered();
-            let routing_table = self.clone();
             unord.push(Box::pin(
                 async move {
+                    let network_manager = nr.network_manager();
+                    let routing_table = nr.routing_table();
+
                     // Get what contact method would be used for contacting the bootstrap
-                    let bsdi = match routing_table
-                        .network_manager()
+                    let bsdi = match network_manager
                         .get_node_contact_method(nr.default_filtered())
                     {
                         Ok(NodeContactMethod::Direct(v)) => v,
                         Ok(v) => {
                             log_rtab!(debug "invalid contact method for bootstrap, ignoring peer: {:?}", v);
-                            // let _ = routing_table
-                            //     .network_manager()
+                            // let _ =
+                            //     network_manager
                             //     .get_node_contact_method(nr.clone());
                             return;
                         }
@@ -312,7 +313,7 @@ impl RoutingTable {
                         log_rtab!(debug "bootstrap server is not responding for dialinfo: {}", bsdi);
 
                         // Try a different dialinfo next time
-                        routing_table.network_manager().address_filter().set_dial_info_failed(bsdi);
+                        network_manager.address_filter().set_dial_info_failed(bsdi);
                     } else {
                         // otherwise this bootstrap is valid, lets ask it to find ourselves now
                         routing_table.reverse_find_node(crypto_kind, nr, true, vec![]).await
@@ -325,7 +326,7 @@ impl RoutingTable {
 
     #[instrument(level = "trace", skip(self), err)]
     pub async fn bootstrap_with_peer_list(
-        self,
+        &self,
         peers: Vec<Arc<PeerInfo>>,
         stop_token: StopToken,
     ) -> EyreResult<()> {
@@ -339,8 +340,7 @@ impl RoutingTable {
         // Run all bootstrap operations concurrently
         let mut unord = FuturesUnordered::<SendPinBoxFuture<()>>::new();
         for peer in peers {
-            self.clone()
-                .bootstrap_with_peer(crypto_kinds.clone(), peer, &unord);
+            self.bootstrap_with_peer(crypto_kinds.clone(), peer, &unord);
         }
 
         // Wait for all bootstrap operations to complete before we complete the singlefuture
@@ -364,10 +364,15 @@ impl RoutingTable {
     }
 
     #[instrument(level = "trace", skip(self), err)]
-    pub async fn bootstrap_task_routine(self, stop_token: StopToken) -> EyreResult<()> {
+    pub async fn bootstrap_task_routine(
+        &self,
+        stop_token: StopToken,
+        _last_ts: Timestamp,
+        _cur_ts: Timestamp,
+    ) -> EyreResult<()> {
         let bootstrap = self
-            .unlocked_inner
-            .with_config(|c| c.network.routing_table.bootstrap.clone());
+            .config()
+            .with(|c| c.network.routing_table.bootstrap.clone());
 
         // Don't bother if bootstraps aren't configured
         if bootstrap.is_empty() {
@@ -445,8 +450,6 @@ impl RoutingTable {
             peers
         };
 
-        self.clone()
-            .bootstrap_with_peer_list(peers, stop_token)
-            .await
+        self.bootstrap_with_peer_list(peers, stop_token).await
     }
 }

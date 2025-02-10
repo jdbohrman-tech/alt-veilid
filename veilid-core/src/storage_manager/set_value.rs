@@ -28,33 +28,30 @@ impl StorageManager {
     #[instrument(level = "trace", target = "dht", skip_all, err)]
     pub(super) async fn outbound_set_value(
         &self,
-        rpc_processor: RPCProcessor,
         key: TypedKey,
         subkey: ValueSubkey,
         safety_selection: SafetySelection,
         value: Arc<SignedValueData>,
         descriptor: Arc<SignedValueDescriptor>,
     ) -> VeilidAPIResult<flume::Receiver<VeilidAPIResult<OutboundSetValueResult>>> {
-        let routing_table = rpc_processor.routing_table();
         let routing_domain = RoutingDomain::PublicInternet;
 
         // Get the DHT parameters for 'SetValue'
-        let (key_count, get_consensus_count, set_consensus_count, fanout, timeout_us) = {
-            let c = self.unlocked_inner.config.get();
-            (
-                c.network.dht.max_find_node_count as usize,
-                c.network.dht.get_value_count as usize,
-                c.network.dht.set_value_count as usize,
-                c.network.dht.set_value_fanout as usize,
-                TimestampDuration::from(ms_to_us(c.network.dht.set_value_timeout_ms)),
-            )
-        };
+        let (key_count, get_consensus_count, set_consensus_count, fanout, timeout_us) =
+            self.config().with(|c| {
+                (
+                    c.network.dht.max_find_node_count as usize,
+                    c.network.dht.get_value_count as usize,
+                    c.network.dht.set_value_count as usize,
+                    c.network.dht.set_value_fanout as usize,
+                    TimestampDuration::from(ms_to_us(c.network.dht.set_value_timeout_ms)),
+                )
+            });
 
         // Get the nodes we know are caching this value to seed the fanout
         let init_fanout_queue = {
-            let inner = self.inner.lock().await;
-            inner
-                .get_value_nodes(key)?
+            self.get_value_nodes(key)
+                .await?
                 .unwrap_or_default()
                 .into_iter()
                 .filter(|x| {
@@ -81,13 +78,15 @@ impl StorageManager {
         // Routine to call to generate fanout
         let call_routine = {
             let context = context.clone();
-            let rpc_processor = rpc_processor.clone();
+            let registry = self.registry();
 
             move |next_node: NodeRef| {
-                let rpc_processor = rpc_processor.clone();
+                let registry = registry.clone();
                 let context = context.clone();
                 let descriptor = descriptor.clone();
                 async move {
+                    let rpc_processor = registry.rpc_processor();
+
                     let send_descriptor = true; // xxx check if next_node needs the descriptor or not, see issue #203
 
                     // get most recent value to send
@@ -99,7 +98,6 @@ impl StorageManager {
                     // send across the wire
                     let sva = network_result_try!(
                         rpc_processor
-                            .clone()
                             .rpc_call_set_value(
                                 Destination::direct(next_node.routing_domain_filtered(routing_domain))
                                     .with_safety(safety_selection),
@@ -236,12 +234,14 @@ impl StorageManager {
         };
 
         // Call the fanout in a spawned task
+        let registry = self.registry();
         spawn(
             "outbound_set_value fanout",
             Box::pin(
                 async move {
+                    let routing_table = registry.routing_table();
                     let fanout_call = FanoutCall::new(
-                        routing_table.clone(),
+                        &routing_table,
                         key,
                         key_count,
                         fanout,
@@ -292,24 +292,25 @@ impl StorageManager {
     }
 
     #[instrument(level = "trace", target = "dht", skip_all)]
-    pub(super) fn process_deferred_outbound_set_value_result_inner(
+    pub(super) fn process_deferred_outbound_set_value_result(
         &self,
-        inner: &mut StorageManagerInner,
         res_rx: flume::Receiver<Result<set_value::OutboundSetValueResult, VeilidAPIError>>,
         key: TypedKey,
         subkey: ValueSubkey,
         last_value_data: ValueData,
         safety_selection: SafetySelection,
     ) {
-        let this = self.clone();
+        let registry = self.registry();
         let last_value_data = Arc::new(Mutex::new(last_value_data));
-        inner.process_deferred_results(
+        self.process_deferred_results(
             res_rx,
             Box::new(
                 move |result: VeilidAPIResult<set_value::OutboundSetValueResult>| -> SendPinBoxFuture<bool> {
-                    let this = this.clone();
+                    let registry = registry.clone();
                     let last_value_data = last_value_data.clone();
                     Box::pin(async move {
+                        let this = registry.storage_manager();
+
                         let result = match result {
                             Ok(v) => v,
                             Err(e) => {
@@ -333,7 +334,7 @@ impl StorageManager {
                             // If more partial results show up, don't send an update until we're done
                             return true;
                         }
-                        // If we processed the final result, possibly send an update 
+                        // If we processed the final result, possibly send an update
                         // if the sequence number changed since our first partial update
                         // Send with a max count as this is not attached to any watch
                         let changed = {
@@ -346,9 +347,7 @@ impl StorageManager {
                             }
                         };
                         if changed {
-                            if let Err(e) = this.update_callback_value_change(key,ValueSubkeyRangeSet::single(subkey), u32::MAX, Some(value_data)).await {
-                                log_rtab!(debug "Failed sending deferred fanout value change: {}", e);
-                            }
+                            this.update_callback_value_change(key,ValueSubkeyRangeSet::single(subkey), u32::MAX, Some(value_data));
                         }
 
                         // Return done
@@ -369,29 +368,37 @@ impl StorageManager {
         result: set_value::OutboundSetValueResult,
     ) -> Result<Option<ValueData>, VeilidAPIError> {
         // Regain the lock after network access
-        let mut inner = self.lock().await?;
+        let mut inner = self.inner.lock().await;
 
         // Report on fanout result offline
         let was_offline = self.check_fanout_set_offline(key, subkey, &result.fanout_result);
         if was_offline {
             // Failed to write, try again later
-            inner.add_offline_subkey_write(key, subkey, safety_selection);
+            Self::add_offline_subkey_write_inner(&mut inner, key, subkey, safety_selection);
         }
 
         // Keep the list of nodes that returned a value for later reference
-        inner.process_fanout_results(key, core::iter::once((subkey, &result.fanout_result)), true);
+        Self::process_fanout_results_inner(
+            &mut inner,
+            key,
+            core::iter::once((subkey, &result.fanout_result)),
+            true,
+            self.config()
+                .with(|c| c.network.dht.set_value_count as usize),
+        );
 
         // Return the new value if it differs from what was asked to set
         if result.signed_value_data.value_data() != &last_value_data {
             // Record the newer value and send and update since it is different than what we just set
-            inner
-                .handle_set_local_value(
-                    key,
-                    subkey,
-                    result.signed_value_data.clone(),
-                    WatchUpdateMode::UpdateAll,
-                )
-                .await?;
+
+            Self::handle_set_local_value_inner(
+                &mut inner,
+                key,
+                subkey,
+                result.signed_value_data.clone(),
+                WatchUpdateMode::UpdateAll,
+            )
+            .await?;
 
             return Ok(Some(result.signed_value_data.value_data().clone()));
         }
@@ -412,18 +419,20 @@ impl StorageManager {
         descriptor: Option<Arc<SignedValueDescriptor>>,
         target: Target,
     ) -> VeilidAPIResult<NetworkResult<Option<Arc<SignedValueData>>>> {
-        let mut inner = self.lock().await?;
+        let mut inner = self.inner.lock().await;
 
         // See if this is a remote or local value
         let (is_local, last_get_result) = {
             // See if the subkey we are modifying has a last known local value
-            let last_get_result = inner.handle_get_local_value(key, subkey, true).await?;
+            let last_get_result =
+                Self::handle_get_local_value_inner(&mut inner, key, subkey, true).await?;
             // If this is local, it must have a descriptor already
             if last_get_result.opt_descriptor.is_some() {
                 (true, last_get_result)
             } else {
                 // See if the subkey we are modifying has a last known remote value
-                let last_get_result = inner.handle_get_remote_value(key, subkey, true).await?;
+                let last_get_result =
+                    Self::handle_get_remote_value_inner(&mut inner, key, subkey, true).await?;
                 (false, last_get_result)
             }
         };
@@ -483,19 +492,24 @@ impl StorageManager {
 
         // Do the set and return no new value
         let res = if is_local {
-            inner
-                .handle_set_local_value(key, subkey, value, WatchUpdateMode::ExcludeTarget(target))
-                .await
+            Self::handle_set_local_value_inner(
+                &mut inner,
+                key,
+                subkey,
+                value,
+                WatchUpdateMode::ExcludeTarget(target),
+            )
+            .await
         } else {
-            inner
-                .handle_set_remote_value(
-                    key,
-                    subkey,
-                    value,
-                    actual_descriptor,
-                    WatchUpdateMode::ExcludeTarget(target),
-                )
-                .await
+            Self::handle_set_remote_value_inner(
+                &mut inner,
+                key,
+                subkey,
+                value,
+                actual_descriptor,
+                WatchUpdateMode::ExcludeTarget(target),
+            )
+            .await
         };
         match res {
             Ok(()) => {}

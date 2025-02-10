@@ -8,12 +8,13 @@ const BACKGROUND_SAFETY_ROUTE_COUNT: usize = 2;
 
 impl RoutingTable {
     fn get_background_safety_route_count(&self) -> usize {
-        let c = self.config.get();
-        if c.capabilities.disable.contains(&CAP_ROUTE) {
-            0
-        } else {
-            BACKGROUND_SAFETY_ROUTE_COUNT
-        }
+        self.config().with(|c| {
+            if c.capabilities.disable.contains(&CAP_ROUTE) {
+                0
+            } else {
+                BACKGROUND_SAFETY_ROUTE_COUNT
+            }
+        })
     }
     /// Fastest routes sort
     fn route_sort_latency_fn(a: &(RouteId, u64), b: &(RouteId, u64)) -> cmp::Ordering {
@@ -44,14 +45,14 @@ impl RoutingTable {
     /// If a route doesn't 'need_testing', then we neither test nor drop it
     #[instrument(level = "trace", skip(self))]
     fn get_allocated_routes_to_test(&self, cur_ts: Timestamp) -> Vec<RouteId> {
-        let default_route_hop_count =
-            self.with_config(|c| c.network.rpc.default_route_hop_count as usize);
+        let default_route_hop_count = self
+            .config()
+            .with(|c| c.network.rpc.default_route_hop_count as usize);
 
-        let rss = self.route_spec_store();
         let mut must_test_routes = Vec::<RouteId>::new();
         let mut unpublished_routes = Vec::<(RouteId, u64)>::new();
         let mut expired_routes = Vec::<RouteId>::new();
-        rss.list_allocated_routes(|k, v| {
+        self.route_spec_store().list_allocated_routes(|k, v| {
             let stats = v.get_stats();
             // Ignore nodes that don't need testing
             if !stats.needs_testing(cur_ts) {
@@ -95,7 +96,7 @@ impl RoutingTable {
         // Process dead routes
         for r in expired_routes {
             log_rtab!(debug "Expired route: {}", r);
-            rss.release_route(r);
+            self.route_spec_store().release_route(r);
         }
 
         // return routes to test
@@ -114,8 +115,6 @@ impl RoutingTable {
         }
         log_rtab!("Testing routes: {:?}", routes_needing_testing);
 
-        // Test all the routes that need testing at the same time
-        let rss = self.route_spec_store();
         #[derive(Default, Debug)]
         struct TestRouteContext {
             dead_routes: Vec<RouteId>,
@@ -125,11 +124,10 @@ impl RoutingTable {
         {
             let mut unord = FuturesUnordered::new();
             for r in routes_needing_testing {
-                let rss = rss.clone();
                 let ctx = ctx.clone();
                 unord.push(
                     async move {
-                        let success = match rss.test_route(r).await {
+                        let success = match self.route_spec_store().test_route(r).await {
                             // Test had result
                             Ok(Some(v)) => v,
                             // Test could not be performed at this time
@@ -160,7 +158,7 @@ impl RoutingTable {
         let ctx = Arc::try_unwrap(ctx).unwrap().into_inner();
         for r in ctx.dead_routes {
             log_rtab!(debug "Dead route failed to test: {}", r);
-            rss.release_route(r);
+            self.route_spec_store().release_route(r);
         }
 
         Ok(())
@@ -169,7 +167,7 @@ impl RoutingTable {
     /// Keep private routes assigned and accessible
     #[instrument(level = "trace", skip(self, stop_token), err)]
     pub async fn private_route_management_task_routine(
-        self,
+        &self,
         stop_token: StopToken,
         _last_ts: Timestamp,
         cur_ts: Timestamp,
@@ -183,11 +181,12 @@ impl RoutingTable {
         }
 
         // Ensure we have a minimum of N allocated local, unpublished routes with the default number of hops and all our supported crypto kinds
-        let default_route_hop_count =
-            self.with_config(|c| c.network.rpc.default_route_hop_count as usize);
+        let default_route_hop_count = self
+            .config()
+            .with(|c| c.network.rpc.default_route_hop_count as usize);
         let mut local_unpublished_route_count = 0usize;
-        let rss = self.route_spec_store();
-        rss.list_allocated_routes(|_k, v| {
+
+        self.route_spec_store().list_allocated_routes(|_k, v| {
             if !v.is_published()
                 && v.hop_count() == default_route_hop_count
                 && v.get_route_set_keys().kinds() == VALID_CRYPTO_KINDS
@@ -213,7 +212,7 @@ impl RoutingTable {
                     stability: Stability::Reliable,
                     sequencing: Sequencing::PreferOrdered,
                 };
-                match rss.allocate_route(
+                match self.route_spec_store().allocate_route(
                     &VALID_CRYPTO_KINDS,
                     &safety_spec,
                     DirectionSet::all(),
@@ -238,7 +237,7 @@ impl RoutingTable {
         }
 
         // Test remote routes next
-        let remote_routes_needing_testing = rss.list_remote_routes(|k, v| {
+        let remote_routes_needing_testing = self.route_spec_store().list_remote_routes(|k, v| {
             let stats = v.get_stats();
             if stats.needs_testing(cur_ts) {
                 Some(*k)
@@ -252,7 +251,7 @@ impl RoutingTable {
         }
 
         // Send update (also may send updates for released routes done by other parts of the program)
-        rss.send_route_update();
+        self.route_spec_store().send_route_update();
 
         Ok(())
     }

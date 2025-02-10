@@ -78,7 +78,8 @@ pub async fn test_create_dht_record_with_owner(api: VeilidAPI) {
         .with_safety(SafetySelection::Unsafe(Sequencing::EnsureOrdered))
         .unwrap();
 
-    let cs = api.crypto().unwrap().get(CRYPTO_KIND_VLD0).unwrap();
+    let crypto = api.crypto().unwrap();
+    let cs = crypto.get(CRYPTO_KIND_VLD0).unwrap();
     let owner_keypair = cs.generate_keypair();
 
     let rec = rc
@@ -104,7 +105,8 @@ pub async fn test_get_dht_record_key(api: VeilidAPI) {
         .with_safety(SafetySelection::Unsafe(Sequencing::EnsureOrdered))
         .unwrap();
 
-    let cs = api.crypto().unwrap().get(CRYPTO_KIND_VLD0).unwrap();
+    let crypto = api.crypto().unwrap();
+    let cs = crypto.get(CRYPTO_KIND_VLD0).unwrap();
     let owner_keypair = cs.generate_keypair();
     let schema = DHTSchema::dflt(1).unwrap();
 
@@ -117,7 +119,6 @@ pub async fn test_get_dht_record_key(api: VeilidAPI) {
     // recreate the record key from the metadata alone
     let key = rc
         .get_dht_record_key(schema.clone(), &owner_keypair.key, Some(CRYPTO_KIND_VLD0))
-        .await
         .unwrap();
 
     // keys should be the same
@@ -332,7 +333,8 @@ pub async fn test_open_writer_dht_value(api: VeilidAPI) {
     // 3. Try writing to subkey 1, expect error
     // 4. Try writing to subkey 0, expect error
 
-    let cs = api.crypto().unwrap().get(key.kind).unwrap();
+    let crypto = api.crypto().unwrap();
+    let cs = crypto.get(key.kind).unwrap();
     assert!(cs.validate_keypair(owner, secret));
     let other_keypair = cs.generate_keypair();
 

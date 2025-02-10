@@ -1,5 +1,5 @@
 //! Test suite for the Web and headless browsers.
-#![cfg(target_arch = "wasm32")]
+#![cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 
 use cfg_if::*;
 use parking_lot::Once;

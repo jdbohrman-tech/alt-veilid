@@ -1,6 +1,5 @@
 use super::*;
 use futures_util::{AsyncReadExt, AsyncWriteExt};
-use sockets::*;
 
 pub struct RawTcpNetworkConnection {
     flow: Flow,
@@ -157,32 +156,28 @@ impl RawTcpProtocolHandler {
     #[instrument(level = "trace", target = "protocol", err)]
     pub async fn connect(
         local_address: Option<SocketAddr>,
-        socket_addr: SocketAddr,
+        remote_address: SocketAddr,
         timeout_ms: u32,
     ) -> io::Result<NetworkResult<ProtocolNetworkConnection>> {
-        // Make a shared socket
-        let socket = match local_address {
-            Some(a) => {
-                new_bound_shared_tcp_socket(a)?.ok_or(io::Error::from(io::ErrorKind::AddrInUse))?
-            }
-            None => new_default_tcp_socket(socket2::Domain::for_address(socket_addr))?,
-        };
-
         // Non-blocking connect to remote address
-        let ts = network_result_try!(nonblocking_connect(socket, socket_addr, timeout_ms)
-            .await
-            .folded()?);
+        let tcp_stream = network_result_try!(connect_async_tcp_stream(
+            local_address,
+            remote_address,
+            timeout_ms
+        )
+        .await
+        .folded()?);
 
         // See what local address we ended up with and turn this into a stream
-        let actual_local_address = ts.local_addr()?;
+        let actual_local_address = tcp_stream.local_addr()?;
         #[cfg(feature = "rt-tokio")]
-        let ts = ts.compat();
-        let ps = AsyncPeekStream::new(ts);
+        let tcp_stream = tcp_stream.compat();
+        let ps = AsyncPeekStream::new(tcp_stream);
 
         // Wrap the stream in a network connection and return it
         let flow = Flow::new(
             PeerAddress::new(
-                SocketAddress::from_socket_addr(socket_addr),
+                SocketAddress::from_socket_addr(remote_address),
                 ProtocolType::TCP,
             ),
             SocketAddress::from_socket_addr(actual_local_address),

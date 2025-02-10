@@ -1,5 +1,5 @@
 cfg_if::cfg_if! {
-    if #[cfg(target_arch = "wasm32")] {
+    if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
         pub use tsify::*;
         pub use wasm_bindgen::prelude::*;
 

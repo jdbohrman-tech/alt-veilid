@@ -1,11 +1,11 @@
 use super::*;
 
-const VEILID_DOMAIN_API: &[u8] = b"VEILID_API";
+pub(crate) const VEILID_DOMAIN_API: &[u8] = b"VEILID_API";
 
 pub trait CryptoSystem {
     // Accessors
     fn kind(&self) -> CryptoKind;
-    fn crypto(&self) -> Crypto;
+    fn crypto(&self) -> VeilidComponentGuard<'_, Crypto>;
 
     // Cached Operations
     fn cached_dh(&self, key: &PublicKey, secret: &SecretKey) -> VeilidAPIResult<SharedSecret>;

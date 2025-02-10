@@ -223,12 +223,11 @@ impl ClientApiConnection {
         trace!("ClientApiConnection::handle_tcp_connection");
 
         // Connect the TCP socket
-        let stream = TcpStream::connect(connect_addr)
+        let stream = connect_async_tcp_stream(None, connect_addr, 10_000)
             .await
+            .map_err(map_to_string)?
+            .into_timeout_error()
             .map_err(map_to_string)?;
-
-        // If it succeed, disable nagle algorithm
-        stream.set_nodelay(true).map_err(map_to_string)?;
 
         // State we connected
         let comproc = self.inner.lock().comproc.clone();
@@ -239,16 +238,8 @@ impl ClientApiConnection {
 
         // Split into reader and writer halves
         // with line buffering on the reader
-        cfg_if! {
-            if #[cfg(feature="rt-async-std")] {
-                use futures::AsyncReadExt;
-                let (reader, writer) = stream.split();
-                let reader = BufReader::new(reader);
-            } else {
-                let (reader, writer) = stream.into_split();
-                let reader = BufReader::new(reader);
-            }
-        }
+        let (reader, writer) = split_async_tcp_stream(stream);
+        let reader = BufReader::new(reader);
 
         self.clone().run_json_api_processor(reader, writer).await
     }

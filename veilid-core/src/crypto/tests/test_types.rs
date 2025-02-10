@@ -6,10 +6,10 @@ static CHEEZBURGER: &str = "I can has cheezburger";
 static EMPTY_KEY: [u8; PUBLIC_KEY_LENGTH] = [0u8; PUBLIC_KEY_LENGTH];
 static EMPTY_KEY_SECRET: [u8; SECRET_KEY_LENGTH] = [0u8; SECRET_KEY_LENGTH];
 
-pub async fn test_generate_secret(vcrypto: CryptoSystemVersion) {
+pub async fn test_generate_secret(vcrypto: &AsyncCryptoSystemGuard<'_>) {
     // Verify keys generate
-    let (dht_key, dht_key_secret) = vcrypto.generate_keypair().into_split();
-    let (dht_key2, dht_key_secret2) = vcrypto.generate_keypair().into_split();
+    let (dht_key, dht_key_secret) = vcrypto.generate_keypair().await.into_split();
+    let (dht_key2, dht_key_secret2) = vcrypto.generate_keypair().await.into_split();
 
     // Verify byte patterns are different between public and secret
     assert_ne!(dht_key.bytes, dht_key_secret.bytes);
@@ -20,21 +20,24 @@ pub async fn test_generate_secret(vcrypto: CryptoSystemVersion) {
     assert_ne!(dht_key_secret, dht_key_secret2);
 }
 
-pub async fn test_sign_and_verify(vcrypto: CryptoSystemVersion) {
+pub async fn test_sign_and_verify(vcrypto: &AsyncCryptoSystemGuard<'_>) {
     // Make two keys
-    let (dht_key, dht_key_secret) = vcrypto.generate_keypair().into_split();
-    let (dht_key2, dht_key_secret2) = vcrypto.generate_keypair().into_split();
+    let (dht_key, dht_key_secret) = vcrypto.generate_keypair().await.into_split();
+    let (dht_key2, dht_key_secret2) = vcrypto.generate_keypair().await.into_split();
     // Sign the same message twice
     let dht_sig = vcrypto
         .sign(&dht_key, &dht_key_secret, LOREM_IPSUM.as_bytes())
+        .await
         .unwrap();
     trace!("dht_sig: {:?}", dht_sig);
     let dht_sig_b = vcrypto
         .sign(&dht_key, &dht_key_secret, LOREM_IPSUM.as_bytes())
+        .await
         .unwrap();
     // Sign a second message
     let dht_sig_c = vcrypto
         .sign(&dht_key, &dht_key_secret, CHEEZBURGER.as_bytes())
+        .await
         .unwrap();
     trace!("dht_sig_c: {:?}", dht_sig_c);
     // Verify they are the same signature
@@ -42,6 +45,7 @@ pub async fn test_sign_and_verify(vcrypto: CryptoSystemVersion) {
     // Sign the same message with a different key
     let dht_sig2 = vcrypto
         .sign(&dht_key2, &dht_key_secret2, LOREM_IPSUM.as_bytes())
+        .await
         .unwrap();
     // Verify a different key gives a different signature
     assert_ne!(dht_sig2, dht_sig_b);
@@ -49,73 +53,93 @@ pub async fn test_sign_and_verify(vcrypto: CryptoSystemVersion) {
     // Try using the wrong secret to sign
     let a1 = vcrypto
         .sign(&dht_key, &dht_key_secret, LOREM_IPSUM.as_bytes())
+        .await
         .unwrap();
     let a2 = vcrypto
         .sign(&dht_key2, &dht_key_secret2, LOREM_IPSUM.as_bytes())
+        .await
         .unwrap();
     let _b1 = vcrypto
         .sign(&dht_key, &dht_key_secret2, LOREM_IPSUM.as_bytes())
+        .await
         .unwrap_err();
     let _b2 = vcrypto
         .sign(&dht_key2, &dht_key_secret, LOREM_IPSUM.as_bytes())
+        .await
         .unwrap_err();
 
     assert_ne!(a1, a2);
 
     assert_eq!(
-        vcrypto.verify(&dht_key, LOREM_IPSUM.as_bytes(), &a1),
+        vcrypto.verify(&dht_key, LOREM_IPSUM.as_bytes(), &a1).await,
         Ok(true)
     );
     assert_eq!(
-        vcrypto.verify(&dht_key2, LOREM_IPSUM.as_bytes(), &a2),
+        vcrypto.verify(&dht_key2, LOREM_IPSUM.as_bytes(), &a2).await,
         Ok(true)
     );
     assert_eq!(
-        vcrypto.verify(&dht_key, LOREM_IPSUM.as_bytes(), &a2),
+        vcrypto.verify(&dht_key, LOREM_IPSUM.as_bytes(), &a2).await,
         Ok(false)
     );
     assert_eq!(
-        vcrypto.verify(&dht_key2, LOREM_IPSUM.as_bytes(), &a1),
+        vcrypto.verify(&dht_key2, LOREM_IPSUM.as_bytes(), &a1).await,
         Ok(false)
     );
 
     // Try verifications that should work
     assert_eq!(
-        vcrypto.verify(&dht_key, LOREM_IPSUM.as_bytes(), &dht_sig),
+        vcrypto
+            .verify(&dht_key, LOREM_IPSUM.as_bytes(), &dht_sig)
+            .await,
         Ok(true)
     );
     assert_eq!(
-        vcrypto.verify(&dht_key, LOREM_IPSUM.as_bytes(), &dht_sig_b),
+        vcrypto
+            .verify(&dht_key, LOREM_IPSUM.as_bytes(), &dht_sig_b)
+            .await,
         Ok(true)
     );
     assert_eq!(
-        vcrypto.verify(&dht_key2, LOREM_IPSUM.as_bytes(), &dht_sig2),
+        vcrypto
+            .verify(&dht_key2, LOREM_IPSUM.as_bytes(), &dht_sig2)
+            .await,
         Ok(true)
     );
     assert_eq!(
-        vcrypto.verify(&dht_key, CHEEZBURGER.as_bytes(), &dht_sig_c),
+        vcrypto
+            .verify(&dht_key, CHEEZBURGER.as_bytes(), &dht_sig_c)
+            .await,
         Ok(true)
     );
     // Try verifications that shouldn't work
     assert_eq!(
-        vcrypto.verify(&dht_key2, LOREM_IPSUM.as_bytes(), &dht_sig),
+        vcrypto
+            .verify(&dht_key2, LOREM_IPSUM.as_bytes(), &dht_sig)
+            .await,
         Ok(false)
     );
     assert_eq!(
-        vcrypto.verify(&dht_key, LOREM_IPSUM.as_bytes(), &dht_sig2),
+        vcrypto
+            .verify(&dht_key, LOREM_IPSUM.as_bytes(), &dht_sig2)
+            .await,
         Ok(false)
     );
     assert_eq!(
-        vcrypto.verify(&dht_key2, CHEEZBURGER.as_bytes(), &dht_sig_c),
+        vcrypto
+            .verify(&dht_key2, CHEEZBURGER.as_bytes(), &dht_sig_c)
+            .await,
         Ok(false)
     );
     assert_eq!(
-        vcrypto.verify(&dht_key, CHEEZBURGER.as_bytes(), &dht_sig),
+        vcrypto
+            .verify(&dht_key, CHEEZBURGER.as_bytes(), &dht_sig)
+            .await,
         Ok(false)
     );
 }
 
-pub async fn test_key_conversions(vcrypto: CryptoSystemVersion) {
+pub async fn test_key_conversions(vcrypto: &AsyncCryptoSystemGuard<'_>) {
     // Test default key
     let (dht_key, dht_key_secret) = (PublicKey::default(), SecretKey::default());
     assert_eq!(dht_key.bytes, EMPTY_KEY);
@@ -131,10 +155,10 @@ pub async fn test_key_conversions(vcrypto: CryptoSystemVersion) {
     assert_eq!(dht_key_secret_string, dht_key_string);
 
     // Make different keys
-    let (dht_key2, dht_key_secret2) = vcrypto.generate_keypair().into_split();
+    let (dht_key2, dht_key_secret2) = vcrypto.generate_keypair().await.into_split();
     trace!("dht_key2: {:?}", dht_key2);
     trace!("dht_key_secret2: {:?}", dht_key_secret2);
-    let (dht_key3, _dht_key_secret3) = vcrypto.generate_keypair().into_split();
+    let (dht_key3, _dht_key_secret3) = vcrypto.generate_keypair().await.into_split();
     trace!("dht_key3: {:?}", dht_key3);
     trace!("_dht_key_secret3: {:?}", _dht_key_secret3);
 
@@ -185,7 +209,7 @@ pub async fn test_key_conversions(vcrypto: CryptoSystemVersion) {
     .is_err());
 }
 
-pub async fn test_encode_decode(vcrypto: CryptoSystemVersion) {
+pub async fn test_encode_decode(vcrypto: &AsyncCryptoSystemGuard<'_>) {
     let dht_key = PublicKey::try_decode("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA").unwrap();
     let dht_key_secret =
         SecretKey::try_decode("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA").unwrap();
@@ -194,7 +218,7 @@ pub async fn test_encode_decode(vcrypto: CryptoSystemVersion) {
     assert_eq!(dht_key, dht_key_b);
     assert_eq!(dht_key_secret, dht_key_secret_b);
 
-    let (dht_key2, dht_key_secret2) = vcrypto.generate_keypair().into_split();
+    let (dht_key2, dht_key_secret2) = vcrypto.generate_keypair().await.into_split();
 
     let e1 = dht_key.encode();
     trace!("e1:  {:?}", e1);
@@ -229,7 +253,7 @@ pub async fn test_encode_decode(vcrypto: CryptoSystemVersion) {
     assert!(f2.is_err());
 }
 
-pub async fn test_typed_convert(vcrypto: CryptoSystemVersion) {
+pub async fn test_typed_convert(vcrypto: &AsyncCryptoSystemGuard<'_>) {
     let tks1 = format!(
         "{}:7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ",
         vcrypto.kind()
@@ -261,15 +285,15 @@ pub async fn test_typed_convert(vcrypto: CryptoSystemVersion) {
     assert!(tks6x.ends_with(&tks6));
 }
 
-async fn test_hash(vcrypto: CryptoSystemVersion) {
+async fn test_hash(vcrypto: &AsyncCryptoSystemGuard<'_>) {
     let mut s = BTreeSet::<PublicKey>::new();
 
-    let k1 = vcrypto.generate_hash("abc".as_bytes());
-    let k2 = vcrypto.generate_hash("abcd".as_bytes());
-    let k3 = vcrypto.generate_hash("".as_bytes());
-    let k4 = vcrypto.generate_hash(" ".as_bytes());
-    let k5 = vcrypto.generate_hash(LOREM_IPSUM.as_bytes());
-    let k6 = vcrypto.generate_hash(CHEEZBURGER.as_bytes());
+    let k1 = vcrypto.generate_hash("abc".as_bytes()).await;
+    let k2 = vcrypto.generate_hash("abcd".as_bytes()).await;
+    let k3 = vcrypto.generate_hash("".as_bytes()).await;
+    let k4 = vcrypto.generate_hash(" ".as_bytes()).await;
+    let k5 = vcrypto.generate_hash(LOREM_IPSUM.as_bytes()).await;
+    let k6 = vcrypto.generate_hash(CHEEZBURGER.as_bytes()).await;
 
     s.insert(k1);
     s.insert(k2);
@@ -279,12 +303,12 @@ async fn test_hash(vcrypto: CryptoSystemVersion) {
     s.insert(k6);
     assert_eq!(s.len(), 6);
 
-    let v1 = vcrypto.generate_hash("abc".as_bytes());
-    let v2 = vcrypto.generate_hash("abcd".as_bytes());
-    let v3 = vcrypto.generate_hash("".as_bytes());
-    let v4 = vcrypto.generate_hash(" ".as_bytes());
-    let v5 = vcrypto.generate_hash(LOREM_IPSUM.as_bytes());
-    let v6 = vcrypto.generate_hash(CHEEZBURGER.as_bytes());
+    let v1 = vcrypto.generate_hash("abc".as_bytes()).await;
+    let v2 = vcrypto.generate_hash("abcd".as_bytes()).await;
+    let v3 = vcrypto.generate_hash("".as_bytes()).await;
+    let v4 = vcrypto.generate_hash(" ".as_bytes()).await;
+    let v5 = vcrypto.generate_hash(LOREM_IPSUM.as_bytes()).await;
+    let v6 = vcrypto.generate_hash(CHEEZBURGER.as_bytes()).await;
 
     assert_eq!(k1, v1);
     assert_eq!(k2, v2);
@@ -293,24 +317,24 @@ async fn test_hash(vcrypto: CryptoSystemVersion) {
     assert_eq!(k5, v5);
     assert_eq!(k6, v6);
 
-    vcrypto.validate_hash("abc".as_bytes(), &v1);
-    vcrypto.validate_hash("abcd".as_bytes(), &v2);
-    vcrypto.validate_hash("".as_bytes(), &v3);
-    vcrypto.validate_hash(" ".as_bytes(), &v4);
-    vcrypto.validate_hash(LOREM_IPSUM.as_bytes(), &v5);
-    vcrypto.validate_hash(CHEEZBURGER.as_bytes(), &v6);
+    vcrypto.validate_hash("abc".as_bytes(), &v1).await;
+    vcrypto.validate_hash("abcd".as_bytes(), &v2).await;
+    vcrypto.validate_hash("".as_bytes(), &v3).await;
+    vcrypto.validate_hash(" ".as_bytes(), &v4).await;
+    vcrypto.validate_hash(LOREM_IPSUM.as_bytes(), &v5).await;
+    vcrypto.validate_hash(CHEEZBURGER.as_bytes(), &v6).await;
 }
 
-async fn test_operations(vcrypto: CryptoSystemVersion) {
-    let k1 = vcrypto.generate_hash(LOREM_IPSUM.as_bytes());
-    let k2 = vcrypto.generate_hash(CHEEZBURGER.as_bytes());
-    let k3 = vcrypto.generate_hash("abc".as_bytes());
+async fn test_operations(vcrypto: &AsyncCryptoSystemGuard<'_>) {
+    let k1 = vcrypto.generate_hash(LOREM_IPSUM.as_bytes()).await;
+    let k2 = vcrypto.generate_hash(CHEEZBURGER.as_bytes()).await;
+    let k3 = vcrypto.generate_hash("abc".as_bytes()).await;
 
     // Get distance
-    let d1 = vcrypto.distance(&k1, &k2);
-    let d2 = vcrypto.distance(&k2, &k1);
-    let d3 = vcrypto.distance(&k1, &k3);
-    let d4 = vcrypto.distance(&k2, &k3);
+    let d1 = vcrypto.distance(&k1, &k2).await;
+    let d2 = vcrypto.distance(&k2, &k1).await;
+    let d3 = vcrypto.distance(&k1, &k3).await;
+    let d4 = vcrypto.distance(&k2, &k3).await;
 
     trace!("d1={:?}", d1);
     trace!("d2={:?}", d2);
@@ -393,15 +417,15 @@ pub async fn test_all() {
 
     // Test versions
     for v in VALID_CRYPTO_KINDS {
-        let vcrypto = crypto.get(v).unwrap();
+        let vcrypto = crypto.get_async(v).unwrap();
 
-        test_generate_secret(vcrypto.clone()).await;
-        test_sign_and_verify(vcrypto.clone()).await;
-        test_key_conversions(vcrypto.clone()).await;
-        test_encode_decode(vcrypto.clone()).await;
-        test_typed_convert(vcrypto.clone()).await;
-        test_hash(vcrypto.clone()).await;
-        test_operations(vcrypto).await;
+        test_generate_secret(&vcrypto).await;
+        test_sign_and_verify(&vcrypto).await;
+        test_key_conversions(&vcrypto).await;
+        test_encode_decode(&vcrypto).await;
+        test_typed_convert(&vcrypto).await;
+        test_hash(&vcrypto).await;
+        test_operations(&vcrypto).await;
     }
 
     crypto_tests_shutdown(api.clone()).await;

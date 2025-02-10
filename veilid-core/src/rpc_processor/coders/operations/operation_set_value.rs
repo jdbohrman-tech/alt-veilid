@@ -7,7 +7,7 @@ const MAX_SET_VALUE_A_PEERS_LEN: usize = 20;
 pub(in crate::rpc_processor) struct ValidateSetValueContext {
     pub descriptor: SignedValueDescriptor,
     pub subkey: ValueSubkey,
-    pub vcrypto: CryptoSystemVersion,
+    pub crypto_kind: CryptoKind,
 }
 
 impl fmt::Debug for ValidateSetValueContext {
@@ -15,7 +15,7 @@ impl fmt::Debug for ValidateSetValueContext {
         f.debug_struct("ValidateSetValueContext")
             .field("descriptor", &self.descriptor)
             .field("subkey", &self.subkey)
-            .field("vcrypto", &self.vcrypto.kind().to_string())
+            .field("crypto_kind", &self.crypto_kind)
             .finish()
     }
 }
@@ -144,10 +144,15 @@ impl RPCOperationSetValueA {
             panic!("Wrong context type for SetValueA");
         };
 
+        let crypto = validate_context.crypto();
+        let Some(vcrypto) = crypto.get(set_value_context.crypto_kind) else {
+            return Err(RPCError::protocol("unsupported cryptosystem"));
+        };
+
         // Ensure the descriptor itself validates
         set_value_context
             .descriptor
-            .validate(set_value_context.vcrypto.clone())
+            .validate(&vcrypto)
             .map_err(RPCError::protocol)?;
 
         if let Some(value) = &self.value {
@@ -156,7 +161,7 @@ impl RPCOperationSetValueA {
                 .validate(
                     set_value_context.descriptor.owner(),
                     set_value_context.subkey,
-                    set_value_context.vcrypto.clone(),
+                    &vcrypto,
                 )
                 .map_err(RPCError::protocol)?
             {
@@ -164,7 +169,7 @@ impl RPCOperationSetValueA {
             }
         }
 
-        PeerInfo::validate_vec(&mut self.peers, validate_context.crypto.clone());
+        PeerInfo::validate_vec(&mut self.peers, &crypto);
         Ok(())
     }
 

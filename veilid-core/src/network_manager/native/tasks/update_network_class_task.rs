@@ -8,12 +8,20 @@ type InboundProtocolMap = HashMap<(AddressType, LowLevelProtocolType, u16), Vec<
 impl Network {
     #[instrument(parent = None, level = "trace", skip(self), err)]
     pub async fn update_network_class_task_routine(
-        self,
+        &self,
         stop_token: StopToken,
         l: Timestamp,
         t: Timestamp,
     ) -> EyreResult<()> {
-        let _guard = self.unlocked_inner.network_task_lock.lock().await;
+        // Network lock ensures only one task operating on the low level network state
+        // can happen at the same time.
+        let _guard = match self.network_task_lock.try_lock() {
+            Ok(v) => v,
+            Err(_) => {
+                // If we can't get the lock right now, then
+                return Ok(());
+            }
+        };
 
         // Do the public dial info check
         let finished = self.do_public_dial_info_check(stop_token, l, t).await?;
@@ -125,8 +133,9 @@ impl Network {
         };
 
         // Save off existing public dial info for change detection later
-        let existing_public_dial_info: HashSet<DialInfoDetail> = self
-            .routing_table()
+        let routing_table = self.routing_table();
+
+        let existing_public_dial_info: HashSet<DialInfoDetail> = routing_table
             .all_filtered_dial_info_details(
                 RoutingDomain::PublicInternet.into(),
                 &DialInfoFilter::all(),
@@ -135,7 +144,7 @@ impl Network {
             .collect();
 
         // Set most permissive network config and start from scratch
-        let mut editor = self.routing_table().edit_public_internet_routing_domain();
+        let mut editor = routing_table.edit_public_internet_routing_domain();
         editor.setup_network(
             protocol_config.outbound,
             protocol_config.inbound,
@@ -156,7 +165,7 @@ impl Network {
                 port,
             };
             context_configs.insert(dcc);
-            let discovery_context = DiscoveryContext::new(self.routing_table(), self.clone(), dcc);
+            let discovery_context = DiscoveryContext::new(self.registry(), dcc);
             discovery_context.discover(&mut unord).await;
         }
 
@@ -247,22 +256,18 @@ impl Network {
         match protocol_type {
             ProtocolType::UDP => DialInfo::udp(addr),
             ProtocolType::TCP => DialInfo::tcp(addr),
-            ProtocolType::WS => {
-                let c = self.config.get();
-                DialInfo::try_ws(
-                    addr,
-                    format!("ws://{}/{}", addr, c.network.protocol.ws.path),
-                )
-                .unwrap()
-            }
-            ProtocolType::WSS => {
-                let c = self.config.get();
-                DialInfo::try_wss(
-                    addr,
-                    format!("wss://{}/{}", addr, c.network.protocol.wss.path),
-                )
-                .unwrap()
-            }
+            ProtocolType::WS => DialInfo::try_ws(
+                addr,
+                self.config()
+                    .with(|c| format!("ws://{}/{}", addr, c.network.protocol.ws.path)),
+            )
+            .unwrap(),
+            ProtocolType::WSS => DialInfo::try_wss(
+                addr,
+                self.config()
+                    .with(|c| format!("wss://{}/{}", addr, c.network.protocol.wss.path)),
+            )
+            .unwrap(),
         }
     }
 }

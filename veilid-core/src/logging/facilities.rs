@@ -152,42 +152,6 @@ macro_rules! log_client_api {
 }
 
 #[macro_export]
-macro_rules! log_network_result {
-    (error $text:expr) => {error!(
-        target: "network_result",
-        "{}",
-        $text,
-    )};
-    (error $fmt:literal, $($arg:expr),+) => {
-        error!(target: "network_result", $fmt, $($arg),+);
-    };
-    (warn $text:expr) => {warn!(
-        target: "network_result",
-        "{}",
-        $text,
-    )};
-    (warn $fmt:literal, $($arg:expr),+) => {
-        warn!(target:"network_result", $fmt, $($arg),+);
-    };
-    (debug $text:expr) => {debug!(
-        target: "network_result",
-        "{}",
-        $text,
-    )};
-    (debug $fmt:literal, $($arg:expr),+) => {
-        debug!(target:"network_result", $fmt, $($arg),+);
-    };
-    ($text:expr) => {trace!(
-        target: "network_result",
-        "{}",
-        $text,
-    )};
-    ($fmt:literal, $($arg:expr),+) => {
-        trace!(target:"network_result", $fmt, $($arg),+);
-    }
-}
-
-#[macro_export]
 macro_rules! log_rpc {
     (error $text:expr) => { error!(
         target: "rpc",
@@ -420,6 +384,14 @@ macro_rules! log_crypto {
     )};
     (warn $fmt:literal, $($arg:expr),+) => {
         warn!(target:"crypto", $fmt, $($arg),+);
+    };
+    (debug $text:expr) => { debug!(
+        target: "crypto",
+        "{}",
+        $text,
+    )};
+    (debug $fmt:literal, $($arg:expr),+) => {
+        debug!(target:"crypto", $fmt, $($arg),+);
     };
     ($text:expr) => {trace!(
         target: "crypto",

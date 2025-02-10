@@ -2,7 +2,6 @@ use super::*;
 
 // Field accessors
 pub(crate) trait NodeRefAccessorsTrait {
-    fn routing_table(&self) -> RoutingTable;
     fn entry(&self) -> Arc<BucketEntry>;
     fn sequencing(&self) -> Sequencing;
     fn routing_domain_set(&self) -> RoutingDomainSet;
@@ -125,12 +124,12 @@ pub(crate) trait NodeRefCommonTrait: NodeRefAccessorsTrait + NodeRefOperateTrait
             };
             // If relay is ourselves, then return None, because we can't relay through ourselves
             // and to contact this node we should have had an existing inbound connection
-            if rti.unlocked_inner.matches_own_node_id(rpi.node_ids()) {
+            if rti.routing_table().matches_own_node_id(rpi.node_ids()) {
                 bail!("Can't relay though ourselves");
             }
 
             // Register relay node and return noderef
-            let nr = rti.register_node_with_peer_info(self.routing_table(), rpi, false)?;
+            let nr = rti.register_node_with_peer_info(rpi, false)?;
             Ok(Some(nr))
         })
     }
@@ -253,7 +252,7 @@ pub(crate) trait NodeRefCommonTrait: NodeRefAccessorsTrait + NodeRefOperateTrait
             else {
                 return false;
             };
-            let our_node_ids = rti.unlocked_inner.node_ids();
+            let our_node_ids = rti.routing_table().node_ids();
             our_node_ids.contains_any(&relay_ids)
         })
     }

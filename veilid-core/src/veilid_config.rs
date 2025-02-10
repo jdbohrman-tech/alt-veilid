@@ -1,7 +1,7 @@
 use crate::*;
 
 cfg_if::cfg_if! {
-    if #[cfg(not(target_arch = "wasm32"))] {
+    if #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))] {
         use sysinfo::System;
         use lazy_static::*;
         use directories::ProjectDirs;
@@ -31,12 +31,12 @@ pub type ConfigCallback = Arc<dyn Fn(String) -> ConfigCallbackReturn + Send + Sy
 /// ```
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct VeilidConfigHTTPS {
     pub enabled: bool,
     pub listen_address: String,
     pub path: String,
-    #[cfg_attr(target_arch = "wasm32", tsify(optional))]
+    #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), tsify(optional))]
     pub url: Option<String>, // Fixed URL is not optional for TLS-based protocols and is dynamically validated
 }
 
@@ -62,12 +62,12 @@ impl Default for VeilidConfigHTTPS {
 /// ```
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct VeilidConfigHTTP {
     pub enabled: bool,
     pub listen_address: String,
     pub path: String,
-    #[cfg_attr(target_arch = "wasm32", tsify(optional))]
+    #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), tsify(optional))]
     pub url: Option<String>,
 }
 
@@ -89,7 +89,7 @@ impl Default for VeilidConfigHTTP {
 /// To be implemented...
 ///
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct VeilidConfigApplication {
     pub https: VeilidConfigHTTPS,
     pub http: VeilidConfigHTTP,
@@ -106,19 +106,19 @@ pub struct VeilidConfigApplication {
 /// ```
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct VeilidConfigUDP {
     pub enabled: bool,
     pub socket_pool_size: u32,
     pub listen_address: String,
-    #[cfg_attr(target_arch = "wasm32", tsify(optional))]
+    #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), tsify(optional))]
     pub public_address: Option<String>,
 }
 
 impl Default for VeilidConfigUDP {
     fn default() -> Self {
         cfg_if::cfg_if! {
-            if #[cfg(target_arch = "wasm32")] {
+            if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
                 let enabled = false;
             } else {
                 let enabled = true;
@@ -144,20 +144,20 @@ impl Default for VeilidConfigUDP {
 ///     public_address: ''
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct VeilidConfigTCP {
     pub connect: bool,
     pub listen: bool,
     pub max_connections: u32,
     pub listen_address: String,
-    #[cfg_attr(target_arch = "wasm32", tsify(optional))]
+    #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), tsify(optional))]
     pub public_address: Option<String>,
 }
 
 impl Default for VeilidConfigTCP {
     fn default() -> Self {
         cfg_if::cfg_if! {
-            if #[cfg(target_arch = "wasm32")] {
+            if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
                 let connect = false;
                 let listen = false;
             } else {
@@ -187,22 +187,21 @@ impl Default for VeilidConfigTCP {
 ///     url: 'ws://localhost:5150/ws'
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
-
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct VeilidConfigWS {
     pub connect: bool,
     pub listen: bool,
     pub max_connections: u32,
     pub listen_address: String,
     pub path: String,
-    #[cfg_attr(target_arch = "wasm32", tsify(optional))]
+    #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), tsify(optional))]
     pub url: Option<String>,
 }
 
 impl Default for VeilidConfigWS {
     fn default() -> Self {
         cfg_if::cfg_if! {
-            if #[cfg(target_arch = "wasm32")] {
+            if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
                 let connect = true;
                 let listen = false;
             } else {
@@ -233,15 +232,14 @@ impl Default for VeilidConfigWS {
 ///     url: ''
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
-
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct VeilidConfigWSS {
     pub connect: bool,
     pub listen: bool,
     pub max_connections: u32,
     pub listen_address: String,
     pub path: String,
-    #[cfg_attr(target_arch = "wasm32", tsify(optional))]
+    #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), tsify(optional))]
     pub url: Option<String>, // Fixed URL is not optional for TLS-based protocols and is dynamically validated
 }
 
@@ -266,8 +264,7 @@ impl Default for VeilidConfigWSS {
 /// sort out which protocol is used for each peer connection.
 ///
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
-
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct VeilidConfigProtocol {
     pub udp: VeilidConfigUDP,
     pub tcp: VeilidConfigTCP,
@@ -297,6 +294,21 @@ impl Default for VeilidConfigPrivacy {
     }
 }
 
+/// Virtual networking client support for testing/simulation purposes
+///
+/// ```yaml
+/// virtual_network:
+///     enabled: false
+///     server_address: ""
+/// ```
+#[cfg(feature = "virtual-network")]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+pub struct VeilidConfigVirtualNetwork {
+    pub enabled: bool,
+    pub server_address: String,
+}
+
 /// Configure TLS.
 ///
 /// ```yaml
@@ -306,7 +318,7 @@ impl Default for VeilidConfigPrivacy {
 ///     connection_initial_timeout_ms: 2000
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct VeilidConfigTLS {
     pub certificate_path: String,
     pub private_key_path: String,
@@ -323,7 +335,10 @@ impl Default for VeilidConfigTLS {
     }
 }
 
-#[cfg_attr(target_arch = "wasm32", allow(unused_variables))]
+#[cfg_attr(
+    all(target_arch = "wasm32", target_os = "unknown"),
+    allow(unused_variables)
+)]
 pub fn get_default_ssl_directory(
     program_name: &str,
     organization: &str,
@@ -331,7 +346,7 @@ pub fn get_default_ssl_directory(
     sub_path: &str,
 ) -> String {
     cfg_if::cfg_if! {
-        if #[cfg(target_arch = "wasm32")] {
+        if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
             "".to_owned()
         } else {
             use std::path::PathBuf;
@@ -349,7 +364,7 @@ pub fn get_default_ssl_directory(
 /// If you change the count/fanout/timeout parameters, you may render your node inoperable
 /// for correct DHT operations.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct VeilidConfigDHT {
     pub max_find_node_count: u32,
     pub resolve_node_timeout_ms: u32,
@@ -378,7 +393,7 @@ pub struct VeilidConfigDHT {
 impl Default for VeilidConfigDHT {
     fn default() -> Self {
         cfg_if::cfg_if! {
-            if #[cfg(target_arch = "wasm32")] {
+            if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
                 let local_subkey_cache_size = 128;
                 let local_max_subkey_cache_memory_mb = 256;
                 let remote_subkey_cache_size = 64;
@@ -433,13 +448,13 @@ impl Default for VeilidConfigDHT {
 /// Configure RPC.
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct VeilidConfigRPC {
     pub concurrency: u32,
     pub queue_size: u32,
-    #[cfg_attr(target_arch = "wasm32", tsify(optional))]
+    #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), tsify(optional))]
     pub max_timestamp_behind_ms: Option<u32>,
-    #[cfg_attr(target_arch = "wasm32", tsify(optional))]
+    #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), tsify(optional))]
     pub max_timestamp_ahead_ms: Option<u32>,
     pub timeout_ms: u32,
     pub max_route_hop_count: u8,
@@ -463,7 +478,7 @@ impl Default for VeilidConfigRPC {
 /// Configure the network routing table.
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct VeilidConfigRoutingTable {
     #[schemars(with = "Vec<String>")]
     pub node_id: TypedKeyGroup,
@@ -482,7 +497,7 @@ pub struct VeilidConfigRoutingTable {
 impl Default for VeilidConfigRoutingTable {
     fn default() -> Self {
         cfg_if::cfg_if! {
-            if #[cfg(target_arch = "wasm32")] {
+            if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
                 let bootstrap = vec!["ws://bootstrap.veilid.net:5150/ws".to_string()];
             } else {
                 let bootstrap = vec!["bootstrap.veilid.net".to_string()];
@@ -503,7 +518,7 @@ impl Default for VeilidConfigRoutingTable {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct VeilidConfigNetwork {
     pub connection_initial_timeout_ms: u32,
     pub connection_inactivity_timeout_ms: u32,
@@ -514,7 +529,7 @@ pub struct VeilidConfigNetwork {
     pub client_allowlist_timeout_ms: u32,
     pub reverse_connection_receipt_time_ms: u32,
     pub hole_punch_receipt_time_ms: u32,
-    #[cfg_attr(target_arch = "wasm32", tsify(optional))]
+    #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), tsify(optional))]
     pub network_key_password: Option<String>,
     pub routing_table: VeilidConfigRoutingTable,
     pub rpc: VeilidConfigRPC,
@@ -527,6 +542,8 @@ pub struct VeilidConfigNetwork {
     pub protocol: VeilidConfigProtocol,
     #[cfg(feature = "geolocation")]
     pub privacy: VeilidConfigPrivacy,
+    #[cfg(feature = "virtual-network")]
+    pub virtual_network: VeilidConfigVirtualNetwork,
 }
 
 impl Default for VeilidConfigNetwork {
@@ -553,18 +570,23 @@ impl Default for VeilidConfigNetwork {
             protocol: VeilidConfigProtocol::default(),
             #[cfg(feature = "geolocation")]
             privacy: VeilidConfigPrivacy::default(),
+            #[cfg(feature = "virtual-network")]
+            virtual_network: VeilidConfigVirtualNetwork::default(),
         }
     }
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct VeilidConfigTableStore {
     pub directory: String,
     pub delete: bool,
 }
 
-#[cfg_attr(target_arch = "wasm32", allow(unused_variables))]
+#[cfg_attr(
+    all(target_arch = "wasm32", target_os = "unknown"),
+    allow(unused_variables)
+)]
 fn get_default_store_path(
     program_name: &str,
     organization: &str,
@@ -572,7 +594,7 @@ fn get_default_store_path(
     store_type: &str,
 ) -> String {
     cfg_if::cfg_if! {
-        if #[cfg(target_arch = "wasm32")] {
+        if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
             "".to_owned()
         } else {
             use std::path::PathBuf;
@@ -587,7 +609,7 @@ fn get_default_store_path(
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct VeilidConfigBlockStore {
     pub directory: String,
     pub delete: bool,
@@ -603,14 +625,14 @@ impl Default for VeilidConfigBlockStore {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct VeilidConfigProtectedStore {
     pub allow_insecure_fallback: bool,
     pub always_use_insecure_storage: bool,
     pub directory: String,
     pub delete: bool,
     pub device_encryption_key_password: String,
-    #[cfg_attr(target_arch = "wasm32", tsify(optional))]
+    #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), tsify(optional))]
     pub new_device_encryption_key_password: Option<String>,
 }
 
@@ -628,14 +650,17 @@ impl Default for VeilidConfigProtectedStore {
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct VeilidConfigCapabilities {
     pub disable: Vec<FourCC>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
-#[cfg_attr(target_arch = "wasm32", tsify(namespace, from_wasm_abi))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
+#[cfg_attr(
+    all(target_arch = "wasm32", target_os = "unknown"),
+    tsify(namespace, from_wasm_abi)
+)]
 pub enum VeilidConfigLogLevel {
     Off,
     Error,
@@ -724,7 +749,7 @@ impl fmt::Display for VeilidConfigLogLevel {
 
 /// Top level of the Veilid configuration tree
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct VeilidConfigInner {
     /// An identifier used to describe the program using veilid-core.
     /// Used to partition storage locations in places like the ProtectedStore.
@@ -833,7 +858,7 @@ impl VeilidConfigInner {
 /// The configuration built for each Veilid node during API startup
 #[derive(Clone)]
 pub struct VeilidConfig {
-    update_cb: Option<UpdateCallback>,
+    update_cb: UpdateCallback,
     inner: Arc<RwLock<VeilidConfigInner>>,
 }
 
@@ -846,159 +871,144 @@ impl fmt::Debug for VeilidConfig {
     }
 }
 
-impl Default for VeilidConfig {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 impl VeilidConfig {
-    fn new_inner() -> VeilidConfigInner {
-        VeilidConfigInner::default()
-    }
-
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new_from_config(config: VeilidConfigInner, update_cb: UpdateCallback) -> Self {
         Self {
-            update_cb: None,
-            inner: Arc::new(RwLock::new(Self::new_inner())),
+            update_cb,
+            inner: Arc::new(RwLock::new(config)),
         }
     }
 
-    pub(crate) fn setup_from_config(
-        &mut self,
-        config: VeilidConfigInner,
-        update_cb: UpdateCallback,
-    ) -> VeilidAPIResult<()> {
-        self.update_cb = Some(update_cb);
-
-        self.with_mut(|inner| {
-            *inner = config;
-            Ok(())
-        })
-    }
-
-    pub(crate) fn setup(
-        &mut self,
+    pub(crate) fn new_from_callback(
         cb: ConfigCallback,
         update_cb: UpdateCallback,
-    ) -> VeilidAPIResult<()> {
-        self.update_cb = Some(update_cb);
-        self.with_mut(|inner| {
-            // Simple config transformation
-            macro_rules! get_config {
-                ($key:expr) => {
-                    let keyname = &stringify!($key)[6..];
-                    let v = cb(keyname.to_owned())?;
-                    $key = match v.downcast() {
-                        Ok(v) => *v,
-                        Err(e) => {
-                            apibail_generic!(format!(
-                                "incorrect type for key {}: {:?}",
-                                keyname,
-                                type_name_of_val(&*e)
-                            ))
-                        }
-                    };
-                };
-            }
+    ) -> VeilidAPIResult<Self> {
+        let mut inner = VeilidConfigInner::default();
 
-            get_config!(inner.program_name);
-            get_config!(inner.namespace);
-            get_config!(inner.capabilities.disable);
-            get_config!(inner.table_store.directory);
-            get_config!(inner.table_store.delete);
-            get_config!(inner.block_store.directory);
-            get_config!(inner.block_store.delete);
-            get_config!(inner.protected_store.allow_insecure_fallback);
-            get_config!(inner.protected_store.always_use_insecure_storage);
-            get_config!(inner.protected_store.directory);
-            get_config!(inner.protected_store.delete);
-            get_config!(inner.protected_store.device_encryption_key_password);
-            get_config!(inner.protected_store.new_device_encryption_key_password);
-            get_config!(inner.network.connection_initial_timeout_ms);
-            get_config!(inner.network.connection_inactivity_timeout_ms);
-            get_config!(inner.network.max_connections_per_ip4);
-            get_config!(inner.network.max_connections_per_ip6_prefix);
-            get_config!(inner.network.max_connections_per_ip6_prefix_size);
-            get_config!(inner.network.max_connection_frequency_per_min);
-            get_config!(inner.network.client_allowlist_timeout_ms);
-            get_config!(inner.network.reverse_connection_receipt_time_ms);
-            get_config!(inner.network.hole_punch_receipt_time_ms);
-            get_config!(inner.network.network_key_password);
-            get_config!(inner.network.routing_table.node_id);
-            get_config!(inner.network.routing_table.node_id_secret);
-            get_config!(inner.network.routing_table.bootstrap);
-            get_config!(inner.network.routing_table.limit_over_attached);
-            get_config!(inner.network.routing_table.limit_fully_attached);
-            get_config!(inner.network.routing_table.limit_attached_strong);
-            get_config!(inner.network.routing_table.limit_attached_good);
-            get_config!(inner.network.routing_table.limit_attached_weak);
-            get_config!(inner.network.dht.max_find_node_count);
-            get_config!(inner.network.dht.resolve_node_timeout_ms);
-            get_config!(inner.network.dht.resolve_node_count);
-            get_config!(inner.network.dht.resolve_node_fanout);
-            get_config!(inner.network.dht.get_value_timeout_ms);
-            get_config!(inner.network.dht.get_value_count);
-            get_config!(inner.network.dht.get_value_fanout);
-            get_config!(inner.network.dht.set_value_timeout_ms);
-            get_config!(inner.network.dht.set_value_count);
-            get_config!(inner.network.dht.set_value_fanout);
-            get_config!(inner.network.dht.min_peer_count);
-            get_config!(inner.network.dht.min_peer_refresh_time_ms);
-            get_config!(inner.network.dht.validate_dial_info_receipt_time_ms);
-            get_config!(inner.network.dht.local_subkey_cache_size);
-            get_config!(inner.network.dht.local_max_subkey_cache_memory_mb);
-            get_config!(inner.network.dht.remote_subkey_cache_size);
-            get_config!(inner.network.dht.remote_max_records);
-            get_config!(inner.network.dht.remote_max_subkey_cache_memory_mb);
-            get_config!(inner.network.dht.remote_max_storage_space_mb);
-            get_config!(inner.network.dht.public_watch_limit);
-            get_config!(inner.network.dht.member_watch_limit);
-            get_config!(inner.network.dht.max_watch_expiration_ms);
-            get_config!(inner.network.rpc.concurrency);
-            get_config!(inner.network.rpc.queue_size);
-            get_config!(inner.network.rpc.max_timestamp_behind_ms);
-            get_config!(inner.network.rpc.max_timestamp_ahead_ms);
-            get_config!(inner.network.rpc.timeout_ms);
-            get_config!(inner.network.rpc.max_route_hop_count);
-            get_config!(inner.network.rpc.default_route_hop_count);
-            get_config!(inner.network.upnp);
-            get_config!(inner.network.detect_address_changes);
-            get_config!(inner.network.restricted_nat_retries);
-            get_config!(inner.network.tls.certificate_path);
-            get_config!(inner.network.tls.private_key_path);
-            get_config!(inner.network.tls.connection_initial_timeout_ms);
-            get_config!(inner.network.application.https.enabled);
-            get_config!(inner.network.application.https.listen_address);
-            get_config!(inner.network.application.https.path);
-            get_config!(inner.network.application.https.url);
-            get_config!(inner.network.application.http.enabled);
-            get_config!(inner.network.application.http.listen_address);
-            get_config!(inner.network.application.http.path);
-            get_config!(inner.network.application.http.url);
-            get_config!(inner.network.protocol.udp.enabled);
-            get_config!(inner.network.protocol.udp.socket_pool_size);
-            get_config!(inner.network.protocol.udp.listen_address);
-            get_config!(inner.network.protocol.udp.public_address);
-            get_config!(inner.network.protocol.tcp.connect);
-            get_config!(inner.network.protocol.tcp.listen);
-            get_config!(inner.network.protocol.tcp.max_connections);
-            get_config!(inner.network.protocol.tcp.listen_address);
-            get_config!(inner.network.protocol.tcp.public_address);
-            get_config!(inner.network.protocol.ws.connect);
-            get_config!(inner.network.protocol.ws.listen);
-            get_config!(inner.network.protocol.ws.max_connections);
-            get_config!(inner.network.protocol.ws.listen_address);
-            get_config!(inner.network.protocol.ws.path);
-            get_config!(inner.network.protocol.ws.url);
-            get_config!(inner.network.protocol.wss.connect);
-            get_config!(inner.network.protocol.wss.listen);
-            get_config!(inner.network.protocol.wss.max_connections);
-            get_config!(inner.network.protocol.wss.listen_address);
-            get_config!(inner.network.protocol.wss.path);
-            get_config!(inner.network.protocol.wss.url);
-            #[cfg(feature = "geolocation")]
-            get_config!(inner.network.privacy.country_code_denylist);
-            Ok(())
+        // Simple config transformation
+        macro_rules! get_config {
+            ($key:expr) => {
+                let keyname = &stringify!($key)[6..];
+                let v = cb(keyname.to_owned())?;
+                $key = match v.downcast() {
+                    Ok(v) => *v,
+                    Err(e) => {
+                        apibail_generic!(format!(
+                            "incorrect type for key {}: {:?}",
+                            keyname,
+                            type_name_of_val(&*e)
+                        ))
+                    }
+                };
+            };
+        }
+
+        get_config!(inner.program_name);
+        get_config!(inner.namespace);
+        get_config!(inner.capabilities.disable);
+        get_config!(inner.table_store.directory);
+        get_config!(inner.table_store.delete);
+        get_config!(inner.block_store.directory);
+        get_config!(inner.block_store.delete);
+        get_config!(inner.protected_store.allow_insecure_fallback);
+        get_config!(inner.protected_store.always_use_insecure_storage);
+        get_config!(inner.protected_store.directory);
+        get_config!(inner.protected_store.delete);
+        get_config!(inner.protected_store.device_encryption_key_password);
+        get_config!(inner.protected_store.new_device_encryption_key_password);
+        get_config!(inner.network.connection_initial_timeout_ms);
+        get_config!(inner.network.connection_inactivity_timeout_ms);
+        get_config!(inner.network.max_connections_per_ip4);
+        get_config!(inner.network.max_connections_per_ip6_prefix);
+        get_config!(inner.network.max_connections_per_ip6_prefix_size);
+        get_config!(inner.network.max_connection_frequency_per_min);
+        get_config!(inner.network.client_allowlist_timeout_ms);
+        get_config!(inner.network.reverse_connection_receipt_time_ms);
+        get_config!(inner.network.hole_punch_receipt_time_ms);
+        get_config!(inner.network.network_key_password);
+        get_config!(inner.network.routing_table.node_id);
+        get_config!(inner.network.routing_table.node_id_secret);
+        get_config!(inner.network.routing_table.bootstrap);
+        get_config!(inner.network.routing_table.limit_over_attached);
+        get_config!(inner.network.routing_table.limit_fully_attached);
+        get_config!(inner.network.routing_table.limit_attached_strong);
+        get_config!(inner.network.routing_table.limit_attached_good);
+        get_config!(inner.network.routing_table.limit_attached_weak);
+        get_config!(inner.network.dht.max_find_node_count);
+        get_config!(inner.network.dht.resolve_node_timeout_ms);
+        get_config!(inner.network.dht.resolve_node_count);
+        get_config!(inner.network.dht.resolve_node_fanout);
+        get_config!(inner.network.dht.get_value_timeout_ms);
+        get_config!(inner.network.dht.get_value_count);
+        get_config!(inner.network.dht.get_value_fanout);
+        get_config!(inner.network.dht.set_value_timeout_ms);
+        get_config!(inner.network.dht.set_value_count);
+        get_config!(inner.network.dht.set_value_fanout);
+        get_config!(inner.network.dht.min_peer_count);
+        get_config!(inner.network.dht.min_peer_refresh_time_ms);
+        get_config!(inner.network.dht.validate_dial_info_receipt_time_ms);
+        get_config!(inner.network.dht.local_subkey_cache_size);
+        get_config!(inner.network.dht.local_max_subkey_cache_memory_mb);
+        get_config!(inner.network.dht.remote_subkey_cache_size);
+        get_config!(inner.network.dht.remote_max_records);
+        get_config!(inner.network.dht.remote_max_subkey_cache_memory_mb);
+        get_config!(inner.network.dht.remote_max_storage_space_mb);
+        get_config!(inner.network.dht.public_watch_limit);
+        get_config!(inner.network.dht.member_watch_limit);
+        get_config!(inner.network.dht.max_watch_expiration_ms);
+        get_config!(inner.network.rpc.concurrency);
+        get_config!(inner.network.rpc.queue_size);
+        get_config!(inner.network.rpc.max_timestamp_behind_ms);
+        get_config!(inner.network.rpc.max_timestamp_ahead_ms);
+        get_config!(inner.network.rpc.timeout_ms);
+        get_config!(inner.network.rpc.max_route_hop_count);
+        get_config!(inner.network.rpc.default_route_hop_count);
+        get_config!(inner.network.upnp);
+        get_config!(inner.network.detect_address_changes);
+        get_config!(inner.network.restricted_nat_retries);
+        get_config!(inner.network.tls.certificate_path);
+        get_config!(inner.network.tls.private_key_path);
+        get_config!(inner.network.tls.connection_initial_timeout_ms);
+        get_config!(inner.network.application.https.enabled);
+        get_config!(inner.network.application.https.listen_address);
+        get_config!(inner.network.application.https.path);
+        get_config!(inner.network.application.https.url);
+        get_config!(inner.network.application.http.enabled);
+        get_config!(inner.network.application.http.listen_address);
+        get_config!(inner.network.application.http.path);
+        get_config!(inner.network.application.http.url);
+        get_config!(inner.network.protocol.udp.enabled);
+        get_config!(inner.network.protocol.udp.socket_pool_size);
+        get_config!(inner.network.protocol.udp.listen_address);
+        get_config!(inner.network.protocol.udp.public_address);
+        get_config!(inner.network.protocol.tcp.connect);
+        get_config!(inner.network.protocol.tcp.listen);
+        get_config!(inner.network.protocol.tcp.max_connections);
+        get_config!(inner.network.protocol.tcp.listen_address);
+        get_config!(inner.network.protocol.tcp.public_address);
+        get_config!(inner.network.protocol.ws.connect);
+        get_config!(inner.network.protocol.ws.listen);
+        get_config!(inner.network.protocol.ws.max_connections);
+        get_config!(inner.network.protocol.ws.listen_address);
+        get_config!(inner.network.protocol.ws.path);
+        get_config!(inner.network.protocol.ws.url);
+        get_config!(inner.network.protocol.wss.connect);
+        get_config!(inner.network.protocol.wss.listen);
+        get_config!(inner.network.protocol.wss.max_connections);
+        get_config!(inner.network.protocol.wss.listen_address);
+        get_config!(inner.network.protocol.wss.path);
+        get_config!(inner.network.protocol.wss.url);
+        #[cfg(feature = "geolocation")]
+        get_config!(inner.network.privacy.country_code_denylist);
+        #[cfg(feature = "virtual-network")]
+        {
+            get_config!(inner.network.virtual_network.enabled);
+            get_config!(inner.network.virtual_network.server_address);
+        }
+
+        Ok(Self {
+            update_cb,
+            inner: Arc::new(RwLock::new(inner)),
         })
     }
 
@@ -1007,6 +1017,10 @@ impl VeilidConfig {
         Box::new(VeilidStateConfig {
             config: inner.clone(),
         })
+    }
+
+    pub fn update_callback(&self) -> UpdateCallback {
+        self.update_cb.clone()
     }
 
     pub fn get(&self) -> RwLockReadGuard<VeilidConfigInner> {
@@ -1038,7 +1052,15 @@ impl VeilidConfig {
         }
     }
 
-    pub fn with_mut<F, R>(&self, f: F) -> VeilidAPIResult<R>
+    pub fn with<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&VeilidConfigInner) -> R,
+    {
+        let inner = self.inner.read();
+        f(&inner)
+    }
+
+    pub fn try_with_mut<F, R>(&self, f: F) -> VeilidAPIResult<R>
     where
         F: FnOnce(&mut VeilidConfigInner) -> VeilidAPIResult<R>,
     {
@@ -1061,12 +1083,10 @@ impl VeilidConfig {
         };
 
         // Send configuration update to clients
-        if let Some(update_cb) = &self.update_cb {
-            let safe_cfg = self.safe_config_inner();
-            update_cb(VeilidUpdate::Config(Box::new(VeilidStateConfig {
-                config: safe_cfg,
-            })));
-        }
+        let safe_cfg = self.safe_config_inner();
+        (self.update_cb)(VeilidUpdate::Config(Box::new(VeilidStateConfig {
+            config: safe_cfg,
+        })));
 
         Ok(out)
     }
@@ -1103,7 +1123,7 @@ impl VeilidConfig {
         }
     }
     pub fn set_key_json(&self, key: &str, value: &str) -> VeilidAPIResult<()> {
-        self.with_mut(|c| {
+        self.try_with_mut(|c| {
             // Split key into path parts
             let keypath: Vec<&str> = key.split('.').collect();
 
@@ -1272,124 +1292,6 @@ impl VeilidConfig {
         if inner.network.rpc.timeout_ms < 1000 {
             apibail_generic!("rpc timeout must be >= 1000 in 'network.rpc.timeout_ms'");
         }
-
-        Ok(())
-    }
-
-    #[cfg(not(test))]
-    async fn init_node_id(
-        &self,
-        vcrypto: CryptoSystemVersion,
-        table_store: TableStore,
-    ) -> VeilidAPIResult<(TypedKey, TypedSecret)> {
-        let ck = vcrypto.kind();
-        let mut node_id = self.inner.read().network.routing_table.node_id.get(ck);
-        let mut node_id_secret = self
-            .inner
-            .read()
-            .network
-            .routing_table
-            .node_id_secret
-            .get(ck);
-
-        // See if node id was previously stored in the table store
-        let config_table = table_store.open("__veilid_config", 1).await?;
-
-        let table_key_node_id = format!("node_id_{}", ck);
-        let table_key_node_id_secret = format!("node_id_secret_{}", ck);
-
-        if node_id.is_none() {
-            log_tstore!(debug "pulling {} from storage", table_key_node_id);
-            if let Ok(Some(stored_node_id)) = config_table
-                .load_json::<TypedKey>(0, table_key_node_id.as_bytes())
-                .await
-            {
-                log_tstore!(debug "{} found in storage", table_key_node_id);
-                node_id = Some(stored_node_id);
-            } else {
-                log_tstore!(debug "{} not found in storage", table_key_node_id);
-            }
-        }
-
-        // See if node id secret was previously stored in the protected store
-        if node_id_secret.is_none() {
-            log_tstore!(debug "pulling {} from storage", table_key_node_id_secret);
-            if let Ok(Some(stored_node_id_secret)) = config_table
-                .load_json::<TypedSecret>(0, table_key_node_id_secret.as_bytes())
-                .await
-            {
-                log_tstore!(debug "{} found in storage", table_key_node_id_secret);
-                node_id_secret = Some(stored_node_id_secret);
-            } else {
-                log_tstore!(debug "{} not found in storage", table_key_node_id_secret);
-            }
-        }
-
-        // If we have a node id from storage, check it
-        let (node_id, node_id_secret) =
-            if let (Some(node_id), Some(node_id_secret)) = (node_id, node_id_secret) {
-                // Validate node id
-                if !vcrypto.validate_keypair(&node_id.value, &node_id_secret.value) {
-                    apibail_generic!(format!(
-                        "node_id_secret_{} and node_id_key_{} don't match",
-                        ck, ck
-                    ));
-                }
-                (node_id, node_id_secret)
-            } else {
-                // If we still don't have a valid node id, generate one
-                log_tstore!(debug "generating new node_id_{}", ck);
-                let kp = vcrypto.generate_keypair();
-                (TypedKey::new(ck, kp.key), TypedSecret::new(ck, kp.secret))
-            };
-        info!("Node Id: {}", node_id);
-
-        // Save the node id / secret in storage
-        config_table
-            .store_json(0, table_key_node_id.as_bytes(), &node_id)
-            .await?;
-        config_table
-            .store_json(0, table_key_node_id_secret.as_bytes(), &node_id_secret)
-            .await?;
-
-        Ok((node_id, node_id_secret))
-    }
-
-    /// Get the node id from config if one is specified.
-    /// Must be done -after- protected store startup.
-    #[cfg_attr(test, allow(unused_variables))]
-    pub async fn init_node_ids(
-        &self,
-        crypto: Crypto,
-        table_store: TableStore,
-    ) -> VeilidAPIResult<()> {
-        let mut out_node_id = TypedKeyGroup::new();
-        let mut out_node_id_secret = TypedSecretGroup::new();
-
-        for ck in VALID_CRYPTO_KINDS {
-            let vcrypto = crypto
-                .get(ck)
-                .expect("Valid crypto kind is not actually valid.");
-
-            #[cfg(test)]
-            let (node_id, node_id_secret) = {
-                let kp = vcrypto.generate_keypair();
-                (TypedKey::new(ck, kp.key), TypedSecret::new(ck, kp.secret))
-            };
-            #[cfg(not(test))]
-            let (node_id, node_id_secret) = self.init_node_id(vcrypto, table_store.clone()).await?;
-
-            // Save for config
-            out_node_id.add(node_id);
-            out_node_id_secret.add(node_id_secret);
-        }
-
-        // Commit back to config
-        self.with_mut(|c| {
-            c.network.routing_table.node_id = out_node_id;
-            c.network.routing_table.node_id_secret = out_node_id_secret;
-            Ok(())
-        })?;
 
         Ok(())
     }

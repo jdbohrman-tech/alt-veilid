@@ -8,7 +8,6 @@ cfg_if! {
     } else if #[cfg(feature="rt-tokio")] {
         use tokio::net::{TcpListener, TcpStream};
         use tokio::time::sleep;
-        use tokio_util::compat::*;
     }
 }
 

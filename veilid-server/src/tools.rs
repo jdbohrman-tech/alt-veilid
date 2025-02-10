@@ -7,8 +7,6 @@ pub use tracing::*;
 cfg_if! {
     if #[cfg(feature="rt-async-std")] {
 //        pub use async_std::task::JoinHandle;
-        pub use async_std::net::TcpListener;
-        pub use async_std::net::TcpStream;
         pub use async_std::io::BufReader;
         //pub use async_std::future::TimeoutError;
         //pub fn spawn_detached<F: Future<Output = T> + Send + 'static, T: Send + 'static>(f: F) -> JoinHandle<T> {
@@ -27,8 +25,6 @@ cfg_if! {
         }
     } else if #[cfg(feature="rt-tokio")] {
         //pub use tokio::task::JoinHandle;
-        pub use tokio::net::TcpListener;
-        pub use tokio::net::TcpStream;
         pub use tokio::io::BufReader;
         //pub use tokio_util::compat::*;
         //pub use tokio::time::error::Elapsed as TimeoutError;

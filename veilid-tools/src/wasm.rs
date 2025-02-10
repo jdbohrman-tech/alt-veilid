@@ -1,7 +1,9 @@
 use super::*;
 use core::sync::atomic::{AtomicI8, AtomicU32, Ordering};
 use js_sys::{global, Reflect};
+use std::io;
 use wasm_bindgen::prelude::*;
+use ws_stream_wasm::WsErr;
 
 #[wasm_bindgen]
 extern "C" {
@@ -66,13 +68,6 @@ pub fn is_ipv6_supported() -> bool {
     if let Some(supp) = *opt_supp {
         return supp;
     }
-    // let supp = match UdpSocket::bind(SocketAddrV6::new(Ipv6Addr::LOCALHOST, 0, 0, 0)) {
-    //     Ok(_) => true,
-    //     Err(e) => !matches!(
-    //         e.kind(),
-    //         std::io::ErrorKind::AddrNotAvailable | std::io::ErrorKind::Unsupported
-    //     ),
-    // };
 
     // XXX: See issue #92
     let supp = false;
@@ -95,4 +90,27 @@ pub fn get_concurrency() -> u32 {
     CACHE.store(res, Ordering::Release);
 
     res
+}
+
+pub fn ws_err_to_io_error(err: WsErr) -> io::Error {
+    match err {
+        WsErr::InvalidWsState { supplied: _ } => {
+            io::Error::new(io::ErrorKind::InvalidInput, err.to_string())
+        }
+        WsErr::ConnectionNotOpen => io::Error::new(io::ErrorKind::NotConnected, err.to_string()),
+        WsErr::InvalidUrl { supplied: _ } => {
+            io::Error::new(io::ErrorKind::InvalidInput, err.to_string())
+        }
+        WsErr::InvalidCloseCode { supplied: _ } => {
+            io::Error::new(io::ErrorKind::InvalidInput, err.to_string())
+        }
+        WsErr::ReasonStringToLong => io::Error::new(io::ErrorKind::InvalidInput, err.to_string()),
+        WsErr::ConnectionFailed { event: _ } => {
+            io::Error::new(io::ErrorKind::ConnectionRefused, err.to_string())
+        }
+        WsErr::InvalidEncoding => io::Error::new(io::ErrorKind::InvalidInput, err.to_string()),
+        WsErr::CantDecodeBlob => io::Error::new(io::ErrorKind::InvalidInput, err.to_string()),
+        WsErr::UnknownDataType => io::Error::new(io::ErrorKind::InvalidInput, err.to_string()),
+        _ => io::Error::new(io::ErrorKind::Other, err.to_string()),
+    }
 }

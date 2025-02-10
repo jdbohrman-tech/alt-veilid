@@ -30,7 +30,7 @@ pub async fn test_signed_node_info() {
         // Test correct validation
         let keypair = vcrypto.generate_keypair();
         let sni = SignedDirectNodeInfo::make_signatures(
-            crypto.clone(),
+            &crypto,
             vec![TypedKeyPair::new(ck, keypair)],
             node_info.clone(),
         )
@@ -42,7 +42,7 @@ pub async fn test_signed_node_info() {
             sni.timestamp(),
             sni.signatures().to_vec(),
         );
-        let tks_validated = sdni.validate(&tks, crypto.clone()).unwrap();
+        let tks_validated = sdni.validate(&tks, &crypto).unwrap();
         assert_eq!(tks_validated.len(), oldtkslen);
         assert_eq!(tks_validated.len(), sni.signatures().len());
 
@@ -54,7 +54,7 @@ pub async fn test_signed_node_info() {
             sni.timestamp(),
             sni.signatures().to_vec(),
         );
-        sdni.validate(&tks1, crypto.clone()).unwrap_err();
+        sdni.validate(&tks1, &crypto).unwrap_err();
 
         // Test unsupported cryptosystem validation
         let fake_crypto_kind: CryptoKind = FourCC::from([0, 1, 2, 3]);
@@ -65,7 +65,7 @@ pub async fn test_signed_node_info() {
         tksfake.add(TypedKey::new(ck, keypair.key));
         let sdnifake =
             SignedDirectNodeInfo::new(node_info.clone(), sni.timestamp(), sigsfake.clone());
-        let tksfake_validated = sdnifake.validate(&tksfake, crypto.clone()).unwrap();
+        let tksfake_validated = sdnifake.validate(&tksfake, &crypto).unwrap();
         assert_eq!(tksfake_validated.len(), 1);
         assert_eq!(sdnifake.signatures().len(), sigsfake.len());
 
@@ -89,7 +89,7 @@ pub async fn test_signed_node_info() {
         let oldtks2len = tks2.len();
 
         let sni2 = SignedRelayedNodeInfo::make_signatures(
-            crypto.clone(),
+            &crypto,
             vec![TypedKeyPair::new(ck, keypair2)],
             node_info2.clone(),
             tks.clone(),
@@ -103,7 +103,7 @@ pub async fn test_signed_node_info() {
             sni2.timestamp(),
             sni2.signatures().to_vec(),
         );
-        let tks2_validated = srni.validate(&tks2, crypto.clone()).unwrap();
+        let tks2_validated = srni.validate(&tks2, &crypto).unwrap();
 
         assert_eq!(tks2_validated.len(), oldtks2len);
         assert_eq!(tks2_validated.len(), sni2.signatures().len());
@@ -119,7 +119,7 @@ pub async fn test_signed_node_info() {
             sni2.timestamp(),
             sni2.signatures().to_vec(),
         );
-        srni.validate(&tks3, crypto.clone()).unwrap_err();
+        srni.validate(&tks3, &crypto).unwrap_err();
 
         // Test unsupported cryptosystem validation
         let fake_crypto_kind: CryptoKind = FourCC::from([0, 1, 2, 3]);
@@ -135,7 +135,7 @@ pub async fn test_signed_node_info() {
             sni2.timestamp(),
             sigsfake3.clone(),
         );
-        let tksfake3_validated = srnifake.validate(&tksfake3, crypto.clone()).unwrap();
+        let tksfake3_validated = srnifake.validate(&tksfake3, &crypto).unwrap();
         assert_eq!(tksfake3_validated.len(), 1);
         assert_eq!(srnifake.signatures().len(), sigsfake3.len());
     }

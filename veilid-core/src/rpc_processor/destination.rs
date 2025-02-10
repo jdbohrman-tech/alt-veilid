@@ -123,7 +123,7 @@ impl Destination {
         }
     }
 
-    pub fn get_target(&self, rss: RouteSpecStore) -> Result<Target, RPCError> {
+    pub fn get_target(&self, routing_table: &RoutingTable) -> Result<Target, RPCError> {
         match self {
             Destination::Direct {
                 node,
@@ -139,7 +139,8 @@ impl Destination {
                 safety_selection: _,
             } => {
                 // Add the remote private route if we're going to keep the id
-                let route_id = rss
+                let route_id = routing_table
+                    .route_spec_store()
                     .add_remote_private_route(private_route.clone())
                     .map_err(RPCError::protocol)?;
 
@@ -150,7 +151,7 @@ impl Destination {
 
     pub fn get_unsafe_routing_info(
         &self,
-        routing_table: RoutingTable,
+        routing_table: &RoutingTable,
     ) -> Option<UnsafeRoutingInfo> {
         // If there's a safety route in use, the safety route will be responsible for the routing
         match self.get_safety_selection() {
@@ -298,9 +299,11 @@ impl RPCProcessor {
             }
             Target::PrivateRoute(rsid) => {
                 // Get remote private route
-                let rss = self.routing_table().route_spec_store();
-
-                let Some(private_route) = rss.best_remote_private_route(&rsid) else {
+                let Some(private_route) = self
+                    .routing_table()
+                    .route_spec_store()
+                    .best_remote_private_route(&rsid)
+                else {
                     return Err(RPCError::network("could not get remote private route"));
                 };
 

@@ -6,7 +6,7 @@ use core::fmt;
 use core::hash::Hash;
 
 /// Cryptography version fourcc code
-#[cfg_attr(target_arch = "wasm32", declare)]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
 pub type CryptoKind = FourCC;
 
 /// Sort best crypto kinds first
@@ -52,24 +52,24 @@ pub use crypto_typed::*;
 pub use crypto_typed_group::*;
 pub use keypair::*;
 
-#[cfg_attr(target_arch = "wasm32", declare)]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
 pub type TypedKey = CryptoTyped<PublicKey>;
-#[cfg_attr(target_arch = "wasm32", declare)]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
 pub type TypedSecret = CryptoTyped<SecretKey>;
-#[cfg_attr(target_arch = "wasm32", declare)]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
 pub type TypedKeyPair = CryptoTyped<KeyPair>;
-#[cfg_attr(target_arch = "wasm32", declare)]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
 pub type TypedSignature = CryptoTyped<Signature>;
-#[cfg_attr(target_arch = "wasm32", declare)]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
 pub type TypedSharedSecret = CryptoTyped<SharedSecret>;
 
-#[cfg_attr(target_arch = "wasm32", declare)]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
 pub type TypedKeyGroup = CryptoTypedGroup<PublicKey>;
-#[cfg_attr(target_arch = "wasm32", declare)]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
 pub type TypedSecretGroup = CryptoTypedGroup<SecretKey>;
-#[cfg_attr(target_arch = "wasm32", declare)]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
 pub type TypedKeyPairGroup = CryptoTypedGroup<KeyPair>;
-#[cfg_attr(target_arch = "wasm32", declare)]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
 pub type TypedSignatureGroup = CryptoTypedGroup<Signature>;
-#[cfg_attr(target_arch = "wasm32", declare)]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
 pub type TypedSharedSecretGroup = CryptoTypedGroup<SharedSecret>;

@@ -15,8 +15,8 @@ pub type EntryCounts = BTreeMap<(RoutingDomain, CryptoKind), usize>;
 
 /// RoutingTable rwlock-internal data
 pub struct RoutingTableInner {
-    /// Extra pointer to unlocked members to simplify access
-    pub(super) unlocked_inner: Arc<RoutingTableUnlockedInner>,
+    /// Convenience accessor for the global component registry
+    pub(super) registry: VeilidComponentRegistry,
     /// Routing table buckets that hold references to entries, per crypto kind
     pub(super) buckets: BTreeMap<CryptoKind, Vec<Bucket>>,
     /// A weak set of all the entries we have in the buckets for faster iteration
@@ -44,10 +44,12 @@ pub struct RoutingTableInner {
     pub(super) opt_active_watch_keepalive_ts: Option<Timestamp>,
 }
 
+impl_veilid_component_registry_accessor!(RoutingTableInner);
+
 impl RoutingTableInner {
-    pub(super) fn new(unlocked_inner: Arc<RoutingTableUnlockedInner>) -> RoutingTableInner {
+    pub(super) fn new(registry: VeilidComponentRegistry) -> RoutingTableInner {
         RoutingTableInner {
-            unlocked_inner,
+            registry,
             buckets: BTreeMap::new(),
             public_internet_routing_domain: PublicInternetRoutingDomainDetail::default(),
             local_network_routing_domain: LocalNetworkRoutingDomainDetail::default(),
@@ -458,7 +460,6 @@ impl RoutingTableInner {
     // Collect all entries that are 'needs_ping' and have some node info making them reachable somehow
     pub(super) fn get_nodes_needing_ping(
         &self,
-        outer_self: RoutingTable,
         routing_domain: RoutingDomain,
         cur_ts: Timestamp,
     ) -> Vec<FilteredNodeRef> {
@@ -559,7 +560,7 @@ impl RoutingTableInner {
 
         let transform = |_rti: &RoutingTableInner, v: Option<Arc<BucketEntry>>| {
             FilteredNodeRef::new(
-                outer_self.clone(),
+                self.registry.clone(),
                 v.unwrap().clone(),
                 NodeRefFilter::new().with_routing_domain(routing_domain),
                 Sequencing::default(),
@@ -570,10 +571,10 @@ impl RoutingTableInner {
     }
 
     #[expect(dead_code)]
-    pub fn get_all_alive_nodes(&self, outer_self: RoutingTable, cur_ts: Timestamp) -> Vec<NodeRef> {
+    pub fn get_all_alive_nodes(&self, cur_ts: Timestamp) -> Vec<NodeRef> {
         let mut node_refs = Vec::<NodeRef>::with_capacity(self.bucket_entry_count());
         self.with_entries(cur_ts, BucketEntryState::Unreliable, |_rti, entry| {
-            node_refs.push(NodeRef::new(outer_self.clone(), entry));
+            node_refs.push(NodeRef::new(self.registry(), entry));
             Option::<()>::None
         });
         node_refs
@@ -601,6 +602,8 @@ impl RoutingTableInner {
         entry: Arc<BucketEntry>,
         node_ids: &[TypedKey],
     ) -> EyreResult<()> {
+        let routing_table = self.routing_table();
+
         entry.with_mut_inner(|e| {
             let mut existing_node_ids = e.node_ids();
 
@@ -631,21 +634,21 @@ impl RoutingTableInner {
                 if let Some(old_node_id) = e.add_node_id(*node_id)? {
                     // Remove any old node id for this crypto kind
                     if VALID_CRYPTO_KINDS.contains(&ck) {
-                        let bucket_index = self.unlocked_inner.calculate_bucket_index(&old_node_id);
+                        let bucket_index = routing_table.calculate_bucket_index(&old_node_id);
                         let bucket = self.get_bucket_mut(bucket_index);
                         bucket.remove_entry(&old_node_id.value);
-                        self.unlocked_inner.kick_queue.lock().insert(bucket_index);
+                        routing_table.kick_queue.lock().insert(bucket_index);
                     }
                 }
 
                 // Bucket the entry appropriately
                 if VALID_CRYPTO_KINDS.contains(&ck) {
-                    let bucket_index = self.unlocked_inner.calculate_bucket_index(node_id);
+                    let bucket_index = routing_table.calculate_bucket_index(node_id);
                     let bucket = self.get_bucket_mut(bucket_index);
                     bucket.add_existing_entry(node_id.value, entry.clone());
 
                     // Kick bucket
-                    self.unlocked_inner.kick_queue.lock().insert(bucket_index);
+                    routing_table.kick_queue.lock().insert(bucket_index);
                 }
             }
 
@@ -653,7 +656,7 @@ impl RoutingTableInner {
             for node_id in existing_node_ids.iter() {
                 let ck = node_id.kind;
                 if VALID_CRYPTO_KINDS.contains(&ck) {
-                    let bucket_index = self.unlocked_inner.calculate_bucket_index(node_id);
+                    let bucket_index = routing_table.calculate_bucket_index(node_id);
                     let bucket = self.get_bucket_mut(bucket_index);
                     bucket.remove_entry(&node_id.value);
                     entry.with_mut_inner(|e| e.remove_node_id(ck));
@@ -687,15 +690,16 @@ impl RoutingTableInner {
     #[instrument(level = "trace", skip_all, err)]
     fn create_node_ref<F>(
         &mut self,
-        outer_self: RoutingTable,
         node_ids: &TypedKeyGroup,
         update_func: F,
     ) -> EyreResult<NodeRef>
     where
         F: FnOnce(&mut RoutingTableInner, &mut BucketEntryInner),
     {
+        let routing_table = self.routing_table();
+
         // Ensure someone isn't trying register this node itself
-        if self.unlocked_inner.matches_own_node_id(node_ids) {
+        if routing_table.matches_own_node_id(node_ids) {
             bail!("can't register own node");
         }
 
@@ -708,7 +712,7 @@ impl RoutingTableInner {
                 continue;
             }
             // Find the first in crypto sort order
-            let bucket_index = self.unlocked_inner.calculate_bucket_index(node_id);
+            let bucket_index = routing_table.calculate_bucket_index(node_id);
             let bucket = self.get_bucket(bucket_index);
             if let Some(entry) = bucket.entry(&node_id.value) {
                 // Best entry is the first one in sorted order that exists from the node id list
@@ -730,7 +734,7 @@ impl RoutingTableInner {
             }
 
             // Make a noderef to return
-            let nr = NodeRef::new(outer_self.clone(), best_entry.clone());
+            let nr = NodeRef::new(self.registry(), best_entry.clone());
 
             // Update the entry with the update func
             best_entry.with_mut_inner(|e| update_func(self, e));
@@ -741,11 +745,11 @@ impl RoutingTableInner {
 
         // If no entry exists yet, add the first entry to a bucket, possibly evicting a bucket member
         let first_node_id = node_ids[0];
-        let bucket_entry = self.unlocked_inner.calculate_bucket_index(&first_node_id);
+        let bucket_entry = routing_table.calculate_bucket_index(&first_node_id);
         let bucket = self.get_bucket_mut(bucket_entry);
         let new_entry = bucket.add_new_entry(first_node_id.value);
         self.all_entries.insert(new_entry.clone());
-        self.unlocked_inner.kick_queue.lock().insert(bucket_entry);
+        routing_table.kick_queue.lock().insert(bucket_entry);
 
         // Update the other bucket entries with the remaining node ids
         if let Err(e) = self.update_bucket_entry_node_ids(new_entry.clone(), node_ids) {
@@ -753,7 +757,7 @@ impl RoutingTableInner {
         }
 
         // Make node ref to return
-        let nr = NodeRef::new(outer_self.clone(), new_entry.clone());
+        let nr = NodeRef::new(self.registry(), new_entry.clone());
 
         // Update the entry with the update func
         new_entry.with_mut_inner(|e| update_func(self, e));
@@ -766,15 +770,9 @@ impl RoutingTableInner {
 
     /// Resolve an existing routing table entry using any crypto kind and return a reference to it
     #[instrument(level = "trace", skip_all, err)]
-    pub fn lookup_any_node_ref(
-        &self,
-        outer_self: RoutingTable,
-        node_id_key: PublicKey,
-    ) -> EyreResult<Option<NodeRef>> {
+    pub fn lookup_any_node_ref(&self, node_id_key: PublicKey) -> EyreResult<Option<NodeRef>> {
         for ck in VALID_CRYPTO_KINDS {
-            if let Some(nr) =
-                self.lookup_node_ref(outer_self.clone(), TypedKey::new(ck, node_id_key))?
-            {
+            if let Some(nr) = self.lookup_node_ref(TypedKey::new(ck, node_id_key))? {
                 return Ok(Some(nr));
             }
         }
@@ -783,35 +781,30 @@ impl RoutingTableInner {
 
     /// Resolve an existing routing table entry and return a reference to it
     #[instrument(level = "trace", skip_all, err)]
-    pub fn lookup_node_ref(
-        &self,
-        outer_self: RoutingTable,
-        node_id: TypedKey,
-    ) -> EyreResult<Option<NodeRef>> {
-        if self.unlocked_inner.matches_own_node_id(&[node_id]) {
+    pub fn lookup_node_ref(&self, node_id: TypedKey) -> EyreResult<Option<NodeRef>> {
+        if self.routing_table().matches_own_node_id(&[node_id]) {
             bail!("can't look up own node id in routing table");
         }
         if !VALID_CRYPTO_KINDS.contains(&node_id.kind) {
             bail!("can't look up node id with invalid crypto kind");
         }
 
-        let bucket_index = self.unlocked_inner.calculate_bucket_index(&node_id);
+        let bucket_index = self.routing_table().calculate_bucket_index(&node_id);
         let bucket = self.get_bucket(bucket_index);
         Ok(bucket
             .entry(&node_id.value)
-            .map(|e| NodeRef::new(outer_self, e)))
+            .map(|e| NodeRef::new(self.registry(), e)))
     }
 
     /// Resolve an existing routing table entry and return a filtered reference to it
     #[instrument(level = "trace", skip_all, err)]
     pub fn lookup_and_filter_noderef(
         &self,
-        outer_self: RoutingTable,
         node_id: TypedKey,
         routing_domain_set: RoutingDomainSet,
         dial_info_filter: DialInfoFilter,
     ) -> EyreResult<Option<FilteredNodeRef>> {
-        let nr = self.lookup_node_ref(outer_self, node_id)?;
+        let nr = self.lookup_node_ref(node_id)?;
         Ok(nr.map(|nr| {
             nr.custom_filtered(
                 NodeRefFilter::new()
@@ -826,7 +819,7 @@ impl RoutingTableInner {
     where
         F: FnOnce(Arc<BucketEntry>) -> R,
     {
-        if self.unlocked_inner.matches_own_node_id(&[node_id]) {
+        if self.routing_table().matches_own_node_id(&[node_id]) {
             log_rtab!(error "can't look up own node id in routing table");
             return None;
         }
@@ -834,7 +827,7 @@ impl RoutingTableInner {
             log_rtab!(error "can't look up node id with invalid crypto kind");
             return None;
         }
-        let bucket_entry = self.unlocked_inner.calculate_bucket_index(&node_id);
+        let bucket_entry = self.routing_table().calculate_bucket_index(&node_id);
         let bucket = self.get_bucket(bucket_entry);
         bucket.entry(&node_id.value).map(f)
     }
@@ -845,7 +838,6 @@ impl RoutingTableInner {
     #[instrument(level = "trace", skip_all, err)]
     pub fn register_node_with_peer_info(
         &mut self,
-        outer_self: RoutingTable,
         peer_info: Arc<PeerInfo>,
         allow_invalid: bool,
     ) -> EyreResult<FilteredNodeRef> {
@@ -853,7 +845,7 @@ impl RoutingTableInner {
 
         // if our own node is in the list, then ignore it as we don't add ourselves to our own routing table
         if self
-            .unlocked_inner
+            .routing_table()
             .matches_own_node_id(peer_info.node_ids())
         {
             bail!("can't register own node id in routing table");
@@ -891,10 +883,10 @@ impl RoutingTableInner {
         if let Some(relay_peer_info) = peer_info.signed_node_info().relay_peer_info(routing_domain)
         {
             if !self
-                .unlocked_inner
+                .routing_table()
                 .matches_own_node_id(relay_peer_info.node_ids())
             {
-                self.register_node_with_peer_info(outer_self.clone(), relay_peer_info, false)?;
+                self.register_node_with_peer_info(relay_peer_info, false)?;
             }
         }
 
@@ -902,7 +894,7 @@ impl RoutingTableInner {
             Arc::unwrap_or_clone(peer_info).destructure();
         let mut updated = false;
         let mut old_peer_info = None;
-        let nr = self.create_node_ref(outer_self, &node_ids, |_rti, e| {
+        let nr = self.create_node_ref(&node_ids, |_rti, e| {
             old_peer_info = e.make_peer_info(routing_domain);
             updated = e.update_signed_node_info(routing_domain, &signed_node_info);
         })?;
@@ -922,12 +914,11 @@ impl RoutingTableInner {
     #[instrument(level = "trace", skip_all, err)]
     pub fn register_node_with_id(
         &mut self,
-        outer_self: RoutingTable,
         routing_domain: RoutingDomain,
         node_id: TypedKey,
         timestamp: Timestamp,
     ) -> EyreResult<FilteredNodeRef> {
-        let nr = self.create_node_ref(outer_self, &TypedKeyGroup::from(node_id), |_rti, e| {
+        let nr = self.create_node_ref(&TypedKeyGroup::from(node_id), |_rti, e| {
             //e.make_not_dead(timestamp);
             e.touch_last_seen(timestamp);
         })?;
@@ -1057,7 +1048,7 @@ impl RoutingTableInner {
     #[instrument(level = "trace", skip_all)]
     pub fn find_fast_non_local_nodes_filtered(
         &self,
-        outer_self: RoutingTable,
+        registry: VeilidComponentRegistry,
         routing_domain: RoutingDomain,
         node_count: usize,
         mut filters: VecDeque<RoutingTableEntryFilter>,
@@ -1089,7 +1080,7 @@ impl RoutingTableInner {
             node_count,
             filters,
             |_rti: &RoutingTableInner, v: Option<Arc<BucketEntry>>| {
-                NodeRef::new(outer_self.clone(), v.unwrap().clone())
+                NodeRef::new(registry.clone(), v.unwrap().clone())
             },
         )
     }
@@ -1283,10 +1274,12 @@ impl RoutingTableInner {
         T: for<'r> FnMut(&'r RoutingTableInner, Option<Arc<BucketEntry>>) -> O,
     {
         let cur_ts = Timestamp::now();
+        let routing_table = self.routing_table();
 
         // Get the crypto kind
         let crypto_kind = node_id.kind;
-        let Some(vcrypto) = self.unlocked_inner.crypto().get(crypto_kind) else {
+        let crypto = self.crypto();
+        let Some(vcrypto) = crypto.get(crypto_kind) else {
             apibail_generic!("invalid crypto kind");
         };
 
@@ -1338,12 +1331,12 @@ impl RoutingTableInner {
             let a_key = if let Some(a_entry) = a_entry {
                 a_entry.with_inner(|e| e.node_ids().get(crypto_kind).unwrap())
             } else {
-                self.unlocked_inner.node_id(crypto_kind)
+                routing_table.node_id(crypto_kind)
             };
             let b_key = if let Some(b_entry) = b_entry {
                 b_entry.with_inner(|e| e.node_ids().get(crypto_kind).unwrap())
             } else {
-                self.unlocked_inner.node_id(crypto_kind)
+                routing_table.node_id(crypto_kind)
             };
 
             // distance is the next metric, closer nodes first
@@ -1379,7 +1372,8 @@ impl RoutingTableInner {
             .collect();
 
         // Sort closest
-        let sort = make_closest_noderef_sort(self.unlocked_inner.crypto(), node_id);
+        let crypto = self.crypto();
+        let sort = make_closest_noderef_sort(&crypto, node_id);
         closest_nodes_locked.sort_by(sort);
 
         // Unlock noderefs
@@ -1388,10 +1382,10 @@ impl RoutingTableInner {
 }
 
 #[instrument(level = "trace", skip_all)]
-pub fn make_closest_noderef_sort(
-    crypto: Crypto,
+pub fn make_closest_noderef_sort<'a>(
+    crypto: &'a Crypto,
     node_id: TypedKey,
-) -> impl Fn(&LockedNodeRef, &LockedNodeRef) -> core::cmp::Ordering {
+) -> impl Fn(&LockedNodeRef, &LockedNodeRef) -> core::cmp::Ordering + 'a {
     let kind = node_id.kind;
     // Get cryptoversion to check distance with
     let vcrypto = crypto.get(kind).unwrap();
@@ -1418,9 +1412,9 @@ pub fn make_closest_noderef_sort(
 }
 
 pub fn make_closest_node_id_sort(
-    crypto: Crypto,
+    crypto: &Crypto,
     node_id: TypedKey,
-) -> impl Fn(&CryptoKey, &CryptoKey) -> core::cmp::Ordering {
+) -> impl Fn(&CryptoKey, &CryptoKey) -> core::cmp::Ordering + '_ {
     let kind = node_id.kind;
     // Get cryptoversion to check distance with
     let vcrypto = crypto.get(kind).unwrap();

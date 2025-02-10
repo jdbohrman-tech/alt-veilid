@@ -1,7 +1,7 @@
 use crate::*;
 
 cfg_if! {
-    if #[cfg(not(target_arch = "wasm32"))] {
+    if #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))] {
         use network_interfaces::NetworkInterfaces;
 
         pub async fn test_network_interfaces() {
@@ -24,6 +24,6 @@ cfg_if! {
 }
 
 pub async fn test_all() {
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     test_network_interfaces().await;
 }

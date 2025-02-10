@@ -7,7 +7,7 @@ const MAX_GET_VALUE_A_PEERS_LEN: usize = 20;
 pub(in crate::rpc_processor) struct ValidateGetValueContext {
     pub last_descriptor: Option<SignedValueDescriptor>,
     pub subkey: ValueSubkey,
-    pub vcrypto: CryptoSystemVersion,
+    pub crypto_kind: CryptoKind,
 }
 
 impl fmt::Debug for ValidateGetValueContext {
@@ -15,7 +15,7 @@ impl fmt::Debug for ValidateGetValueContext {
         f.debug_struct("ValidateGetValueContext")
             .field("last_descriptor", &self.last_descriptor)
             .field("subkey", &self.subkey)
-            .field("vcrypto", &self.vcrypto.kind().to_string())
+            .field("crypto_kind", &self.crypto_kind)
             .finish()
     }
 }
@@ -114,12 +114,15 @@ impl RPCOperationGetValueA {
             panic!("Wrong context type for GetValueA");
         };
 
+        let crypto = validate_context.crypto();
+        let Some(vcrypto) = crypto.get(get_value_context.crypto_kind) else {
+            return Err(RPCError::protocol("unsupported cryptosystem"));
+        };
+
         // Validate descriptor
         if let Some(descriptor) = &self.descriptor {
             // Ensure the descriptor itself validates
-            descriptor
-                .validate(get_value_context.vcrypto.clone())
-                .map_err(RPCError::protocol)?;
+            descriptor.validate(&vcrypto).map_err(RPCError::protocol)?;
 
             // Ensure descriptor matches last one
             if let Some(last_descriptor) = &get_value_context.last_descriptor {
@@ -146,18 +149,14 @@ impl RPCOperationGetValueA {
 
             // And the signed value data
             if !value
-                .validate(
-                    descriptor.owner(),
-                    get_value_context.subkey,
-                    get_value_context.vcrypto.clone(),
-                )
+                .validate(descriptor.owner(), get_value_context.subkey, &vcrypto)
                 .map_err(RPCError::protocol)?
             {
                 return Err(RPCError::protocol("signed value data did not validate"));
             }
         }
 
-        PeerInfo::validate_vec(&mut self.peers, validate_context.crypto.clone());
+        PeerInfo::validate_vec(&mut self.peers, &crypto);
         Ok(())
     }
 

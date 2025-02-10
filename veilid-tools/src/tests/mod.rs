@@ -3,7 +3,7 @@ mod android;
 pub mod common;
 #[cfg(all(target_os = "ios", feature = "veilid_tools_ios_tests"))]
 mod ios;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 mod native;
 
 #[allow(unused_imports)]

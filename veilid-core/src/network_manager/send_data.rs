@@ -40,9 +40,10 @@ impl NetworkManager {
         destination_node_ref: FilteredNodeRef,
         data: Vec<u8>,
     ) -> SendPinBoxFuture<EyreResult<NetworkResult<SendDataMethod>>> {
-        let this = self.clone();
+        let registry = self.registry();
         Box::pin(
             async move {
+                let this = registry.network_manager();
 
                 // If we need to relay, do it
                 let (contact_method, target_node_ref, opt_relayed_contact_method) = match possibly_relayed_contact_method.clone() {
@@ -652,17 +653,14 @@ impl NetworkManager {
         data: Vec<u8>,
     ) -> EyreResult<NetworkResult<UniqueFlow>> {
         // Detect if network is stopping so we can break out of this
-        let Some(stop_token) = self.unlocked_inner.startup_lock.stop_token() else {
+        let Some(stop_token) = self.startup_context.startup_lock.stop_token() else {
             return Ok(NetworkResult::service_unavailable("network is stopping"));
         };
 
         // Build a return receipt for the signal
         let receipt_timeout = TimestampDuration::new_ms(
-            self.unlocked_inner
-                .config
-                .get()
-                .network
-                .reverse_connection_receipt_time_ms as u64,
+            self.config()
+                .with(|c| c.network.reverse_connection_receipt_time_ms as u64),
         );
         let (receipt, eventual_value) = self.generate_single_shot_receipt(receipt_timeout, [])?;
 
@@ -763,7 +761,7 @@ impl NetworkManager {
         data: Vec<u8>,
     ) -> EyreResult<NetworkResult<UniqueFlow>> {
         // Detect if network is stopping so we can break out of this
-        let Some(stop_token) = self.unlocked_inner.startup_lock.stop_token() else {
+        let Some(stop_token) = self.startup_context.startup_lock.stop_token() else {
             return Ok(NetworkResult::service_unavailable("network is stopping"));
         };
 
@@ -776,11 +774,8 @@ impl NetworkManager {
 
         // Build a return receipt for the signal
         let receipt_timeout = TimestampDuration::new_ms(
-            self.unlocked_inner
-                .config
-                .get()
-                .network
-                .hole_punch_receipt_time_ms as u64,
+            self.config()
+                .with(|c| c.network.hole_punch_receipt_time_ms as u64),
         );
         let (receipt, eventual_value) = self.generate_single_shot_receipt(receipt_timeout, [])?;
 

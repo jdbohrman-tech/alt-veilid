@@ -68,7 +68,7 @@ impl Receipt {
     }
 
     #[instrument(level = "trace", target = "receipt", skip_all, err)]
-    pub fn from_signed_data(crypto: Crypto, data: &[u8]) -> VeilidAPIResult<Receipt> {
+    pub fn from_signed_data(crypto: &Crypto, data: &[u8]) -> VeilidAPIResult<Receipt> {
         // Ensure we are at least the length of the envelope
         if data.len() < MIN_RECEIPT_SIZE {
             apibail_parse_error!("receipt too small", data.len());
@@ -157,7 +157,7 @@ impl Receipt {
     }
 
     #[instrument(level = "trace", target = "receipt", skip_all, err)]
-    pub fn to_signed_data(&self, crypto: Crypto, secret: &SecretKey) -> VeilidAPIResult<Vec<u8>> {
+    pub fn to_signed_data(&self, crypto: &Crypto, secret: &SecretKey) -> VeilidAPIResult<Vec<u8>> {
         // Ensure extra data isn't too long
         let receipt_size: usize = self.extra_data.len() + MIN_RECEIPT_SIZE;
         if receipt_size > MAX_RECEIPT_SIZE {

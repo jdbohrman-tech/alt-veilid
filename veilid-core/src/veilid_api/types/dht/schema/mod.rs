@@ -9,7 +9,11 @@ pub use smpl::*;
 /// Enum over all the supported DHT Schemas
 #[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind")]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify), tsify(from_wasm_abi))]
+#[cfg_attr(
+    all(target_arch = "wasm32", target_os = "unknown"),
+    derive(Tsify),
+    tsify(from_wasm_abi)
+)]
 pub enum DHTSchema {
     DFLT(DHTSchemaDFLT),
     SMPL(DHTSchemaSMPL),

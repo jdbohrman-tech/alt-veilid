@@ -19,7 +19,7 @@ impl SignedValueData {
         &self,
         owner: &PublicKey,
         subkey: ValueSubkey,
-        vcrypto: CryptoSystemVersion,
+        vcrypto: &CryptoSystemGuard<'_>,
     ) -> VeilidAPIResult<bool> {
         let node_info_bytes = Self::make_signature_bytes(&self.value_data, owner, subkey)?;
         // validate signature
@@ -30,7 +30,7 @@ impl SignedValueData {
         value_data: ValueData,
         owner: &PublicKey,
         subkey: ValueSubkey,
-        vcrypto: CryptoSystemVersion,
+        vcrypto: &CryptoSystemGuard<'_>,
         writer_secret: SecretKey,
     ) -> VeilidAPIResult<Self> {
         let node_info_bytes = Self::make_signature_bytes(&value_data, owner, subkey)?;

@@ -4,12 +4,12 @@ name = "veilid-flutter"
 version = "0.4.1"
 # ---
 description = "Flutter/Dart bindings for Veilid"
-repository = "https://gitlab.com/veilid/veilid"
-authors = ["Veilid Team <contact@veilid.com>"]
-license = "MPL-2.0"
-edition = "2021"
-rust-version = "1.81.0"
 resolver = "2"
+repository.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
 
 [lib]
 crate-type = ["cdylib", "staticlib", "rlib"]
@@ -50,7 +50,7 @@ tracing-flame = "0.2.0"
 
 # Dependencies for native builds only
 # Linux, Windows, Mac, iOS, Android
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+[target.'cfg(not(all(target_arch = "wasm32", target_os = "unknown")))'.dependencies]
 tracing-opentelemetry = "0.21"
 opentelemetry = { version = "0.20" }
 opentelemetry-otlp = { version = "0.13" }
@@ -68,7 +68,7 @@ libc-print = { version = "0.1.23", optional = true }
 
 
 # Dependencies for WASM builds only
-[target.'cfg(target_arch = "wasm32")'.dependencies]
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
 
 # Dependencies for Android builds only
 [target.'cfg(target_os = "android")'.dependencies]

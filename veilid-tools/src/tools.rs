@@ -104,6 +104,19 @@ macro_rules! asyncrwlock_try_write {
     };
 }
 
+#[macro_export]
+macro_rules! asyncrwlock_try_read_arc {
+    ($x:expr) => {
+        $x.try_read_arc()
+    };
+}
+#[macro_export]
+macro_rules! asyncrwlock_try_write_arc {
+    ($x:expr) => {
+        $x.try_write_arc()
+    };
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 pub fn system_boxed<'a, Out>(
@@ -115,7 +128,7 @@ pub fn system_boxed<'a, Out>(
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 cfg_if! {
-    if #[cfg(not(target_arch = "wasm32"))] {
+    if #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))] {
         pub fn get_concurrency() -> u32 {
             std::thread::available_parallelism()
                 .map(|x| x.get())
@@ -259,7 +272,7 @@ pub fn compatible_unspecified_socket_addr(socket_addr: &SocketAddr) -> SocketAdd
 }
 
 cfg_if! {
-    if #[cfg(not(target_arch = "wasm32"))] {
+    if #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))] {
         use std::net::UdpSocket;
 
         static IPV6_IS_SUPPORTED: Mutex<Option<bool>> = Mutex::new(None);
@@ -308,7 +321,7 @@ pub fn listen_address_to_socket_addrs(listen_address: &str) -> Result<Vec<Socket
             format!("{}:0", listen_address)
         };
         cfg_if! {
-            if #[cfg(target_arch = "wasm32")] {
+            if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
                 use core::str::FromStr;
                 vec![SocketAddr::from_str(&listen_address_with_port).map_err(|e| format!("Unable to parse address: {}",e))?]
             } else {
@@ -481,7 +494,7 @@ pub fn is_debug_backtrace_enabled() -> bool {
     cfg_if! {
         if #[cfg(debug_assertions)] {
             cfg_if! {
-                if #[cfg(target_arch = "wasm32")] {
+                if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
                     let rbenv = get_wasm_global_string_value("RUST_BACKTRACE").unwrap_or_default();
                 }
                 else
@@ -493,6 +506,18 @@ pub fn is_debug_backtrace_enabled() -> bool {
         } else {
             false
         }
+    }
+}
+
+#[track_caller]
+pub fn debug_duration<R, F: Future<Output = R>, T: FnOnce() -> F>(f: T) -> impl Future<Output = R> {
+    let location = std::panic::Location::caller();
+    async move {
+        let t1 = get_timestamp();
+        let out = f().await;
+        let t2 = get_timestamp();
+        debug!("duration@{}: {}", location, display_duration(t2 - t1));
+        out
     }
 }
 

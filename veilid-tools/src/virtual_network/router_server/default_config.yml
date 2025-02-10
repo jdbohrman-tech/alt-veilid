@@ -1,0 +1,263 @@
+---
+# Random number seed used to generate all profile configurations
+# for a test. The seed can be overriden on the VirtualRouter command
+# line to choose a different test scenario. The same seed will
+# generate the same configuration on all machines given the same
+# configuration file.
+# seed: 0
+
+# The name of the predefined network to use by default (typically
+# this is '$internet')
+# default_network: "$internet"
+
+# The name of the predefined performance model to use by default (typically
+# this is '$lan')
+# default_model: "$lan"
+
+# The name of the default allocation pool that subnets are allocated from
+# default_pool: "$internet"
+
+#################################################################
+# Profiles
+#
+# Profiles are ordered lists of machine instances or machine templates
+# to assign to new instances of Veilid as they are allocated from
+# the VirtualRouter
+
+profiles:
+  bootstrap:
+    instances:
+      # two bootstrap machines
+      - machine: "bootstrap-1.veilid.net"
+      - machine: "bootstrap-2.veilid.net"
+      # pool of up to 4 relay-capable servers
+      - template: "bootrelay"
+  # geographically disperse servers of various configurations
+  server:
+    instances:
+      - template:
+          - "relayserver"
+          - "ipv4server"
+          - "ipv6server"
+          - "nat4home"
+          - "nat4+6home"
+
+#################################################################
+# Machines
+#
+# Machines are single, fully-defined machine specifications that
+# can only be allocated one time
+
+machines:
+  bootstrap-1.veilid.net:
+    network: "boot"
+    address4: "170.64.128.16"
+    address6: "2a03:b0c0:2:dd::ddd:0010"
+    disable_capabilities:
+      ["ROUT", "TUNL", "SGNL", "RLAY", "DIAL", "DHTV", "DHTW", "APPM"]
+    bootstrap: true
+  bootstrap-2.veilid.net:
+    network: "boot"
+    address4: "170.64.128.17"
+    address6: "2a03:b0c0:2:dd::ddd:0011"
+    disable_capabilities:
+      ["ROUT", "TUNL", "SGNL", "RLAY", "DIAL", "DHTV", "DHTW", "APPM"]
+    bootstrap: true
+
+#################################################################
+# Templates
+#
+# Templates are used to generate Machines
+# * if networks are specified, then all machines are created on that
+#   single network. A maximum number of machines are allocated on the
+#   network within the limits specified.
+# * if a blueprint is spec
+
+templates:
+  # Default servers on the boot network
+  # - will have ipv4 and ipv6 addresses
+  # - will have no capabilities disabled
+  # - will not use NAT, and be directly connected
+  # - limited to 4 machines
+  bootrelay:
+    network: "boot"
+    machine_count: 4
+  # Servers on subnets within the 'internet' network
+  relayserver:
+    blueprint: "direct"
+    machines_per_network: [1, 2, 3]
+  ipv4server:
+    blueprint: "direct_ipv4_no_ipv6"
+    machines_per_network: [1, 2, 3]
+  ipv6server:
+    blueprint: "direct_ipv6_no_ipv4"
+    machines_per_network: [1, 2, 3]
+  nat4home:
+    blueprint: "nat_ipv4_no_ipv6"
+    machines_per_network: [1, 2, 3]
+  nat4+6home:
+    blueprint: "nat_ipv4_direct_ipv6"
+    machines_per_network: [1, 2, 3]
+
+#################################################################
+# Networks
+#
+# Networks are a location where Machines can be allocated and represent
+# a network segment with address allocations per address type
+# and a gateway to another network. The performance characteristics of
+# a network are defined by a performance Model
+
+networks:
+  # Custom networks
+  boot:
+    ipv4:
+      allocation: "boot"
+    ipv6:
+      allocation: "boot"
+
+  # # Predefined networks
+  # $internet:
+  #   ipv4:
+  #     allocation: "$internet"
+  #   ipv6:
+  #     allocation: "$internet"
+  #   model: "$internet"
+
+#################################################################
+# Blueprints
+#
+# Blueprints are used to generate Networks for use with Machines
+
+blueprints:
+  # * A subnet of the internet directly attached with no translation
+  #   with both ipv4 and ipv6 networking
+  direct:
+    ipv4:
+      prefix: 24
+    ipv6:
+      prefix: 64
+  # * An ipv4-only subnet of the internet directly attached with no translation
+  direct_ipv4_no_ipv6:
+    ipv4:
+      prefix: 24
+  # * An ipv6-only subnet of the internet directly attached with no translation
+  direct_ipv6_no_ipv4:
+    ipv6:
+      prefix: 64
+  # * An ipv4-only subnet of the internet attached via NAT to an
+  #   an ipv4-only subnet of the internet directly attached with no translation
+  nat_ipv4_no_ipv6:
+    ipv4:
+      allocation: "$private"
+      prefix: 24
+      gateway:
+        translation: "port_restricted"
+        upnp: 0.25
+        blueprint: "direct_ipv4_no_ipv6"
+  # * An ipv4 subnet of the internet attached via NAT to an
+  #   an ipv4-only subnet of the internet directly attached with no translation
+  # * An ipv6 subnet of the internet directly attached with no translation
+  nat_ipv4_direct_ipv6:
+    ipv4:
+      allocation: "$private"
+      prefix: 24
+      gateway:
+        translation: "port_restricted"
+        upnp: 0.25
+        blueprint: "direct_ipv4_no_ipv6"
+    ipv6:
+      prefix: 56
+
+#################################################################
+# Allocations
+#
+# Allocations are partitions of the address space that networks
+# can be assigned to. Machines on the networks will be given
+# addresses within these ranges. If an allocation
+# is not specified, an address -outside- any of the allocation
+# will be used (on the 'public internet').
+
+allocations:
+  # Custom network allocations
+  boot:
+    scope4: ["170.64.128.0/24"]
+    scope6: ["2a03:b0c0:2::/48"]
+  # # Predefined allocations
+  # $internet:
+  #   scope4: ["0.0.0.0/0"]
+  #   scope6: ["::/0"]
+  # $private:
+  #   scope4: ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+  #   scope6: ["fc00::/7"]
+  # $cgnat:
+  #   scope4: ["100.64.0.0/10"]
+  # $linklocal:
+  #   scope4: ["169.254.0.0/16"]
+  #   scope6: ["fe80::/10"]
+  # $localhost:
+  #   scope4: ["127.0.0.0/8"]
+  #   scope6: ["::1/128"]
+  # $ietf:
+  #   scope4: ["192.0.0.0/24"]
+  # $cellnat:
+  #   scope4: ["192.0.0.0/29"]
+  # $documentation:
+  #   scope4: ["192.0.2.0/24", "198.51.100.0/24", "203.0.113.0/24"]
+  #   scope6: ["2001:db8::/32", "3fff::/20"]
+  # $benchmark:
+  #   scope4: ["198.18.0.0/15"]
+  # $mulitcast:
+  #   scope4: ["224.0.0.0/4"]
+  # $mulitcasttest:
+  #   scope4: ["233.252.0.0/24"]
+  #   scope6: ["ff00::/8"]
+  # $unspecified:
+  #   scope4: ["0.0.0.0/8"]
+  #   scope6: ["::/128"]
+  # $reserved:
+  #   scope4: ["192.88.99.0/24", "240.0.0.0/4"]
+  # $broadcast:
+  #   scope4: ["255.255.255.255/32"]
+  # $mapped:
+  #   scope6: ["::ffff:0:0/96", "::ffff:0:0:0/96"]
+  # $translation:
+  #   scope6: ["64:ff9b::/96", "64:ff9b:1::/48"]
+  # $discard:
+  #   scope6: ["100::/64"]
+  # $teredo:
+  #   scope6: ["2001::/32"]
+  # $orchidv2:
+  #   scope6: ["2001:20::/28"]
+  # $6to4:
+  #   scope6: ["2002::/16"]
+  # $srv6:
+  #   scope6: ["5f00::/16"]
+#################################################################
+# Models
+#
+# Performance models representing how a network behaves
+# Latency models are a skewed normal distribution
+# Distance is assigned over a circular probability and then
+# mapped linearly as a multiplier to latency and loss
+
+# models:
+#   # Predefined models
+#   $lan:
+#     latency:
+#       mean: 0.0038
+#       sigma: 0.001416
+#       skew: 0.0009
+#       min: 0.0015
+#       max: 0.0075
+#     loss: 0.0
+#   $internet:
+#     distance:
+#       min: 0.04
+#       max: 2.0
+#     latency:
+#       mean: 0.200
+#       sigma: 0.080
+#       skew: 0
+#       min: 0.030
+#       max: 0.400
+#     loss: 0.01

@@ -54,7 +54,7 @@ impl RoutingTable {
     // Keep relays assigned and accessible
     #[instrument(level = "trace", skip_all, err)]
     pub async fn relay_management_task_routine(
-        self,
+        &self,
         _stop_token: StopToken,
         _last_ts: Timestamp,
         cur_ts: Timestamp,
@@ -162,11 +162,8 @@ impl RoutingTable {
             .node_info()
             .clone();
         let ip6_prefix_size = self
-            .unlocked_inner
-            .config
-            .get()
-            .network
-            .max_connections_per_ip6_prefix_size as usize;
+            .config()
+            .with(|c| c.network.max_connections_per_ip6_prefix_size as usize);
 
         move |e: &BucketEntryInner| {
             // Ensure this node is not on the local network and is on the public internet
@@ -285,6 +282,6 @@ impl RoutingTable {
             Option::<()>::None
         });
         // Return the best inbound relay noderef
-        best_inbound_relay.map(|e| NodeRef::new(self.clone(), e))
+        best_inbound_relay.map(|e| NodeRef::new(self.registry(), e))
     }
 }

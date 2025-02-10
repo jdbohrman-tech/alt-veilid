@@ -26,7 +26,7 @@ impl RPCProcessor {
             ret.latency
         ), err)]
     pub async fn rpc_call_set_value(
-        self,
+        &self,
         dest: Destination,
         key: TypedKey,
         subkey: ValueSubkey,
@@ -35,7 +35,7 @@ impl RPCProcessor {
         send_descriptor: bool,
     ) -> RPCNetworkResult<Answer<SetValueAnswer>> {
         let _guard = self
-            .unlocked_inner
+            .startup_context
             .startup_lock
             .enter()
             .map_err(RPCError::map_try_again("not started up"))?;
@@ -49,7 +49,8 @@ impl RPCProcessor {
         };
 
         // Get the target node id
-        let Some(vcrypto) = self.crypto().get(key.kind) else {
+        let crypto = self.crypto();
+        let Some(vcrypto) = crypto.get(key.kind) else {
             return Err(RPCError::internal("unsupported cryptosystem"));
         };
         let Some(target_node_id) = target_node_ids.get(key.kind) else {
@@ -84,7 +85,7 @@ impl RPCProcessor {
         let question_context = QuestionContext::SetValue(ValidateSetValueContext {
             descriptor,
             subkey,
-            vcrypto: vcrypto.clone(),
+            crypto_kind: vcrypto.kind(),
         });
 
         if debug_target_enabled!("dht") {
@@ -149,7 +150,7 @@ impl RPCProcessor {
         }
 
         // Validate peers returned are, in fact, closer to the key than the node we sent this to
-        let valid = match RoutingTable::verify_peers_closer(vcrypto, target_node_id, key, &peers) {
+        let valid = match RoutingTable::verify_peers_closer(&vcrypto, target_node_id, key, &peers) {
             Ok(v) => v,
             Err(e) => {
                 return Ok(NetworkResult::invalid_message(format!(
@@ -225,8 +226,7 @@ impl RPCProcessor {
 
         // Get target for ValueChanged notifications
         let dest = network_result_try!(self.get_respond_to_destination(&msg));
-        let rss = routing_table.route_spec_store();
-        let target = dest.get_target(rss)?;
+        let target = dest.get_target(&routing_table)?;
 
         // Get the nodes that we know about that are closer to the the key than our own node
         let closer_to_key_peers = network_result_try!(
@@ -247,7 +247,9 @@ impl RPCProcessor {
         log_rpc!(debug "{}", debug_string);
 
         // If there are less than 'set_value_count' peers that are closer, then store here too
-        let set_value_count = self.with_config(|c| c.network.dht.set_value_count as usize);
+        let set_value_count = self
+            .config()
+            .with(|c| c.network.dht.set_value_count as usize);
 
         let (set, new_value) = if closer_to_key_peers.len() >= set_value_count {
             // Not close enough

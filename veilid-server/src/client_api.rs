@@ -39,7 +39,7 @@ struct RequestLine {
     // Request to process
     line: String,
     // Where to send the response
-    responses_tx: flume::Sender<String>,
+    responses_tx: flume::Sender<Arc<String>>,
 }
 
 struct ClientApiInner {
@@ -48,7 +48,7 @@ struct ClientApiInner {
     settings: Settings,
     stop: Option<StopSource>,
     join_handle: Option<ClientApiAllFuturesJoinHandle>,
-    update_channels: HashMap<u64, flume::Sender<String>>,
+    update_channels: HashMap<u64, flume::Sender<Arc<String>>>,
 }
 
 #[derive(Clone)]
@@ -165,17 +165,12 @@ impl ClientApi {
     }
 
     async fn handle_tcp_incoming(self, bind_addr: SocketAddr) -> std::io::Result<()> {
-        let listener = TcpListener::bind(bind_addr).await?;
+        let listener = bind_async_tcp_listener(bind_addr)?
+            .ok_or(std::io::Error::from(std::io::ErrorKind::AddrInUse))?;
         debug!(target: "client_api", "TCPClient API listening on: {:?}", bind_addr);
 
         // Process the incoming accept stream
-        cfg_if! {
-            if #[cfg(feature="rt-async-std")] {
-                let mut incoming_stream = listener.incoming();
-            } else {
-                let mut incoming_stream = tokio_stream::wrappers::TcpListenerStream::new(listener);
-            }
-        }
+        let mut incoming_stream = async_tcp_listener_incoming(listener);
 
         // Make wait group for all incoming connections
         let awg = AsyncWaitGroup::new();
@@ -310,7 +305,8 @@ impl ClientApi {
         debug!("JSONAPI: Response: {:?}", response);
 
         // Marshal json + newline => NDJSON
-        let response_string = serialize_json(json_api::RecvMessage::Response(response)) + "\n";
+        let response_string =
+            Arc::new(serialize_json(json_api::RecvMessage::Response(response)) + "\n");
         if let Err(e) = responses_tx.send_async(response_string).await {
             eprintln!("response not sent: {}", e)
         }
@@ -327,7 +323,7 @@ impl ClientApi {
         self,
         mut reader: R,
         requests_tx: flume::Sender<Option<RequestLine>>,
-        responses_tx: flume::Sender<String>,
+        responses_tx: flume::Sender<Arc<String>>,
     ) -> VeilidAPIResult<Option<RequestLine>> {
         let mut linebuf = String::new();
         while let Ok(size) = reader.read_line(&mut linebuf).await {
@@ -361,7 +357,7 @@ impl ClientApi {
 
     async fn send_responses<W: AsyncWriteExt + Unpin>(
         self,
-        responses_rx: flume::Receiver<String>,
+        responses_rx: flume::Receiver<Arc<String>>,
         mut writer: W,
     ) -> VeilidAPIResult<Option<RequestLine>> {
         while let Ok(resp) = responses_rx.recv_async().await {
@@ -526,11 +522,16 @@ impl ClientApi {
     }
 
     pub fn handle_update(&self, veilid_update: veilid_core::VeilidUpdate) {
-        // serialize update to NDJSON
-        let veilid_update = serialize_json(json_api::RecvMessage::Update(veilid_update)) + "\n";
-
-        // Pass other updates to clients
         let inner = self.inner.lock();
+        if inner.update_channels.is_empty() {
+            return;
+        }
+
+        // serialize update to NDJSON
+        let veilid_update =
+            Arc::new(serialize_json(json_api::RecvMessage::Update(veilid_update)) + "\n");
+
+        // Pass updates to clients
         for ch in inner.update_channels.values() {
             if ch.send(veilid_update.clone()).is_err() {
                 // eprintln!("failed to send update: {}", e);

@@ -7,7 +7,7 @@ pub(in crate::rpc_processor) enum RespondTo {
 }
 
 impl RespondTo {
-    pub fn validate(&mut self, crypto: Crypto) -> Result<(), RPCError> {
+    pub fn validate(&mut self, crypto: &Crypto) -> Result<(), RPCError> {
         match self {
             RespondTo::Sender => Ok(()),
             RespondTo::PrivateRoute(pr) => pr.validate(crypto).map_err(RPCError::protocol),

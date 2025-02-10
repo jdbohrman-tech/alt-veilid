@@ -22,7 +22,7 @@ impl RPCOperationWatchValueQ {
         count: u32,
         watch_id: Option<u64>,
         watcher: KeyPair,
-        vcrypto: CryptoSystemVersion,
+        vcrypto: &CryptoSystemGuard<'_>,
     ) -> Result<Self, RPCError> {
         if subkeys.ranges_len() > MAX_WATCH_VALUE_Q_SUBKEY_RANGES_LEN {
             return Err(RPCError::protocol("WatchValueQ subkeys length too long"));
@@ -76,7 +76,8 @@ impl RPCOperationWatchValueQ {
     }
 
     pub fn validate(&mut self, validate_context: &RPCValidateContext) -> Result<(), RPCError> {
-        let Some(vcrypto) = validate_context.crypto.get(self.key.kind) else {
+        let crypto = validate_context.crypto();
+        let Some(vcrypto) = crypto.get(self.key.kind) else {
             return Err(RPCError::protocol("unsupported cryptosystem"));
         };
 
@@ -270,7 +271,8 @@ impl RPCOperationWatchValueA {
     }
 
     pub fn validate(&mut self, validate_context: &RPCValidateContext) -> Result<(), RPCError> {
-        PeerInfo::validate_vec(&mut self.peers, validate_context.crypto.clone());
+        let crypto = validate_context.crypto();
+        PeerInfo::validate_vec(&mut self.peers, &crypto);
         Ok(())
     }
 

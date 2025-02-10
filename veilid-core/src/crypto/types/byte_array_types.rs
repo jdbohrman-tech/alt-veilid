@@ -78,7 +78,11 @@ where
 macro_rules! byte_array_type {
     ($name:ident, $size:expr, $encoded_size:expr) => {
         #[derive(Clone, Copy, Hash, PartialOrd, Ord, PartialEq, Eq)]
-        #[cfg_attr(target_arch = "wasm32", derive(Tsify), tsify(into_wasm_abi))]
+        #[cfg_attr(
+            all(target_arch = "wasm32", target_os = "unknown"),
+            derive(Tsify),
+            tsify(into_wasm_abi)
+        )]
         pub struct $name {
             pub bytes: [u8; $size],
         }
@@ -280,17 +284,17 @@ macro_rules! byte_array_type {
 
 byte_array_type!(CryptoKey, CRYPTO_KEY_LENGTH, CRYPTO_KEY_LENGTH_ENCODED);
 
-#[cfg_attr(target_arch = "wasm32", declare)]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
 pub type PublicKey = CryptoKey;
-#[cfg_attr(target_arch = "wasm32", declare)]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
 pub type SecretKey = CryptoKey;
-#[cfg_attr(target_arch = "wasm32", declare)]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
 pub type HashDigest = CryptoKey;
-#[cfg_attr(target_arch = "wasm32", declare)]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
 pub type SharedSecret = CryptoKey;
-#[cfg_attr(target_arch = "wasm32", declare)]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
 pub type RouteId = CryptoKey;
-#[cfg_attr(target_arch = "wasm32", declare)]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
 pub type CryptoKeyDistance = CryptoKey;
 
 byte_array_type!(Signature, SIGNATURE_LENGTH, SIGNATURE_LENGTH_ENCODED);

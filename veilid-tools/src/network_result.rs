@@ -25,7 +25,7 @@ pub trait IoNetworkResultExt<T> {
 }
 
 fn io_error_kind_from_error<T>(e: io::Error) -> io::Result<NetworkResult<T>> {
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     if let Some(os_err) = e.raw_os_error() {
         if os_err == libc::EHOSTUNREACH || os_err == libc::ENETUNREACH {
             return Ok(NetworkResult::NoConnection(e));
@@ -42,7 +42,9 @@ fn io_error_kind_from_error<T>(e: io::Error) -> io::Result<NetworkResult<T>> {
         io::ErrorKind::InvalidInput | io::ErrorKind::InvalidData => {
             Ok(NetworkResult::InvalidMessage(e.to_string()))
         }
-        io::ErrorKind::AddrNotAvailable => Ok(NetworkResult::AlreadyExists(e)),
+        io::ErrorKind::AddrNotAvailable | io::ErrorKind::AddrInUse => {
+            Ok(NetworkResult::AlreadyExists(e))
+        }
         _ => Err(e),
     }
 }
@@ -51,21 +53,6 @@ impl<T> IoNetworkResultExt<T> for io::Result<T> {
     fn into_network_result(self) -> io::Result<NetworkResult<T>> {
         match self {
             Ok(v) => Ok(NetworkResult::Value(v)),
-            // #[cfg(feature = "io_error_more")]
-            // Err(e) => match e.kind() {
-            //     io::ErrorKind::TimedOut => Ok(NetworkResult::Timeout),
-            //     io::ErrorKind::UnexpectedEof
-            //     | io::ErrorKind::NotConnected
-            //     | io::ErrorKind::BrokenPipe
-            //     | io::ErrorKind::ConnectionAborted
-            //     | io::ErrorKind::ConnectionRefused
-            //     | io::ErrorKind::ConnectionReset
-            //     | io::ErrorKind::HostUnreachable
-            //     | io::ErrorKind::NetworkUnreachable => Ok(NetworkResult::NoConnection(e)),
-            //     io::ErrorKind::AddrNotAvailable => Ok(NetworkResult::AlreadyExists(e)),
-            //     _ => Err(e),
-            // },
-            // #[cfg(not(feature = "io_error_more"))]
             Err(e) => io_error_kind_from_error(e),
         }
     }
@@ -98,18 +85,6 @@ impl<T> FoldedNetworkResultExt<T> for io::Result<TimeoutOr<T>> {
         match self {
             Ok(TimeoutOr::Timeout) => Ok(NetworkResult::Timeout),
             Ok(TimeoutOr::Value(v)) => Ok(NetworkResult::Value(v)),
-            // #[cfg(feature = "io_error_more")]
-            // Err(e) => match e.kind() {
-            //     io::ErrorKind::TimedOut => Ok(NetworkResult::Timeout),
-            //     io::ErrorKind::ConnectionAborted
-            //     | io::ErrorKind::ConnectionRefused
-            //     | io::ErrorKind::ConnectionReset
-            //     | io::ErrorKind::HostUnreachable
-            //     | io::ErrorKind::NetworkUnreachable => Ok(NetworkResult::NoConnection(e)),
-            //     io::ErrorKind::AddrNotAvailable => Ok(NetworkResult::AlreadyExists(e)),
-            //     _ => Err(e),
-            // },
-            // #[cfg(not(feature = "io_error_more"))]
             Err(e) => io_error_kind_from_error(e),
         }
     }
@@ -119,18 +94,6 @@ impl<T> FoldedNetworkResultExt<T> for io::Result<NetworkResult<T>> {
     fn folded(self) -> io::Result<NetworkResult<T>> {
         match self {
             Ok(v) => Ok(v),
-            // #[cfg(feature = "io_error_more")]
-            // Err(e) => match e.kind() {
-            //     io::ErrorKind::TimedOut => Ok(NetworkResult::Timeout),
-            //     io::ErrorKind::ConnectionAborted
-            //     | io::ErrorKind::ConnectionRefused
-            //     | io::ErrorKind::ConnectionReset
-            //     | io::ErrorKind::HostUnreachable
-            //     | io::ErrorKind::NetworkUnreachable => Ok(NetworkResult::NoConnection(e)),
-            //     io::ErrorKind::AddrNotAvailable => Ok(NetworkResult::AlreadyExists(e)),
-            //     _ => Err(e),
-            // },
-            // #[cfg(not(feature = "io_error_more"))]
             Err(e) => io_error_kind_from_error(e),
         }
     }
@@ -306,6 +269,42 @@ macro_rules! network_result_try {
             NetworkResult::Value(v) => v,
         }
     };
+}
+
+#[macro_export]
+macro_rules! log_network_result {
+    (error $text:expr) => {error!(
+        target: "network_result",
+        "{}",
+        $text,
+    )};
+    (error $fmt:literal, $($arg:expr),+) => {
+        error!(target: "network_result", $fmt, $($arg),+);
+    };
+    (warn $text:expr) => {warn!(
+        target: "network_result",
+        "{}",
+        $text,
+    )};
+    (warn $fmt:literal, $($arg:expr),+) => {
+        warn!(target:"network_result", $fmt, $($arg),+);
+    };
+    (debug $text:expr) => {debug!(
+        target: "network_result",
+        "{}",
+        $text,
+    )};
+    (debug $fmt:literal, $($arg:expr),+) => {
+        debug!(target:"network_result", $fmt, $($arg),+);
+    };
+    ($text:expr) => {trace!(
+        target: "network_result",
+        "{}",
+        $text,
+    )};
+    ($fmt:literal, $($arg:expr),+) => {
+        trace!(target:"network_result", $fmt, $($arg),+);
+    }
 }
 
 #[macro_export]

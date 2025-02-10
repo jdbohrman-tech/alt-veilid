@@ -35,7 +35,6 @@ impl RoutingTable {
 
             let valid_envelope_versions = VALID_ENVELOPE_VERSIONS.map(|x| x.to_string()).join(",");
             let node_ids = self
-                .unlocked_inner
                 .node_ids()
                 .iter()
                 .map(|x| x.to_string())
@@ -57,7 +56,7 @@ impl RoutingTable {
 
     pub fn debug_info_nodeid(&self) -> String {
         let mut out = String::new();
-        for nid in self.unlocked_inner.node_ids().iter() {
+        for nid in self.node_ids().iter() {
             out += &format!("{}\n", nid);
         }
         out
@@ -66,7 +65,7 @@ impl RoutingTable {
     pub fn debug_info_nodeinfo(&self) -> String {
         let mut out = String::new();
         let inner = self.inner.read();
-        out += &format!("Node Ids: {}\n", self.unlocked_inner.node_ids());
+        out += &format!("Node Ids: {}\n", self.node_ids());
         out += &format!(
             "Self Transfer Stats:\n{}",
             indent_all_string(&inner.self_transfer_stats)
@@ -250,7 +249,7 @@ impl RoutingTable {
             out += &format!("{:?}: {}: {}\n", routing_domain, crypto_kind, count);
         }
         for ck in &VALID_CRYPTO_KINDS {
-            let our_node_id = self.unlocked_inner.node_id(*ck);
+            let our_node_id = self.node_id(*ck);
 
             let mut filtered_total = 0;
             let mut b = 0;
@@ -319,7 +318,7 @@ impl RoutingTable {
     ) -> String {
         let cur_ts = Timestamp::now();
         let relay_node_filter = self.make_public_internet_relay_node_filter();
-        let our_node_ids = self.unlocked_inner.node_ids();
+        let our_node_ids = self.node_ids();
         let mut relay_count = 0usize;
         let mut relaying_count = 0usize;
 
@@ -340,7 +339,7 @@ impl RoutingTable {
             node_count,
             filters,
             |_rti, entry: Option<Arc<BucketEntry>>| {
-                NodeRef::new(self.clone(), entry.unwrap().clone())
+                NodeRef::new(self.registry(), entry.unwrap().clone())
             },
         );
         let mut out = String::new();
@@ -376,9 +375,10 @@ impl RoutingTable {
                 relaying_count += 1;
             }
 
+            let best_node_id = node.best_node_id();
+
             out += "    ";
-            out += &node
-                .operate(|_rti, e| Self::format_entry(cur_ts, node.best_node_id(), e, &relay_tag));
+            out += &node.operate(|_rti, e| Self::format_entry(cur_ts, best_node_id, e, &relay_tag));
             out += "\n";
         }
 

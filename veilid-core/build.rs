@@ -178,7 +178,7 @@ fn fix_android_emulator() {
             .or(env::var("ANDROID_SDK_ROOT"))
             .expect("ANDROID_HOME or ANDROID_SDK_ROOT not set");
         let lib_path = glob(&format!(
-            "{android_home}/ndk/26.3.11579264/**/lib{missing_library}.a"
+            "{android_home}/ndk/27.0.12077973/**/lib{missing_library}.a"
         ))
         .expect("failed to glob")
         .next()

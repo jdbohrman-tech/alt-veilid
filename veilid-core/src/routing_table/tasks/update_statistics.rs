@@ -4,7 +4,7 @@ impl RoutingTable {
     // Compute transfer statistics to determine how 'fast' a node is
     #[instrument(level = "trace", skip(self), err)]
     pub async fn rolling_transfers_task_routine(
-        self,
+        &self,
         _stop_token: StopToken,
         last_ts: Timestamp,
         cur_ts: Timestamp,
@@ -27,8 +27,7 @@ impl RoutingTable {
         }
 
         // Roll all route transfers
-        let rss = self.route_spec_store();
-        rss.roll_transfers(last_ts, cur_ts);
+        self.route_spec_store().roll_transfers(last_ts, cur_ts);
 
         Ok(())
     }
@@ -36,7 +35,7 @@ impl RoutingTable {
     // Update state statistics in PeerStats
     #[instrument(level = "trace", skip(self), err)]
     pub async fn update_state_stats_task_routine(
-        self,
+        &self,
         _stop_token: StopToken,
         _last_ts: Timestamp,
         _cur_ts: Timestamp,
@@ -57,7 +56,7 @@ impl RoutingTable {
     // Update rolling answers in PeerStats
     #[instrument(level = "trace", skip(self), err)]
     pub async fn rolling_answers_task_routine(
-        self,
+        &self,
         _stop_token: StopToken,
         _last_ts: Timestamp,
         cur_ts: Timestamp,

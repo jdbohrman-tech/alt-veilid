@@ -10,7 +10,8 @@ impl RPCOperationSignal {
         Self { signal_info }
     }
     pub fn validate(&mut self, validate_context: &RPCValidateContext) -> Result<(), RPCError> {
-        self.signal_info.validate(validate_context.crypto.clone())
+        let crypto = validate_context.crypto();
+        self.signal_info.validate(&crypto)
     }
     // pub fn signal_info(&self) -> &SignalInfo {
     //     &self.signal_info

@@ -1,7 +1,7 @@
 use crate::*;
 
 cfg_if! {
-    if #[cfg(not(target_arch = "wasm32"))] {
+    if #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))] {
         use std::fs::File;
         use std::io::prelude::*;
         use std::path::PathBuf;
@@ -61,7 +61,7 @@ wFAbkZY9eS/x6P7qrpd7dUA=
 
 cfg_if! {
 
-    if #[cfg(target_arch = "wasm32")] {
+    if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
         pub fn get_table_store_path() -> String {
             String::new()
         }
@@ -154,8 +154,8 @@ cfg_if! {
     }
 }
 
-fn update_callback(_update: VeilidUpdate) {
-    // info!("update_callback: {:?}", update);
+fn update_callback(update: VeilidUpdate) {
+    info!("update_callback: {:?}", update);
 }
 
 pub fn setup_veilid_core() -> (UpdateCallback, ConfigCallback) {
@@ -207,9 +207,9 @@ pub fn config_callback(key: String) -> ConfigCallbackReturn {
         "network.routing_table.node_id" => Ok(Box::new(TypedKeyGroup::new())),
         "network.routing_table.node_id_secret" => Ok(Box::new(TypedSecretGroup::new())),
         // "network.routing_table.bootstrap" => Ok(Box::new(Vec::<String>::new())),
-        #[cfg(not(target_arch = "wasm32"))]
+        #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
         "network.routing_table.bootstrap" => Ok(Box::new(vec!["bootstrap.veilid.net".to_string()])),
-        #[cfg(target_arch = "wasm32")]
+        #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
         "network.routing_table.bootstrap" => Ok(Box::new(vec![
             "ws://bootstrap.veilid.net:5150/ws".to_string(),
         ])),
@@ -284,6 +284,11 @@ pub fn config_callback(key: String) -> ConfigCallbackReturn {
         "network.protocol.wss.url" => Ok(Box::new(Option::<String>::None)),
         #[cfg(feature = "geolocation")]
         "network.privacy.country_code_denylist" => Ok(Box::new(Vec::<CountryCode>::new())),
+        #[cfg(feature = "virtual-network")]
+        "network.virtual_network.enabled" => Ok(Box::new(false)),
+        #[cfg(feature = "virtual-network")]
+        "network.virtual_network.server_address" => Ok(Box::new("".to_owned())),
+
         _ => {
             let err = format!("config key '{}' doesn't exist", key);
             debug!("{}", err);
@@ -293,26 +298,17 @@ pub fn config_callback(key: String) -> ConfigCallbackReturn {
 }
 
 pub fn get_config() -> VeilidConfig {
-    let mut vc = VeilidConfig::new();
-    match vc.setup(Arc::new(config_callback), Arc::new(update_callback)) {
-        Ok(()) => (),
-        Err(e) => {
-            error!("Error: {}", e);
-            unreachable!();
-        }
-    };
-    vc
-}
-
-pub async fn test_config() {
-    let mut vc = VeilidConfig::new();
-    match vc.setup(Arc::new(config_callback), Arc::new(update_callback)) {
-        Ok(()) => (),
+    match VeilidConfig::new_from_callback(Arc::new(config_callback), Arc::new(update_callback)) {
+        Ok(vc) => vc,
         Err(e) => {
             error!("Error: {}", e);
             unreachable!();
         }
     }
+}
+
+pub async fn test_config() {
+    let vc = get_config();
 
     let inner = vc.get();
     assert_eq!(inner.program_name, String::from("VeilidCoreTests"));
@@ -351,12 +347,12 @@ pub async fn test_config() {
     assert_eq!(inner.network.rpc.default_route_hop_count, 1u8);
     assert_eq!(inner.network.routing_table.node_id.len(), 0);
     assert_eq!(inner.network.routing_table.node_id_secret.len(), 0);
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     assert_eq!(
         inner.network.routing_table.bootstrap,
         vec!["bootstrap.veilid.net"],
     );
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
     assert_eq!(
         inner.network.routing_table.bootstrap,
         vec!["ws://bootstrap.veilid.net:5150/ws"],
@@ -424,6 +420,10 @@ pub async fn test_config() {
 
     #[cfg(feature = "geolocation")]
     assert_eq!(inner.network.privacy.country_code_denylist, Vec::new());
+    #[cfg(feature = "virtual-network")]
+    assert!(!inner.network.virtual_network.enabled);
+    #[cfg(feature = "virtual-network")]
+    assert_eq!(inner.network.virtual_network.server_address, "");
 }
 
 pub async fn test_all() {

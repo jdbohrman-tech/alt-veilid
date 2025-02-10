@@ -28,10 +28,11 @@ pub struct InteractiveUIInner {
 #[derive(Clone)]
 pub struct InteractiveUI {
     inner: Arc<Mutex<InteractiveUIInner>>,
+    _settings: Arc<Settings>,
 }
 
 impl InteractiveUI {
-    pub fn new(_settings: &Settings) -> (Self, InteractiveUISender) {
+    pub fn new(settings: &Settings) -> (Self, InteractiveUISender) {
         let (cssender, csreceiver) = flume::unbounded::<ConnectionState>();
 
         let term = Term::stdout();
@@ -45,9 +46,10 @@ impl InteractiveUI {
                 error: None,
                 done: Some(StopSource::new()),
                 connection_state_receiver: csreceiver,
-                log_enabled: false,
+                log_enabled: true,
                 enable_color,
             })),
+            _settings: Arc::new(settings.clone()),
         };
 
         let ui_sender = InteractiveUISender {
@@ -169,7 +171,6 @@ impl InteractiveUI {
                                 eprintln!("Error: {:?}", e);
                                 self.inner.lock().done.take();
                             }
-                            self.inner.lock().log_enabled = true;
                         }
                     } else if line == "log warn" {
                         let opt_cmdproc = self.inner.lock().cmdproc.clone();
@@ -181,7 +182,6 @@ impl InteractiveUI {
                                 eprintln!("Error: {:?}", e);
                                 self.inner.lock().done.take();
                             }
-                            self.inner.lock().log_enabled = true;
                         }
                     } else if line == "log info" {
                         let opt_cmdproc = self.inner.lock().cmdproc.clone();
@@ -193,7 +193,6 @@ impl InteractiveUI {
                                 eprintln!("Error: {:?}", e);
                                 self.inner.lock().done.take();
                             }
-                            self.inner.lock().log_enabled = true;
                         }
                     } else if line == "log debug" || line == "log" {
                         let opt_cmdproc = self.inner.lock().cmdproc.clone();
@@ -205,6 +204,8 @@ impl InteractiveUI {
                                 eprintln!("Error: {:?}", e);
                                 self.inner.lock().done.take();
                             }
+                        }
+                        if line == "log" {
                             self.inner.lock().log_enabled = true;
                         }
                     } else if line == "log trace" {
@@ -217,7 +218,6 @@ impl InteractiveUI {
                                 eprintln!("Error: {:?}", e);
                                 self.inner.lock().done.take();
                             }
-                            self.inner.lock().log_enabled = true;
                         }
                     } else if line == "log off" {
                         let opt_cmdproc = self.inner.lock().cmdproc.clone();
@@ -229,9 +229,27 @@ impl InteractiveUI {
                                 eprintln!("Error: {:?}", e);
                                 self.inner.lock().done.take();
                             }
-                            self.inner.lock().log_enabled = false;
                         }
+                    } else if line == "log hide" || line == "log disable" {
+                        self.inner.lock().log_enabled = false;
+                    } else if line == "log show" || line == "log enable" {
+                        self.inner.lock().log_enabled = true;
                     } else if !line.is_empty() {
+                        if line == "help" {
+                            let _ = writeln!(
+                                stdout,
+                                r#"
+Interactive Mode Commands:
+    help - Display this help
+    clear - Clear the screen
+    log [level]      - Set the client api log level for the node to one of: error,warn,info,debug,trace,off
+        hide|disable - Turn off viewing the log without changing the log level for the node
+        show|enable  - Turn on viewing the log without changing the log level for the node
+                     - With no option, 'log' turns on viewing the log and sets the level to 'debug'
+"#
+                            );
+                        }
+
                         let cmdproc = self.inner.lock().cmdproc.clone();
                         if let Some(cmdproc) = &cmdproc {
                             if let Err(e) = cmdproc.run_command(

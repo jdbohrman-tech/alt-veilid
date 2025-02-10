@@ -3,7 +3,11 @@ use crate::storage_manager::{MAX_RECORD_DATA_SIZE, MAX_SUBKEY_SIZE};
 
 /// Default DHT Schema (DFLT)
 #[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify), tsify(from_wasm_abi))]
+#[cfg_attr(
+    all(target_arch = "wasm32", target_os = "unknown"),
+    derive(Tsify),
+    tsify(from_wasm_abi)
+)]
 pub struct DHTSchemaDFLT {
     /// Owner subkey count
     o_cnt: u16,
