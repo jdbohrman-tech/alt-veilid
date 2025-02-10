@@ -23,6 +23,7 @@ pub const ADDRESS_CHECK_CACHE_SIZE: usize = 10;
 //     TimestampDuration::new(3_600_000_000_u64); // 60 minutes
 
 /// Address checker config
+#[derive(Debug)]
 pub struct AddressCheckConfig {
     pub detect_address_changes: bool,
     pub ip6_prefix_size: usize,
@@ -42,6 +43,22 @@ pub struct AddressCheck {
     address_inconsistency_table: BTreeMap<AddressCheckCacheKey, usize>,
     // Used by OutboundOnly to determine if we should re-do our network class
     address_consistency_table: BTreeMap<AddressCheckCacheKey, LruCache<IpAddr, SocketAddress>>,
+}
+
+impl fmt::Debug for AddressCheck {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("AddressCheck")
+            .field("config", &self.config)
+            //.field("net", &self.net)
+            .field("current_network_class", &self.current_network_class)
+            .field("current_addresses", &self.current_addresses)
+            .field(
+                "address_inconsistency_table",
+                &self.address_inconsistency_table,
+            )
+            .field("address_consistency_table", &self.address_consistency_table)
+            .finish()
+    }
 }
 
 impl AddressCheck {

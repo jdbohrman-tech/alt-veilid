@@ -268,7 +268,7 @@ impl DialInfo {
             Self::WSS(di) => di.socket_address.port(),
         }
     }
-    #[cfg_attr(target_arch = "wasm32", expect(dead_code))]
+    #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), expect(dead_code))]
     pub fn set_port(&mut self, port: u16) {
         match self {
             Self::UDP(di) => di.socket_address.set_port(port),
@@ -366,7 +366,7 @@ impl DialInfo {
             // This will not be used on signed dialinfo, only for bootstrapping, so we don't need to worry about
             // the '0.0.0.0' address being propagated across the routing table
             cfg_if::cfg_if! {
-                if #[cfg(target_arch = "wasm32")] {
+                if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
                     vec![SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0,0,0,0)), port)]
                 } else {
                     match split_url.host {

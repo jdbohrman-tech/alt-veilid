@@ -3,7 +3,7 @@
 #![deny(unused_must_use)]
 #![recursion_limit = "256"]
 
-use crate::{settings::NamedSocketAddrs, tools::*, ui::*};
+use crate::{tools::*, ui::*};
 
 use clap::{Parser, ValueEnum};
 use flexi_logger::*;
@@ -37,7 +37,7 @@ struct CmdlineArgs {
     ipc_path: Option<PathBuf>,
     /// Subnode index to use when connecting
     #[arg(short('n'), long, default_value = "0")]
-    subnode_index: usize,
+    subnode_index: u16,
     /// Address to connect to
     #[arg(long, short = 'a')]
     address: Option<String>,
@@ -47,9 +47,9 @@ struct CmdlineArgs {
     /// Specify a configuration file to use
     #[arg(short = 'c', long, value_name = "FILE")]
     config_file: Option<PathBuf>,
-    /// log level
-    #[arg(value_enum)]
-    log_level: Option<LogLevel>,
+    /// Log level for the CLI itself (not for the Veilid node)
+    #[arg(long, value_enum)]
+    cli_log_level: Option<LogLevel>,
     /// interactive
     #[arg(long, short = 'i', group = "execution_mode")]
     interactive: bool,
@@ -93,11 +93,11 @@ fn main() -> Result<(), String> {
             .map_err(|e| format!("configuration is invalid: {}", e))?;
 
         // Set config from command line
-        if let Some(LogLevel::Debug) = args.log_level {
+        if let Some(LogLevel::Debug) = args.cli_log_level {
             settings.logging.level = settings::LogLevel::Debug;
             settings.logging.terminal.enabled = true;
         }
-        if let Some(LogLevel::Trace) = args.log_level {
+        if let Some(LogLevel::Trace) = args.cli_log_level {
             settings.logging.level = settings::LogLevel::Trace;
             settings.logging.terminal.enabled = true;
         }
@@ -248,59 +248,14 @@ fn main() -> Result<(), String> {
         // Determine IPC path to try
         let mut client_api_ipc_path = None;
         if enable_ipc {
-            cfg_if::cfg_if! {
-                if #[cfg(windows)] {
-                    if let Some(ipc_path) = args.ipc_path.or(settings.ipc_path.clone()) {
-                        if is_ipc_socket_path(&ipc_path) {
-                            // try direct path
-                            enable_network = false;
-                            client_api_ipc_path = Some(ipc_path);
-                        } else {
-                            // try subnode index inside path
-                            let ipc_path = ipc_path.join(args.subnode_index.to_string());
-                            if is_ipc_socket_path(&ipc_path) {
-                                // subnode indexed path exists
-                                enable_network = false;
-                                client_api_ipc_path = Some(ipc_path);
-                            }
-                        }
-                    }
-                } else {
-                    if let Some(ipc_path) = args.ipc_path.or(settings.ipc_path.clone()) {
-                        if is_ipc_socket_path(&ipc_path) {
-                            // try direct path
-                            enable_network = false;
-                            client_api_ipc_path = Some(ipc_path);
-                        } else if ipc_path.exists() && ipc_path.is_dir() {
-                            // try subnode index inside path
-                            let ipc_path = ipc_path.join(args.subnode_index.to_string());
-                            if is_ipc_socket_path(&ipc_path) {
-                                // subnode indexed path exists
-                                enable_network = false;
-                                client_api_ipc_path = Some(ipc_path);
-                            }
-                        }
-                    }
-                }
+            client_api_ipc_path = settings.resolve_ipc_path(args.ipc_path, args.subnode_index);
+            if client_api_ipc_path.is_some() {
+                enable_network = false;
             }
         }
         let mut client_api_network_addresses = None;
         if enable_network {
-            let args_address = if let Some(args_address) = args.address {
-                match NamedSocketAddrs::try_from(args_address) {
-                    Ok(v) => Some(v),
-                    Err(e) => {
-                        return Err(format!("Invalid server address: {}", e));
-                    }
-                }
-            } else {
-                None
-            };
-            if let Some(address_arg) = args_address.or(settings.address.clone()) {
-                client_api_network_addresses = Some(address_arg.addrs);
-            } else if let Some(address) = settings.address.clone() {
-                client_api_network_addresses = Some(address.addrs.clone());
-            }
+            client_api_network_addresses = settings.resolve_network_address(args.address)?;
         }
 
         // Create command processor

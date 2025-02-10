@@ -1,7 +1,7 @@
 use super::*;
 
 pub(crate) struct FilteredNodeRef {
-    routing_table: RoutingTable,
+    registry: VeilidComponentRegistry,
     entry: Arc<BucketEntry>,
     filter: NodeRefFilter,
     sequencing: Sequencing,
@@ -9,9 +9,11 @@ pub(crate) struct FilteredNodeRef {
     track_id: usize,
 }
 
+impl_veilid_component_registry_accessor!(FilteredNodeRef);
+
 impl FilteredNodeRef {
     pub fn new(
-        routing_table: RoutingTable,
+        registry: VeilidComponentRegistry,
         entry: Arc<BucketEntry>,
         filter: NodeRefFilter,
         sequencing: Sequencing,
@@ -19,7 +21,7 @@ impl FilteredNodeRef {
         entry.ref_count.fetch_add(1u32, Ordering::AcqRel);
 
         Self {
-            routing_table,
+            registry,
             entry,
             filter,
             sequencing,
@@ -29,7 +31,7 @@ impl FilteredNodeRef {
     }
 
     pub fn unfiltered(&self) -> NodeRef {
-        NodeRef::new(self.routing_table.clone(), self.entry.clone())
+        NodeRef::new(self.registry(), self.entry.clone())
     }
 
     pub fn filtered_clone(&self, filter: NodeRefFilter) -> FilteredNodeRef {
@@ -40,7 +42,7 @@ impl FilteredNodeRef {
 
     pub fn sequencing_clone(&self, sequencing: Sequencing) -> FilteredNodeRef {
         FilteredNodeRef::new(
-            self.routing_table.clone(),
+            self.registry.clone(),
             self.entry.clone(),
             self.filter(),
             sequencing,
@@ -70,9 +72,6 @@ impl FilteredNodeRef {
 }
 
 impl NodeRefAccessorsTrait for FilteredNodeRef {
-    fn routing_table(&self) -> RoutingTable {
-        self.routing_table.clone()
-    }
     fn entry(&self) -> Arc<BucketEntry> {
         self.entry.clone()
     }
@@ -105,7 +104,8 @@ impl NodeRefOperateTrait for FilteredNodeRef {
     where
         F: FnOnce(&RoutingTableInner, &BucketEntryInner) -> T,
     {
-        let inner = &*self.routing_table.inner.read();
+        let routing_table = self.registry.routing_table();
+        let inner = &*routing_table.inner.read();
         self.entry.with(inner, f)
     }
 
@@ -113,7 +113,8 @@ impl NodeRefOperateTrait for FilteredNodeRef {
     where
         F: FnOnce(&mut RoutingTableInner, &mut BucketEntryInner) -> T,
     {
-        let inner = &mut *self.routing_table.inner.write();
+        let routing_table = self.registry.routing_table();
+        let inner = &mut *routing_table.inner.write();
         self.entry.with_mut(inner, f)
     }
 }
@@ -125,7 +126,7 @@ impl Clone for FilteredNodeRef {
         self.entry.ref_count.fetch_add(1u32, Ordering::AcqRel);
 
         Self {
-            routing_table: self.routing_table.clone(),
+            registry: self.registry.clone(),
             entry: self.entry.clone(),
             filter: self.filter,
             sequencing: self.sequencing,
@@ -162,7 +163,7 @@ impl Drop for FilteredNodeRef {
             // get node ids with inner unlocked because nothing could be referencing this entry now
             // and we don't know when it will get dropped, possibly inside a lock
             let node_ids = self.entry.with_inner(|e| e.node_ids());
-            self.routing_table.queue_bucket_kicks(node_ids);
+            self.routing_table().queue_bucket_kicks(node_ids);
         }
     }
 }

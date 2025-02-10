@@ -22,7 +22,7 @@ impl<T> MustJoinHandle<T> {
                 self.join_handle = None;
             } else if #[cfg(feature="rt-tokio")] {
                 self.join_handle = None;
-            } else if #[cfg(target_arch = "wasm32")] {
+            } else if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
                 if let Some(jh) = self.join_handle.take() {
                     jh.detach();
                 }
@@ -48,7 +48,7 @@ impl<T> MustJoinHandle<T> {
                         let _ = jh.await;
                         self.completed = true;
                     }
-                } else if #[cfg(target_arch = "wasm32")] {
+                } else if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
                     drop(self.join_handle.take());
                     self.completed = true;
                 } else {
@@ -94,7 +94,7 @@ impl<T: 'static> Future for MustJoinHandle<T> {
                                 }
                             }
                         }
-                    } else if #[cfg(target_arch = "wasm32")] {
+                    } else if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
                         Poll::Ready(t)
                     } else {
                         compile_error!("needs executor implementation");

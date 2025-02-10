@@ -31,7 +31,7 @@ pub(crate) enum RouteNode {
 }
 
 impl RouteNode {
-    pub fn validate(&self, crypto: Crypto) -> VeilidAPIResult<()> {
+    pub fn validate(&self, crypto: &Crypto) -> VeilidAPIResult<()> {
         match self {
             RouteNode::NodeId(_) => Ok(()),
             RouteNode::PeerInfo(pi) => pi.validate(crypto),
@@ -40,7 +40,7 @@ impl RouteNode {
 
     pub fn node_ref(
         &self,
-        routing_table: RoutingTable,
+        routing_table: &RoutingTable,
         crypto_kind: CryptoKind,
     ) -> Option<NodeRef> {
         match self {
@@ -91,7 +91,7 @@ pub(crate) struct RouteHop {
     pub next_hop: Option<RouteHopData>,
 }
 impl RouteHop {
-    pub fn validate(&self, crypto: Crypto) -> VeilidAPIResult<()> {
+    pub fn validate(&self, crypto: &Crypto) -> VeilidAPIResult<()> {
         self.node.validate(crypto)
     }
 }
@@ -108,7 +108,7 @@ pub(crate) enum PrivateRouteHops {
 }
 
 impl PrivateRouteHops {
-    pub fn validate(&self, crypto: Crypto) -> VeilidAPIResult<()> {
+    pub fn validate(&self, crypto: &Crypto) -> VeilidAPIResult<()> {
         match self {
             PrivateRouteHops::FirstHop(rh) => rh.validate(crypto),
             PrivateRouteHops::Data(_) => Ok(()),
@@ -138,7 +138,7 @@ impl PrivateRoute {
         }
     }
 
-    pub fn validate(&self, crypto: Crypto) -> VeilidAPIResult<()> {
+    pub fn validate(&self, crypto: &Crypto) -> VeilidAPIResult<()> {
         self.hops.validate(crypto)
     }
 

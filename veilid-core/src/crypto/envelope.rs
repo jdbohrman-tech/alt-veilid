@@ -67,7 +67,7 @@ impl Envelope {
 
     #[instrument(level = "trace", target = "envelope", skip_all)]
     pub fn from_signed_data(
-        crypto: Crypto,
+        crypto: &Crypto,
         data: &[u8],
         network_key: &Option<SharedSecret>,
     ) -> VeilidAPIResult<Envelope> {
@@ -193,7 +193,7 @@ impl Envelope {
     #[instrument(level = "trace", target = "envelope", skip_all)]
     pub fn decrypt_body(
         &self,
-        crypto: Crypto,
+        crypto: &Crypto,
         data: &[u8],
         node_id_secret: &SecretKey,
         network_key: &Option<SharedSecret>,
@@ -226,7 +226,7 @@ impl Envelope {
     #[instrument(level = "trace", target = "envelope", skip_all, err)]
     pub fn to_encrypted_data(
         &self,
-        crypto: Crypto,
+        crypto: &Crypto,
         body: &[u8],
         node_id_secret: &SecretKey,
         network_key: &Option<SharedSecret>,

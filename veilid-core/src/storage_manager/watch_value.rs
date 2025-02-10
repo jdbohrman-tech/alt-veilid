@@ -25,7 +25,6 @@ impl StorageManager {
     #[instrument(level = "trace", target = "dht", skip_all, err)]
     pub(super) async fn outbound_watch_value_cancel(
         &self,
-        rpc_processor: RPCProcessor,
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
         safety_selection: SafetySelection,
@@ -37,17 +36,11 @@ impl StorageManager {
 
         // Get the appropriate watcher key, if anonymous use a static anonymous watch key
         // which lives for the duration of the app's runtime
-        let watcher = opt_watcher.unwrap_or_else(|| {
-            self.unlocked_inner
-                .anonymous_watch_keys
-                .get(key.kind)
-                .unwrap()
-                .value
-        });
+        let watcher =
+            opt_watcher.unwrap_or_else(|| self.anonymous_watch_keys.get(key.kind).unwrap().value);
 
         let wva = VeilidAPIError::from_network_result(
-            rpc_processor
-                .clone()
+            self.rpc_processor()
                 .rpc_call_watch_value(
                     Destination::direct(watch_node.routing_domain_filtered(routing_domain))
                         .with_safety(safety_selection),
@@ -80,7 +73,6 @@ impl StorageManager {
     #[instrument(target = "dht", level = "debug", skip_all, err)]
     pub(super) async fn outbound_watch_value_change(
         &self,
-        rpc_processor: RPCProcessor,
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
         expiration: Timestamp,
@@ -101,17 +93,11 @@ impl StorageManager {
 
         // Get the appropriate watcher key, if anonymous use a static anonymous watch key
         // which lives for the duration of the app's runtime
-        let watcher = opt_watcher.unwrap_or_else(|| {
-            self.unlocked_inner
-                .anonymous_watch_keys
-                .get(key.kind)
-                .unwrap()
-                .value
-        });
+        let watcher =
+            opt_watcher.unwrap_or_else(|| self.anonymous_watch_keys.get(key.kind).unwrap().value);
 
         let wva = VeilidAPIError::from_network_result(
-            rpc_processor
-                .clone()
+            self.rpc_processor()
                 .rpc_call_watch_value(
                     Destination::direct(watch_node.routing_domain_filtered(routing_domain))
                         .with_safety(safety_selection),
@@ -149,7 +135,6 @@ impl StorageManager {
     #[instrument(level = "trace", target = "dht", skip_all, err)]
     pub(super) async fn outbound_watch_value(
         &self,
-        rpc_processor: RPCProcessor,
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
         expiration: Timestamp,
@@ -171,7 +156,6 @@ impl StorageManager {
             };
             return self
                 .outbound_watch_value_cancel(
-                    rpc_processor,
                     key,
                     subkeys,
                     safety_selection,
@@ -190,7 +174,6 @@ impl StorageManager {
             };
             if let Some(res) = self
                 .outbound_watch_value_change(
-                    rpc_processor.clone(),
                     key,
                     subkeys.clone(),
                     expiration,
@@ -209,34 +192,26 @@ impl StorageManager {
             // Otherwise, treat this like a new watch
         }
 
-        let routing_table = rpc_processor.routing_table();
         let routing_domain = RoutingDomain::PublicInternet;
 
         // Get the DHT parameters for 'WatchValue', some of which are the same for 'SetValue' operations
-        let (key_count, timeout_us, set_value_count) = {
-            let c = self.unlocked_inner.config.get();
+        let (key_count, timeout_us, set_value_count) = self.config().with(|c| {
             (
                 c.network.dht.max_find_node_count as usize,
                 TimestampDuration::from(ms_to_us(c.network.dht.set_value_timeout_ms)),
                 c.network.dht.set_value_count as usize,
             )
-        };
+        });
 
         // Get the appropriate watcher key, if anonymous use a static anonymous watch key
         // which lives for the duration of the app's runtime
-        let watcher = opt_watcher.unwrap_or_else(|| {
-            self.unlocked_inner
-                .anonymous_watch_keys
-                .get(key.kind)
-                .unwrap()
-                .value
-        });
+        let watcher =
+            opt_watcher.unwrap_or_else(|| self.anonymous_watch_keys.get(key.kind).unwrap().value);
 
         // Get the nodes we know are caching this value to seed the fanout
         let init_fanout_queue = {
-            let inner = self.inner.lock().await;
-            inner
-                .get_value_nodes(key)?
+            self.get_value_nodes(key)
+                .await?
                 .unwrap_or_default()
                 .into_iter()
                 .filter(|x| {
@@ -253,55 +228,60 @@ impl StorageManager {
         }));
 
         // Routine to call to generate fanout
-        let call_routine = |next_node: NodeRef| {
-            let rpc_processor = rpc_processor.clone();
+        let call_routine = {
             let context = context.clone();
-            let subkeys = subkeys.clone();
+            let registry = self.registry();
+            move |next_node: NodeRef| {
+                let context = context.clone();
+                let registry = registry.clone();
 
-            async move {
-                let wva = network_result_try!(
-                    rpc_processor
-                        .clone()
-                        .rpc_call_watch_value(
-                            Destination::direct(next_node.routing_domain_filtered(routing_domain)).with_safety(safety_selection),
-                            key,
-                            subkeys,
-                            expiration,
-                            count,
-                            watcher,
-                            None
-                        )
-                        .await?
-                );
+                let subkeys = subkeys.clone();
 
-                // Keep answer if we got one
-                // (accepted means the node could provide an answer, not that the watch is active)
-                if wva.answer.accepted {
-                    let mut done = false;
-                    if wva.answer.expiration_ts.as_u64() > 0 {
-                        // If the expiration time is greater than zero this watch is active
-                        log_dht!(debug "Watch created: id={} expiration_ts={} ({})", wva.answer.watch_id, display_ts(wva.answer.expiration_ts.as_u64()), next_node);
-                        done = true;
-                    } else {
-                        // If the returned expiration time is zero, this watch was cancelled or rejected
-                        // If we are asking to cancel then check_done will stop after the first node
+                async move {
+                    let rpc_processor = registry.rpc_processor();
+                    let wva = network_result_try!(
+                        rpc_processor
+                            .rpc_call_watch_value(
+                                Destination::direct(next_node.routing_domain_filtered(routing_domain)).with_safety(safety_selection),
+                                key,
+                                subkeys,
+                                expiration,
+                                count,
+                                watcher,
+                                None
+                            )
+                            .await?
+                    );
+
+                    // Keep answer if we got one
+                    // (accepted means the node could provide an answer, not that the watch is active)
+                    if wva.answer.accepted {
+                        let mut done = false;
+                        if wva.answer.expiration_ts.as_u64() > 0 {
+                            // If the expiration time is greater than zero this watch is active
+                            log_dht!(debug "Watch created: id={} expiration_ts={} ({})", wva.answer.watch_id, display_ts(wva.answer.expiration_ts.as_u64()), next_node);
+                            done = true;
+                        } else {
+                            // If the returned expiration time is zero, this watch was cancelled or rejected
+                            // If we are asking to cancel then check_done will stop after the first node
+                        }
+                        if done {
+                            let mut ctx = context.lock();
+                            ctx.opt_watch_value_result = Some(OutboundWatchValueResult {
+                                expiration_ts: wva.answer.expiration_ts,
+                                watch_id: wva.answer.watch_id,
+                                watch_node: next_node.clone(),
+                                opt_value_changed_route: wva.reply_private_route,
+                            });
+                        }
                     }
-                    if done {
-                        let mut ctx = context.lock();
-                        ctx.opt_watch_value_result = Some(OutboundWatchValueResult {
-                            expiration_ts: wva.answer.expiration_ts,
-                            watch_id: wva.answer.watch_id,
-                            watch_node: next_node.clone(),
-                            opt_value_changed_route: wva.reply_private_route,
-                        });
-                    }
-                }
 
-                // Return peers if we have some
-                log_network_result!(debug "WatchValue fanout call returned peers {} ({})", wva.answer.peers.len(), next_node);
+                    // Return peers if we have some
+                    log_network_result!(debug "WatchValue fanout call returned peers {} ({})", wva.answer.peers.len(), next_node);
 
-                Ok(NetworkResult::value(FanoutCallOutput{peer_info_list: wva.answer.peers}))
-            }.instrument(tracing::trace_span!("outbound_watch_value call routine"))
+                    Ok(NetworkResult::value(FanoutCallOutput{peer_info_list: wva.answer.peers}))
+                }.instrument(tracing::trace_span!("outbound_watch_value call routine"))
+            }
         };
 
         // Routine to call to check if we're done at each step
@@ -318,8 +298,9 @@ impl StorageManager {
         // Use a fixed fanout concurrency of 1 because we only want one watch
         // Use a longer timeout (timeout_us * set_value_count) because we may need to try multiple nodes
         // and each one might take timeout_us time.
+        let routing_table = self.routing_table();
         let fanout_call = FanoutCall::new(
-            routing_table.clone(),
+            &routing_table,
             key,
             key_count,
             1,
@@ -381,7 +362,7 @@ impl StorageManager {
         params: WatchParameters,
         watch_id: Option<u64>,
     ) -> VeilidAPIResult<NetworkResult<WatchResult>> {
-        let mut inner = self.lock().await?;
+        let mut inner = self.inner.lock().await;
 
         // Validate input
         if params.count == 0 && (watch_id.unwrap_or_default() == 0) {
@@ -427,7 +408,7 @@ impl StorageManager {
     ) -> VeilidAPIResult<NetworkResult<()>> {
         // Update local record store with new value
         let (is_value_seq_newer, value) = {
-            let mut inner = self.lock().await?;
+            let mut inner = self.inner.lock().await;
 
             // Don't process update if the record is closed
             let Some(opened_record) = inner.opened_records.get_mut(&key) else {
@@ -484,9 +465,8 @@ impl StorageManager {
                     apibail_internal!("should not have value without first subkey");
                 };
 
-                let last_get_result = inner
-                    .handle_get_local_value(key, first_subkey, true)
-                    .await?;
+                let last_get_result =
+                    Self::handle_get_local_value_inner(&mut inner, key, first_subkey, true).await?;
 
                 let descriptor = last_get_result.opt_descriptor.unwrap();
                 let schema = descriptor.schema()?;
@@ -514,14 +494,14 @@ impl StorageManager {
                     }
                 }
                 if is_value_seq_newer {
-                    inner
-                        .handle_set_local_value(
-                            key,
-                            first_subkey,
-                            value.clone(),
-                            WatchUpdateMode::NoUpdate,
-                        )
-                        .await?;
+                    Self::handle_set_local_value_inner(
+                        &mut inner,
+                        key,
+                        first_subkey,
+                        value.clone(),
+                        WatchUpdateMode::NoUpdate,
+                    )
+                    .await?;
                 }
             }
 
@@ -540,8 +520,7 @@ impl StorageManager {
             } else {
                 None
             };
-            self.update_callback_value_change(key, subkeys, count, value)
-                .await?;
+            self.update_callback_value_change(key, subkeys, count, value);
         }
 
         Ok(NetworkResult::value(()))

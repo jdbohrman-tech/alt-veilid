@@ -23,7 +23,7 @@ impl Drop for VeilidAPIInner {
 
 /// The primary developer entrypoint into `veilid-core` functionality.
 ///
-/// From [VeilidAPI] one can access:
+/// From [VeilidAPI] one can access various components:
 ///
 /// * [VeilidConfig] - The Veilid configuration specified at startup time.
 /// * [Crypto] - The available set of cryptosystems provided by Veilid.
@@ -36,13 +36,13 @@ impl Drop for VeilidAPIInner {
 /// * Reply to `AppCall` RPCs.
 #[derive(Clone, Debug)]
 pub struct VeilidAPI {
-    pub(super) inner: Arc<Mutex<VeilidAPIInner>>,
+    inner: Arc<Mutex<VeilidAPIInner>>,
 }
 
 impl VeilidAPI {
     #[instrument(target = "veilid_api", level = "debug", skip_all)]
     pub(crate) fn new(context: VeilidCoreContext) -> Self {
-        event!(target: "veilid_api", Level::DEBUG, 
+        event!(target: "veilid_api", Level::DEBUG,
             "VeilidAPI::new()");
         Self {
             inner: Arc::new(Mutex::new(VeilidAPIInner {
@@ -60,7 +60,7 @@ impl VeilidAPI {
     /// Shut down Veilid and terminate the API.
     #[instrument(target = "veilid_api", level = "debug", skip_all)]
     pub async fn shutdown(self) {
-        event!(target: "veilid_api", Level::DEBUG, 
+        event!(target: "veilid_api", Level::DEBUG,
             "VeilidAPI::shutdown()");
         let context = { self.inner.lock().context.take() };
         if let Some(context) = context {
@@ -79,83 +79,75 @@ impl VeilidAPI {
     /// Access the configuration that Veilid was initialized with.
     pub fn config(&self) -> VeilidAPIResult<VeilidConfig> {
         let inner = self.inner.lock();
-        if let Some(context) = &inner.context {
-            return Ok(context.config.clone());
-        }
-        Err(VeilidAPIError::NotInitialized)
+        let Some(context) = &inner.context else {
+            return Err(VeilidAPIError::NotInitialized);
+        };
+        Ok(context.registry().config())
     }
 
-    /// Get the cryptosystem manager.
-    pub fn crypto(&self) -> VeilidAPIResult<Crypto> {
+    /// Get the cryptosystem component.
+    pub fn crypto(&self) -> VeilidAPIResult<VeilidComponentGuard<'_, Crypto>> {
         let inner = self.inner.lock();
-        if let Some(context) = &inner.context {
-            return Ok(context.crypto.clone());
-        }
-        Err(VeilidAPIError::NotInitialized)
+        let Some(context) = &inner.context else {
+            return Err(VeilidAPIError::NotInitialized);
+        };
+        context
+            .registry()
+            .lookup::<Crypto>()
+            .ok_or(VeilidAPIError::NotInitialized)
     }
 
-    /// Get the TableStore manager.
-    pub fn table_store(&self) -> VeilidAPIResult<TableStore> {
+    /// Get the TableStore component.
+    pub fn table_store(&self) -> VeilidAPIResult<VeilidComponentGuard<'_, TableStore>> {
         let inner = self.inner.lock();
-        if let Some(context) = &inner.context {
-            return Ok(context.table_store.clone());
-        }
-        Err(VeilidAPIError::not_initialized())
+        let Some(context) = &inner.context else {
+            return Err(VeilidAPIError::NotInitialized);
+        };
+        context
+            .registry()
+            .lookup::<TableStore>()
+            .ok_or(VeilidAPIError::NotInitialized)
     }
 
-    /// Get the ProtectedStore manager.
-    pub fn protected_store(&self) -> VeilidAPIResult<ProtectedStore> {
+    /// Get the ProtectedStore component.
+    pub fn protected_store(&self) -> VeilidAPIResult<VeilidComponentGuard<'_, ProtectedStore>> {
         let inner = self.inner.lock();
-        if let Some(context) = &inner.context {
-            return Ok(context.protected_store.clone());
-        }
-        Err(VeilidAPIError::not_initialized())
+        let Some(context) = &inner.context else {
+            return Err(VeilidAPIError::NotInitialized);
+        };
+        context
+            .registry()
+            .lookup::<ProtectedStore>()
+            .ok_or(VeilidAPIError::NotInitialized)
+    }
+
+    /// Get the BlockStore component.
+    #[cfg(feature = "unstable-blockstore")]
+    pub fn block_store(&self) -> VeilidAPIResult<VeilidComponentGuard<'_, BlockStore>> {
+        let inner = self.inner.lock();
+        let Some(context) = &inner.context else {
+            return Err(VeilidAPIError::NotInitialized);
+        };
+        context
+            .registry()
+            .lookup::<BlockStore>()
+            .ok_or(VeilidAPIError::NotInitialized)
     }
 
     ////////////////////////////////////////////////////////////////
     // Internal Accessors
-    pub(crate) fn attachment_manager(&self) -> VeilidAPIResult<AttachmentManager> {
+
+    pub(crate) fn core_context(&self) -> VeilidAPIResult<VeilidCoreContext> {
         let inner = self.inner.lock();
-        if let Some(context) = &inner.context {
-            return Ok(context.attachment_manager.clone());
-        }
-        Err(VeilidAPIError::not_initialized())
+        let Some(context) = &inner.context else {
+            return Err(VeilidAPIError::NotInitialized);
+        };
+        Ok(context.clone())
     }
-    pub(crate) fn network_manager(&self) -> VeilidAPIResult<NetworkManager> {
-        let inner = self.inner.lock();
-        if let Some(context) = &inner.context {
-            return Ok(context.attachment_manager.network_manager());
-        }
-        Err(VeilidAPIError::not_initialized())
-    }
-    pub(crate) fn rpc_processor(&self) -> VeilidAPIResult<RPCProcessor> {
-        let inner = self.inner.lock();
-        if let Some(context) = &inner.context {
-            return Ok(context.attachment_manager.network_manager().rpc_processor());
-        }
-        Err(VeilidAPIError::NotInitialized)
-    }
-    pub(crate) fn routing_table(&self) -> VeilidAPIResult<RoutingTable> {
-        let inner = self.inner.lock();
-        if let Some(context) = &inner.context {
-            return Ok(context.attachment_manager.network_manager().routing_table());
-        }
-        Err(VeilidAPIError::NotInitialized)
-    }
-    pub(crate) fn storage_manager(&self) -> VeilidAPIResult<StorageManager> {
-        let inner = self.inner.lock();
-        if let Some(context) = &inner.context {
-            return Ok(context.storage_manager.clone());
-        }
-        Err(VeilidAPIError::NotInitialized)
-    }
-    #[cfg(feature = "unstable-blockstore")]
-    pub(crate) fn block_store(&self) -> VeilidAPIResult<BlockStore> {
-        let inner = self.inner.lock();
-        if let Some(context) = &inner.context {
-            return Ok(context.block_store.clone());
-        }
-        Err(VeilidAPIError::not_initialized())
+
+    pub(crate) fn with_debug_cache<R, F: FnOnce(&mut DebugCache) -> R>(&self, callback: F) -> R {
+        let mut inner = self.inner.lock();
+        callback(&mut inner.debug_cache)
     }
 
     ////////////////////////////////////////////////////////////////
@@ -163,7 +155,7 @@ impl VeilidAPI {
 
     /// Get a full copy of the current state of Veilid.
     pub async fn get_state(&self) -> VeilidAPIResult<VeilidState> {
-        let attachment_manager = self.attachment_manager()?;
+        let attachment_manager = self.core_context()?.attachment_manager();
         let network_manager = attachment_manager.network_manager();
         let config = self.config()?;
 
@@ -181,10 +173,10 @@ impl VeilidAPI {
     /// Connect to the network.
     #[instrument(target = "veilid_api", level = "debug", skip_all, ret, err)]
     pub async fn attach(&self) -> VeilidAPIResult<()> {
-        event!(target: "veilid_api", Level::DEBUG, 
+        event!(target: "veilid_api", Level::DEBUG,
             "VeilidAPI::attach()");
 
-        let attachment_manager = self.attachment_manager()?;
+        let attachment_manager = self.core_context()?.attachment_manager();
         if !attachment_manager.attach().await {
             apibail_generic!("Already attached");
         }
@@ -194,10 +186,10 @@ impl VeilidAPI {
     /// Disconnect from the network.
     #[instrument(target = "veilid_api", level = "debug", skip_all, ret, err)]
     pub async fn detach(&self) -> VeilidAPIResult<()> {
-        event!(target: "veilid_api", Level::DEBUG, 
+        event!(target: "veilid_api", Level::DEBUG,
             "VeilidAPI::detach()");
 
-        let attachment_manager = self.attachment_manager()?;
+        let attachment_manager = self.core_context()?.attachment_manager();
         if !attachment_manager.detach().await {
             apibail_generic!("Already detached");
         }
@@ -210,7 +202,7 @@ impl VeilidAPI {
     /// Get a new `RoutingContext` object to use to send messages over the Veilid network with default safety, sequencing, and stability parameters.
     #[instrument(target = "veilid_api", level = "debug", skip_all, err, ret)]
     pub fn routing_context(&self) -> VeilidAPIResult<RoutingContext> {
-        event!(target: "veilid_api", Level::DEBUG, 
+        event!(target: "veilid_api", Level::DEBUG,
             "VeilidAPI::routing_context()");
 
         RoutingContext::try_new(self.clone())
@@ -227,12 +219,12 @@ impl VeilidAPI {
     pub fn parse_as_target<S: ToString>(&self, s: S) -> VeilidAPIResult<Target> {
         let s = s.to_string();
 
-        event!(target: "veilid_api", Level::DEBUG, 
+        event!(target: "veilid_api", Level::DEBUG,
             "VeilidAPI::parse_as_target(s: {:?})", s);
 
         // Is this a route id?
         if let Ok(rrid) = RouteId::from_str(&s) {
-            let routing_table = self.routing_table()?;
+            let routing_table = self.core_context()?.routing_table();
             let rss = routing_table.route_spec_store();
 
             // Is this a valid remote route id? (can't target allocated routes)
@@ -284,7 +276,7 @@ impl VeilidAPI {
         stability: Stability,
         sequencing: Sequencing,
     ) -> VeilidAPIResult<(RouteId, Vec<u8>)> {
-        event!(target: "veilid_api", Level::DEBUG, 
+        event!(target: "veilid_api", Level::DEBUG,
             "VeilidAPI::new_custom_private_route(crypto_kinds: {:?}, stability: {:?}, sequencing: {:?})",
             crypto_kinds,
             stability,
@@ -307,7 +299,8 @@ impl VeilidAPI {
             sequencing,
         };
 
-        let rss = self.routing_table()?.route_spec_store();
+        let routing_table = self.core_context()?.routing_table();
+        let rss = routing_table.route_spec_store();
         let route_id =
             rss.allocate_route(crypto_kinds, &safety_spec, DirectionSet::all(), &[], false)?;
         match rss.test_route(route_id).await? {
@@ -342,9 +335,10 @@ impl VeilidAPI {
     /// Returns a route id that can be used to send private messages to the node creating this route.
     #[instrument(target = "veilid_api", level = "debug", skip(self), ret, err)]
     pub fn import_remote_private_route(&self, blob: Vec<u8>) -> VeilidAPIResult<RouteId> {
-        event!(target: "veilid_api", Level::DEBUG, 
+        event!(target: "veilid_api", Level::DEBUG,
             "VeilidAPI::import_remote_private_route(blob: {:?})", blob);
-        let rss = self.routing_table()?.route_spec_store();
+        let routing_table = self.core_context()?.routing_table();
+        let rss = routing_table.route_spec_store();
         rss.import_remote_private_route_blob(blob)
     }
 
@@ -354,9 +348,10 @@ impl VeilidAPI {
     /// or received from.
     #[instrument(target = "veilid_api", level = "debug", skip(self), ret, err)]
     pub fn release_private_route(&self, route_id: RouteId) -> VeilidAPIResult<()> {
-        event!(target: "veilid_api", Level::DEBUG, 
+        event!(target: "veilid_api", Level::DEBUG,
             "VeilidAPI::release_private_route(route_id: {:?})", route_id);
-        let rss = self.routing_table()?.route_spec_store();
+        let routing_table = self.core_context()?.routing_table();
+        let rss = routing_table.route_spec_store();
         if !rss.release_route(route_id) {
             apibail_invalid_argument!("release_private_route", "key", route_id);
         }
@@ -376,10 +371,10 @@ impl VeilidAPI {
         call_id: OperationId,
         message: Vec<u8>,
     ) -> VeilidAPIResult<()> {
-        event!(target: "veilid_api", Level::DEBUG, 
+        event!(target: "veilid_api", Level::DEBUG,
             "VeilidAPI::app_call_reply(call_id: {:?}, message: {:?})", call_id, message);
 
-        let rpc_processor = self.rpc_processor()?;
+        let rpc_processor = self.core_context()?.rpc_processor();
         rpc_processor
             .app_call_reply(call_id, message)
             .map_err(|e| e.into())

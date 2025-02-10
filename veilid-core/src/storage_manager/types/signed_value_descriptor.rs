@@ -17,7 +17,7 @@ impl SignedValueDescriptor {
         }
     }
 
-    pub fn validate(&self, vcrypto: CryptoSystemVersion) -> VeilidAPIResult<()> {
+    pub fn validate(&self, vcrypto: &CryptoSystemGuard<'_>) -> VeilidAPIResult<()> {
         // validate signature
         if !vcrypto.verify(&self.owner, &self.schema_data, &self.signature)? {
             apibail_parse_error!(
@@ -49,7 +49,7 @@ impl SignedValueDescriptor {
     pub fn make_signature(
         owner: PublicKey,
         schema_data: Vec<u8>,
-        vcrypto: CryptoSystemVersion,
+        vcrypto: &CryptoSystemGuard<'_>,
         owner_secret: SecretKey,
     ) -> VeilidAPIResult<Self> {
         // create signature

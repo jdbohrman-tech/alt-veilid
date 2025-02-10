@@ -28,7 +28,7 @@
 #![recursion_limit = "256"]
 
 cfg_if::cfg_if! {
-    if #[cfg(target_arch = "wasm32")] {
+    if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
         #[cfg(any(feature = "rt-async-std", feature = "rt-tokio"))]
         compile_error!("features \"rt-async-std\" and \"rt-tokio\" can not be specified for WASM");
     } else {
@@ -45,6 +45,7 @@ cfg_if::cfg_if! {
 extern crate alloc;
 
 mod attachment_manager;
+mod component;
 mod core_context;
 mod crypto;
 mod intf;
@@ -58,6 +59,8 @@ mod veilid_api;
 mod veilid_config;
 mod wasm_helpers;
 
+pub(crate) use self::component::*;
+pub(crate) use self::core_context::RegisteredComponents;
 pub use self::core_context::{api_startup, api_startup_config, api_startup_json, UpdateCallback};
 pub use self::logging::{
     ApiTracingLayer, VeilidLayerFilter, DEFAULT_LOG_FACILITIES_ENABLED_LIST,

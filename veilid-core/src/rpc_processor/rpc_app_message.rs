@@ -5,12 +5,12 @@ impl RPCProcessor {
     // Can be sent via all methods including relays and routes
     #[instrument(level = "trace", target = "rpc", skip(self, message), fields(message.len = message.len()), err)]
     pub async fn rpc_call_app_message(
-        self,
+        &self,
         dest: Destination,
         message: Vec<u8>,
     ) -> RPCNetworkResult<()> {
         let _guard = self
-            .unlocked_inner
+            .startup_context
             .startup_lock
             .enter()
             .map_err(RPCError::map_try_again("not started up"))?;
@@ -81,9 +81,9 @@ impl RPCProcessor {
 
         // Pass the message up through the update callback
         let message = app_message.destructure();
-        (self.unlocked_inner.update_callback)(VeilidUpdate::AppMessage(Box::new(
-            VeilidAppMessage::new(sender, route_id, message),
-        )));
+        (self.update_callback())(VeilidUpdate::AppMessage(Box::new(VeilidAppMessage::new(
+            sender, route_id, message,
+        ))));
 
         Ok(NetworkResult::value(()))
     }

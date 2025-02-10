@@ -59,7 +59,7 @@ struct JsonRequestProcessorInner {
     routing_contexts: BTreeMap<u32, RoutingContext>,
     table_dbs: BTreeMap<u32, TableDB>,
     table_db_transactions: BTreeMap<u32, TableDBTransaction>,
-    crypto_systems: BTreeMap<u32, CryptoSystemVersion>,
+    crypto_kinds: BTreeMap<u32, CryptoKind>,
 }
 
 #[derive(Clone)]
@@ -76,7 +76,7 @@ impl JsonRequestProcessor {
                 routing_contexts: Default::default(),
                 table_dbs: Default::default(),
                 table_db_transactions: Default::default(),
-                crypto_systems: Default::default(),
+                crypto_kinds: Default::default(),
             })),
         }
     }
@@ -179,18 +179,18 @@ impl JsonRequestProcessor {
     }
 
     // CryptoSystem
-    fn add_crypto_system(&self, csv: CryptoSystemVersion) -> u32 {
+    fn add_crypto_system(&self, csv: CryptoKind) -> u32 {
         let mut inner = self.inner.lock();
         let mut next_id: u32 = 1;
-        while inner.crypto_systems.contains_key(&next_id) {
+        while inner.crypto_kinds.contains_key(&next_id) {
             next_id += 1;
         }
-        inner.crypto_systems.insert(next_id, csv);
+        inner.crypto_kinds.insert(next_id, csv);
         next_id
     }
-    fn lookup_crypto_system(&self, id: u32, cs_id: u32) -> Result<CryptoSystemVersion, Response> {
+    fn lookup_crypto_system(&self, id: u32, cs_id: u32) -> Result<CryptoKind, Response> {
         let inner = self.inner.lock();
-        let Some(crypto_system) = inner.crypto_systems.get(&cs_id).cloned() else {
+        let Some(crypto_kind) = inner.crypto_kinds.get(&cs_id).cloned() else {
             return Err(Response {
                 id,
                 op: ResponseOp::CryptoSystem(CryptoSystemResponse {
@@ -199,11 +199,11 @@ impl JsonRequestProcessor {
                 }),
             });
         };
-        Ok(crypto_system)
+        Ok(crypto_kind)
     }
     fn release_crypto_system(&self, id: u32) -> i32 {
         let mut inner = self.inner.lock();
-        if inner.crypto_systems.remove(&id).is_none() {
+        if inner.crypto_kinds.remove(&id).is_none() {
             return 0;
         }
         1
@@ -215,7 +215,7 @@ impl JsonRequestProcessor {
     async fn parse_target(&self, s: String) -> VeilidAPIResult<Target> {
         // Is this a route id?
         if let Ok(rrid) = RouteId::from_str(&s) {
-            let routing_table = self.api.routing_table()?;
+            let routing_table = self.api.core_context()?.routing_table();
             let rss = routing_table.route_spec_store();
 
             // Is this a valid remote route id? (can't target allocated routes)
@@ -467,7 +467,7 @@ impl JsonRequestProcessor {
     #[instrument(level = "trace", target = "json_api", skip_all)]
     pub async fn process_crypto_system_request(
         &self,
-        csv: CryptoSystemVersion,
+        csv: &CryptoSystemGuard<'_>,
         csr: CryptoSystemRequest,
     ) -> CryptoSystemResponse {
         let cs_op = match csr.cs_op {
@@ -691,7 +691,7 @@ impl JsonRequestProcessor {
                     Err(e) => {
                         return Response {
                             id,
-                            op: ResponseOp::OpenTableDb {
+                            op: ResponseOp::DeleteTableDb {
                                 result: to_json_api_result(Err(e)),
                             },
                         }
@@ -741,11 +741,31 @@ impl JsonRequestProcessor {
                                     kind,
                                 )
                             })
-                            .map(|csv| self.add_crypto_system(csv)),
+                            .map(|csv| self.add_crypto_system(csv.kind())),
                     ),
                 }
             }
             RequestOp::BestCryptoSystem => {
+                let crypto = match self.api.crypto() {
+                    Ok(v) => v,
+                    Err(e) => {
+                        return Response {
+                            id,
+                            op: ResponseOp::BestCryptoSystem {
+                                result: to_json_api_result(Err(e)),
+                            },
+                        }
+                    }
+                };
+                ResponseOp::BestCryptoSystem {
+                    result: to_json_api_result(Ok(self.add_crypto_system(crypto.best().kind()))),
+                }
+            }
+            RequestOp::CryptoSystem(csr) => {
+                let crypto_kind = match self.lookup_crypto_system(id, csr.cs_id) {
+                    Ok(v) => v,
+                    Err(e) => return e,
+                };
                 let crypto = match self.api.crypto() {
                     Ok(v) => v,
                     Err(e) => {
@@ -757,16 +777,9 @@ impl JsonRequestProcessor {
                         }
                     }
                 };
-                ResponseOp::BestCryptoSystem {
-                    result: to_json_api_result(Ok(self.add_crypto_system(crypto.best()))),
-                }
-            }
-            RequestOp::CryptoSystem(csr) => {
-                let csv = match self.lookup_crypto_system(id, csr.cs_id) {
-                    Ok(v) => v,
-                    Err(e) => return e,
-                };
-                ResponseOp::CryptoSystem(self.process_crypto_system_request(csv, csr).await)
+                let csv = crypto.get(crypto_kind).unwrap();
+
+                ResponseOp::CryptoSystem(self.process_crypto_system_request(&csv, csr).await)
             }
             RequestOp::VerifySignatures {
                 node_ids,

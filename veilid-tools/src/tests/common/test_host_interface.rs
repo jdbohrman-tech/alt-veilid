@@ -1,7 +1,7 @@
 use crate::*;
 
 cfg_if! {
-    if #[cfg(target_arch = "wasm32")] {
+    if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
         use js_sys::*;
     } else {
         use std::time::{Duration, SystemTime};
@@ -293,7 +293,7 @@ pub async fn test_timeout() {
 pub async fn test_sleep() {
     info!("testing sleep");
     cfg_if! {
-        if #[cfg(target_arch = "wasm32")] {
+        if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
 
             let t1 = Date::now();
             sleep(1000).await;
@@ -548,7 +548,7 @@ pub async fn test_all() {
     test_get_random_u64().await;
     test_get_random_u32().await;
     test_sleep().await;
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     test_must_join_single_future().await;
     test_eventual().await;
     test_eventual_value().await;

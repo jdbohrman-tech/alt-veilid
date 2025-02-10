@@ -6,7 +6,7 @@ impl StorageManager {
     // Send value change notifications across the network
     #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub(super) async fn send_value_changes_task_routine(
-        self,
+        &self,
         stop_token: StopToken,
         _last_ts: Timestamp,
         _cur_ts: Timestamp,
@@ -31,10 +31,9 @@ impl StorageManager {
 
         // Add a future for each value change
         for vc in value_changes {
-            let this = self.clone();
             unord.push(
                 async move {
-                    if let Err(e) = this.send_value_change(vc).await {
+                    if let Err(e) = self.send_value_change(vc).await {
                         log_stor!(debug "Failed to send value change: {}", e);
                     }
                 }

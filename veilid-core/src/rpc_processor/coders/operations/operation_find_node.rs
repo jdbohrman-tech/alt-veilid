@@ -95,7 +95,8 @@ impl RPCOperationFindNodeA {
     }
 
     pub fn validate(&mut self, validate_context: &RPCValidateContext) -> Result<(), RPCError> {
-        PeerInfo::validate_vec(&mut self.peers, validate_context.crypto.clone());
+        let crypto = validate_context.crypto();
+        PeerInfo::validate_vec(&mut self.peers, &crypto);
         Ok(())
     }
 

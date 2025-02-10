@@ -1,5 +1,5 @@
 //! Test suite for Native
-#![cfg(not(target_arch = "wasm32"))]
+#![cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use crate::tests::*;
 use crate::*;
 

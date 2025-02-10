@@ -1,5 +1,5 @@
 //! Test suite for the Web and headless browsers.
-#![cfg(target_arch = "wasm32")]
+#![cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 #![recursion_limit = "256"]
 
 use parking_lot::Once;
@@ -21,7 +21,7 @@ pub fn setup() -> () {
 
         let mut builder = tracing_wasm::WASMLayerConfigBuilder::new();
         builder.set_report_logs_in_timings(false);
-        builder.set_max_level(Level::DEBUG);
+        builder.set_max_level(Level::TRACE);
         builder.set_console_config(tracing_wasm::ConsoleConfig::ReportWithoutConsoleColor);
         tracing_wasm::set_as_global_default_with_config(builder.build());
     });

@@ -24,7 +24,6 @@
 #![allow(clippy::comparison_chain, clippy::upper_case_acronyms)]
 #![deny(unused_must_use)]
 
-// pub mod bump_port;
 pub mod assembly_buffer;
 pub mod async_peek_stream;
 pub mod async_tag_lock;
@@ -43,21 +42,25 @@ pub mod ipc;
 pub mod must_join_handle;
 pub mod must_join_single_future;
 pub mod mutable_future;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod network_interfaces;
 pub mod network_result;
 pub mod random;
 pub mod single_shot_eventual;
 pub mod sleep;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+pub mod socket_tools;
 pub mod spawn;
 pub mod split_url;
 pub mod startup_lock;
+pub mod static_string_table;
 pub mod tick_task;
 pub mod timeout;
 pub mod timeout_or;
 pub mod timestamp;
 pub mod tools;
-#[cfg(target_arch = "wasm32")]
+#[cfg(feature = "virtual-network")]
+pub mod virtual_network;
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 pub mod wasm;
 
 pub type PinBox<T> = Pin<Box<T>>;
@@ -124,10 +127,14 @@ pub use async_lock::RwLock as AsyncRwLock;
 #[doc(no_inline)]
 pub use async_lock::RwLockReadGuard as AsyncRwLockReadGuard;
 #[doc(no_inline)]
+pub use async_lock::RwLockReadGuardArc as AsyncRwLockReadGuardArc;
+#[doc(no_inline)]
 pub use async_lock::RwLockWriteGuard as AsyncRwLockWriteGuard;
+#[doc(no_inline)]
+pub use async_lock::RwLockWriteGuardArc as AsyncRwLockWriteGuardArc;
 
 cfg_if! {
-    if #[cfg(target_arch = "wasm32")] {
+    if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
         #[doc(no_inline)]
         pub use async_lock::Mutex as AsyncMutex;
         #[doc(no_inline)]
@@ -148,13 +155,6 @@ cfg_if! {
                 #[doc(no_inline)]
                 pub use async_std::sync::MutexGuardArc as AsyncMutexGuardArc;
 
-                // #[doc(no_inline)]
-                // pub use async_std::sync::RwLock as AsyncRwLock;
-                // #[doc(no_inline)]
-                // pub use async_std::sync::RwLockReadGuard as AsyncRwLockReadGuard;
-                // #[doc(no_inline)]
-                // pub use async_std::sync::RwLockWriteGuard as AsyncRwLockWriteGuard;
-
                 #[doc(no_inline)]
                 pub use async_std::task::JoinHandle as LowLevelJoinHandle;
 
@@ -166,14 +166,6 @@ cfg_if! {
                 #[doc(no_inline)]
                 pub use tokio::sync::OwnedMutexGuard as AsyncMutexGuardArc;
 
-                // #[doc(no_inline)]
-                // pub use tokio::sync::RwLock as AsyncRwLock;
-                // #[doc(no_inline)]
-                // pub use tokio::sync::RwLockReadGuard as AsyncRwLockReadGuard;
-                // #[doc(no_inline)]
-                // pub use tokio::sync::RwLockWriteGuard as AsyncRwLockWriteGuard;
-
-
                 #[doc(no_inline)]
                 pub use tokio::task::JoinHandle as LowLevelJoinHandle;
             } else {
@@ -183,7 +175,6 @@ cfg_if! {
     }
 }
 
-// pub use bump_port::*;
 #[doc(inline)]
 pub use assembly_buffer::*;
 #[doc(inline)]
@@ -221,7 +212,6 @@ pub use must_join_single_future::*;
 #[doc(inline)]
 pub use mutable_future::*;
 #[doc(inline)]
-#[cfg(not(target_arch = "wasm32"))]
 pub use network_interfaces::*;
 #[doc(inline)]
 pub use network_result::*;
@@ -232,11 +222,16 @@ pub use single_shot_eventual::*;
 #[doc(inline)]
 pub use sleep::*;
 #[doc(inline)]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+pub use socket_tools::*;
+#[doc(inline)]
 pub use spawn::*;
 #[doc(inline)]
 pub use split_url::*;
 #[doc(inline)]
 pub use startup_lock::*;
+#[doc(inline)]
+pub use static_string_table::*;
 #[doc(inline)]
 pub use tick_task::*;
 #[doc(inline)]
@@ -247,8 +242,7 @@ pub use timeout_or::*;
 pub use timestamp::*;
 #[doc(inline)]
 pub use tools::*;
-
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 pub use wasm::*;
 
 // Tests must be public for wasm-pack tests

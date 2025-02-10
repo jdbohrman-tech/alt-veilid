@@ -7,7 +7,7 @@ pub trait RoutingDomainEditorCommonTrait {
         protocol_type: Option<ProtocolType>,
     ) -> &mut Self;
     fn set_relay_node(&mut self, relay_node: Option<NodeRef>) -> &mut Self;
-    #[cfg_attr(target_arch = "wasm32", expect(dead_code))]
+    #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), expect(dead_code))]
     fn add_dial_info(&mut self, dial_info: DialInfo, class: DialInfoClass) -> &mut Self;
     fn setup_network(
         &mut self,
@@ -83,7 +83,7 @@ pub(super) enum RoutingDomainChangeCommon {
     AddDialInfo {
         dial_info_detail: DialInfoDetail,
     },
-    // #[cfg_attr(target_arch = "wasm32", expect(dead_code))]
+    // #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), expect(dead_code))]
     // RemoveDialInfoDetail {
     //     dial_info_detail: DialInfoDetail,
     // },

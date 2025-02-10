@@ -5,12 +5,12 @@ impl RPCProcessor {
     // Can be sent via relays but not routes. For routed 'signal' like capabilities, use AppMessage.
     #[instrument(level = "trace", target = "rpc", skip(self), ret, err)]
     pub async fn rpc_call_signal(
-        self,
+        &self,
         dest: Destination,
         signal_info: SignalInfo,
     ) -> RPCNetworkResult<()> {
         let _guard = self
-            .unlocked_inner
+            .startup_context
             .startup_lock
             .enter()
             .map_err(RPCError::map_try_again("not started up"))?;

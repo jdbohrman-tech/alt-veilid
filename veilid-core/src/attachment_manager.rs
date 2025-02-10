@@ -1,54 +1,43 @@
-use crate::*;
-use crypto::Crypto;
-use network_manager::*;
-use routing_table::*;
-use storage_manager::*;
+use crate::{network_manager::StartupDisposition, *};
+use routing_table::RoutingTableHealth;
 
+#[derive(Debug, Clone)]
+pub struct AttachmentManagerStartupContext {
+    pub startup_lock: Arc<StartupLock>,
+}
+impl AttachmentManagerStartupContext {
+    pub fn new() -> Self {
+        Self {
+            startup_lock: Arc::new(StartupLock::new()),
+        }
+    }
+}
+impl Default for AttachmentManagerStartupContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(Debug)]
 struct AttachmentManagerInner {
     last_attachment_state: AttachmentState,
     last_routing_table_health: Option<RoutingTableHealth>,
     maintain_peers: bool,
     started_ts: Timestamp,
     attach_ts: Option<Timestamp>,
-    update_callback: Option<UpdateCallback>,
     attachment_maintainer_jh: Option<MustJoinHandle<()>>,
 }
 
-struct AttachmentManagerUnlockedInner {
-    _event_bus: EventBus,
-    config: VeilidConfig,
-    network_manager: NetworkManager,
+#[derive(Debug)]
+pub struct AttachmentManager {
+    registry: VeilidComponentRegistry,
+    inner: Mutex<AttachmentManagerInner>,
+    startup_context: AttachmentManagerStartupContext,
 }
 
-#[derive(Clone)]
-pub struct AttachmentManager {
-    inner: Arc<Mutex<AttachmentManagerInner>>,
-    unlocked_inner: Arc<AttachmentManagerUnlockedInner>,
-}
+impl_veilid_component!(AttachmentManager);
 
 impl AttachmentManager {
-    fn new_unlocked_inner(
-        event_bus: EventBus,
-        config: VeilidConfig,
-        storage_manager: StorageManager,
-        table_store: TableStore,
-        #[cfg(feature = "unstable-blockstore")] block_store: BlockStore,
-        crypto: Crypto,
-    ) -> AttachmentManagerUnlockedInner {
-        AttachmentManagerUnlockedInner {
-            _event_bus: event_bus.clone(),
-            config: config.clone(),
-            network_manager: NetworkManager::new(
-                event_bus,
-                config,
-                storage_manager,
-                table_store,
-                #[cfg(feature = "unstable-blockstore")]
-                block_store,
-                crypto,
-            ),
-        }
-    }
     fn new_inner() -> AttachmentManagerInner {
         AttachmentManagerInner {
             last_attachment_state: AttachmentState::Detached,
@@ -56,52 +45,35 @@ impl AttachmentManager {
             maintain_peers: false,
             started_ts: Timestamp::now(),
             attach_ts: None,
-            update_callback: None,
             attachment_maintainer_jh: None,
         }
     }
     pub fn new(
-        event_bus: EventBus,
-        config: VeilidConfig,
-        storage_manager: StorageManager,
-        table_store: TableStore,
-        #[cfg(feature = "unstable-blockstore")] block_store: BlockStore,
-        crypto: Crypto,
+        registry: VeilidComponentRegistry,
+        startup_context: AttachmentManagerStartupContext,
     ) -> Self {
         Self {
-            inner: Arc::new(Mutex::new(Self::new_inner())),
-            unlocked_inner: Arc::new(Self::new_unlocked_inner(
-                event_bus,
-                config,
-                storage_manager,
-                table_store,
-                #[cfg(feature = "unstable-blockstore")]
-                block_store,
-                crypto,
-            )),
+            registry,
+            inner: Mutex::new(Self::new_inner()),
+            startup_context,
         }
     }
 
-    pub fn config(&self) -> VeilidConfig {
-        self.unlocked_inner.config.clone()
+    pub fn is_attached(&self) -> bool {
+        let s = self.inner.lock().last_attachment_state;
+        !matches!(s, AttachmentState::Detached | AttachmentState::Detaching)
     }
 
-    pub fn network_manager(&self) -> NetworkManager {
-        self.unlocked_inner.network_manager.clone()
+    #[allow(dead_code)]
+    pub fn is_detached(&self) -> bool {
+        let s = self.inner.lock().last_attachment_state;
+        matches!(s, AttachmentState::Detached)
     }
 
-    // pub fn is_attached(&self) -> bool {
-    //     let s = self.inner.lock().last_attachment_state;
-    //     !matches!(s, AttachmentState::Detached | AttachmentState::Detaching)
-    // }
-    // pub fn is_detached(&self) -> bool {
-    //     let s = self.inner.lock().last_attachment_state;
-    //     matches!(s, AttachmentState::Detached)
-    // }
-
-    // pub fn get_attach_timestamp(&self) -> Option<Timestamp> {
-    //     self.inner.lock().attach_ts
-    // }
+    #[allow(dead_code)]
+    pub fn get_attach_timestamp(&self) -> Option<Timestamp> {
+        self.inner.lock().attach_ts
+    }
 
     fn translate_routing_table_health(
         health: &RoutingTableHealth,
@@ -155,11 +127,6 @@ impl AttachmentManager {
             inner.last_attachment_state =
                 AttachmentManager::translate_routing_table_health(&health, routing_table_config);
 
-            // If we don't have an update callback yet for some reason, just return now
-            let Some(update_callback) = inner.update_callback.clone() else {
-                return;
-            };
-
             // Send update if one of:
             // * the attachment state has changed
             // * routing domain readiness has changed
@@ -172,7 +139,7 @@ impl AttachmentManager {
                     })
                     .unwrap_or(true);
             if send_update {
-                Some((update_callback, Self::get_veilid_state_inner(&inner)))
+                Some(Self::get_veilid_state_inner(&inner))
             } else {
                 None
             }
@@ -180,15 +147,14 @@ impl AttachmentManager {
 
         // Send the update outside of the lock
         if let Some(update) = opt_update {
-            (update.0)(VeilidUpdate::Attachment(update.1));
+            (self.update_callback())(VeilidUpdate::Attachment(update));
         }
     }
 
     fn update_attaching_detaching_state(&self, state: AttachmentState) {
         let uptime;
         let attached_uptime;
-
-        let update_callback = {
+        {
             let mut inner = self.inner.lock();
 
             // Clear routing table health so when we start measuring it we start from scratch
@@ -211,29 +177,98 @@ impl AttachmentManager {
             let now = Timestamp::now();
             uptime = now - inner.started_ts;
             attached_uptime = inner.attach_ts.map(|ts| now - ts);
-
-            // Get callback
-            inner.update_callback.clone()
         };
 
         // Send update
-        if let Some(update_callback) = update_callback {
-            update_callback(VeilidUpdate::Attachment(Box::new(VeilidStateAttachment {
-                state,
-                public_internet_ready: false,
-                local_network_ready: false,
-                uptime,
-                attached_uptime,
-            })))
+        (self.update_callback())(VeilidUpdate::Attachment(Box::new(VeilidStateAttachment {
+            state,
+            public_internet_ready: false,
+            local_network_ready: false,
+            uptime,
+            attached_uptime,
+        })))
+    }
+
+    async fn startup(&self) -> EyreResult<StartupDisposition> {
+        let guard = self.startup_context.startup_lock.startup()?;
+
+        let rpc_processor = self.rpc_processor();
+        let network_manager = self.network_manager();
+
+        // Startup network manager
+        network_manager.startup().await?;
+
+        // Startup rpc processor
+        if let Err(e) = rpc_processor.startup().await {
+            network_manager.shutdown().await;
+            return Err(e);
         }
+
+        // Startup routing table
+        let routing_table = self.routing_table();
+        if let Err(e) = routing_table.startup().await {
+            rpc_processor.shutdown().await;
+            network_manager.shutdown().await;
+            return Err(e);
+        }
+
+        // Startup successful
+        guard.success();
+
+        // Inform api clients that things have changed
+        log_net!(debug "sending network state update to api clients");
+        network_manager.send_network_update();
+
+        Ok(StartupDisposition::Success)
+    }
+
+    async fn shutdown(&self) {
+        let guard = self
+            .startup_context
+            .startup_lock
+            .shutdown()
+            .await
+            .expect("should be started up");
+
+        let routing_table = self.routing_table();
+        let rpc_processor = self.rpc_processor();
+        let network_manager = self.network_manager();
+
+        // Shutdown RoutingTable
+        routing_table.shutdown().await;
+
+        // Shutdown NetworkManager
+        network_manager.shutdown().await;
+
+        // Shutdown RPCProcessor
+        rpc_processor.shutdown().await;
+
+        // Shutdown successful
+        guard.success();
+
+        // send update
+        log_net!(debug "sending network state update to api clients");
+        network_manager.send_network_update();
+    }
+
+    async fn tick(&self) -> EyreResult<()> {
+        // Run the network manager tick
+        let network_manager = self.network_manager();
+        network_manager.tick().await?;
+
+        // Run the routing table tick
+        let routing_table = self.routing_table();
+        routing_table.tick().await?;
+
+        Ok(())
     }
 
     #[instrument(parent = None, level = "debug", skip_all)]
-    async fn attachment_maintainer(self) {
+    async fn attachment_maintainer(&self) {
         log_net!(debug "attachment starting");
         self.update_attaching_detaching_state(AttachmentState::Attaching);
 
-        let netman = self.network_manager();
+        let network_manager = self.network_manager();
 
         let mut restart;
         let mut restart_delay;
@@ -241,9 +276,9 @@ impl AttachmentManager {
             restart = false;
             restart_delay = 1;
 
-            match netman.startup().await {
+            match self.startup().await {
                 Err(err) => {
-                    error!("network startup failed: {}", err);
+                    error!("attachment startup failed: {}", err);
                     restart = true;
                 }
                 Ok(StartupDisposition::BindRetry) => {
@@ -257,15 +292,15 @@ impl AttachmentManager {
                     while self.inner.lock().maintain_peers {
                         // tick network manager
                         let next_tick_ts = get_timestamp() + 1_000_000u64;
-                        if let Err(err) = netman.tick().await {
-                            error!("Error in network manager: {}", err);
+                        if let Err(err) = self.tick().await {
+                            error!("Error in attachment tick: {}", err);
                             self.inner.lock().maintain_peers = false;
                             restart = true;
                             break;
                         }
 
                         // see if we need to restart the network
-                        if netman.network_needs_restart() {
+                        if network_manager.network_needs_restart() {
                             info!("Restarting network");
                             restart = true;
                             break;
@@ -288,8 +323,8 @@ impl AttachmentManager {
                         log_net!(debug "attachment stopping");
                     }
 
-                    log_net!(debug "stopping network");
-                    netman.shutdown().await;
+                    log_net!(debug "shutting down attachment");
+                    self.shutdown().await;
                 }
             }
 
@@ -313,24 +348,23 @@ impl AttachmentManager {
     }
 
     #[instrument(level = "debug", skip_all, err)]
-    pub async fn init(&self, update_callback: UpdateCallback) -> EyreResult<()> {
-        {
-            let mut inner = self.inner.lock();
-            inner.update_callback = Some(update_callback.clone());
-        }
+    pub async fn init_async(&self) -> EyreResult<()> {
+        Ok(())
+    }
 
-        self.network_manager().init(update_callback).await?;
-
+    #[instrument(level = "debug", skip_all, err)]
+    pub async fn post_init_async(&self) -> EyreResult<()> {
         Ok(())
     }
 
     #[instrument(level = "debug", skip_all)]
-    pub async fn terminate(&self) {
+    pub async fn pre_terminate_async(&self) {
         // Ensure we detached
         self.detach().await;
-        self.network_manager().terminate().await;
-        self.inner.lock().update_callback = None;
     }
+
+    #[instrument(level = "debug", skip_all)]
+    pub async fn terminate_async(&self) {}
 
     #[instrument(level = "trace", skip_all)]
     pub async fn attach(&self) -> bool {
@@ -340,10 +374,11 @@ impl AttachmentManager {
             return false;
         }
         inner.maintain_peers = true;
-        inner.attachment_maintainer_jh = Some(spawn(
-            "attachment maintainer",
-            self.clone().attachment_maintainer(),
-        ));
+        let registry = self.registry();
+        inner.attachment_maintainer_jh = Some(spawn("attachment maintainer", async move {
+            let this = registry.attachment_manager();
+            this.attachment_maintainer().await;
+        }));
 
         true
     }

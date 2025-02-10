@@ -2,6 +2,14 @@ use super::*;
 use futures_util::*;
 use stop_token::future::FutureExt as _;
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct OfflineSubkeyWrite {
+    pub safety_selection: SafetySelection,
+    pub subkeys: ValueSubkeyRangeSet,
+    #[serde(default)]
+    pub subkeys_in_flight: ValueSubkeyRangeSet,
+}
+
 #[derive(Debug)]
 enum OfflineSubkeyWriteResult {
     Finished(set_value::OutboundSetValueResult),
@@ -27,19 +35,19 @@ impl StorageManager {
     // Write a single offline subkey
     #[instrument(level = "trace", target = "stor", skip_all, err)]
     async fn write_single_offline_subkey(
-        self,
+        &self,
         stop_token: StopToken,
         key: TypedKey,
         subkey: ValueSubkey,
         safety_selection: SafetySelection,
     ) -> EyreResult<OfflineSubkeyWriteResult> {
-        let Some(rpc_processor) = self.online_writes_ready().await? else {
+        if !self.dht_is_online() {
             // Cancel this operation because we're offline
             return Ok(OfflineSubkeyWriteResult::Cancelled);
         };
         let get_result = {
-            let mut inner = self.lock().await?;
-            inner.handle_get_local_value(key, subkey, true).await
+            let mut inner = self.inner.lock().await;
+            Self::handle_get_local_value_inner(&mut inner, key, subkey, true).await
         };
         let Ok(get_result) = get_result else {
             log_stor!(debug "Offline subkey write had no subkey result: {}:{}", key, subkey);
@@ -57,14 +65,7 @@ impl StorageManager {
         };
         log_stor!(debug "Offline subkey write: {}:{} len={}", key, subkey, value.value_data().data().len());
         let osvres = self
-            .outbound_set_value(
-                rpc_processor,
-                key,
-                subkey,
-                safety_selection,
-                value.clone(),
-                descriptor,
-            )
+            .outbound_set_value(key, subkey, safety_selection, value.clone(), descriptor)
             .await;
         match osvres {
             Ok(res_rx) => {
@@ -80,15 +81,16 @@ impl StorageManager {
                             // Set the new value if it differs from what was asked to set
                             if result.signed_value_data.value_data() != value.value_data() {
                                 // Record the newer value and send and update since it is different than what we just set
-                                let mut inner = self.lock().await?;
-                                inner
-                                    .handle_set_local_value(
-                                        key,
-                                        subkey,
-                                        result.signed_value_data.clone(),
-                                        WatchUpdateMode::UpdateAll,
-                                    )
-                                    .await?;
+                                let mut inner = self.inner.lock().await;
+
+                                Self::handle_set_local_value_inner(
+                                    &mut inner,
+                                    key,
+                                    subkey,
+                                    result.signed_value_data.clone(),
+                                    WatchUpdateMode::UpdateAll,
+                                )
+                                .await?;
                             }
 
                             return Ok(OfflineSubkeyWriteResult::Finished(result));
@@ -112,7 +114,7 @@ impl StorageManager {
     // Write a set of subkeys of the same key
     #[instrument(level = "trace", target = "stor", skip_all, err)]
     async fn process_work_item(
-        self,
+        &self,
         stop_token: StopToken,
         work_item: WorkItem,
     ) -> EyreResult<WorkItemResult> {
@@ -125,7 +127,6 @@ impl StorageManager {
             }
 
             let result = match self
-                .clone()
                 .write_single_offline_subkey(
                     stop_token.clone(),
                     work_item.key,
@@ -178,7 +179,13 @@ impl StorageManager {
 
     // Process all results
     #[instrument(level = "trace", target = "stor", skip_all)]
-    fn process_single_result_inner(inner: &mut StorageManagerInner, result: WorkItemResult) {
+    async fn process_single_result(&self, result: WorkItemResult) {
+        let consensus_count = self
+            .config()
+            .with(|c| c.network.dht.set_value_count as usize);
+
+        let mut inner = self.inner.lock().await;
+
         // Debug print the result
         log_stor!(debug "Offline write result: {:?}", result);
 
@@ -209,16 +216,18 @@ impl StorageManager {
         }
 
         // Keep the list of nodes that returned a value for later reference
-        inner.process_fanout_results(
+        Self::process_fanout_results_inner(
+            &mut inner,
             result.key,
             result.fanout_results.iter().map(|x| (x.0, &x.1)),
             true,
+            consensus_count,
         );
     }
 
     #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub(super) async fn process_offline_subkey_writes(
-        self,
+        &self,
         stop_token: StopToken,
         work_items: Arc<Mutex<VecDeque<WorkItem>>>,
     ) -> EyreResult<()> {
@@ -228,12 +237,10 @@ impl StorageManager {
                 break;
             };
             let result = self
-                .clone()
                 .process_work_item(stop_token.clone(), work_item)
                 .await?;
             {
-                let mut inner = self.lock().await?;
-                Self::process_single_result_inner(&mut inner, result);
+                self.process_single_result(result).await;
             }
         }
 
@@ -243,14 +250,14 @@ impl StorageManager {
     // Best-effort write subkeys to the network that were written offline
     #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub(super) async fn offline_subkey_writes_task_routine(
-        self,
+        &self,
         stop_token: StopToken,
         _last_ts: Timestamp,
         _cur_ts: Timestamp,
     ) -> EyreResult<()> {
         // Operate on a copy of the offline subkey writes map
         let work_items = {
-            let mut inner = self.lock().await?;
+            let mut inner = self.inner.lock().await;
             // Move the current set of writes to 'in flight'
             for osw in &mut inner.offline_subkey_writes {
                 osw.1.subkeys_in_flight = mem::take(&mut osw.1.subkeys);
@@ -264,13 +271,12 @@ impl StorageManager {
 
         // Process everything
         let res = self
-            .clone()
             .process_offline_subkey_writes(stop_token, work_items)
             .await;
 
         // Ensure nothing is left in-flight when returning even due to an error
         {
-            let mut inner = self.lock().await?;
+            let mut inner = self.inner.lock().await;
             for osw in &mut inner.offline_subkey_writes {
                 osw.1.subkeys = osw
                     .1

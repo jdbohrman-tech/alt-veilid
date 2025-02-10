@@ -28,7 +28,7 @@ pub(super) struct NetworkState {
 
 impl Network {
     fn make_stable_interface_addresses(&self) -> Vec<IpAddr> {
-        let addrs = self.unlocked_inner.interfaces.stable_addresses();
+        let addrs = self.interfaces.stable_addresses();
         let mut addrs: Vec<IpAddr> = addrs
             .into_iter()
             .filter(|addr| {
@@ -41,8 +41,8 @@ impl Network {
         addrs
     }
 
-    pub(super) fn last_network_state(&self) -> NetworkState {
-        self.inner.lock().network_state.clone().unwrap()
+    pub(super) fn last_network_state(&self) -> Option<NetworkState> {
+        self.inner.lock().network_state.clone()
     }
 
     pub(super) fn is_stable_interface_address(&self, addr: IpAddr) -> bool {
@@ -57,8 +57,7 @@ impl Network {
 
     pub(super) async fn make_network_state(&self) -> EyreResult<NetworkState> {
         // refresh network interfaces
-        self.unlocked_inner
-            .interfaces
+        self.interfaces
             .refresh()
             .await
             .wrap_err("failed to refresh network interfaces")?;
@@ -66,22 +65,20 @@ impl Network {
         // build the set of networks we should consider for the 'LocalNetwork' routing domain
         let mut local_networks: HashSet<(IpAddr, IpAddr)> = HashSet::new();
 
-        self.unlocked_inner
-            .interfaces
-            .with_interfaces(|interfaces| {
-                for intf in interfaces.values() {
-                    // Skip networks that we should never encounter
-                    if intf.is_loopback() || !intf.is_running() {
-                        continue;
-                    }
-                    // Add network to local networks table
-                    for addr in &intf.addrs {
-                        let netmask = addr.if_addr().netmask();
-                        let network_ip = ipaddr_apply_netmask(addr.if_addr().ip(), netmask);
-                        local_networks.insert((network_ip, netmask));
-                    }
+        self.interfaces.with_interfaces(|interfaces| {
+            for intf in interfaces.values() {
+                // Skip networks that we should never encounter
+                if intf.is_loopback() || !intf.is_running() {
+                    continue;
                 }
-            });
+                // Add network to local networks table
+                for addr in &intf.addrs {
+                    let netmask = addr.if_addr().netmask();
+                    let network_ip = ipaddr_apply_netmask(addr.if_addr().ip(), netmask);
+                    local_networks.insert((network_ip, netmask));
+                }
+            }
+        });
         let mut local_networks: Vec<(IpAddr, IpAddr)> = local_networks.into_iter().collect();
         local_networks.sort();
 
@@ -107,7 +104,8 @@ impl Network {
 
         // Get protocol config
         let protocol_config = {
-            let c = self.config.get();
+            let config = self.config();
+            let c = config.get();
             let mut inbound = ProtocolTypeSet::new();
 
             if c.network.protocol.udp.enabled {

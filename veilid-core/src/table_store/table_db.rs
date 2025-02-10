@@ -1,7 +1,7 @@
 use crate::*;
 
 cfg_if! {
-    if #[cfg(target_arch = "wasm32")] {
+    if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
         use keyvaluedb_web::*;
         use keyvaluedb::*;
     } else {
@@ -11,35 +11,34 @@ cfg_if! {
 }
 
 struct CryptInfo {
-    vcrypto: CryptoSystemVersion,
-    key: SharedSecret,
+    typed_key: TypedSharedSecret,
 }
 impl CryptInfo {
-    pub fn new(crypto: Crypto, typed_key: TypedSharedSecret) -> Self {
-        let vcrypto = crypto.get(typed_key.kind).unwrap();
-        let key = typed_key.value;
-        Self { vcrypto, key }
+    pub fn new(typed_key: TypedSharedSecret) -> Self {
+        Self { typed_key }
     }
 }
 
 pub struct TableDBUnlockedInner {
+    registry: VeilidComponentRegistry,
     table: String,
-    table_store: TableStore,
     database: Database,
     // Encryption and decryption key will be the same unless configured for an in-place migration
     encrypt_info: Option<CryptInfo>,
     decrypt_info: Option<CryptInfo>,
 }
+impl_veilid_component_registry_accessor!(TableDBUnlockedInner);
 
 impl fmt::Debug for TableDBUnlockedInner {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "TableDBInner(table={})", self.table)
+        write!(f, "TableDBUnlockedInner(table={})", self.table)
     }
 }
 
 impl Drop for TableDBUnlockedInner {
     fn drop(&mut self) {
-        self.table_store.on_table_db_drop(self.table.clone());
+        let table_store = self.table_store();
+        table_store.on_table_db_drop(self.table.clone());
     }
 }
 
@@ -52,15 +51,14 @@ pub struct TableDB {
 impl TableDB {
     pub(super) fn new(
         table: String,
-        table_store: TableStore,
-        crypto: Crypto,
+        registry: VeilidComponentRegistry,
         database: Database,
         encryption_key: Option<TypedSharedSecret>,
         decryption_key: Option<TypedSharedSecret>,
         opened_column_count: u32,
     ) -> Self {
-        let encrypt_info = encryption_key.map(|ek| CryptInfo::new(crypto.clone(), ek));
-        let decrypt_info = decryption_key.map(|dk| CryptInfo::new(crypto.clone(), dk));
+        let encrypt_info = encryption_key.map(CryptInfo::new);
+        let decrypt_info = decryption_key.map(CryptInfo::new);
 
         let total_columns = database.num_columns().unwrap();
 
@@ -72,7 +70,7 @@ impl TableDB {
             },
             unlocked_inner: Arc::new(TableDBUnlockedInner {
                 table,
-                table_store,
+                registry,
                 database,
                 encrypt_info,
                 decrypt_info,
@@ -100,6 +98,10 @@ impl TableDB {
 
     pub(super) fn weak_unlocked_inner(&self) -> Weak<TableDBUnlockedInner> {
         Arc::downgrade(&self.unlocked_inner)
+    }
+
+    pub(super) fn crypto(&self) -> VeilidComponentGuard<'_, Crypto> {
+        self.unlocked_inner.crypto()
     }
 
     /// Get the internal name of the table
@@ -131,14 +133,16 @@ impl TableDB {
     fn maybe_encrypt(&self, data: &[u8], keyed_nonce: bool) -> Vec<u8> {
         let data = compress_prepend_size(data);
         if let Some(ei) = &self.unlocked_inner.encrypt_info {
+            let crypto = self.crypto();
+            let vcrypto = crypto.get(ei.typed_key.kind).unwrap();
             let mut out = unsafe { unaligned_u8_vec_uninit(NONCE_LENGTH + data.len()) };
 
             if keyed_nonce {
                 // Key content nonce
                 let mut noncedata = Vec::with_capacity(data.len() + PUBLIC_KEY_LENGTH);
                 noncedata.extend_from_slice(&data);
-                noncedata.extend_from_slice(&ei.key.bytes);
-                let noncehash = ei.vcrypto.generate_hash(&noncedata);
+                noncedata.extend_from_slice(&ei.typed_key.value.bytes);
+                let noncehash = vcrypto.generate_hash(&noncedata);
                 out[0..NONCE_LENGTH].copy_from_slice(&noncehash[0..NONCE_LENGTH])
             } else {
                 // Random nonce
@@ -146,11 +150,11 @@ impl TableDB {
             }
 
             let (nonce, encout) = out.split_at_mut(NONCE_LENGTH);
-            ei.vcrypto.crypt_b2b_no_auth(
+            vcrypto.crypt_b2b_no_auth(
                 &data,
                 encout,
                 (nonce as &[u8]).try_into().unwrap(),
-                &ei.key,
+                &ei.typed_key.value,
             );
             out
         } else {
@@ -162,6 +166,8 @@ impl TableDB {
     #[instrument(level = "trace", target = "tstore", skip_all)]
     fn maybe_decrypt(&self, data: &[u8]) -> std::io::Result<Vec<u8>> {
         if let Some(di) = &self.unlocked_inner.decrypt_info {
+            let crypto = self.crypto();
+            let vcrypto = crypto.get(di.typed_key.kind).unwrap();
             assert!(data.len() >= NONCE_LENGTH);
             if data.len() == NONCE_LENGTH {
                 return Ok(Vec::new());
@@ -169,11 +175,11 @@ impl TableDB {
 
             let mut out = unsafe { unaligned_u8_vec_uninit(data.len() - NONCE_LENGTH) };
 
-            di.vcrypto.crypt_b2b_no_auth(
+            vcrypto.crypt_b2b_no_auth(
                 &data[NONCE_LENGTH..],
                 &mut out,
                 (&data[0..NONCE_LENGTH]).try_into().unwrap(),
-                &di.key,
+                &di.typed_key.value,
             );
             decompress_size_prepended(&out, None)
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))

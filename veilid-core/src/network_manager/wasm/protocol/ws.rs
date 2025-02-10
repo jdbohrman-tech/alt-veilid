@@ -9,29 +9,6 @@ struct WebsocketNetworkConnectionInner {
     ws_stream: CloneStream<WsStream>,
 }
 
-fn to_io(err: WsErr) -> io::Error {
-    match err {
-        WsErr::InvalidWsState { supplied: _ } => {
-            io::Error::new(io::ErrorKind::InvalidInput, err.to_string())
-        }
-        WsErr::ConnectionNotOpen => io::Error::new(io::ErrorKind::NotConnected, err.to_string()),
-        WsErr::InvalidUrl { supplied: _ } => {
-            io::Error::new(io::ErrorKind::InvalidInput, err.to_string())
-        }
-        WsErr::InvalidCloseCode { supplied: _ } => {
-            io::Error::new(io::ErrorKind::InvalidInput, err.to_string())
-        }
-        WsErr::ReasonStringToLong => io::Error::new(io::ErrorKind::InvalidInput, err.to_string()),
-        WsErr::ConnectionFailed { event: _ } => {
-            io::Error::new(io::ErrorKind::ConnectionRefused, err.to_string())
-        }
-        WsErr::InvalidEncoding => io::Error::new(io::ErrorKind::InvalidInput, err.to_string()),
-        WsErr::CantDecodeBlob => io::Error::new(io::ErrorKind::InvalidInput, err.to_string()),
-        WsErr::UnknownDataType => io::Error::new(io::ErrorKind::InvalidInput, err.to_string()),
-        _ => io::Error::new(io::ErrorKind::Other, err.to_string()),
-    }
-}
-
 #[derive(Clone)]
 pub struct WebsocketNetworkConnection {
     flow: Flow,
@@ -65,7 +42,7 @@ impl WebsocketNetworkConnection {
     )]
     pub async fn close(&self) -> io::Result<NetworkResult<()>> {
         #[allow(unused_variables)]
-        let x = self.inner.ws_meta.close().await.map_err(to_io);
+        let x = self.inner.ws_meta.close().await.map_err(ws_err_to_io_error);
         #[cfg(feature = "verbose-tracing")]
         log_net!(debug "close result: {:?}", x);
         Ok(NetworkResult::value(()))
@@ -83,7 +60,7 @@ impl WebsocketNetworkConnection {
                 .send(WsMessage::Binary(message)),
         )
         .await
-        .map_err(to_io)
+        .map_err(ws_err_to_io_error)
         .into_network_result()?;
 
         #[cfg(feature = "verbose-tracing")]
@@ -140,7 +117,9 @@ impl WebsocketProtocolHandler {
         }
 
         let fut = SendWrapper::new(timeout(timeout_ms, async move {
-            WsMeta::connect(request, None).await.map_err(to_io)
+            WsMeta::connect(request, None)
+                .await
+                .map_err(ws_err_to_io_error)
         }));
 
         let (wsmeta, wsio) = network_result_try!(network_result_try!(fut

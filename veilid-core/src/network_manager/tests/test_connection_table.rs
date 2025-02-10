@@ -1,13 +1,12 @@
 use super::*;
 
 use super::connection_table::*;
-use crate::tests::common::test_veilid_config::*;
-use crate::tests::mock_routing_table;
+use crate::tests::mock_registry;
 
 pub async fn test_add_get_remove() {
-    let config = get_config();
-    let address_filter = AddressFilter::new(config.clone(), mock_routing_table());
-    let table = ConnectionTable::new(config, address_filter);
+    let registry = mock_registry::init("").await;
+
+    let table = ConnectionTable::new(registry.clone());
 
     let a1 = Flow::new_no_local(PeerAddress::new(
         SocketAddress::new(Address::IPV4(Ipv4Addr::new(192, 168, 0, 1)), 8080),
@@ -122,6 +121,8 @@ pub async fn test_add_get_remove() {
         a4
     );
     assert_eq!(table.connection_count(), 0);
+
+    mock_registry::terminate(registry).await;
 }
 
 pub async fn test_all() {

@@ -140,14 +140,13 @@ impl Network {
     #[instrument(level = "trace", skip_all)]
     pub(super) async fn bind_udp_protocol_handlers(&self) -> EyreResult<StartupDisposition> {
         log_net!("UDP: binding protocol handlers");
-        let (listen_address, public_address, detect_address_changes) = {
-            let c = self.config.get();
+        let (listen_address, public_address, detect_address_changes) = self.config().with(|c| {
             (
                 c.network.protocol.udp.listen_address.clone(),
                 c.network.protocol.udp.public_address.clone(),
                 c.network.detect_address_changes,
             )
-        };
+        });
 
         // Get the binding parameters from the user-specified listen address
         let bind_set = self
@@ -187,18 +186,17 @@ impl Network {
     #[instrument(level = "trace", skip_all)]
     pub(super) async fn register_udp_dial_info(
         &self,
-        editor_public_internet: &mut RoutingDomainEditorPublicInternet,
-        editor_local_network: &mut RoutingDomainEditorLocalNetwork,
+        editor_public_internet: &mut RoutingDomainEditorPublicInternet<'_>,
+        editor_local_network: &mut RoutingDomainEditorLocalNetwork<'_>,
     ) -> EyreResult<()> {
         log_net!("UDP: registering dial info");
 
-        let (public_address, detect_address_changes) = {
-            let c = self.config.get();
+        let (public_address, detect_address_changes) = self.config().with(|c| {
             (
                 c.network.protocol.udp.public_address.clone(),
                 c.network.detect_address_changes,
             )
-        };
+        });
 
         let local_dial_info_list = {
             let mut out = vec![];
@@ -263,14 +261,13 @@ impl Network {
     #[instrument(level = "trace", skip_all)]
     pub(super) async fn start_ws_listeners(&self) -> EyreResult<StartupDisposition> {
         log_net!("WS: binding protocol handlers");
-        let (listen_address, url, detect_address_changes) = {
-            let c = self.config.get();
+        let (listen_address, url, detect_address_changes) = self.config().with(|c| {
             (
                 c.network.protocol.ws.listen_address.clone(),
                 c.network.protocol.ws.url.clone(),
                 c.network.detect_address_changes,
             )
-        };
+        });
 
         // Get the binding parameters from the user-specified listen address
         let bind_set = self
@@ -313,18 +310,17 @@ impl Network {
     #[instrument(level = "trace", skip_all)]
     pub(super) async fn register_ws_dial_info(
         &self,
-        editor_public_internet: &mut RoutingDomainEditorPublicInternet,
-        editor_local_network: &mut RoutingDomainEditorLocalNetwork,
+        editor_public_internet: &mut RoutingDomainEditorPublicInternet<'_>,
+        editor_local_network: &mut RoutingDomainEditorLocalNetwork<'_>,
     ) -> EyreResult<()> {
         log_net!("WS: registering dial info");
-        let (url, path, detect_address_changes) = {
-            let c = self.config.get();
+        let (url, path, detect_address_changes) = self.config().with(|c| {
             (
                 c.network.protocol.ws.url.clone(),
                 c.network.protocol.ws.path.clone(),
                 c.network.detect_address_changes,
             )
-        };
+        });
 
         let mut registered_addresses: HashSet<IpAddr> = HashSet::new();
 
@@ -409,14 +405,13 @@ impl Network {
     pub(super) async fn start_wss_listeners(&self) -> EyreResult<StartupDisposition> {
         log_net!("WSS: binding protocol handlers");
 
-        let (listen_address, url, detect_address_changes) = {
-            let c = self.config.get();
+        let (listen_address, url, detect_address_changes) = self.config().with(|c| {
             (
                 c.network.protocol.wss.listen_address.clone(),
                 c.network.protocol.wss.url.clone(),
                 c.network.detect_address_changes,
             )
-        };
+        });
 
         // Get the binding parameters from the user-specified listen address
         let bind_set = self
@@ -460,18 +455,17 @@ impl Network {
     #[instrument(level = "trace", skip_all)]
     pub(super) async fn register_wss_dial_info(
         &self,
-        editor_public_internet: &mut RoutingDomainEditorPublicInternet,
-        editor_local_network: &mut RoutingDomainEditorLocalNetwork,
+        editor_public_internet: &mut RoutingDomainEditorPublicInternet<'_>,
+        editor_local_network: &mut RoutingDomainEditorLocalNetwork<'_>,
     ) -> EyreResult<()> {
         log_net!("WSS: registering dialinfo");
 
-        let (url, _detect_address_changes) = {
-            let c = self.config.get();
+        let (url, _detect_address_changes) = self.config().with(|c| {
             (
                 c.network.protocol.wss.url.clone(),
                 c.network.detect_address_changes,
             )
-        };
+        });
 
         // NOTE: No interface dial info for WSS, as there is no way to connect to a local dialinfo via TLS
         // If the hostname is specified, it is the public dialinfo via the URL. If no hostname
@@ -520,14 +514,13 @@ impl Network {
     pub(super) async fn start_tcp_listeners(&self) -> EyreResult<StartupDisposition> {
         log_net!("TCP: binding protocol handlers");
 
-        let (listen_address, public_address, detect_address_changes) = {
-            let c = self.config.get();
+        let (listen_address, public_address, detect_address_changes) = self.config().with(|c| {
             (
                 c.network.protocol.tcp.listen_address.clone(),
                 c.network.protocol.tcp.public_address.clone(),
                 c.network.detect_address_changes,
             )
-        };
+        });
 
         // Get the binding parameters from the user-specified listen address
         let bind_set = self
@@ -570,18 +563,17 @@ impl Network {
     #[instrument(level = "trace", skip_all)]
     pub(super) async fn register_tcp_dial_info(
         &self,
-        editor_public_internet: &mut RoutingDomainEditorPublicInternet,
-        editor_local_network: &mut RoutingDomainEditorLocalNetwork,
+        editor_public_internet: &mut RoutingDomainEditorPublicInternet<'_>,
+        editor_local_network: &mut RoutingDomainEditorLocalNetwork<'_>,
     ) -> EyreResult<()> {
         log_net!("TCP: registering dialinfo");
 
-        let (public_address, detect_address_changes) = {
-            let c = self.config.get();
+        let (public_address, detect_address_changes) = self.config().with(|c| {
             (
                 c.network.protocol.tcp.public_address.clone(),
                 c.network.detect_address_changes,
             )
-        };
+        });
 
         let mut registered_addresses: HashSet<IpAddr> = HashSet::new();
 

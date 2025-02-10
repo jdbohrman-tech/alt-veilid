@@ -3,18 +3,16 @@ use data_encoding::BASE64URL_NOPAD;
 
 use web_sys::*;
 
-#[derive(Clone)]
+#[derive(Debug)]
 pub struct ProtectedStore {
-    _event_bus: EventBus,
-    config: VeilidConfig,
+    registry: VeilidComponentRegistry,
 }
 
+impl_veilid_component!(ProtectedStore);
+
 impl ProtectedStore {
-    pub fn new(event_bus: EventBus, config: VeilidConfig) -> Self {
-        Self {
-            _event_bus: event_bus,
-            config,
-        }
+    pub fn new(registry: VeilidComponentRegistry) -> Self {
+        Self { registry }
     }
 
     #[instrument(level = "trace", skip(self), err)]
@@ -30,15 +28,24 @@ impl ProtectedStore {
     }
 
     #[instrument(level = "debug", skip(self), err)]
-    pub async fn init(&self) -> EyreResult<()> {
+    pub(crate) async fn init_async(&self) -> EyreResult<()> {
+        Ok(())
+    }
+
+    #[instrument(level = "debug", skip(self), err)]
+    pub(crate) async fn post_init_async(&self) -> EyreResult<()> {
         Ok(())
     }
 
     #[instrument(level = "debug", skip(self))]
-    pub async fn terminate(&self) {}
+    pub(crate) async fn pre_terminate_async(&self) {}
+
+    #[instrument(level = "debug", skip(self))]
+    pub(crate) async fn terminate_async(&self) {}
 
     fn browser_key_name(&self, key: &str) -> String {
-        let c = self.config.get();
+        let config = self.config();
+        let c = config.get();
         if c.namespace.is_empty() {
             format!("__veilid_protected_store_{}", key)
         } else {

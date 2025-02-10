@@ -23,11 +23,8 @@ pub use types::*;
 
 use crate::*;
 
-use attachment_manager::AttachmentManager;
 use core_context::{api_shutdown, VeilidCoreContext};
-use network_manager::NetworkManager;
-use routing_table::{DirectionSet, RouteSpecStore, RoutingTable};
+use routing_table::{DirectionSet, RouteSpecStore};
 use rpc_processor::*;
-use storage_manager::StorageManager;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////

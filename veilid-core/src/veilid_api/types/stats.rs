@@ -2,7 +2,7 @@ use super::*;
 
 /// Measurement of communications latency to this node over all RPC questions
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct LatencyStats {
     /// fastest latency in the ROLLING_LATENCIES_SIZE last latencies
     pub fastest: TimestampDuration,
@@ -25,7 +25,7 @@ impl fmt::Display for LatencyStats {
 
 /// Measurement of how much data has transferred to or from this node over a time span
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct TransferStats {
     /// total amount transferred ever
     pub total: ByteCount,
@@ -50,7 +50,7 @@ impl fmt::Display for TransferStats {
 
 /// Transfer statistics from a node to our own (down) and
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct TransferStatsDownUp {
     pub down: TransferStats,
     pub up: TransferStats,
@@ -66,7 +66,7 @@ impl fmt::Display for TransferStatsDownUp {
 
 /// Measurement of what states the node has been in over a time span
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct StateStats {
     /// total amount of time measured
     pub span: TimestampDuration,
@@ -97,7 +97,7 @@ impl fmt::Display for StateStats {
 
 /// Measurement of what state reasons the node has been in over a time span
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct StateReasonStats {
     /// time spent dead due to being unable to send
     pub can_not_send: TimestampDuration,
@@ -139,7 +139,7 @@ impl fmt::Display for StateReasonStats {
 
 /// Measurement of round-trip RPC question/answer performance
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct AnswerStats {
     /// total amount of time measured
     pub span: TimestampDuration,
@@ -192,7 +192,7 @@ impl fmt::Display for AnswerStats {
 
 /// Statistics for RPC operations performed on a node
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct RPCStats {
     /// number of rpcs that have been sent in the total entry time range
     pub messages_sent: u32,
@@ -263,7 +263,7 @@ impl fmt::Display for RPCStats {
 
 /// Statistics for a peer in the routing table
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct PeerStats {
     /// when the peer was added to the routing table
     pub time_added: Timestamp,

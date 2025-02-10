@@ -138,6 +138,7 @@ otlp:
 ```yaml
 testing:
     subnode_index: 0
+    subnode_count: 1
 ```
 
 ### core

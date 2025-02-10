@@ -18,7 +18,7 @@ impl RoutingTable {
     // Task routine for PublicInternet status pings
     #[instrument(level = "trace", skip(self), err)]
     pub async fn ping_validator_public_internet_task_routine(
-        self,
+        &self,
         stop_token: StopToken,
         _last_ts: Timestamp,
         cur_ts: Timestamp,
@@ -37,7 +37,7 @@ impl RoutingTable {
     // Task routine for LocalNetwork status pings
     #[instrument(level = "trace", skip(self), err)]
     pub async fn ping_validator_local_network_task_routine(
-        self,
+        &self,
         stop_token: StopToken,
         _last_ts: Timestamp,
         cur_ts: Timestamp,
@@ -56,7 +56,7 @@ impl RoutingTable {
     // Task routine for PublicInternet relay keepalive pings
     #[instrument(level = "trace", skip(self), err)]
     pub async fn ping_validator_public_internet_relay_task_routine(
-        self,
+        &self,
         stop_token: StopToken,
         _last_ts: Timestamp,
         cur_ts: Timestamp,
@@ -75,7 +75,7 @@ impl RoutingTable {
     // Task routine for active watch keepalive pings
     #[instrument(level = "trace", skip(self), err)]
     pub async fn ping_validator_active_watch_task_routine(
-        self,
+        &self,
         stop_token: StopToken,
         _last_ts: Timestamp,
         cur_ts: Timestamp,
@@ -105,7 +105,6 @@ impl RoutingTable {
             return Ok(());
         };
 
-        let rpc = self.rpc_processor();
         // Get our publicinternet dial info
         let dids = self.all_filtered_dial_info_details(
             RoutingDomain::PublicInternet.into(),
@@ -180,11 +179,11 @@ impl RoutingTable {
         }
 
         for relay_nr_filtered in relay_noderefs {
-            let rpc = rpc.clone();
             futurequeue.push_back(
                 async move {
                     log_rtab!("--> PublicInternet Relay ping to {:?}", relay_nr_filtered);
-                    let _ = rpc
+                    let rpc_processor = relay_nr_filtered.rpc_processor();
+                    let _ = rpc_processor
                         .rpc_call_status(Destination::direct(relay_nr_filtered))
                         .await?;
                     Ok(())
@@ -202,8 +201,6 @@ impl RoutingTable {
         cur_ts: Timestamp,
         futurequeue: &mut VecDeque<PingValidatorFuture>,
     ) -> EyreResult<()> {
-        let rpc = self.rpc_processor();
-
         let watches_need_keepalive = {
             let mut inner = self.inner.write();
             let need = inner
@@ -224,15 +221,15 @@ impl RoutingTable {
         }
 
         // Get all the active watches from the storage manager
-        let storage_manager = self.unlocked_inner.network_manager.storage_manager();
-        let watch_destinations = storage_manager.get_active_watch_nodes().await;
+        let watch_destinations = self.storage_manager().get_active_watch_nodes().await;
 
         for watch_destination in watch_destinations {
-            let rpc = rpc.clone();
+            let registry = self.registry();
             futurequeue.push_back(
                 async move {
                     log_rtab!("--> Watch Keepalive ping to {:?}", watch_destination);
-                    let _ = rpc.rpc_call_status(watch_destination).await?;
+                    let rpc_processor = registry.rpc_processor();
+                    let _ = rpc_processor.rpc_call_status(watch_destination).await?;
                     Ok(())
                 }
                 .boxed(),
@@ -249,8 +246,6 @@ impl RoutingTable {
         cur_ts: Timestamp,
         futurequeue: &mut VecDeque<PingValidatorFuture>,
     ) -> EyreResult<()> {
-        let rpc = self.rpc_processor();
-
         // Get all nodes needing pings in the PublicInternet routing domain
         let node_refs = self.get_nodes_needing_ping(RoutingDomain::PublicInternet, cur_ts);
 
@@ -258,12 +253,14 @@ impl RoutingTable {
         for nr in node_refs {
             let nr = nr.sequencing_clone(Sequencing::PreferOrdered);
 
-            let rpc = rpc.clone();
             futurequeue.push_back(
                 async move {
                     #[cfg(feature = "verbose-tracing")]
                     log_rtab!(debug "--> PublicInternet Validator ping to {:?}", nr);
-                    let _ = rpc.rpc_call_status(Destination::direct(nr)).await?;
+                    let rpc_processor = nr.rpc_processor();
+                    let _ = rpc_processor
+                        .rpc_call_status(Destination::direct(nr))
+                        .await?;
                     Ok(())
                 }
                 .boxed(),
@@ -281,8 +278,6 @@ impl RoutingTable {
         cur_ts: Timestamp,
         futurequeue: &mut VecDeque<PingValidatorFuture>,
     ) -> EyreResult<()> {
-        let rpc = self.rpc_processor();
-
         // Get all nodes needing pings in the LocalNetwork routing domain
         let node_refs = self.get_nodes_needing_ping(RoutingDomain::LocalNetwork, cur_ts);
 
@@ -290,14 +285,15 @@ impl RoutingTable {
         for nr in node_refs {
             let nr = nr.sequencing_clone(Sequencing::PreferOrdered);
 
-            let rpc = rpc.clone();
-
             // Just do a single ping with the best protocol for all the nodes
             futurequeue.push_back(
                 async move {
                     #[cfg(feature = "verbose-tracing")]
                     log_rtab!(debug "--> LocalNetwork Validator ping to {:?}", nr);
-                    let _ = rpc.rpc_call_status(Destination::direct(nr)).await?;
+                    let rpc_processor = nr.rpc_processor();
+                    let _ = rpc_processor
+                        .rpc_call_status(Destination::direct(nr))
+                        .await?;
                     Ok(())
                 }
                 .boxed(),

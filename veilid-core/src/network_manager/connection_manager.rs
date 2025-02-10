@@ -57,17 +57,16 @@ struct ConnectionManagerInner {
     async_processor_jh: Option<MustJoinHandle<()>>,
     stop_source: Option<StopSource>,
     protected_addresses: HashMap<SocketAddress, ProtectedAddress>,
-    reconnection_processor: DeferredStreamProcessor,
 }
 
 struct ConnectionManagerArc {
-    network_manager: NetworkManager,
     connection_initial_timeout_ms: u32,
     connection_inactivity_timeout_ms: u32,
     connection_table: ConnectionTable,
     address_lock_table: AsyncTagLockTable<SocketAddr>,
     startup_lock: StartupLock,
     inner: Mutex<Option<ConnectionManagerInner>>,
+    reconnection_processor: DeferredStreamProcessor,
 }
 impl core::fmt::Debug for ConnectionManagerArc {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -79,15 +78,17 @@ impl core::fmt::Debug for ConnectionManagerArc {
 
 #[derive(Debug, Clone)]
 pub struct ConnectionManager {
+    registry: VeilidComponentRegistry,
     arc: Arc<ConnectionManagerArc>,
 }
+
+impl_veilid_component_registry_accessor!(ConnectionManager);
 
 impl ConnectionManager {
     fn new_inner(
         stop_source: StopSource,
         sender: flume::Sender<ConnectionManagerEvent>,
         async_processor_jh: MustJoinHandle<()>,
-        reconnection_processor: DeferredStreamProcessor,
     ) -> ConnectionManagerInner {
         ConnectionManagerInner {
             next_id: 0.into(),
@@ -95,11 +96,10 @@ impl ConnectionManager {
             sender,
             async_processor_jh: Some(async_processor_jh),
             protected_addresses: HashMap::new(),
-            reconnection_processor,
         }
     }
-    fn new_arc(network_manager: NetworkManager) -> ConnectionManagerArc {
-        let config = network_manager.config();
+    fn new_arc(registry: VeilidComponentRegistry) -> ConnectionManagerArc {
+        let config = registry.config();
         let (connection_initial_timeout_ms, connection_inactivity_timeout_ms) = {
             let c = config.get();
             (
@@ -107,26 +107,22 @@ impl ConnectionManager {
                 c.network.connection_inactivity_timeout_ms,
             )
         };
-        let address_filter = network_manager.address_filter();
 
         ConnectionManagerArc {
-            network_manager,
+            reconnection_processor: DeferredStreamProcessor::new(),
             connection_initial_timeout_ms,
             connection_inactivity_timeout_ms,
-            connection_table: ConnectionTable::new(config, address_filter),
+            connection_table: ConnectionTable::new(registry),
             address_lock_table: AsyncTagLockTable::new(),
             startup_lock: StartupLock::new(),
             inner: Mutex::new(None),
         }
     }
-    pub fn new(network_manager: NetworkManager) -> Self {
+    pub fn new(registry: VeilidComponentRegistry) -> Self {
         Self {
-            arc: Arc::new(Self::new_arc(network_manager)),
+            arc: Arc::new(Self::new_arc(registry.clone())),
+            registry,
         }
-    }
-
-    pub fn network_manager(&self) -> NetworkManager {
-        self.arc.network_manager.clone()
     }
 
     pub fn connection_inactivity_timeout_ms(&self) -> u32 {
@@ -150,21 +146,17 @@ impl ConnectionManager {
             self.clone().async_processor(stop_source.token(), receiver),
         );
 
-        // Spawn the reconnection processor
-        let mut reconnection_processor = DeferredStreamProcessor::new();
-        reconnection_processor.init().await;
-
         // Store in the inner object
-        let mut inner = self.arc.inner.lock();
-        if inner.is_some() {
-            panic!("shouldn't start connection manager twice without shutting it down first");
+        {
+            let mut inner = self.arc.inner.lock();
+            if inner.is_some() {
+                panic!("shouldn't start connection manager twice without shutting it down first");
+            }
+            *inner = Some(Self::new_inner(stop_source, sender, async_processor));
         }
-        *inner = Some(Self::new_inner(
-            stop_source,
-            sender,
-            async_processor,
-            reconnection_processor,
-        ));
+
+        // Spawn the reconnection processor
+        self.arc.reconnection_processor.init().await;
 
         guard.success();
 
@@ -178,6 +170,10 @@ impl ConnectionManager {
             return;
         };
 
+        // Stop the reconnection processor
+        log_net!(debug "stopping reconnection processor task");
+        self.arc.reconnection_processor.terminate().await;
+
         // Remove the inner from the lock
         let mut inner = {
             let mut inner_lock = self.arc.inner.lock();
@@ -188,9 +184,6 @@ impl ConnectionManager {
                 }
             }
         };
-        // Stop the reconnection processor
-        log_net!(debug "stopping reconnection processor task");
-        inner.reconnection_processor.terminate().await;
         // Stop all the connections and the async processor
         log_net!(debug "stopping async processor task");
         drop(inner.stop_source.take());
@@ -452,13 +445,14 @@ impl ConnectionManager {
 
         // Attempt new connection
         let mut retry_count = NEW_CONNECTION_RETRY_COUNT;
+        let network_manager = self.network_manager();
 
         let prot_conn = network_result_try!(loop {
             let result_net_res = ProtocolNetworkConnection::connect(
                 preferred_local_address,
                 &dial_info,
                 self.arc.connection_initial_timeout_ms,
-                self.network_manager().address_filter(),
+                network_manager.address_filter(),
             )
             .await;
             match result_net_res {
@@ -574,7 +568,7 @@ impl ConnectionManager {
 
     // Called by low-level network when any connection-oriented protocol connection appears
     // either from incoming connections.
-    #[cfg_attr(target_arch = "wasm32", expect(dead_code))]
+    #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), expect(dead_code))]
     pub(super) async fn on_accepted_protocol_network_connection(
         &self,
         protocol_connection: ProtocolNetworkConnection,
@@ -660,7 +654,7 @@ impl ConnectionManager {
                             // Reconnect the protected connection immediately
                             if reconnect {
                                 if let Some(dial_info) = conn.dial_info() {
-                                    self.spawn_reconnector_inner(inner, dial_info);
+                                    self.spawn_reconnector(dial_info);
                                 } else {
                                     log_net!(debug "Can't reconnect to accepted protected connection: {} -> {} for node {}", conn.connection_id(), conn.debug_print(Timestamp::now()), protect_nr);
                                 }
@@ -675,9 +669,9 @@ impl ConnectionManager {
         }
     }
 
-    fn spawn_reconnector_inner(&self, inner: &mut ConnectionManagerInner, dial_info: DialInfo) {
+    fn spawn_reconnector(&self, dial_info: DialInfo) {
         let this = self.clone();
-        inner.reconnection_processor.add(
+        self.arc.reconnection_processor.add(
             Box::pin(futures_util::stream::once(async { dial_info })),
             move |dial_info| {
                 let this = this.clone();

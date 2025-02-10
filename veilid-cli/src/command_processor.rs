@@ -57,6 +57,7 @@ struct CommandProcessorInner {
 #[derive(Clone)]
 pub struct CommandProcessor {
     inner: Arc<Mutex<CommandProcessorInner>>,
+    settings: Arc<Settings>,
 }
 
 impl CommandProcessor {
@@ -75,6 +76,7 @@ impl CommandProcessor {
                 last_call_id: None,
                 enable_app_messages: false,
             })),
+            settings: Arc::new(settings.clone()),
         }
     }
     pub fn set_client_api_connection(&self, capi: ClientApiConnection) {
@@ -183,6 +185,54 @@ Core Debug Commands:
             capi.disconnect().await;
             ui.send_callback(callback);
         });
+        Ok(())
+    }
+
+    pub fn cmd_connect(&self, rest: Option<String>, callback: UICallback) -> Result<(), String> {
+        trace!("CommandProcessor::cmd_connect");
+        let capi = self.capi();
+        let ui = self.ui_sender();
+
+        let this = self.clone();
+        spawn_detached_local("cmd connect", async move {
+            capi.disconnect().await;
+
+            if let Some(rest) = rest {
+                if let Ok(subnode_index) = u16::from_str(&rest) {
+                    let ipc_path = this
+                        .settings
+                        .resolve_ipc_path(this.settings.ipc_path.clone(), subnode_index);
+                    this.set_ipc_path(ipc_path);
+                    this.set_network_address(None);
+                } else if let Some(ipc_path) =
+                    this.settings.resolve_ipc_path(Some(rest.clone().into()), 0)
+                {
+                    this.set_ipc_path(Some(ipc_path));
+                    this.set_network_address(None);
+                } else if let Ok(Some(network_address)) =
+                    this.settings.resolve_network_address(Some(rest.clone()))
+                {
+                    if let Some(addr) = network_address.first() {
+                        this.set_network_address(Some(*addr));
+                        this.set_ipc_path(None);
+                    } else {
+                        ui.add_node_event(
+                            Level::Error,
+                            &format!("Invalid network address: {}", rest),
+                        );
+                    }
+                } else {
+                    ui.add_node_event(
+                        Level::Error,
+                        &format!("Invalid connection string: {}", rest),
+                    );
+                }
+            }
+
+            this.start_connection();
+            ui.send_callback(callback);
+        });
+
         Ok(())
     }
 
@@ -331,6 +381,7 @@ Core Debug Commands:
             "exit" => self.cmd_exit(callback),
             "quit" => self.cmd_exit(callback),
             "disconnect" => self.cmd_disconnect(callback),
+            "connect" => self.cmd_connect(rest, callback),
             "shutdown" => self.cmd_shutdown(callback),
             "change_log_level" => self.cmd_change_log_level(rest, callback),
             "change_log_ignore" => self.cmd_change_log_ignore(rest, callback),

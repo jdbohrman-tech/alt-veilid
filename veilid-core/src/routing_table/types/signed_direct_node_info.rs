@@ -36,7 +36,7 @@ impl SignedDirectNodeInfo {
     pub fn validate(
         &self,
         node_ids: &TypedKeyGroup,
-        crypto: Crypto,
+        crypto: &Crypto,
     ) -> VeilidAPIResult<TypedKeyGroup> {
         let node_info_bytes = Self::make_signature_bytes(&self.node_info, self.timestamp)?;
 
@@ -54,7 +54,7 @@ impl SignedDirectNodeInfo {
     }
 
     pub fn make_signatures(
-        crypto: Crypto,
+        crypto: &Crypto,
         typed_key_pairs: Vec<TypedKeyPair>,
         node_info: NodeInfo,
     ) -> VeilidAPIResult<Self> {

@@ -3,7 +3,7 @@ use super::*;
 /// DHT Record Report
 #[derive(Default, Clone, PartialOrd, Ord, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(
-    target_arch = "wasm32",
+    all(target_arch = "wasm32", target_os = "unknown"),
     derive(Tsify),
     tsify(from_wasm_abi, into_wasm_abi)
 )]
@@ -67,7 +67,7 @@ impl fmt::Debug for DHTRecordReport {
     Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema,
 )]
 #[cfg_attr(
-    target_arch = "wasm32",
+    all(target_arch = "wasm32", target_os = "unknown"),
     derive(Tsify),
     tsify(from_wasm_abi, into_wasm_abi, namespace)
 )]

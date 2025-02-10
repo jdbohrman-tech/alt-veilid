@@ -1,3 +1,5 @@
+use super::*;
+
 mod answer;
 mod coders;
 mod destination;
@@ -46,7 +48,6 @@ pub(crate) use error::*;
 pub(crate) use fanout::*;
 pub(crate) use sender_info::*;
 
-use super::*;
 use futures_util::StreamExt;
 use stop_token::future::FutureExt as _;
 
@@ -88,29 +89,46 @@ enum RPCKind {
 
 /////////////////////////////////////////////////////////////////////
 
+#[derive(Debug, Clone)]
+pub struct RPCProcessorStartupContext {
+    pub startup_lock: Arc<StartupLock>,
+}
+impl RPCProcessorStartupContext {
+    pub fn new() -> Self {
+        Self {
+            startup_lock: Arc::new(StartupLock::new()),
+        }
+    }
+}
+impl Default for RPCProcessorStartupContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/////////////////////////////////////////////////////////////////////
+
+#[derive(Debug)]
 struct RPCProcessorInner {
     send_channel: Option<flume::Sender<(Span, MessageEncoded)>>,
     stop_source: Option<StopSource>,
     worker_join_handles: Vec<MustJoinHandle<()>>,
 }
 
-struct RPCProcessorUnlockedInner {
-    network_manager: NetworkManager,
+#[derive(Debug)]
+pub(crate) struct RPCProcessor {
+    registry: VeilidComponentRegistry,
+    inner: Mutex<RPCProcessorInner>,
     timeout_us: TimestampDuration,
     queue_size: u32,
     concurrency: u32,
     max_route_hop_count: usize,
-    update_callback: UpdateCallback,
     waiting_rpc_table: OperationWaiter<Message, Option<QuestionContext>>,
     waiting_app_call_table: OperationWaiter<Vec<u8>, ()>,
-    startup_lock: StartupLock,
+    startup_context: RPCProcessorStartupContext,
 }
 
-#[derive(Clone)]
-pub(crate) struct RPCProcessor {
-    inner: Arc<Mutex<RPCProcessorInner>>,
-    unlocked_inner: Arc<RPCProcessorUnlockedInner>,
-}
+impl_veilid_component!(RPCProcessor);
 
 impl RPCProcessor {
     fn new_inner() -> RPCProcessorInner {
@@ -120,13 +138,14 @@ impl RPCProcessor {
             worker_join_handles: Vec::new(),
         }
     }
-    fn new_unlocked_inner(
-        network_manager: NetworkManager,
-        update_callback: UpdateCallback,
-    ) -> RPCProcessorUnlockedInner {
+
+    pub fn new(
+        registry: VeilidComponentRegistry,
+        startup_context: RPCProcessorStartupContext,
+    ) -> Self {
         // make local copy of node id for easy access
         let (concurrency, queue_size, max_route_hop_count, timeout_us) = {
-            let config = network_manager.config();
+            let config = registry.config();
             let c = config.get();
 
             // set up channel
@@ -146,99 +165,83 @@ impl RPCProcessor {
             (concurrency, queue_size, max_route_hop_count, timeout_us)
         };
 
-        RPCProcessorUnlockedInner {
-            network_manager,
+        Self {
+            registry,
+            inner: Mutex::new(Self::new_inner()),
             timeout_us,
             queue_size,
             concurrency,
             max_route_hop_count,
-            update_callback,
             waiting_rpc_table: OperationWaiter::new(),
             waiting_app_call_table: OperationWaiter::new(),
-            startup_lock: StartupLock::new(),
-        }
-    }
-    pub fn new(network_manager: NetworkManager, update_callback: UpdateCallback) -> Self {
-        Self {
-            inner: Arc::new(Mutex::new(Self::new_inner())),
-            unlocked_inner: Arc::new(Self::new_unlocked_inner(network_manager, update_callback)),
+            startup_context,
         }
     }
 
-    pub fn network_manager(&self) -> NetworkManager {
-        self.unlocked_inner.network_manager.clone()
+    /////////////////////////////////////
+    /// Initialization
+
+    async fn init_async(&self) -> EyreResult<()> {
+        Ok(())
     }
 
-    pub fn crypto(&self) -> Crypto {
-        self.unlocked_inner.network_manager.crypto()
+    async fn post_init_async(&self) -> EyreResult<()> {
+        Ok(())
     }
 
-    pub fn event_bus(&self) -> EventBus {
-        self.unlocked_inner.network_manager.event_bus()
+    async fn pre_terminate_async(&self) {
+        // Ensure things have shut down
+        assert!(
+            self.startup_context.startup_lock.is_shut_down(),
+            "should have shut down by now"
+        );
     }
 
-    pub fn routing_table(&self) -> RoutingTable {
-        self.unlocked_inner.network_manager.routing_table()
-    }
-
-    pub fn storage_manager(&self) -> StorageManager {
-        self.unlocked_inner.network_manager.storage_manager()
-    }
-
-    pub fn with_config<R, F: FnOnce(&VeilidConfigInner) -> R>(&self, func: F) -> R {
-        let config = self.unlocked_inner.network_manager.config();
-        let c = config.get();
-        func(&c)
-    }
+    async fn terminate_async(&self) {}
 
     //////////////////////////////////////////////////////////////////////
 
     #[instrument(level = "debug", skip_all, err)]
     pub async fn startup(&self) -> EyreResult<()> {
-        log_rpc!(debug "startup rpc processor");
-        let guard = self.unlocked_inner.startup_lock.startup()?;
+        log_rpc!(debug "starting rpc processor startup");
+
+        let guard = self.startup_context.startup_lock.startup()?;
         {
             let mut inner = self.inner.lock();
 
-            let channel = flume::bounded(self.unlocked_inner.queue_size as usize);
+            let channel = flume::bounded(self.queue_size as usize);
             inner.send_channel = Some(channel.0.clone());
             inner.stop_source = Some(StopSource::new());
 
             // spin up N workers
-            log_rpc!(
-                "Spinning up {} RPC workers",
-                self.unlocked_inner.concurrency
-            );
-            for task_n in 0..self.unlocked_inner.concurrency {
-                let this = self.clone();
+            log_rpc!("Spinning up {} RPC workers", self.concurrency);
+            for task_n in 0..self.concurrency {
+                let registry = self.registry();
                 let receiver = channel.1.clone();
-                let jh = spawn(
-                    &format!("rpc worker {}", task_n),
-                    Self::rpc_worker(this, inner.stop_source.as_ref().unwrap().token(), receiver),
-                );
+                let stop_token = inner.stop_source.as_ref().unwrap().token();
+                let jh = spawn(&format!("rpc worker {}", task_n), async move {
+                    let this = registry.rpc_processor();
+                    this.rpc_worker(stop_token, receiver).await
+                });
                 inner.worker_join_handles.push(jh);
             }
         }
-
-        // Inform storage manager we are up
-        self.storage_manager()
-            .set_rpc_processor(Some(self.clone()))
-            .await;
-
         guard.success();
+
+        log_rpc!(debug "finished rpc processor startup");
+
         Ok(())
     }
 
     #[instrument(level = "debug", skip_all)]
     pub async fn shutdown(&self) {
         log_rpc!(debug "starting rpc processor shutdown");
-        let Ok(guard) = self.unlocked_inner.startup_lock.shutdown().await else {
-            log_rpc!(debug "rpc processor already shut down");
-            return;
-        };
-
-        // Stop storage manager from using us
-        self.storage_manager().set_rpc_processor(None).await;
+        let guard = self
+            .startup_context
+            .startup_lock
+            .shutdown()
+            .await
+            .expect("should be started up");
 
         // Stop the rpc workers
         let mut unord = FuturesUnordered::new();
@@ -269,9 +272,7 @@ impl RPCProcessor {
 
     /// Get waiting app call id for debugging purposes
     pub fn get_app_call_ids(&self) -> Vec<OperationId> {
-        self.unlocked_inner
-            .waiting_app_call_table
-            .get_operation_ids()
+        self.waiting_app_call_table.get_operation_ids()
     }
 
     /// Determine if a SignedNodeInfo can be placed into the specified routing domain
@@ -300,12 +301,13 @@ impl RPCProcessor {
         let Some(peer_info) = sender_peer_info.opt_peer_info.clone() else {
             return Ok(NetworkResult::value(None));
         };
-        let address_filter = self.network_manager().address_filter();
 
         // Ensure the sender peer info is for the actual sender specified in the envelope
         if !peer_info.node_ids().contains(&sender_node_id) {
             // Attempted to update peer info for the wrong node id
-            address_filter.punish_node_id(sender_node_id, PunishmentReason::WrongSenderPeerInfo);
+            self.network_manager()
+                .address_filter()
+                .punish_node_id(sender_node_id, PunishmentReason::WrongSenderPeerInfo);
 
             return Ok(NetworkResult::invalid_message(
                 "attempt to update peer info for non-sender node id",
@@ -318,7 +320,7 @@ impl RPCProcessor {
             // Don't punish for this because in the case of hairpin NAT
             // you can legally get LocalNetwork PeerInfo when you expect PublicInternet PeerInfo
             //
-            // address_filter.punish_node_id(
+            // self.network_manager().address_filter().punish_node_id(
             //     sender_node_id,
             //     PunishmentReason::FailedToVerifySenderPeerInfo,
             // );
@@ -330,7 +332,7 @@ impl RPCProcessor {
         {
             Ok(v) => v.unfiltered(),
             Err(e) => {
-                address_filter.punish_node_id(
+                self.network_manager().address_filter().punish_node_id(
                     sender_node_id,
                     PunishmentReason::FailedToRegisterSenderPeerInfo,
                 );
@@ -365,17 +367,17 @@ impl RPCProcessor {
 
         // Routine to call to generate fanout
         let call_routine = |next_node: NodeRef| {
-            let this = self.clone();
+            let registry = self.registry();
             async move {
+                let this = registry.rpc_processor();
                 let v = network_result_try!(
-                    this.clone()
-                        .rpc_call_find_node(
-                            Destination::direct(next_node.routing_domain_filtered(routing_domain))
-                                .with_safety(safety_selection),
-                            node_id,
-                            vec![],
-                        )
-                        .await?
+                    this.rpc_call_find_node(
+                        Destination::direct(next_node.routing_domain_filtered(routing_domain))
+                            .with_safety(safety_selection),
+                        node_id,
+                        vec![],
+                    )
+                    .await?
                 );
                 Ok(NetworkResult::value(FanoutCallOutput {
                     peer_info_list: v.answer,
@@ -400,8 +402,9 @@ impl RPCProcessor {
         };
 
         // Call the fanout
+        let routing_table = self.routing_table();
         let fanout_call = FanoutCall::new(
-            routing_table.clone(),
+            &routing_table,
             node_id,
             count,
             fanout,
@@ -423,11 +426,13 @@ impl RPCProcessor {
         node_id: TypedKey,
         safety_selection: SafetySelection,
     ) -> SendPinBoxFuture<Result<Option<NodeRef>, RPCError>> {
-        let this = self.clone();
+        let registry = self.registry();
         Box::pin(
             async move {
+                let this = registry.rpc_processor();
+
                 let _guard = this
-                    .unlocked_inner
+                    .startup_context
                     .startup_lock
                     .enter()
                     .map_err(RPCError::map_try_again("not started up"))?;
@@ -451,7 +456,7 @@ impl RPCProcessor {
                 }
 
                 // If nobody knows where this node is, ask the DHT for it
-                let (node_count, _consensus_count, fanout, timeout) = this.with_config(|c| {
+                let (node_count, _consensus_count, fanout, timeout) = this.config().with(|c| {
                     (
                         c.network.dht.max_find_node_count as usize,
                         c.network.dht.resolve_node_count as usize,
@@ -494,7 +499,6 @@ impl RPCProcessor {
     ) -> Result<TimeoutOr<(Message, TimestampDuration)>, RPCError> {
         let id = waitable_reply.handle.id();
         let out = self
-            .unlocked_inner
             .waiting_rpc_table
             .wait_for_op(waitable_reply.handle, waitable_reply.timeout_us)
             .await;
@@ -577,6 +581,7 @@ impl RPCProcessor {
         message_data: Vec<u8>,
     ) -> RPCNetworkResult<RenderedOperation> {
         let routing_table = self.routing_table();
+        let crypto = self.crypto();
         let rss = routing_table.route_spec_store();
 
         // Get useful private route properties
@@ -584,7 +589,7 @@ impl RPCProcessor {
         let pr_hop_count = remote_private_route.hop_count;
         let pr_pubkey = remote_private_route.public_key.value;
         let crypto_kind = remote_private_route.crypto_kind();
-        let Some(vcrypto) = self.crypto().get(crypto_kind) else {
+        let Some(vcrypto) = crypto.get(crypto_kind) else {
             return Err(RPCError::internal(
                 "crypto not available for selected private route",
             ));
@@ -786,6 +791,7 @@ impl RPCProcessor {
     /// And send our timestamp of the target's node info so they can determine if they should update us on their next rpc
     #[instrument(level = "trace", target = "rpc", skip_all)]
     fn get_sender_peer_info(&self, dest: &Destination) -> SenderPeerInfo {
+        let routing_table = self.routing_table();
         // Don't do this if the sender is to remain private
         // Otherwise we would be attaching the original sender's identity to the final destination,
         // thus defeating the purpose of the safety route entirely :P
@@ -793,7 +799,7 @@ impl RPCProcessor {
             opt_node,
             opt_relay: _,
             opt_routing_domain,
-        }) = dest.get_unsafe_routing_info(self.routing_table())
+        }) = dest.get_unsafe_routing_info(&routing_table)
         else {
             return SenderPeerInfo::default();
         };
@@ -849,13 +855,15 @@ impl RPCProcessor {
 
         // If safety route was in use, record failure to send there
         if let Some(sr_pubkey) = &safety_route {
-            let rss = self.routing_table().route_spec_store();
-            rss.with_route_stats_mut(send_ts, sr_pubkey, |s| s.record_send_failed());
+            self.routing_table()
+                .route_spec_store()
+                .with_route_stats_mut(send_ts, sr_pubkey, |s| s.record_send_failed());
         } else {
             // If no safety route was in use, then it's the private route's fault if we have one
             if let Some(pr_pubkey) = &remote_private_route {
-                let rss = self.routing_table().route_spec_store();
-                rss.with_route_stats_mut(send_ts, pr_pubkey, |s| s.record_send_failed());
+                self.routing_table()
+                    .route_spec_store()
+                    .with_route_stats_mut(send_ts, pr_pubkey, |s| s.record_send_failed());
             }
         }
     }
@@ -880,7 +888,8 @@ impl RPCProcessor {
             return;
         }
         // Get route spec store
-        let rss = self.routing_table().route_spec_store();
+        let routing_table = self.routing_table();
+        let rss = routing_table.route_spec_store();
 
         // If safety route was used, record question lost there
         if let Some(sr_pubkey) = &safety_route {
@@ -927,7 +936,8 @@ impl RPCProcessor {
         }
 
         // Get route spec store
-        let rss = self.routing_table().route_spec_store();
+        let routing_table = self.routing_table();
+        let rss = routing_table.route_spec_store();
 
         // If safety route was used, record send there
         if let Some(sr_pubkey) = &safety_route {
@@ -964,7 +974,8 @@ impl RPCProcessor {
             return;
         }
         // Get route spec store
-        let rss = self.routing_table().route_spec_store();
+        let routing_table = self.routing_table();
+        let rss = routing_table.route_spec_store();
 
         // Get latency for all local routes
         let mut total_local_latency = TimestampDuration::new(0u64);
@@ -1018,7 +1029,6 @@ impl RPCProcessor {
             // This is fine because if we sent with a local safety route,
             // then we must have received with a local private route too, per the design rules
             if let Some(sr_pubkey) = &safety_route {
-                let rss = self.routing_table().route_spec_store();
                 rss.with_route_stats_mut(send_ts, sr_pubkey, |s| {
                     s.record_latency(total_latency / 2u64);
                 });
@@ -1037,6 +1047,9 @@ impl RPCProcessor {
         let recv_ts = msg.header.timestamp;
         let bytes = msg.header.body_len;
 
+        let routing_table = self.routing_table();
+        let rss = routing_table.route_spec_store();
+
         // Process messages based on how they were received
         match &msg.header.detail {
             // Process direct messages
@@ -1047,8 +1060,6 @@ impl RPCProcessor {
             }
             // Process messages that arrived with no private route (private route stub)
             RPCMessageHeaderDetail::SafetyRouted(d) => {
-                let rss = self.routing_table().route_spec_store();
-
                 // This may record nothing if the remote safety route is not also
                 // a remote private route that been imported, but that's okay
                 rss.with_route_stats_mut(recv_ts, &d.remote_safety_route, |s| {
@@ -1057,8 +1068,6 @@ impl RPCProcessor {
             }
             // Process messages that arrived to our private route
             RPCMessageHeaderDetail::PrivateRouted(d) => {
-                let rss = self.routing_table().route_spec_store();
-
                 // This may record nothing if the remote safety route is not also
                 // a remote private route that been imported, but that's okay
                 // it could also be a node id if no remote safety route was used
@@ -1107,13 +1116,10 @@ impl RPCProcessor {
 
         // Calculate answer timeout
         // Timeout is number of hops times the timeout per hop
-        let timeout_us = self.unlocked_inner.timeout_us * (hop_count as u64);
+        let timeout_us = self.timeout_us * (hop_count as u64);
 
         // Set up op id eventual
-        let handle = self
-            .unlocked_inner
-            .waiting_rpc_table
-            .add_op_waiter(op_id, context);
+        let handle = self.waiting_rpc_table.add_op_waiter(op_id, context);
 
         // Send question
         let bytes: ByteCount = (message.len() as u64).into();
@@ -1351,16 +1357,14 @@ impl RPCProcessor {
         // If we received an answer for a question we did not ask, this will return an error
         let question_context = if let RPCOperationKind::Answer(_) = operation.kind() {
             let op_id = operation.op_id();
-            self.unlocked_inner
-                .waiting_rpc_table
-                .get_op_context(op_id)?
+            self.waiting_rpc_table.get_op_context(op_id)?
         } else {
             None
         };
 
         // Validate the RPC operation
         let validate_context = RPCValidateContext {
-            crypto: self.crypto(),
+            registry: self.registry(),
             // rpc_processor: self.clone(),
             question_context,
         };
@@ -1372,8 +1376,6 @@ impl RPCProcessor {
     //////////////////////////////////////////////////////////////////////
     #[instrument(level = "trace", target = "rpc", skip_all)]
     async fn process_rpc_message(&self, encoded_msg: MessageEncoded) -> RPCNetworkResult<()> {
-        let address_filter = self.network_manager().address_filter();
-
         // Decode operation appropriately based on header detail
         let msg = match &encoded_msg.header.detail {
             RPCMessageHeaderDetail::Direct(detail) => {
@@ -1391,7 +1393,7 @@ impl RPCProcessor {
                                 log_rpc!(debug "Invalid RPC Operation: {}", e);
 
                                 // Punish nodes that send direct undecodable crap
-                                address_filter.punish_node_id(
+                                self.network_manager().address_filter().punish_node_id(
                                     sender_node_id,
                                     PunishmentReason::FailedToDecodeOperation,
                                 );
@@ -1458,7 +1460,7 @@ impl RPCProcessor {
                         log_rpc!(debug "Dropping routed RPC: {}", e);
 
                         // XXX: Punish routes that send routed undecodable crap
-                        // address_filter.punish_route_id(xxx, PunishmentReason::FailedToDecodeRoutedMessage);
+                        // self.network_manager().address_filter().punish_route_id(xxx, PunishmentReason::FailedToDecodeRoutedMessage);
                         return Ok(NetworkResult::invalid_message(e));
                     }
                 };
@@ -1533,11 +1535,7 @@ impl RPCProcessor {
             },
             RPCOperationKind::Answer(_) => {
                 let op_id = msg.operation.op_id();
-                if let Err(e) = self
-                    .unlocked_inner
-                    .waiting_rpc_table
-                    .complete_op_waiter(op_id, msg)
-                {
+                if let Err(e) = self.waiting_rpc_table.complete_op_waiter(op_id, msg) {
                     match e {
                         RPCError::Unimplemented(_) | RPCError::Internal(_) => {
                             log_rpc!(error "Could not complete rpc operation: id = {}: {}", op_id, e);
@@ -1560,7 +1558,7 @@ impl RPCProcessor {
     }
 
     async fn rpc_worker(
-        self,
+        &self,
         stop_token: StopToken,
         receiver: flume::Receiver<(Span, MessageEncoded)>,
     ) {
@@ -1596,10 +1594,10 @@ impl RPCProcessor {
         body: Vec<u8>,
     ) -> EyreResult<()> {
         let _guard = self
-            .unlocked_inner
+            .startup_context
             .startup_lock
             .enter()
-            .map_err(RPCError::map_try_again("not started up"))?;
+            .wrap_err("not started up")?;
 
         if peer_noderef.routing_domain_set() != routing_domain {
             bail!("routing domain should match peer noderef filter");
@@ -1642,6 +1640,12 @@ impl RPCProcessor {
         sequencing: Sequencing,
         body: Vec<u8>,
     ) -> EyreResult<()> {
+        let _guard = self
+            .startup_context
+            .startup_lock
+            .enter()
+            .wrap_err("not started up")?;
+
         let header = MessageHeader {
             detail: RPCMessageHeaderDetail::SafetyRouted(RPCMessageHeaderDetailSafetyRouted {
                 direct,
@@ -1678,6 +1682,12 @@ impl RPCProcessor {
         safety_spec: SafetySpec,
         body: Vec<u8>,
     ) -> EyreResult<()> {
+        let _guard = self
+            .startup_context
+            .startup_lock
+            .enter()
+            .wrap_err("not started up")?;
+
         let header = MessageHeader {
             detail: RPCMessageHeaderDetail::PrivateRouted(RPCMessageHeaderDetailPrivateRouted {
                 direct,

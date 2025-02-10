@@ -4,7 +4,7 @@ use std::{io, sync::Arc};
 use stop_token::prelude::*;
 
 cfg_if::cfg_if! {
-    if #[cfg(target_arch = "wasm32")] {
+    if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
         // No accept support for WASM
     } else {
 
@@ -307,8 +307,7 @@ impl NetworkConnection {
                 flow
             );
 
-            let network_manager = connection_manager.network_manager();
-            let address_filter = network_manager.address_filter();
+            let registry = connection_manager.registry();
             let mut unord = FuturesUnordered::new();
             let mut need_receiver = true;
             let mut need_sender = true;
@@ -364,14 +363,17 @@ impl NetworkConnection {
                 // Add another message receiver future if necessary
                 if need_receiver {
                     need_receiver = false;
+                    let registry = registry.clone();
                     let receiver_fut = Self::recv_internal(&protocol_connection, stats.clone())
                         .then(|res| async {
+                            let registry = registry;
+                            let network_manager = registry.network_manager();
                             match res {
                                 Ok(v) => {
                                     let peer_address = protocol_connection.flow().remote();
 
                                     // Check to see if it is punished
-                                    if address_filter.is_ip_addr_punished(peer_address.socket_addr().ip()) {
+                                    if network_manager.address_filter().is_ip_addr_punished(peer_address.socket_addr().ip()) {
                                         return RecvLoopAction::Finish;
                                     }
 
@@ -383,7 +385,7 @@ impl NetworkConnection {
 
                                     // Punish invalid framing (tcp framing or websocket framing)
                                     if v.is_invalid_message() {
-                                        address_filter.punish_ip_addr(peer_address.socket_addr().ip(), PunishmentReason::InvalidFraming);
+                                        network_manager.address_filter().punish_ip_addr(peer_address.socket_addr().ip(), PunishmentReason::InvalidFraming);
                                         return RecvLoopAction::Finish;
                                     }
 

@@ -2,7 +2,6 @@ use crate::core_context::*;
 use crate::veilid_api::*;
 use crate::*;
 use core::fmt::Write;
-use once_cell::sync::OnceCell;
 use tracing_subscriber::*;
 
 struct ApiTracingLayerInner {
@@ -21,11 +20,10 @@ struct ApiTracingLayerInner {
 /// with many copies of Veilid running.
 
 #[derive(Clone)]
-pub struct ApiTracingLayer {
-    inner: Arc<Mutex<Option<ApiTracingLayerInner>>>,
-}
+pub struct ApiTracingLayer {}
 
-static API_LOGGER: OnceCell<ApiTracingLayer> = OnceCell::new();
+static API_LOGGER_INNER: Mutex<Option<ApiTracingLayerInner>> = Mutex::new(None);
+static API_LOGGER_ENABLED: AtomicBool = AtomicBool::new(false);
 
 impl ApiTracingLayer {
     /// Initialize an ApiTracingLayer singleton
@@ -33,11 +31,7 @@ impl ApiTracingLayer {
     /// This must be inserted into your tracing subscriber before you
     /// call api_startup() or api_startup_json() if you are going to use api tracing.
     pub fn init() -> ApiTracingLayer {
-        API_LOGGER
-            .get_or_init(|| ApiTracingLayer {
-                inner: Arc::new(Mutex::new(None)),
-            })
-            .clone()
+        ApiTracingLayer {}
     }
 
     fn new_inner() -> ApiTracingLayerInner {
@@ -52,12 +46,7 @@ impl ApiTracingLayer {
         namespace: String,
         update_callback: UpdateCallback,
     ) -> VeilidAPIResult<()> {
-        let Some(api_logger) = API_LOGGER.get() else {
-            // Did not init, so skip this
-            return Ok(());
-        };
-
-        let mut inner = api_logger.inner.lock();
+        let mut inner = API_LOGGER_INNER.lock();
         if inner.is_none() {
             *inner = Some(Self::new_inner());
         }
@@ -70,6 +59,9 @@ impl ApiTracingLayer {
             .unwrap()
             .update_callbacks
             .insert(key, update_callback);
+
+        API_LOGGER_ENABLED.store(true, Ordering::Release);
+
         return Ok(());
     }
 
@@ -79,28 +71,29 @@ impl ApiTracingLayer {
         namespace: String,
     ) -> VeilidAPIResult<()> {
         let key = (program_name, namespace);
-        if let Some(api_logger) = API_LOGGER.get() {
-            let mut inner = api_logger.inner.lock();
-            if inner.is_none() {
-                apibail_not_initialized!();
-            }
-            if inner
-                .as_mut()
-                .unwrap()
-                .update_callbacks
-                .remove(&key)
-                .is_none()
-            {
-                apibail_not_initialized!();
-            }
-            if inner.as_mut().unwrap().update_callbacks.is_empty() {
-                *inner = None;
-            }
+
+        let mut inner = API_LOGGER_INNER.lock();
+        if inner.is_none() {
+            apibail_not_initialized!();
         }
+        if inner
+            .as_mut()
+            .unwrap()
+            .update_callbacks
+            .remove(&key)
+            .is_none()
+        {
+            apibail_not_initialized!();
+        }
+        if inner.as_mut().unwrap().update_callbacks.is_empty() {
+            *inner = None;
+            API_LOGGER_ENABLED.store(false, Ordering::Release);
+        }
+
         Ok(())
     }
 
-    fn emit_log(&self, inner: &mut ApiTracingLayerInner, meta: &Metadata<'_>, message: String) {
+    fn emit_log(&self, meta: &'static Metadata<'static>, message: String) {
         let level = *meta.level();
         let target = meta.target();
         let log_level = VeilidLogLevel::from_tracing_level(level);
@@ -148,8 +141,10 @@ impl ApiTracingLayer {
             backtrace,
         }));
 
-        for cb in inner.update_callbacks.values() {
-            (cb)(log_update.clone());
+        if let Some(inner) = &mut *API_LOGGER_INNER.lock() {
+            for cb in inner.update_callbacks.values() {
+                (cb)(log_update.clone());
+            }
         }
     }
 }
@@ -159,17 +154,23 @@ pub struct SpanDuration {
     end: Timestamp,
 }
 
-fn simplify_file(file: &str) -> String {
-    let path = std::path::Path::new(file);
-    let path_component_count = path.iter().count();
-    if path.ends_with("mod.rs") && path_component_count >= 2 {
-        let outpath: std::path::PathBuf = path.iter().skip(path_component_count - 2).collect();
-        outpath.to_string_lossy().to_string()
-    } else if let Some(filename) = path.file_name() {
-        filename.to_string_lossy().to_string()
-    } else {
-        file.to_string()
-    }
+fn simplify_file(file: &'static str) -> &'static str {
+    file.static_transform(|file| {
+        let out = {
+            let path = std::path::Path::new(file);
+            let path_component_count = path.iter().count();
+            if path.ends_with("mod.rs") && path_component_count >= 2 {
+                let outpath: std::path::PathBuf =
+                    path.iter().skip(path_component_count - 2).collect();
+                outpath.to_string_lossy().to_string()
+            } else if let Some(filename) = path.file_name() {
+                filename.to_string_lossy().to_string()
+            } else {
+                file.to_string()
+            }
+        };
+        out.to_static_str()
+    })
 }
 
 impl<S: Subscriber + for<'a> registry::LookupSpan<'a>> Layer<S> for ApiTracingLayer {
@@ -179,47 +180,51 @@ impl<S: Subscriber + for<'a> registry::LookupSpan<'a>> Layer<S> for ApiTracingLa
         id: &tracing::Id,
         ctx: layer::Context<'_, S>,
     ) {
-        if let Some(_inner) = &mut *self.inner.lock() {
-            let mut new_debug_record = StringRecorder::new();
-            attrs.record(&mut new_debug_record);
+        if !API_LOGGER_ENABLED.load(Ordering::Acquire) {
+            // Optimization if api logger has no callbacks
+            return;
+        }
 
-            if let Some(span_ref) = ctx.span(id) {
+        let mut new_debug_record = StringRecorder::new();
+        attrs.record(&mut new_debug_record);
+
+        if let Some(span_ref) = ctx.span(id) {
+            span_ref
+                .extensions_mut()
+                .insert::<StringRecorder>(new_debug_record);
+            if crate::DURATION_LOG_FACILITIES.contains(&attrs.metadata().target()) {
                 span_ref
                     .extensions_mut()
-                    .insert::<StringRecorder>(new_debug_record);
-                if crate::DURATION_LOG_FACILITIES.contains(&attrs.metadata().target()) {
-                    span_ref
-                        .extensions_mut()
-                        .insert::<SpanDuration>(SpanDuration {
-                            start: Timestamp::now(),
-                            end: Timestamp::default(),
-                        });
-                }
+                    .insert::<SpanDuration>(SpanDuration {
+                        start: Timestamp::now(),
+                        end: Timestamp::default(),
+                    });
             }
         }
     }
 
     fn on_close(&self, id: span::Id, ctx: layer::Context<'_, S>) {
-        if let Some(inner) = &mut *self.inner.lock() {
-            if let Some(span_ref) = ctx.span(&id) {
-                if let Some(span_duration) = span_ref.extensions_mut().get_mut::<SpanDuration>() {
-                    span_duration.end = Timestamp::now();
-                    let duration = span_duration.end.saturating_sub(span_duration.start);
-                    let meta = span_ref.metadata();
-                    self.emit_log(
-                        inner,
-                        meta,
-                        format!(
-                            " {}{}: duration={}",
-                            span_ref
-                                .parent()
-                                .map(|p| format!("{}::", p.name()))
-                                .unwrap_or_default(),
-                            span_ref.name(),
-                            format_opt_ts(Some(duration))
-                        ),
-                    );
-                }
+        if !API_LOGGER_ENABLED.load(Ordering::Acquire) {
+            // Optimization if api logger has no callbacks
+            return;
+        }
+        if let Some(span_ref) = ctx.span(&id) {
+            if let Some(span_duration) = span_ref.extensions_mut().get_mut::<SpanDuration>() {
+                span_duration.end = Timestamp::now();
+                let duration = span_duration.end.saturating_sub(span_duration.start);
+                let meta = span_ref.metadata();
+                self.emit_log(
+                    meta,
+                    format!(
+                        " {}{}: duration={}",
+                        span_ref
+                            .parent()
+                            .map(|p| format!("{}::", p.name()))
+                            .unwrap_or_default(),
+                        span_ref.name(),
+                        format_opt_ts(Some(duration))
+                    ),
+                );
             }
         }
     }
@@ -230,22 +235,26 @@ impl<S: Subscriber + for<'a> registry::LookupSpan<'a>> Layer<S> for ApiTracingLa
         values: &tracing::span::Record<'_>,
         ctx: layer::Context<'_, S>,
     ) {
-        if let Some(_inner) = &mut *self.inner.lock() {
-            if let Some(span_ref) = ctx.span(id) {
-                if let Some(debug_record) = span_ref.extensions_mut().get_mut::<StringRecorder>() {
-                    values.record(debug_record);
-                }
+        if !API_LOGGER_ENABLED.load(Ordering::Acquire) {
+            // Optimization if api logger has no callbacks
+            return;
+        }
+        if let Some(span_ref) = ctx.span(id) {
+            if let Some(debug_record) = span_ref.extensions_mut().get_mut::<StringRecorder>() {
+                values.record(debug_record);
             }
         }
     }
 
     fn on_event(&self, event: &tracing::Event<'_>, _ctx: layer::Context<'_, S>) {
-        if let Some(inner) = &mut *self.inner.lock() {
-            let mut recorder = StringRecorder::new();
-            event.record(&mut recorder);
-            let meta = event.metadata();
-            self.emit_log(inner, meta, recorder.to_string());
+        if !API_LOGGER_ENABLED.load(Ordering::Acquire) {
+            // Optimization if api logger has no callbacks
+            return;
         }
+        let mut recorder = StringRecorder::new();
+        event.record(&mut recorder);
+        let meta = event.metadata();
+        self.emit_log(meta, recorder.to_string());
     }
 }
 

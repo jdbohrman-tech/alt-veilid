@@ -31,10 +31,10 @@ while true; do
         fi
 
         # ensure Android SDK packages are installed
-        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager build-tools\;34.0.0 ndk\;26.3.11579264 cmake\;3.22.1 platform-tools platforms\;android-34
+        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager build-tools\;34.0.0 ndk\;27.0.12077973 cmake\;3.22.1 platform-tools platforms\;android-34
 
         # ensure ndk is installed
-        ANDROID_NDK_HOME="$ANDROID_HOME/ndk/26.3.11579264"
+        ANDROID_NDK_HOME="$ANDROID_HOME/ndk/27.0.12077973"
         if [ -f "$ANDROID_NDK_HOME/ndk-build" ]; then
             echo '[X] Android NDK is installed at the location $ANDROID_NDK_HOME'
         else

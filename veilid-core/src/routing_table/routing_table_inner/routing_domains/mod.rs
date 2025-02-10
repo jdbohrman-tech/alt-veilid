@@ -143,7 +143,7 @@ impl RoutingDomainDetailCommon {
 
     pub fn network_class(&self) -> Option<NetworkClass> {
         cfg_if! {
-            if #[cfg(target_arch = "wasm32")] {
+            if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
                 Some(NetworkClass::WebApp)
             } else {
                 if self.address_types.is_empty() {
@@ -312,6 +312,9 @@ impl RoutingDomainDetailCommon {
     // Internal functions
 
     fn make_peer_info(&self, rti: &RoutingTableInner) -> PeerInfo {
+        let crypto = rti.crypto();
+        let routing_table = rti.routing_table();
+
         let node_info = NodeInfo::new(
             self.network_class().unwrap_or(NetworkClass::Invalid),
             self.outbound_protocols,
@@ -343,8 +346,8 @@ impl RoutingDomainDetailCommon {
         let signed_node_info = match relay_info {
             Some((relay_ids, relay_sdni)) => SignedNodeInfo::Relayed(
                 SignedRelayedNodeInfo::make_signatures(
-                    rti.unlocked_inner.crypto(),
-                    rti.unlocked_inner.node_id_typed_key_pairs(),
+                    &crypto,
+                    routing_table.node_id_typed_key_pairs(),
                     node_info,
                     relay_ids,
                     relay_sdni,
@@ -353,8 +356,8 @@ impl RoutingDomainDetailCommon {
             ),
             None => SignedNodeInfo::Direct(
                 SignedDirectNodeInfo::make_signatures(
-                    rti.unlocked_inner.crypto(),
-                    rti.unlocked_inner.node_id_typed_key_pairs(),
+                    &crypto,
+                    routing_table.node_id_typed_key_pairs(),
                     node_info,
                 )
                 .unwrap(),
@@ -363,7 +366,7 @@ impl RoutingDomainDetailCommon {
 
         PeerInfo::new(
             self.routing_domain,
-            rti.unlocked_inner.node_ids(),
+            routing_table.node_ids(),
             signed_node_info,
         )
     }

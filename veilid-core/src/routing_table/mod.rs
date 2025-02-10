@@ -91,16 +91,12 @@ pub struct RecentPeersEntry {
     pub last_connection: Flow,
 }
 
-pub(crate) struct RoutingTableUnlockedInner {
-    // Accessors
-    event_bus: EventBus,
-    config: VeilidConfig,
-    network_manager: NetworkManager,
+pub(crate) struct RoutingTable {
+    registry: VeilidComponentRegistry,
+    inner: RwLock<RoutingTableInner>,
 
-    /// The current node's public DHT keys
-    node_id: TypedKeyGroup,
-    /// The current node's public DHT secrets
-    node_id_secret: TypedSecretGroup,
+    /// Route spec store
+    route_spec_store: RouteSpecStore,
     /// Buckets to kick on our next kick task
     kick_queue: Mutex<BTreeSet<BucketIndex>>,
     /// Background process for computing statistics
@@ -131,103 +127,27 @@ pub(crate) struct RoutingTableUnlockedInner {
     private_route_management_task: TickTask<EyreReport>,
 }
 
-impl RoutingTableUnlockedInner {
-    pub fn network_manager(&self) -> NetworkManager {
-        self.network_manager.clone()
-    }
-    pub fn crypto(&self) -> Crypto {
-        self.network_manager().crypto()
-    }
-    pub fn rpc_processor(&self) -> RPCProcessor {
-        self.network_manager().rpc_processor()
-    }
-    pub fn update_callback(&self) -> UpdateCallback {
-        self.network_manager().update_callback()
-    }
-    pub fn with_config<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&VeilidConfigInner) -> R,
-    {
-        f(&self.config.get())
-    }
-
-    pub fn node_id(&self, kind: CryptoKind) -> TypedKey {
-        self.node_id.get(kind).unwrap()
-    }
-
-    pub fn node_id_secret_key(&self, kind: CryptoKind) -> SecretKey {
-        self.node_id_secret.get(kind).unwrap().value
-    }
-
-    pub fn node_ids(&self) -> TypedKeyGroup {
-        self.node_id.clone()
-    }
-
-    pub fn node_id_typed_key_pairs(&self) -> Vec<TypedKeyPair> {
-        let mut tkps = Vec::new();
-        for ck in VALID_CRYPTO_KINDS {
-            tkps.push(TypedKeyPair::new(
-                ck,
-                KeyPair::new(self.node_id(ck).value, self.node_id_secret_key(ck)),
-            ));
-        }
-        tkps
-    }
-
-    pub fn matches_own_node_id(&self, node_ids: &[TypedKey]) -> bool {
-        for ni in node_ids {
-            if let Some(v) = self.node_id.get(ni.kind) {
-                if v.value == ni.value {
-                    return true;
-                }
-            }
-        }
-        false
-    }
-
-    pub fn matches_own_node_id_key(&self, node_id_key: &PublicKey) -> bool {
-        for tk in self.node_id.iter() {
-            if tk.value == *node_id_key {
-                return true;
-            }
-        }
-        false
-    }
-
-    pub fn calculate_bucket_index(&self, node_id: &TypedKey) -> BucketIndex {
-        let crypto = self.crypto();
-        let self_node_id_key = self.node_id(node_id.kind).value;
-        let vcrypto = crypto.get(node_id.kind).unwrap();
-        (
-            node_id.kind,
-            vcrypto
-                .distance(&node_id.value, &self_node_id_key)
-                .first_nonzero_bit()
-                .unwrap(),
-        )
+impl fmt::Debug for RoutingTable {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RoutingTable")
+            // .field("inner", &self.inner)
+            // .field("unlocked_inner", &self.unlocked_inner)
+            .finish()
     }
 }
 
-#[derive(Clone)]
-pub(crate) struct RoutingTable {
-    inner: Arc<RwLock<RoutingTableInner>>,
-    unlocked_inner: Arc<RoutingTableUnlockedInner>,
-}
+impl_veilid_component!(RoutingTable);
 
 impl RoutingTable {
-    fn new_unlocked_inner(
-        event_bus: EventBus,
-        config: VeilidConfig,
-        network_manager: NetworkManager,
-    ) -> RoutingTableUnlockedInner {
+    pub fn new(registry: VeilidComponentRegistry) -> Self {
+        let config = registry.config();
         let c = config.get();
-
-        RoutingTableUnlockedInner {
-            event_bus,
-            config: config.clone(),
-            network_manager,
-            node_id: c.network.routing_table.node_id.clone(),
-            node_id_secret: c.network.routing_table.node_id_secret.clone(),
+        let inner = RwLock::new(RoutingTableInner::new(registry.clone()));
+        let route_spec_store = RouteSpecStore::new(registry.clone());
+        let this = Self {
+            registry,
+            inner,
+            route_spec_store,
             kick_queue: Mutex::new(BTreeSet::default()),
             rolling_transfers_task: TickTask::new(
                 "rolling_transfers_task",
@@ -269,16 +189,6 @@ impl RoutingTable {
                 "private_route_management_task",
                 PRIVATE_ROUTE_MANAGEMENT_INTERVAL_SECS,
             ),
-        }
-    }
-    pub fn new(network_manager: NetworkManager) -> Self {
-        let event_bus = network_manager.event_bus();
-        let config = network_manager.config();
-        let unlocked_inner = Arc::new(Self::new_unlocked_inner(event_bus, config, network_manager));
-        let inner = Arc::new(RwLock::new(RoutingTableInner::new(unlocked_inner.clone())));
-        let this = Self {
-            inner,
-            unlocked_inner,
         };
 
         this.setup_tasks();
@@ -290,7 +200,7 @@ impl RoutingTable {
     /// Initialization
 
     /// Called to initialize the routing table after it is created
-    pub async fn init(&self) -> EyreResult<()> {
+    async fn init_async(&self) -> EyreResult<()> {
         log_rtab!(debug "starting routing table init");
 
         // Set up routing buckets
@@ -309,42 +219,35 @@ impl RoutingTable {
 
         // Set up routespecstore
         log_rtab!(debug "starting route spec store init");
-        let route_spec_store = match RouteSpecStore::load(self.clone()).await {
-            Ok(v) => v,
-            Err(e) => {
-                log_rtab!(debug "Error loading route spec store: {:#?}. Resetting.", e);
-                RouteSpecStore::new(self.clone())
-            }
+        if let Err(e) = self.route_spec_store().load().await {
+            log_rtab!(debug "Error loading route spec store: {:#?}. Resetting.", e);
+            self.route_spec_store().reset();
         };
         log_rtab!(debug "finished route spec store init");
-
-        {
-            let mut inner = self.inner.write();
-            inner.route_spec_store = Some(route_spec_store);
-        }
-
-        // Inform storage manager we are up
-        self.network_manager
-            .storage_manager()
-            .set_routing_table(Some(self.clone()))
-            .await;
 
         log_rtab!(debug "finished routing table init");
         Ok(())
     }
 
-    /// Called to shut down the routing table
-    pub async fn terminate(&self) {
-        log_rtab!(debug "starting routing table terminate");
+    async fn post_init_async(&self) -> EyreResult<()> {
+        Ok(())
+    }
 
-        // Stop storage manager from using us
-        self.network_manager
-            .storage_manager()
-            .set_routing_table(None)
-            .await;
+    pub(crate) async fn startup(&self) -> EyreResult<()> {
+        Ok(())
+    }
 
+    pub(crate) async fn shutdown(&self) {
         // Stop tasks
+        log_net!(debug "stopping routing table tasks");
         self.cancel_tasks().await;
+    }
+
+    async fn pre_terminate_async(&self) {}
+
+    /// Called to shut down the routing table
+    async fn terminate_async(&self) {
+        log_rtab!(debug "starting routing table terminate");
 
         // Load bucket entries from table db if possible
         log_rtab!(debug "saving routing table entries");
@@ -365,9 +268,71 @@ impl RoutingTable {
         log_rtab!(debug "shutting down routing table");
 
         let mut inner = self.inner.write();
-        *inner = RoutingTableInner::new(self.unlocked_inner.clone());
+        *inner = RoutingTableInner::new(self.registry());
 
         log_rtab!(debug "finished routing table terminate");
+    }
+
+    ///////////////////////////////////////////////////////////////////
+
+    pub fn node_id(&self, kind: CryptoKind) -> TypedKey {
+        self.config()
+            .with(|c| c.network.routing_table.node_id.get(kind).unwrap())
+    }
+
+    pub fn node_id_secret_key(&self, kind: CryptoKind) -> SecretKey {
+        self.config()
+            .with(|c| c.network.routing_table.node_id_secret.get(kind).unwrap())
+            .value
+    }
+
+    pub fn node_ids(&self) -> TypedKeyGroup {
+        self.config()
+            .with(|c| c.network.routing_table.node_id.clone())
+    }
+
+    pub fn node_id_typed_key_pairs(&self) -> Vec<TypedKeyPair> {
+        let mut tkps = Vec::new();
+        for ck in VALID_CRYPTO_KINDS {
+            tkps.push(TypedKeyPair::new(
+                ck,
+                KeyPair::new(self.node_id(ck).value, self.node_id_secret_key(ck)),
+            ));
+        }
+        tkps
+    }
+
+    pub fn matches_own_node_id(&self, node_ids: &[TypedKey]) -> bool {
+        for ni in node_ids {
+            if let Some(v) = self.node_ids().get(ni.kind) {
+                if v.value == ni.value {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    pub fn matches_own_node_id_key(&self, node_id_key: &PublicKey) -> bool {
+        for tk in self.node_ids().iter() {
+            if tk.value == *node_id_key {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn calculate_bucket_index(&self, node_id: &TypedKey) -> BucketIndex {
+        let crypto = self.crypto();
+        let self_node_id_key = self.node_id(node_id.kind).value;
+        let vcrypto = crypto.get(node_id.kind).unwrap();
+        (
+            node_id.kind,
+            vcrypto
+                .distance(&node_id.value, &self_node_id_key)
+                .first_nonzero_bit()
+                .unwrap(),
+        )
     }
 
     /// Serialize the routing table.
@@ -406,7 +371,7 @@ impl RoutingTable {
     async fn save_buckets(&self) -> EyreResult<()> {
         let (serialized_bucket_map, all_entry_bytes) = self.serialized_buckets();
 
-        let table_store = self.unlocked_inner.network_manager().table_store();
+        let table_store = self.table_store();
         let tdb = table_store.open(ROUTING_TABLE, 1).await?;
         let dbx = tdb.transact();
         if let Err(e) = dbx.store_json(0, SERIALIZED_BUCKET_MAP, &serialized_bucket_map) {
@@ -420,12 +385,14 @@ impl RoutingTable {
         dbx.commit().await?;
         Ok(())
     }
+
     /// Deserialize routing table from table store
     async fn load_buckets(&self) -> EyreResult<()> {
         // Make a cache validity key of all our node ids and our bootstrap choice
         let mut cache_validity_key: Vec<u8> = Vec::new();
         {
-            let c = self.unlocked_inner.config.get();
+            let config = self.config();
+            let c = config.get();
             for ck in VALID_CRYPTO_KINDS {
                 if let Some(nid) = c.network.routing_table.node_id.get(ck) {
                     cache_validity_key.append(&mut nid.value.bytes.to_vec());
@@ -446,7 +413,7 @@ impl RoutingTable {
         };
 
         // Deserialize bucket map and all entries from the table store
-        let table_store = self.unlocked_inner.network_manager().table_store();
+        let table_store = self.table_store();
         let db = table_store.open(ROUTING_TABLE, 1).await?;
 
         let caches_valid = match db.load(0, CACHE_VALIDITY_KEY).await? {
@@ -479,14 +446,13 @@ impl RoutingTable {
 
         // Reconstruct all entries
         let inner = &mut *self.inner.write();
-        self.populate_routing_table(inner, serialized_bucket_map, all_entry_bytes)?;
+        Self::populate_routing_table_inner(inner, serialized_bucket_map, all_entry_bytes)?;
 
         Ok(())
     }
 
     /// Write the deserialized table store data to the routing table.
-    pub fn populate_routing_table(
-        &self,
+    pub fn populate_routing_table_inner(
         inner: &mut RoutingTableInner,
         serialized_bucket_map: SerializedBucketMap,
         all_entry_bytes: SerializedBuckets,
@@ -542,8 +508,8 @@ impl RoutingTable {
         self.inner.read().routing_domain_for_address(address)
     }
 
-    pub fn route_spec_store(&self) -> RouteSpecStore {
-        self.inner.read().route_spec_store.as_ref().unwrap().clone()
+    pub fn route_spec_store(&self) -> &RouteSpecStore {
+        &self.route_spec_store
     }
 
     pub fn relay_node(&self, domain: RoutingDomain) -> Option<FilteredNodeRef> {
@@ -600,12 +566,12 @@ impl RoutingTable {
 
     /// Edit the PublicInternet RoutingDomain
     pub fn edit_public_internet_routing_domain(&self) -> RoutingDomainEditorPublicInternet {
-        RoutingDomainEditorPublicInternet::new(self.clone())
+        RoutingDomainEditorPublicInternet::new(self)
     }
 
     /// Edit the LocalNetwork RoutingDomain
     pub fn edit_local_network_routing_domain(&self) -> RoutingDomainEditorLocalNetwork {
-        RoutingDomainEditorLocalNetwork::new(self.clone())
+        RoutingDomainEditorLocalNetwork::new(self)
     }
 
     /// Return a copy of our node's peerinfo (may not yet be published)
@@ -619,7 +585,7 @@ impl RoutingTable {
     }
 
     /// Return the domain's currently registered network class
-    #[cfg_attr(target_arch = "wasm32", expect(dead_code))]
+    #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), expect(dead_code))]
     pub fn get_network_class(&self, routing_domain: RoutingDomain) -> Option<NetworkClass> {
         self.inner.read().get_network_class(routing_domain)
     }
@@ -656,7 +622,7 @@ impl RoutingTable {
     ) -> Vec<FilteredNodeRef> {
         self.inner
             .read()
-            .get_nodes_needing_ping(self.clone(), routing_domain, cur_ts)
+            .get_nodes_needing_ping(routing_domain, cur_ts)
     }
 
     fn queue_bucket_kicks(&self, node_ids: TypedKeyGroup) {
@@ -667,21 +633,19 @@ impl RoutingTable {
             }
 
             // Put it in the kick queue
-            let x = self.unlocked_inner.calculate_bucket_index(node_id);
-            self.unlocked_inner.kick_queue.lock().insert(x);
+            let x = self.calculate_bucket_index(node_id);
+            self.kick_queue.lock().insert(x);
         }
     }
 
     /// Resolve an existing routing table entry using any crypto kind and return a reference to it
     pub fn lookup_any_node_ref(&self, node_id_key: PublicKey) -> EyreResult<Option<NodeRef>> {
-        self.inner
-            .read()
-            .lookup_any_node_ref(self.clone(), node_id_key)
+        self.inner.read().lookup_any_node_ref(node_id_key)
     }
 
     /// Resolve an existing routing table entry and return a reference to it
     pub fn lookup_node_ref(&self, node_id: TypedKey) -> EyreResult<Option<NodeRef>> {
-        self.inner.read().lookup_node_ref(self.clone(), node_id)
+        self.inner.read().lookup_node_ref(node_id)
     }
 
     /// Resolve an existing routing table entry and return a filtered reference to it
@@ -692,12 +656,9 @@ impl RoutingTable {
         routing_domain_set: RoutingDomainSet,
         dial_info_filter: DialInfoFilter,
     ) -> EyreResult<Option<FilteredNodeRef>> {
-        self.inner.read().lookup_and_filter_noderef(
-            self.clone(),
-            node_id,
-            routing_domain_set,
-            dial_info_filter,
-        )
+        self.inner
+            .read()
+            .lookup_and_filter_noderef(node_id, routing_domain_set, dial_info_filter)
     }
 
     /// Shortcut function to add a node to our routing table if it doesn't exist
@@ -711,7 +672,7 @@ impl RoutingTable {
     ) -> EyreResult<FilteredNodeRef> {
         self.inner
             .write()
-            .register_node_with_peer_info(self.clone(), peer_info, allow_invalid)
+            .register_node_with_peer_info(peer_info, allow_invalid)
     }
 
     /// Shortcut function to add a node to our routing table if it doesn't exist
@@ -726,7 +687,7 @@ impl RoutingTable {
     ) -> EyreResult<FilteredNodeRef> {
         self.inner
             .write()
-            .register_node_with_id(self.clone(), routing_domain, node_id, timestamp)
+            .register_node_with_id(routing_domain, node_id, timestamp)
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -824,7 +785,7 @@ impl RoutingTable {
     }
 
     /// Makes a filter that finds nodes with a matching inbound dialinfo
-    #[cfg_attr(target_arch = "wasm32", expect(dead_code))]
+    #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), expect(dead_code))]
     pub fn make_inbound_dial_info_entry_filter<'a>(
         routing_domain: RoutingDomain,
         dial_info_filter: DialInfoFilter,
@@ -885,7 +846,7 @@ impl RoutingTable {
         filters: VecDeque<RoutingTableEntryFilter>,
     ) -> Vec<NodeRef> {
         self.inner.read().find_fast_non_local_nodes_filtered(
-            self.clone(),
+            self.registry(),
             routing_domain,
             node_count,
             filters,
@@ -971,7 +932,7 @@ impl RoutingTable {
             protocol_types_len * 2 * max_per_type,
             filters,
             |_rti, entry: Option<Arc<BucketEntry>>| {
-                NodeRef::new(self.clone(), entry.unwrap().clone())
+                NodeRef::new(self.registry(), entry.unwrap().clone())
             },
         )
     }
@@ -1073,7 +1034,6 @@ impl RoutingTable {
 
         let res = network_result_try!(
             rpc_processor
-                .clone()
                 .rpc_call_find_node(
                     Destination::direct(node_ref.default_filtered()),
                     node_id,
@@ -1160,13 +1120,5 @@ impl RoutingTable {
                 });
             }
         }
-    }
-}
-
-impl core::ops::Deref for RoutingTable {
-    type Target = RoutingTableUnlockedInner;
-
-    fn deref(&self) -> &Self::Target {
-        &self.unlocked_inner
     }
 }

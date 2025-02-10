@@ -36,7 +36,7 @@ command line without it. If you do so, you may skip to
 [Run Veilid setup script](#Run Veilid setup script).
 
 - build-tools;34.0.0
-- ndk;26.3.11579264
+- ndk;27.0.12077973
 - cmake;3.22.1
 - platform-tools
 - platforms;android-34
@@ -58,7 +58,7 @@ the command line to install the requisite package versions:
 sdkmanager --install "platform-tools"
 sdkmanager --install "platforms;android-34"
 sdkmanager --install "build-tools;34.0.0"
-sdkmanager --install "ndk;26.3.11579264"
+sdkmanager --install "ndk;27.0.12077973"
 sdkmanager --install "cmake;3.22.1"
 ```
 
@@ -110,7 +110,7 @@ You will need to use Android Studio [here](https://developer.android.com/studio)
 to maintain your Android dependencies. Use the SDK Manager in the IDE to install the following packages (use package details view to select version):
 
 - Android SDK Build Tools (34.0.0)
-- NDK (Side-by-side) (26.3.11579264)
+- NDK (Side-by-side) (27.0.12077973)
 - Cmake (3.22.1)
 - Android SDK 34
 - Android SDK Command Line Tools (latest) (7.0/latest)

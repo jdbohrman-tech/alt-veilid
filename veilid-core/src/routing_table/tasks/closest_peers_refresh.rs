@@ -10,14 +10,18 @@ impl RoutingTable {
     /// Ask our closest peers to give us more peers close to ourselves. This will
     /// assist with the DHT and other algorithms that utilize the distance metric.
     #[instrument(level = "trace", skip(self), err)]
-    pub async fn closest_peers_refresh_task_routine(self, stop_token: StopToken) -> EyreResult<()> {
+    pub async fn closest_peers_refresh_task_routine(
+        &self,
+        stop_token: StopToken,
+        _last_ts: Timestamp,
+        _cur_ts: Timestamp,
+    ) -> EyreResult<()> {
         let mut unord = FuturesUnordered::new();
 
         for crypto_kind in VALID_CRYPTO_KINDS {
             // Get our node id for this cryptokind
             let self_node_id = self.node_id(crypto_kind);
 
-            let routing_table = self.clone();
             let mut filters = VecDeque::new();
             let filter = Box::new(
                 move |rti: &RoutingTableInner, opt_entry: Option<Arc<BucketEntry>>| {
@@ -47,24 +51,23 @@ impl RoutingTable {
             ) as RoutingTableEntryFilter;
             filters.push_front(filter);
 
-            let noderefs = routing_table
+            let noderefs = self
                 .find_preferred_closest_nodes(
                     CLOSEST_PEERS_REQUEST_COUNT,
                     self_node_id,
                     filters,
                     |_rti, entry: Option<Arc<BucketEntry>>| {
-                        NodeRef::new(routing_table.clone(), entry.unwrap().clone())
+                        NodeRef::new(self.registry(), entry.unwrap().clone())
                     },
                 )
                 .unwrap();
 
             for nr in noderefs {
-                let routing_table = self.clone();
                 unord.push(
                     async move {
                         // This would be better if it were 'any' instead of 'all' capabilities
                         // but that requires extending the capnp to support it.
-                        routing_table
+                        nr.routing_table()
                             .reverse_find_node(
                                 crypto_kind,
                                 nr,

@@ -21,7 +21,7 @@ pub(crate) enum SignalInfo {
 }
 
 impl SignalInfo {
-    pub fn validate(&self, crypto: Crypto) -> Result<(), RPCError> {
+    pub fn validate(&self, crypto: &Crypto) -> Result<(), RPCError> {
         match self {
             SignalInfo::HolePunch { receipt, peer_info } => {
                 if receipt.len() < MIN_RECEIPT_SIZE {

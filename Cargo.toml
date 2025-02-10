@@ -9,6 +9,13 @@ members = [
 ]
 resolver = "2"
 
+[workspace.package]
+repository = "https://gitlab.com/veilid/veilid"
+authors = ["Veilid Team <contact@veilid.com>"]
+license = "MPL-2.0"
+edition = "2021"
+rust-version = "1.81.0"
+
 [patch.crates-io]
 cursive = { git = "https://gitlab.com/veilid/cursive.git" }
 cursive_core = { git = "https://gitlab.com/veilid/cursive.git" }
@@ -26,3 +33,31 @@ lto = true
 
 [profile.dev.package.backtrace]
 opt-level = 3
+
+[profile.dev.package.argon2]
+opt-level = 3
+debug-assertions = false
+
+[profile.dev.package.ed25519-dalek]
+opt-level = 3
+debug-assertions = false
+
+[profile.dev.package.x25519-dalek]
+opt-level = 3
+debug-assertions = false
+
+[profile.dev.package.curve25519-dalek]
+opt-level = 3
+debug-assertions = false
+
+[profile.dev.package.chacha20poly1305]
+opt-level = 3
+debug-assertions = false
+
+[profile.dev.package.blake3]
+opt-level = 3
+debug-assertions = false
+
+[profile.dev.package.chacha20]
+opt-level = 3
+debug-assertions = false

@@ -5,7 +5,7 @@ use super::*;
     Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema,
 )]
 #[cfg_attr(
-    target_arch = "wasm32",
+    all(target_arch = "wasm32", target_os = "unknown"),
     derive(Tsify),
     tsify(from_wasm_abi, into_wasm_abi, namespace)
 )]
@@ -27,7 +27,7 @@ impl Default for Sequencing {
     Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema,
 )]
 #[cfg_attr(
-    target_arch = "wasm32",
+    all(target_arch = "wasm32", target_os = "unknown"),
     derive(Tsify),
     tsify(from_wasm_abi, into_wasm_abi, namespace)
 )]
@@ -48,7 +48,7 @@ impl Default for Stability {
     Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema,
 )]
 #[cfg_attr(
-    target_arch = "wasm32",
+    all(target_arch = "wasm32", target_os = "unknown"),
     derive(Tsify),
     tsify(from_wasm_abi, into_wasm_abi, namespace)
 )]
@@ -79,11 +79,14 @@ impl Default for SafetySelection {
 #[derive(
     Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema,
 )]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct SafetySpec {
     /// Preferred safety route set id if it still exists.
     #[schemars(with = "Option<String>")]
-    #[cfg_attr(target_arch = "wasm32", tsify(optional, type = "string"))]
+    #[cfg_attr(
+        all(target_arch = "wasm32", target_os = "unknown"),
+        tsify(optional, type = "string")
+    )]
     pub preferred_route: Option<RouteId>,
     /// Must be greater than 0.
     pub hop_count: usize,

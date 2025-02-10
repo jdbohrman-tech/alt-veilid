@@ -4,7 +4,7 @@ impl StorageManager {
     // Flush records stores to disk and remove dead records
     #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub(super) async fn flush_record_stores_task_routine(
-        self,
+        &self,
         _stop_token: StopToken,
         _last_ts: Timestamp,
         _cur_ts: Timestamp,

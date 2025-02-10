@@ -15,6 +15,21 @@ pub(crate) struct NodeRefLockMut<
     nr: N,
 }
 
+impl<
+        'a,
+        N: NodeRefAccessorsTrait
+            + NodeRefOperateTrait
+            + VeilidComponentRegistryAccessor
+            + fmt::Debug
+            + fmt::Display
+            + Clone,
+    > VeilidComponentRegistryAccessor for NodeRefLockMut<'a, N>
+{
+    fn registry(&self) -> VeilidComponentRegistry {
+        self.nr.registry()
+    }
+}
+
 impl<'a, N: NodeRefAccessorsTrait + NodeRefOperateTrait + fmt::Debug + fmt::Display + Clone>
     NodeRefLockMut<'a, N>
 {
@@ -34,9 +49,6 @@ impl<'a, N: NodeRefAccessorsTrait + NodeRefOperateTrait + fmt::Debug + fmt::Disp
 impl<'a, N: NodeRefAccessorsTrait + NodeRefOperateTrait + fmt::Debug + fmt::Display + Clone>
     NodeRefAccessorsTrait for NodeRefLockMut<'a, N>
 {
-    fn routing_table(&self) -> RoutingTable {
-        self.nr.routing_table()
-    }
     fn entry(&self) -> Arc<BucketEntry> {
         self.nr.entry()
     }

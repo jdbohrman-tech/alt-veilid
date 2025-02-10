@@ -4,7 +4,7 @@ impl NetworkManager {
     // Compute transfer statistics for the low level network
     #[instrument(level = "trace", skip(self), err)]
     pub async fn rolling_transfers_task_routine(
-        self,
+        &self,
         _stop_token: StopToken,
         last_ts: Timestamp,
         cur_ts: Timestamp,

@@ -35,7 +35,7 @@ impl NetworkManager {
     // Direct bootstrap request
     #[instrument(level = "trace", target = "net", err, skip(self))]
     pub async fn boot_request(&self, dial_info: DialInfo) -> EyreResult<Vec<Arc<PeerInfo>>> {
-        let timeout_ms = self.with_config(|c| c.network.rpc.timeout_ms);
+        let timeout_ms = self.config().with(|c| c.network.rpc.timeout_ms);
         // Send boot magic to requested peer address
         let data = BOOT_MAGIC.to_vec();
 

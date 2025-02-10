@@ -309,13 +309,7 @@ impl ReceiptManager {
         Ok(())
     }
 
-    pub async fn shutdown(&self) {
-        log_net!(debug "starting receipt manager shutdown");
-        let Ok(guard) = self.unlocked_inner.startup_lock.shutdown().await else {
-            log_net!(debug "receipt manager is already shut down");
-            return;
-        };
-
+    pub async fn cancel_tasks(&self) {
         // Stop all tasks
         let timeout_task = {
             let mut inner = self.inner.lock();
@@ -329,6 +323,14 @@ impl ReceiptManager {
         if timeout_task.join().await.is_err() {
             panic!("joining timeout task failed");
         }
+    }
+
+    pub async fn shutdown(&self) {
+        log_net!(debug "starting receipt manager shutdown");
+        let Ok(guard) = self.unlocked_inner.startup_lock.shutdown().await else {
+            log_net!(debug "receipt manager is already shut down");
+            return;
+        };
 
         *self.inner.lock() = Self::new_inner();
 

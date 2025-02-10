@@ -15,7 +15,7 @@ async fn shutdown(api: VeilidAPI) {
     trace!("test_table_store: finished");
 }
 
-pub async fn test_delete_open_delete(ts: TableStore) {
+pub async fn test_delete_open_delete(ts: &TableStore) {
     trace!("test_delete_open_delete");
 
     let _ = ts.delete("test").await;
@@ -47,7 +47,7 @@ pub async fn test_delete_open_delete(ts: TableStore) {
     );
 }
 
-pub async fn test_store_delete_load(ts: TableStore) {
+pub async fn test_store_delete_load(ts: &TableStore) {
     trace!("test_store_delete_load");
 
     let _ = ts.delete("test").await;
@@ -132,7 +132,7 @@ pub async fn test_store_delete_load(ts: TableStore) {
     assert_eq!(db.load(2, b"baz").await.unwrap(), Some(b"QWERTY".to_vec()));
 }
 
-pub async fn test_transaction(ts: TableStore) {
+pub async fn test_transaction(ts: &TableStore) {
     trace!("test_transaction");
 
     let _ = ts.delete("test").await;
@@ -162,12 +162,12 @@ pub async fn test_transaction(ts: TableStore) {
     assert_eq!(db.load(0, b"ddd").await, Ok(None));
 }
 
-pub async fn test_json(vcrypto: CryptoSystemVersion, ts: TableStore) {
+pub async fn test_json(vcrypto: &AsyncCryptoSystemGuard<'_>, ts: &TableStore) {
     trace!("test_json");
 
     let _ = ts.delete("test").await;
     let db = ts.open("test", 3).await.expect("should have opened");
-    let keypair = vcrypto.generate_keypair();
+    let keypair = vcrypto.generate_keypair().await;
 
     assert!(db.store_json(0, b"asdf", &keypair).await.is_ok());
 
@@ -200,7 +200,7 @@ pub async fn test_json(vcrypto: CryptoSystemVersion, ts: TableStore) {
     );
 }
 
-pub async fn test_protect_unprotect(vcrypto: CryptoSystemVersion, ts: TableStore) {
+pub async fn test_protect_unprotect(vcrypto: &AsyncCryptoSystemGuard<'_>, ts: &TableStore) {
     trace!("test_protect_unprotect");
 
     let dek1 = TypedSharedSecret::new(
@@ -237,16 +237,21 @@ pub async fn test_protect_unprotect(vcrypto: CryptoSystemVersion, ts: TableStore
 
     for dek in deks {
         for password in passwords {
+            trace!("testing dek {} with password {}", dek, password);
             let dek_bytes = ts
                 .maybe_protect_device_encryption_key(dek, password)
+                .await
                 .unwrap_or_else(|_| panic!("protect: dek: '{}' pw: '{}'", dek, password));
+
             let unprotected = ts
                 .maybe_unprotect_device_encryption_key(&dek_bytes, password)
+                .await
                 .unwrap_or_else(|_| panic!("unprotect: dek: '{}' pw: '{}'", dek, password));
             assert_eq!(unprotected, dek);
             let invalid_password = format!("{}x", password);
             let _ = ts
                 .maybe_unprotect_device_encryption_key(&dek_bytes, &invalid_password)
+                .await
                 .expect_err(&format!(
                     "invalid_password: dek: '{}' pw: '{}'",
                     dek, &invalid_password
@@ -254,6 +259,7 @@ pub async fn test_protect_unprotect(vcrypto: CryptoSystemVersion, ts: TableStore
             if !password.is_empty() {
                 let _ = ts
                     .maybe_unprotect_device_encryption_key(&dek_bytes, "")
+                    .await
                     .expect_err(&format!("empty_password: dek: '{}' pw: ''", dek));
             }
         }
@@ -266,12 +272,12 @@ pub async fn test_all() {
     let ts = api.table_store().unwrap();
 
     for ck in VALID_CRYPTO_KINDS {
-        let vcrypto = crypto.get(ck).unwrap();
-        test_protect_unprotect(vcrypto.clone(), ts.clone()).await;
-        test_delete_open_delete(ts.clone()).await;
-        test_store_delete_load(ts.clone()).await;
-        test_transaction(ts.clone()).await;
-        test_json(vcrypto, ts.clone()).await;
+        let vcrypto = crypto.get_async(ck).unwrap();
+        test_protect_unprotect(&vcrypto, &ts).await;
+        test_delete_open_delete(&ts).await;
+        test_store_delete_load(&ts).await;
+        test_transaction(&ts).await;
+        test_json(&vcrypto, &ts).await;
         let _ = ts.delete("test").await;
     }
 

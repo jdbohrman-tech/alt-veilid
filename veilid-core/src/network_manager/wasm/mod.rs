@@ -3,8 +3,6 @@ mod protocol;
 use super::*;
 
 use crate::routing_table::*;
-use connection_manager::*;
-use protocol::ws::WebsocketProtocolHandler;
 pub use protocol::*;
 use std::io;
 
@@ -64,21 +62,26 @@ struct NetworkInner {
     protocol_config: ProtocolConfig,
 }
 
-struct NetworkUnlockedInner {
+pub(super) struct NetworkUnlockedInner {
     // Startup lock
     startup_lock: StartupLock,
-
-    // Accessors
-    routing_table: RoutingTable,
-    network_manager: NetworkManager,
-    connection_manager: ConnectionManager,
 }
 
 #[derive(Clone)]
 pub(super) struct Network {
-    config: VeilidConfig,
+    registry: VeilidComponentRegistry,
     inner: Arc<Mutex<NetworkInner>>,
     unlocked_inner: Arc<NetworkUnlockedInner>,
+}
+
+impl_veilid_component_registry_accessor!(Network);
+
+impl core::ops::Deref for Network {
+    type Target = NetworkUnlockedInner;
+
+    fn deref(&self) -> &Self::Target {
+        &self.unlocked_inner
+    }
 }
 
 impl Network {
@@ -89,43 +92,18 @@ impl Network {
         }
     }
 
-    fn new_unlocked_inner(
-        network_manager: NetworkManager,
-        routing_table: RoutingTable,
-        connection_manager: ConnectionManager,
-    ) -> NetworkUnlockedInner {
+    fn new_unlocked_inner() -> NetworkUnlockedInner {
         NetworkUnlockedInner {
             startup_lock: StartupLock::new(),
-            network_manager,
-            routing_table,
-            connection_manager,
         }
     }
 
-    pub fn new(
-        network_manager: NetworkManager,
-        routing_table: RoutingTable,
-        connection_manager: ConnectionManager,
-    ) -> Self {
+    pub fn new(registry: VeilidComponentRegistry) -> Self {
         Self {
-            config: network_manager.config(),
+            registry,
             inner: Arc::new(Mutex::new(Self::new_inner())),
-            unlocked_inner: Arc::new(Self::new_unlocked_inner(
-                network_manager,
-                routing_table,
-                connection_manager,
-            )),
+            unlocked_inner: Arc::new(Self::new_unlocked_inner()),
         }
-    }
-
-    fn network_manager(&self) -> NetworkManager {
-        self.unlocked_inner.network_manager.clone()
-    }
-    fn routing_table(&self) -> RoutingTable {
-        self.unlocked_inner.routing_table.clone()
-    }
-    fn connection_manager(&self) -> ConnectionManager {
-        self.unlocked_inner.connection_manager.clone()
     }
 
     /////////////////////////////////////////////////////////////////
@@ -159,10 +137,9 @@ impl Network {
 
         self.record_dial_info_failure(dial_info.clone(), async move {
             let data_len = data.len();
-            let timeout_ms = {
-                let c = self.config.get();
-                c.network.connection_initial_timeout_ms
-            };
+            let timeout_ms = self
+                .config()
+                .with(|c| c.network.connection_initial_timeout_ms);
 
             if self
                 .network_manager()
@@ -180,7 +157,7 @@ impl Network {
                     bail!("no support for TCP protocol")
                 }
                 ProtocolType::WS | ProtocolType::WSS => {
-                    let pnc = network_result_try!(WebsocketProtocolHandler::connect(
+                    let pnc = network_result_try!(ws::WebsocketProtocolHandler::connect(
                         &dial_info, timeout_ms
                     )
                     .await
@@ -210,14 +187,13 @@ impl Network {
         data: Vec<u8>,
         timeout_ms: u32,
     ) -> EyreResult<NetworkResult<Vec<u8>>> {
-        let _guard = self.unlocked_inner.startup_lock.enter()?;
+        let _guard = self.startup_lock.enter()?;
 
         self.record_dial_info_failure(dial_info.clone(), async move {
             let data_len = data.len();
-            let connect_timeout_ms = {
-                let c = self.config.get();
-                c.network.connection_initial_timeout_ms
-            };
+            let connect_timeout_ms = self
+                .config()
+                .with(|c| c.network.connection_initial_timeout_ms);
 
             if self
                 .network_manager()
@@ -239,7 +215,7 @@ impl Network {
                         ProtocolType::UDP => unreachable!(),
                         ProtocolType::TCP => unreachable!(),
                         ProtocolType::WS | ProtocolType::WSS => {
-                            WebsocketProtocolHandler::connect(&dial_info, connect_timeout_ms)
+                            ws::WebsocketProtocolHandler::connect(&dial_info, connect_timeout_ms)
                                 .await
                                 .wrap_err("connect failure")?
                         }
@@ -271,7 +247,7 @@ impl Network {
         flow: Flow,
         data: Vec<u8>,
     ) -> EyreResult<SendDataToExistingFlowResult> {
-        let _guard = self.unlocked_inner.startup_lock.enter()?;
+        let _guard = self.startup_lock.enter()?;
 
         let data_len = data.len();
         match flow.protocol_type() {
@@ -287,7 +263,11 @@ impl Network {
         // Handle connection-oriented protocols
 
         // Try to send to the exact existing connection if one exists
-        if let Some(conn) = self.connection_manager().get_connection(flow) {
+        if let Some(conn) = self
+            .network_manager()
+            .connection_manager()
+            .get_connection(flow)
+        {
             // connection exists, send over it
             match conn.send_async(data).await {
                 ConnectionHandleSendResult::Sent => {
@@ -320,7 +300,7 @@ impl Network {
         dial_info: DialInfo,
         data: Vec<u8>,
     ) -> EyreResult<NetworkResult<UniqueFlow>> {
-        let _guard = self.unlocked_inner.startup_lock.enter()?;
+        let _guard = self.startup_lock.enter()?;
 
         self.record_dial_info_failure(dial_info.clone(), async move {
             let data_len = data.len();
@@ -333,7 +313,8 @@ impl Network {
 
             // Handle connection-oriented protocols
             let conn = network_result_try!(
-                self.connection_manager()
+                self.network_manager()
+                    .connection_manager()
                     .get_or_create_connection(dial_info.clone())
                     .await?
             );
@@ -361,7 +342,8 @@ impl Network {
         log_net!(debug "starting network");
         // get protocol config
         let protocol_config = {
-            let c = self.config.get();
+            let config = self.config();
+            let c = config.get();
             let inbound = ProtocolTypeSet::new();
             let mut outbound = ProtocolTypeSet::new();
 
@@ -398,10 +380,8 @@ impl Network {
         self.inner.lock().protocol_config = protocol_config.clone();
 
         // Start editing routing table
-        let mut editor_public_internet = self
-            .unlocked_inner
-            .routing_table
-            .edit_public_internet_routing_domain();
+        let routing_table = self.routing_table();
+        let mut editor_public_internet = routing_table.edit_public_internet_routing_domain();
 
         // set up the routing table's network config
         editor_public_internet.setup_network(
@@ -421,7 +401,7 @@ impl Network {
 
     #[instrument(level = "debug", err, skip_all)]
     pub async fn startup(&self) -> EyreResult<StartupDisposition> {
-        let guard = self.unlocked_inner.startup_lock.startup()?;
+        let guard = self.startup_lock.startup()?;
 
         match self.startup_internal().await {
             Ok(StartupDisposition::Success) => {
@@ -445,7 +425,7 @@ impl Network {
     }
 
     pub fn is_started(&self) -> bool {
-        self.unlocked_inner.startup_lock.is_started()
+        self.startup_lock.is_started()
     }
 
     #[instrument(level = "debug", skip_all)]
@@ -456,7 +436,7 @@ impl Network {
     #[instrument(level = "debug", skip_all)]
     pub async fn shutdown(&self) {
         log_net!(debug "starting low level network shutdown");
-        let Ok(guard) = self.unlocked_inner.startup_lock.shutdown().await else {
+        let Ok(guard) = self.startup_lock.shutdown().await else {
             log_net!(debug "low level network is already shut down");
             return;
         };
@@ -493,14 +473,14 @@ impl Network {
         &self,
         _punishment: Option<Box<dyn FnOnce() + Send + 'static>>,
     ) {
-        let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
+        let Ok(_guard) = self.startup_lock.enter() else {
             log_net!(debug "ignoring due to not started up");
             return;
         };
     }
 
     pub fn needs_public_dial_info_check(&self) -> bool {
-        let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
+        let Ok(_guard) = self.startup_lock.enter() else {
             log_net!(debug "ignoring due to not started up");
             return false;
         };
@@ -511,11 +491,12 @@ impl Network {
     //////////////////////////////////////////
     #[instrument(level = "trace", target = "net", name = "Network::tick", skip_all, err)]
     pub async fn tick(&self) -> EyreResult<()> {
-        let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
+        let Ok(_guard) = self.startup_lock.enter() else {
             log_net!(debug "ignoring due to not started up");
             return Ok(());
         };
 
         Ok(())
     }
+    pub async fn cancel_tasks(&self) {}
 }

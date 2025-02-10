@@ -4,7 +4,11 @@ use super::*;
 #[derive(
     Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Copy, Serialize, Deserialize, JsonSchema,
 )]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify), tsify(namespace))]
+#[cfg_attr(
+    all(target_arch = "wasm32", target_os = "unknown"),
+    derive(Tsify),
+    tsify(namespace)
+)]
 pub enum VeilidLogLevel {
     Error = 1,
     Warn = 2,
@@ -81,10 +85,10 @@ impl fmt::Display for VeilidLogLevel {
 }
 /// A VeilidCore log message with optional backtrace.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct VeilidLog {
     pub log_level: VeilidLogLevel,
     pub message: String,
-    #[cfg_attr(target_arch = "wasm32", tsify(optional))]
+    #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), tsify(optional))]
     pub backtrace: Option<String>,
 }

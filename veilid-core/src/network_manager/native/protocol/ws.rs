@@ -10,7 +10,6 @@ use async_tungstenite::tungstenite::protocol::{frame::coding::CloseCode, CloseFr
 use async_tungstenite::tungstenite::Error;
 use async_tungstenite::{accept_hdr_async, client_async, WebSocketStream};
 use futures_util::{AsyncRead, AsyncWrite, SinkExt};
-use sockets::*;
 
 // Maximum number of websocket request headers to permit
 const MAX_WS_HEADERS: usize = 24;
@@ -316,21 +315,16 @@ impl WebsocketProtocolHandler {
         let domain = split_url.host.clone();
 
         // Resolve remote address
-        let remote_socket_addr = dial_info.to_socket_addr();
-
-        // Make a shared socket
-        let socket = match local_address {
-            Some(a) => {
-                new_bound_shared_tcp_socket(a)?.ok_or(io::Error::from(io::ErrorKind::AddrInUse))?
-            }
-            None => new_default_tcp_socket(socket2::Domain::for_address(remote_socket_addr))?,
-        };
+        let remote_address = dial_info.to_socket_addr();
 
         // Non-blocking connect to remote address
-        let tcp_stream =
-            network_result_try!(nonblocking_connect(socket, remote_socket_addr, timeout_ms)
-                .await
-                .folded()?);
+        let tcp_stream = network_result_try!(connect_async_tcp_stream(
+            local_address,
+            remote_address,
+            timeout_ms
+        )
+        .await
+        .folded()?);
 
         // See what local address we ended up with
         let actual_local_addr = tcp_stream.local_addr()?;

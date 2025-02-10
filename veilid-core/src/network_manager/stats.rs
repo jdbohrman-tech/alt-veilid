@@ -1,7 +1,7 @@
 use super::*;
 
 // Statistics per address
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct PerAddressStats {
     pub last_seen_ts: Timestamp,
     pub transfer_stats_accounting: TransferStatsAccounting,
@@ -18,7 +18,7 @@ impl Default for PerAddressStatsKey {
 }
 
 // Statistics about the low-level network
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct NetworkManagerStats {
     pub self_stats: PerAddressStats,
     pub per_address_stats: LruCache<PerAddressStatsKey, PerAddressStats>,
@@ -116,12 +116,10 @@ impl NetworkManager {
         })
     }
 
-    pub(super) fn send_network_update(&self) {
-        let update_cb = self.unlocked_inner.update_callback.read().clone();
-        if update_cb.is_none() {
-            return;
-        }
+    pub fn send_network_update(&self) {
+        let update_cb = self.update_callback();
+
         let state = self.get_veilid_state();
-        (update_cb.unwrap())(VeilidUpdate::Network(state));
+        update_cb(VeilidUpdate::Network(state));
     }
 }

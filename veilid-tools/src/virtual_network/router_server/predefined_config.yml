@@ -1,0 +1,126 @@
+---
+# Random number seed used to generate all profile configurations
+# for a test. The seed can be overriden on the VirtualRouter command
+# line to choose a different test scenario. The same seed will
+# generate the same configuration on all machines given the same
+# configuration file.
+seed: 0
+
+# The name of the predefined network to use by default (typically
+# this is '$internet')
+default_network: "$internet"
+
+# The name of the predefined performance model to use by default (typically
+# this is '$lan')
+default_model: "$lan"
+
+# The name of the default allocation pool that subnets are allocated from
+default_pool: "$internet"
+
+#################################################################
+# Networks
+#
+# Networks are a location where Machines can be allocated and represent
+# a network segment with address allocations per address type
+# and a gateway to another network. The performance characteristics of
+# a network are defined by a performance Model
+
+networks:
+  # Predefined networks
+  $internet:
+    ipv4:
+      allocation: "$internet"
+    ipv6:
+      allocation: "$internet"
+    model: "$internet"
+
+#################################################################
+# Allocations
+#
+# Allocations are partitions of the address space that networks
+# can be assigned to. Machines on the networks will be given
+# addresses within these ranges. If an allocation
+# is not specified, an address -outside- any of the allocation
+# will be used (on the 'public internet').
+
+allocations:
+  # Predefined allocations
+  $internet:
+    scope4: ["0.0.0.0/0"]
+    scope6: ["::/0"]
+  $private:
+    scope4: ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+    scope6: ["fc00::/7"]
+  $cgnat:
+    scope4: ["100.64.0.0/10"]
+  $linklocal:
+    scope4: ["169.254.0.0/16"]
+    scope6: ["fe80::/10"]
+  $localhost:
+    scope4: ["127.0.0.0/8"]
+    scope6: ["::1/128"]
+  $ietf:
+    scope4: ["192.0.0.0/24"]
+  $cellnat:
+    scope4: ["192.0.0.0/29"]
+  $documentation:
+    scope4: ["192.0.2.0/24", "198.51.100.0/24", "203.0.113.0/24"]
+    scope6: ["2001:db8::/32", "3fff::/20"]
+  $benchmark:
+    scope4: ["198.18.0.0/15"]
+  $mulitcast:
+    scope4: ["224.0.0.0/4"]
+  $mulitcasttest:
+    scope4: ["233.252.0.0/24"]
+    scope6: ["ff00::/8"]
+  $unspecified:
+    scope4: ["0.0.0.0/8"]
+    scope6: ["::/128"]
+  $reserved:
+    scope4: ["192.88.99.0/24", "240.0.0.0/4"]
+  $broadcast:
+    scope4: ["255.255.255.255/32"]
+  $mapped:
+    scope6: ["::ffff:0:0/96", "::ffff:0:0:0/96"]
+  $translation:
+    scope6: ["64:ff9b::/96", "64:ff9b:1::/48"]
+  $discard:
+    scope6: ["100::/64"]
+  $teredo:
+    scope6: ["2001::/32"]
+  $orchidv2:
+    scope6: ["2001:20::/28"]
+  $6to4:
+    scope6: ["2002::/16"]
+  $srv6:
+    scope6: ["5f00::/16"]
+
+#################################################################
+# Models
+#
+# Performance models representing how a network behaves
+# Latency models are a skewed normal distribution
+# Distance is assigned over a circular probability and then
+# mapped linearly as a multiplier to latency and loss
+
+models:
+  # Predefined models
+  $lan:
+    latency:
+      mean: 0.0038
+      sigma: 0.001416
+      skew: 0.0009
+      min: 0.0015
+      max: 0.0075
+    loss: 0.0
+  $internet:
+    distance:
+      min: 0.04
+      max: 2.0
+    latency:
+      mean: 0.200
+      sigma: 0.080
+      skew: 0
+      min: 0.030
+      max: 0.400
+    loss: 0.01

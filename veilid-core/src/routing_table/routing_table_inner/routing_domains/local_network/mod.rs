@@ -144,11 +144,7 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
             pi
         };
 
-        if let Err(e) = rti
-            .unlocked_inner
-            .event_bus
-            .post(PeerInfoChangeEvent { peer_info })
-        {
+        if let Err(e) = rti.event_bus().post(PeerInfoChangeEvent { peer_info }) {
             log_rtab!(debug "Failed to post event: {}", e);
         }
 

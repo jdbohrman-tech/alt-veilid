@@ -44,17 +44,20 @@ struct ConnectionTableInner {
     protocol_index_by_id: BTreeMap<NetworkConnectionId, usize>,
     id_by_flow: BTreeMap<Flow, NetworkConnectionId>,
     ids_by_remote: BTreeMap<PeerAddress, Vec<NetworkConnectionId>>,
-    address_filter: AddressFilter,
     priority_flows: Vec<LruCache<Flow, ()>>,
 }
 
 #[derive(Debug)]
 pub struct ConnectionTable {
-    inner: Arc<Mutex<ConnectionTableInner>>,
+    registry: VeilidComponentRegistry,
+    inner: Mutex<ConnectionTableInner>,
 }
 
+impl_veilid_component_registry_accessor!(ConnectionTable);
+
 impl ConnectionTable {
-    pub fn new(config: VeilidConfig, address_filter: AddressFilter) -> Self {
+    pub fn new(registry: VeilidComponentRegistry) -> Self {
+        let config = registry.config();
         let max_connections = {
             let c = config.get();
             vec![
@@ -64,7 +67,8 @@ impl ConnectionTable {
             ]
         };
         Self {
-            inner: Arc::new(Mutex::new(ConnectionTableInner {
+            registry,
+            inner: Mutex::new(ConnectionTableInner {
                 conn_by_id: max_connections
                     .iter()
                     .map(|_| LruCache::new_unbounded())
@@ -72,13 +76,12 @@ impl ConnectionTable {
                 protocol_index_by_id: BTreeMap::new(),
                 id_by_flow: BTreeMap::new(),
                 ids_by_remote: BTreeMap::new(),
-                address_filter,
                 priority_flows: max_connections
                     .iter()
                     .map(|x| LruCache::new(x * PRIORITY_FLOW_PERCENTAGE / 100))
                     .collect(),
                 max_connections,
-            })),
+            }),
         }
     }
 
@@ -168,6 +171,7 @@ impl ConnectionTable {
     /// when it is getting full while adding a new connection.
     /// Factored out into its own function for clarity.
     fn lru_out_connection_inner(
+        &self,
         inner: &mut ConnectionTableInner,
         protocol_index: usize,
     ) -> Result<Option<NetworkConnection>, ()> {
@@ -198,7 +202,7 @@ impl ConnectionTable {
             lruk
         };
 
-        let dead_conn = Self::remove_connection_records(inner, dead_k);
+        let dead_conn = self.remove_connection_records_inner(inner, dead_k);
         Ok(Some(dead_conn))
     }
 
@@ -235,20 +239,21 @@ impl ConnectionTable {
 
         // Filter by ip for connection limits
         let ip_addr = flow.remote_address().ip_addr();
-        match inner.address_filter.add_connection(ip_addr) {
-            Ok(()) => {}
-            Err(e) => {
-                // Return the connection in the error to be disposed of
-                return Err(ConnectionTableAddError::address_filter(
-                    network_connection,
-                    e,
-                ));
-            }
-        };
+        if let Err(e) = self
+            .network_manager()
+            .address_filter()
+            .add_connection(ip_addr)
+        {
+            // Return the connection in the error to be disposed of
+            return Err(ConnectionTableAddError::address_filter(
+                network_connection,
+                e,
+            ));
+        }
 
         // if we have reached the maximum number of connections per protocol type
         // then drop the least recently used connection that is not protected or referenced
-        let out_conn = match Self::lru_out_connection_inner(&mut inner, protocol_index) {
+        let out_conn = match self.lru_out_connection_inner(&mut inner, protocol_index) {
             Ok(v) => v,
             Err(()) => {
                 return Err(ConnectionTableAddError::table_full(network_connection));
@@ -437,7 +442,8 @@ impl ConnectionTable {
     }
 
     #[instrument(level = "trace", skip(inner), ret)]
-    fn remove_connection_records(
+    fn remove_connection_records_inner(
+        &self,
         inner: &mut ConnectionTableInner,
         id: NetworkConnectionId,
     ) -> NetworkConnection {
@@ -462,8 +468,8 @@ impl ConnectionTable {
         }
         // address_filter
         let ip_addr = remote.socket_addr().ip();
-        inner
-            .address_filter
+        self.network_manager()
+            .address_filter()
             .remove_connection(ip_addr)
             .expect("Inconsistency in connection table");
         conn
@@ -477,7 +483,7 @@ impl ConnectionTable {
         if !inner.conn_by_id[protocol_index].contains_key(&id) {
             return None;
         }
-        let conn = Self::remove_connection_records(&mut inner, id);
+        let conn = self.remove_connection_records_inner(&mut inner, id);
         Some(conn)
     }
 

@@ -18,7 +18,7 @@ FROM ubuntu:18.04
 ENV ZIG_VERSION=0.13.0
 ENV CMAKE_VERSION_MINOR=3.30
 ENV CMAKE_VERSION_PATCH=3.30.1
-ENV WASM_BINDGEN_CLI_VERSION=0.2.93
+ENV WASM_BINDGEN_CLI_VERSION=0.2.100
 ENV RUST_VERSION=1.81.0
 ENV RUSTUP_HOME=/usr/local/rustup
 ENV RUSTUP_DIST_SERVER=https://static.rust-lang.org
@@ -82,7 +82,7 @@ deps-android:
     RUN mkdir /Android; mkdir /Android/Sdk
     RUN curl -o /Android/cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-9123335_latest.zip
     RUN cd /Android; unzip /Android/cmdline-tools.zip
-    RUN yes | /Android/cmdline-tools/bin/sdkmanager --sdk_root=/Android/Sdk build-tools\;34.0.0 ndk\;26.3.11579264 cmake\;3.22.1 platform-tools platforms\;android-34 cmdline-tools\;latest
+    RUN yes | /Android/cmdline-tools/bin/sdkmanager --sdk_root=/Android/Sdk build-tools\;34.0.0 ndk\;27.0.12077973 cmake\;3.22.1 platform-tools platforms\;android-34 cmdline-tools\;latest
     RUN rm -rf /Android/cmdline-tools
     RUN apt-get clean
 
@@ -170,7 +170,7 @@ build-linux-arm64:
 build-android:
     FROM +code-android
     WORKDIR /veilid/veilid-core
-    ENV PATH=$PATH:/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/
+    ENV PATH=$PATH:/Android/Sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/
     RUN cargo build --target aarch64-linux-android --release
     RUN cargo build --target armv7-linux-androideabi --release
     RUN cargo build --target i686-linux-android --release

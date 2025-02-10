@@ -5,12 +5,12 @@ impl RPCProcessor {
     // Can be sent via all methods including relays and routes
     #[instrument(level = "trace", target = "rpc", skip(self, receipt), ret, err)]
     pub async fn rpc_call_return_receipt<D: AsRef<[u8]>>(
-        self,
+        &self,
         dest: Destination,
         receipt: D,
     ) -> RPCNetworkResult<()> {
         let _guard = self
-            .unlocked_inner
+            .startup_context
             .startup_lock
             .enter()
             .map_err(RPCError::map_try_again("not started up"))?;

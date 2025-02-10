@@ -2,7 +2,7 @@ use super::*;
 use std::time::Duration;
 
 cfg_if! {
-    if #[cfg(target_arch = "wasm32")] {
+    if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
         use async_executors::{Bindgen, Timer};
 
         pub async fn sleep(millis: u32) {

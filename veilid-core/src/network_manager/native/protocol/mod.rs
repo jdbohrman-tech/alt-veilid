@@ -1,4 +1,3 @@
-pub mod sockets;
 pub mod tcp;
 pub mod udp;
 pub mod wrtc;
@@ -22,7 +21,7 @@ impl ProtocolNetworkConnection {
         local_address: Option<SocketAddr>,
         dial_info: &DialInfo,
         timeout_ms: u32,
-        address_filter: AddressFilter,
+        address_filter: &AddressFilter,
     ) -> io::Result<NetworkResult<ProtocolNetworkConnection>> {
         if address_filter.is_ip_addr_punished(dial_info.address().ip_addr()) {
             return Ok(NetworkResult::no_connection_other("punished"));

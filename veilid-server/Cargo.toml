@@ -4,12 +4,12 @@ name = "veilid-server"
 version = "0.4.1"
 # ---
 description = "Veilid Headless Node"
-repository = "https://gitlab.com/veilid/veilid"
-authors = ["Veilid Team <contact@veilid.com>"]
-license = "MPL-2.0"
-edition = "2021"
 resolver = "2"
-rust-version = "1.81.0"
+repository.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
 
 [[bin]]
 name = "veilid-server"
@@ -18,6 +18,11 @@ path = "src/main.rs"
 [features]
 default = ["rt-tokio", "veilid-core/default", "otlp-tonic"]
 default-async-std = ["rt-async-std", "veilid-core/default-async-std"]
+
+virtual-network = [
+    "veilid-core/virtual-network",
+    "veilid-core/virtual-network-server",
+]
 
 crypto-test = ["rt-tokio", "veilid-core/crypto-test"]
 crypto-test-none = ["rt-tokio", "veilid-core/crypto-test-none"]
@@ -70,7 +75,7 @@ config = { version = "^0.14.0", default-features = false, features = ["yaml"] }
 cfg-if = "^1.0.0"
 serde = "^1.0.204"
 serde_derive = "^1.0.204"
-serde_yaml = "^0.9.34"
+serde_yaml = { package = "serde_yaml_ng", version = "^0.10.0" }
 json = "^0"
 futures-util = { version = "^0", default-features = false, features = [
     "alloc",

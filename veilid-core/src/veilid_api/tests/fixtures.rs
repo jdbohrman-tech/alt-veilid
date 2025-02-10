@@ -241,6 +241,11 @@ pub fn fix_veilidconfiginner() -> VeilidConfigInner {
             privacy: VeilidConfigPrivacy {
                 country_code_denylist: vec![CountryCode([b'N', b'Z'])],
             },
+            #[cfg(feature = "virtual-network")]
+            virtual_network: VeilidConfigVirtualNetwork {
+                enabled: false,
+                server_address: "".to_owned(),
+            },
         },
     }
 }

@@ -1,5 +1,6 @@
 use directories::*;
 
+use crate::tools::*;
 use serde_derive::*;
 use std::ffi::OsStr;
 use std::net::{SocketAddr, ToSocketAddrs};
@@ -118,7 +119,7 @@ pub fn convert_loglevel(log_level: LogLevel) -> log::LevelFilter {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct NamedSocketAddrs {
     pub _name: String,
     pub addrs: Vec<SocketAddr>,
@@ -148,26 +149,26 @@ impl<'de> serde::Deserialize<'de> for NamedSocketAddrs {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Terminal {
     pub enabled: bool,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct File {
     pub enabled: bool,
     pub directory: String,
     pub append: bool,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Logging {
     pub terminal: Terminal,
     pub file: File,
     pub level: LogLevel,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Colors {
     pub background: String,
     pub shadow: String,
@@ -182,7 +183,7 @@ pub struct Colors {
     pub highlight_text: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct LogColors {
     pub trace: String,
     pub debug: String,
@@ -191,7 +192,7 @@ pub struct LogColors {
     pub error: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Theme {
     pub shadow: bool,
     pub borders: String,
@@ -199,24 +200,24 @@ pub struct Theme {
     pub log_colors: LogColors,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct NodeLog {
     pub scrollback: usize,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct CommandLine {
     pub history_size: usize,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Interface {
     pub theme: Theme,
     pub node_log: NodeLog,
     pub command_line: CommandLine,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Settings {
     pub enable_ipc: bool,
     pub ipc_path: Option<PathBuf>,
@@ -229,6 +230,90 @@ pub struct Settings {
 }
 
 impl Settings {
+    //////////////////////////////////////////////////////////////////////////////////
+
+    pub fn new(config_file: Option<&OsStr>) -> Result<Self, config::ConfigError> {
+        // Load the default config
+        let mut cfg = load_default_config()?;
+
+        // Merge in the config file if we have one
+        if let Some(config_file) = config_file {
+            let config_file_path = Path::new(config_file);
+            // If the user specifies a config file on the command line then it must exist
+            cfg = load_config(cfg, config_file_path)?;
+        }
+
+        // Generate config
+        cfg.try_deserialize()
+    }
+
+    pub fn resolve_ipc_path(
+        &self,
+        ipc_path: Option<PathBuf>,
+        subnode_index: u16,
+    ) -> Option<PathBuf> {
+        let mut client_api_ipc_path = None;
+        // Determine IPC path to try
+        cfg_if::cfg_if! {
+            if #[cfg(windows)] {
+                if let Some(ipc_path) = ipc_path.or(self.ipc_path.clone()) {
+                    if is_ipc_socket_path(&ipc_path) {
+                        // try direct path
+                        enable_network = false;
+                        client_api_ipc_path = Some(ipc_path);
+                    } else {
+                        // try subnode index inside path
+                        let ipc_path = ipc_path.join(subnode_index.to_string());
+                        if is_ipc_socket_path(&ipc_path) {
+                            // subnode indexed path exists
+                            client_api_ipc_path = Some(ipc_path);
+                        }
+                    }
+                }
+            } else {
+                if let Some(ipc_path) = ipc_path.or(self.ipc_path.clone()) {
+                    if is_ipc_socket_path(&ipc_path) {
+                        // try direct path
+                        client_api_ipc_path = Some(ipc_path);
+                    } else if ipc_path.exists() && ipc_path.is_dir() {
+                        // try subnode index inside path
+                        let ipc_path = ipc_path.join(subnode_index.to_string());
+                        if is_ipc_socket_path(&ipc_path) {
+                            // subnode indexed path exists
+                            client_api_ipc_path = Some(ipc_path);
+                        }
+                    }
+                }
+            }
+        }
+        client_api_ipc_path
+    }
+
+    pub fn resolve_network_address(
+        &self,
+        address: Option<String>,
+    ) -> Result<Option<Vec<SocketAddr>>, String> {
+        let mut client_api_network_addresses = None;
+
+        let args_address = if let Some(args_address) = address {
+            match NamedSocketAddrs::try_from(args_address) {
+                Ok(v) => Some(v),
+                Err(e) => {
+                    return Err(format!("Invalid server address: {}", e));
+                }
+            }
+        } else {
+            None
+        };
+        if let Some(address_arg) = args_address.or(self.address.clone()) {
+            client_api_network_addresses = Some(address_arg.addrs);
+        } else if let Some(address) = self.address.clone() {
+            client_api_network_addresses = Some(address.addrs.clone());
+        }
+        Ok(client_api_network_addresses)
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
     #[cfg_attr(windows, expect(dead_code))]
     fn get_server_default_directory(subpath: &str) -> PathBuf {
         #[cfg(unix)]
@@ -283,21 +368,6 @@ impl Settings {
         default_log_directory.push("logs/");
 
         default_log_directory
-    }
-
-    pub fn new(config_file: Option<&OsStr>) -> Result<Self, config::ConfigError> {
-        // Load the default config
-        let mut cfg = load_default_config()?;
-
-        // Merge in the config file if we have one
-        if let Some(config_file) = config_file {
-            let config_file_path = Path::new(config_file);
-            // If the user specifies a config file on the command line then it must exist
-            cfg = load_config(cfg, config_file_path)?;
-        }
-
-        // Generate config
-        cfg.try_deserialize()
     }
 }
 

@@ -34,85 +34,71 @@ struct RouteSpecStoreInner {
     cache: RouteSpecStoreCache,
 }
 
-struct RouteSpecStoreUnlockedInner {
-    /// Handle to routing table
-    routing_table: RoutingTable,
+/// The routing table's storage for private/safety routes
+#[derive(Debug)]
+pub(crate) struct RouteSpecStore {
+    registry: VeilidComponentRegistry,
+    inner: Mutex<RouteSpecStoreInner>,
+
     /// Maximum number of hops in a route
     max_route_hop_count: usize,
     /// Default number of hops in a route
     default_route_hop_count: usize,
 }
 
-impl fmt::Debug for RouteSpecStoreUnlockedInner {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("RouteSpecStoreUnlockedInner")
-            .field("max_route_hop_count", &self.max_route_hop_count)
-            .field("default_route_hop_count", &self.default_route_hop_count)
-            .finish()
-    }
-}
-
-/// The routing table's storage for private/safety routes
-#[derive(Clone, Debug)]
-pub(crate) struct RouteSpecStore {
-    inner: Arc<Mutex<RouteSpecStoreInner>>,
-    unlocked_inner: Arc<RouteSpecStoreUnlockedInner>,
-}
+impl_veilid_component_registry_accessor!(RouteSpecStore);
 
 impl RouteSpecStore {
-    pub fn new(routing_table: RoutingTable) -> Self {
-        let config = routing_table.network_manager().config();
+    pub fn new(registry: VeilidComponentRegistry) -> Self {
+        let config = registry.config();
         let c = config.get();
 
         Self {
-            unlocked_inner: Arc::new(RouteSpecStoreUnlockedInner {
-                max_route_hop_count: c.network.rpc.max_route_hop_count.into(),
-                default_route_hop_count: c.network.rpc.default_route_hop_count.into(),
-                routing_table,
-            }),
-            inner: Arc::new(Mutex::new(RouteSpecStoreInner {
+            registry,
+            inner: Mutex::new(RouteSpecStoreInner {
                 content: RouteSpecStoreContent::new(),
                 cache: Default::default(),
-            })),
+            }),
+            max_route_hop_count: c.network.rpc.max_route_hop_count.into(),
+            default_route_hop_count: c.network.rpc.default_route_hop_count.into(),
         }
     }
 
-    #[instrument(level = "trace", target = "route", skip(routing_table), err)]
-    pub async fn load(routing_table: RoutingTable) -> EyreResult<RouteSpecStore> {
-        let (max_route_hop_count, default_route_hop_count) = {
-            let config = routing_table.network_manager().config();
-            let c = config.get();
-            (
-                c.network.rpc.max_route_hop_count as usize,
-                c.network.rpc.default_route_hop_count as usize,
-            )
-        };
-
-        // Get frozen blob from table store
-        let content = RouteSpecStoreContent::load(routing_table.clone()).await?;
-
-        let mut inner = RouteSpecStoreInner {
-            content,
+    #[instrument(level = "trace", target = "route", skip_all)]
+    pub fn reset(&self) {
+        *self.inner.lock() = RouteSpecStoreInner {
+            content: RouteSpecStoreContent::new(),
             cache: Default::default(),
         };
+    }
 
-        // Rebuild the routespecstore cache
-        let rti = &*routing_table.inner.read();
-        for (_, rssd) in inner.content.iter_details() {
-            inner.cache.add_to_cache(rti, rssd);
-        }
+    #[instrument(level = "trace", target = "route", skip_all, err)]
+    pub async fn load(&self) -> EyreResult<()> {
+        let inner = {
+            let table_store = self.table_store();
+            let routing_table = self.routing_table();
 
-        // Return the loaded RouteSpecStore
-        let rss = RouteSpecStore {
-            unlocked_inner: Arc::new(RouteSpecStoreUnlockedInner {
-                max_route_hop_count,
-                default_route_hop_count,
-                routing_table: routing_table.clone(),
-            }),
-            inner: Arc::new(Mutex::new(inner)),
+            // Get frozen blob from table store
+            let content = RouteSpecStoreContent::load(&table_store, &routing_table).await?;
+
+            let mut inner = RouteSpecStoreInner {
+                content,
+                cache: Default::default(),
+            };
+
+            // Rebuild the routespecstore cache
+            let rti = &*routing_table.inner.read();
+            for (_, rssd) in inner.content.iter_details() {
+                inner.cache.add_to_cache(rti, rssd);
+            }
+
+            inner
         };
 
-        Ok(rss)
+        // Return the loaded RouteSpecStore
+        *self.inner.lock() = inner;
+
+        Ok(())
     }
 
     #[instrument(level = "trace", target = "route", skip(self), err)]
@@ -123,9 +109,8 @@ impl RouteSpecStore {
         };
 
         // Save our content
-        content
-            .save(self.unlocked_inner.routing_table.clone())
-            .await?;
+        let table_store = self.table_store();
+        content.save(&table_store).await?;
 
         Ok(())
     }
@@ -146,16 +131,17 @@ impl RouteSpecStore {
             dead_remote_routes,
         }));
 
-        let update_callback = self.unlocked_inner.routing_table.update_callback();
+        let update_callback = self.registry.update_callback();
         update_callback(update);
     }
 
     /// Purge the route spec store
     pub async fn purge(&self) -> VeilidAPIResult<()> {
         // Briefly pause routing table ticker while changes are made
-        let _tick_guard = self.unlocked_inner.routing_table.pause_tasks().await;
-        self.unlocked_inner.routing_table.cancel_tasks().await;
+        let routing_table = self.routing_table();
 
+        let _tick_guard = routing_table.pause_tasks().await;
+        routing_table.cancel_tasks().await;
         {
             let inner = &mut *self.inner.lock();
             inner.content = Default::default();
@@ -181,7 +167,7 @@ impl RouteSpecStore {
         automatic: bool,
     ) -> VeilidAPIResult<RouteId> {
         let inner = &mut *self.inner.lock();
-        let routing_table = self.unlocked_inner.routing_table.clone();
+        let routing_table = self.routing_table();
         let rti = &mut *routing_table.inner.write();
 
         self.allocate_route_inner(
@@ -213,12 +199,10 @@ impl RouteSpecStore {
             apibail_generic!("safety_spec.preferred_route must be empty when allocating new route");
         }
 
-        let ip6_prefix_size = rti
-            .unlocked_inner
-            .config
-            .get()
-            .network
-            .max_connections_per_ip6_prefix_size as usize;
+        let ip6_prefix_size = self
+            .registry()
+            .config()
+            .with(|c| c.network.max_connections_per_ip6_prefix_size as usize);
 
         if safety_spec.hop_count < 1 {
             apibail_invalid_argument!(
@@ -228,7 +212,7 @@ impl RouteSpecStore {
             );
         }
 
-        if safety_spec.hop_count > self.unlocked_inner.max_route_hop_count {
+        if safety_spec.hop_count > self.max_route_hop_count {
             apibail_invalid_argument!(
                 "Not allocating route longer than max route hop count",
                 "hop_count",
@@ -492,9 +476,8 @@ impl RouteSpecStore {
             })
         };
 
-        let routing_table = self.unlocked_inner.routing_table.clone();
         let transform = |_rti: &RoutingTableInner, entry: Option<Arc<BucketEntry>>| -> NodeRef {
-            NodeRef::new(routing_table.clone(), entry.unwrap())
+            NodeRef::new(self.registry(), entry.unwrap())
         };
 
         // Pull the whole routing table in sorted order
@@ -667,13 +650,9 @@ impl RouteSpecStore {
         // Got a unique route, lets build the details, register it, and return it
         let hop_node_refs: Vec<NodeRef> = route_nodes.iter().map(|k| nodes[*k].clone()).collect();
         let mut route_set = BTreeMap::<PublicKey, RouteSpecDetail>::new();
+        let crypto = self.crypto();
         for crypto_kind in crypto_kinds.iter().copied() {
-            let vcrypto = self
-                .unlocked_inner
-                .routing_table
-                .crypto()
-                .get(crypto_kind)
-                .unwrap();
+            let vcrypto = crypto.get(crypto_kind).unwrap();
             let keypair = vcrypto.generate_keypair();
             let hops: Vec<PublicKey> = route_nodes
                 .iter()
@@ -734,7 +713,7 @@ impl RouteSpecStore {
         R: fmt::Debug,
     {
         let inner = &*self.inner.lock();
-        let crypto = self.unlocked_inner.routing_table.crypto();
+        let crypto = self.crypto();
         let Some(vcrypto) = crypto.get(public_key.kind) else {
             log_rpc!(debug "can't handle route with public key: {:?}", public_key);
             return None;
@@ -852,7 +831,7 @@ impl RouteSpecStore {
         };
 
         // Test with double-round trip ping to self
-        let rpc_processor = self.unlocked_inner.routing_table.rpc_processor();
+        let rpc_processor = self.rpc_processor();
         let _res = match rpc_processor.rpc_call_status(dest).await? {
             NetworkResult::Value(v) => v,
             _ => {
@@ -886,7 +865,7 @@ impl RouteSpecStore {
             // Get a safety route that is good enough
             let safety_spec = SafetySpec {
                 preferred_route: None,
-                hop_count: self.unlocked_inner.default_route_hop_count,
+                hop_count: self.default_route_hop_count,
                 stability,
                 sequencing,
             };
@@ -900,8 +879,7 @@ impl RouteSpecStore {
         };
 
         // Test with double-round trip ping to self
-        let rpc_processor = self.unlocked_inner.routing_table.rpc_processor();
-        let _res = match rpc_processor.rpc_call_status(dest).await? {
+        let _res = match self.rpc_processor().rpc_call_status(dest).await? {
             NetworkResult::Value(v) => v,
             _ => {
                 // Did not error, but did not come back, just return false
@@ -921,7 +899,8 @@ impl RouteSpecStore {
         };
 
         // Remove from hop cache
-        let rti = &*self.unlocked_inner.routing_table.inner.read();
+        let routing_table = self.routing_table();
+        let rti = &*routing_table.inner.read();
         if !inner.cache.remove_from_cache(rti, id, &rssd) {
             panic!("hop cache should have contained cache key");
         }
@@ -1097,7 +1076,7 @@ impl RouteSpecStore {
     ) -> VeilidAPIResult<CompiledRoute> {
         // let profile_start_ts = get_timestamp();
         let inner = &mut *self.inner.lock();
-        let routing_table = self.unlocked_inner.routing_table.clone();
+        let routing_table = self.routing_table();
         let rti = &mut *routing_table.inner.write();
 
         // Get useful private route properties
@@ -1108,7 +1087,7 @@ impl RouteSpecStore {
         };
         let pr_pubkey = private_route.public_key.value;
         let pr_hopcount = private_route.hop_count as usize;
-        let max_route_hop_count = self.unlocked_inner.max_route_hop_count;
+        let max_route_hop_count = self.max_route_hop_count;
 
         // Check private route hop count isn't larger than the max route hop count plus one for the 'first hop' header
         if pr_hopcount > (max_route_hop_count + 1) {
@@ -1130,10 +1109,10 @@ impl RouteSpecStore {
 
                 let opt_first_hop = match pr_first_hop_node {
                     RouteNode::NodeId(id) => rti
-                        .lookup_node_ref(routing_table.clone(), TypedKey::new(crypto_kind, id))
+                        .lookup_node_ref(TypedKey::new(crypto_kind, id))
                         .map_err(VeilidAPIError::internal)?,
                     RouteNode::PeerInfo(pi) => Some(
-                        rti.register_node_with_peer_info(routing_table.clone(), pi, false)
+                        rti.register_node_with_peer_info(pi, false)
                             .map_err(VeilidAPIError::internal)?
                             .unfiltered(),
                     ),
@@ -1362,7 +1341,7 @@ impl RouteSpecStore {
         avoid_nodes: &[TypedKey],
     ) -> VeilidAPIResult<PublicKey> {
         // Ensure the total hop count isn't too long for our config
-        let max_route_hop_count = self.unlocked_inner.max_route_hop_count;
+        let max_route_hop_count = self.max_route_hop_count;
         if safety_spec.hop_count == 0 {
             apibail_invalid_argument!(
                 "safety route hop count is zero",
@@ -1438,7 +1417,7 @@ impl RouteSpecStore {
         avoid_nodes: &[TypedKey],
     ) -> VeilidAPIResult<PublicKey> {
         let inner = &mut *self.inner.lock();
-        let routing_table = self.unlocked_inner.routing_table.clone();
+        let routing_table = self.routing_table();
         let rti = &mut *routing_table.inner.write();
 
         self.get_route_for_safety_spec_inner(
@@ -1457,7 +1436,7 @@ impl RouteSpecStore {
         rsd: &RouteSpecDetail,
         optimized: bool,
     ) -> VeilidAPIResult<PrivateRoute> {
-        let routing_table = self.unlocked_inner.routing_table.clone();
+        let routing_table = self.routing_table();
         let rti = &*routing_table.inner.read();
 
         // Ensure we get the crypto for it
@@ -1732,8 +1711,7 @@ impl RouteSpecStore {
         cur_ts: Timestamp,
     ) -> VeilidAPIResult<()> {
         let Some(our_node_info_ts) = self
-            .unlocked_inner
-            .routing_table
+            .routing_table()
             .get_published_peer_info(RoutingDomain::PublicInternet)
             .map(|pi| pi.signed_node_info().timestamp())
         else {
@@ -1767,11 +1745,7 @@ impl RouteSpecStore {
         let inner = &mut *self.inner.lock();
 
         // Check for stub route
-        if self
-            .unlocked_inner
-            .routing_table
-            .matches_own_node_id_key(key)
-        {
+        if self.routing_table().matches_own_node_id_key(key) {
             return None;
         }
 
@@ -1869,7 +1843,7 @@ impl RouteSpecStore {
     /// Convert binary blob to private route vector
     pub fn blob_to_private_routes(&self, blob: Vec<u8>) -> VeilidAPIResult<Vec<PrivateRoute>> {
         // Get crypto
-        let crypto = self.unlocked_inner.routing_table.crypto();
+        let crypto = self.crypto();
 
         // Deserialize count
         if blob.is_empty() {
@@ -1904,7 +1878,7 @@ impl RouteSpecStore {
             let private_route = decode_private_route(&decode_context, &pr_reader).map_err(|e| {
                 VeilidAPIError::invalid_argument("failed to decode private route", "e", e)
             })?;
-            private_route.validate(crypto.clone()).map_err(|e| {
+            private_route.validate(&crypto).map_err(|e| {
                 VeilidAPIError::invalid_argument("failed to validate private route", "e", e)
             })?;
 
@@ -1920,7 +1894,7 @@ impl RouteSpecStore {
     /// Generate RouteId from typed key set of route public keys
     fn generate_allocated_route_id(&self, rssd: &RouteSetSpecDetail) -> VeilidAPIResult<RouteId> {
         let route_set_keys = rssd.get_route_set_keys();
-        let crypto = self.unlocked_inner.routing_table.crypto();
+        let crypto = self.crypto();
 
         let mut idbytes = Vec::with_capacity(PUBLIC_KEY_LENGTH * route_set_keys.len());
         let mut best_kind: Option<CryptoKind> = None;
@@ -1945,7 +1919,7 @@ impl RouteSpecStore {
         &self,
         private_routes: &[PrivateRoute],
     ) -> VeilidAPIResult<RouteId> {
-        let crypto = self.unlocked_inner.routing_table.crypto();
+        let crypto = self.crypto();
 
         let mut idbytes = Vec::with_capacity(PUBLIC_KEY_LENGTH * private_routes.len());
         let mut best_kind: Option<CryptoKind> = None;

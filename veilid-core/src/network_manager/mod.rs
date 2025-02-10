@@ -1,8 +1,8 @@
-use crate::*;
+use super::*;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 mod native;
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 mod wasm;
 
 mod address_check;
@@ -36,16 +36,15 @@ use connection_handle::*;
 use crypto::*;
 use futures_util::stream::FuturesUnordered;
 use hashlink::LruCache;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use native::*;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub use native::{MAX_CAPABILITIES, PUBLIC_INTERNET_CAPABILITIES};
 use routing_table::*;
 use rpc_processor::*;
-use storage_manager::*;
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 use wasm::*;
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 pub use wasm::{/* LOCAL_NETWORK_CAPABILITIES, */ MAX_CAPABILITIES, PUBLIC_INTERNET_CAPABILITIES,};
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -65,7 +64,6 @@ pub const HOLE_PUNCH_DELAY_MS: u32 = 100;
 struct NetworkComponents {
     net: Network,
     connection_manager: ConnectionManager,
-    rpc_processor: RPCProcessor,
     receipt_manager: ReceiptManager,
 }
 
@@ -119,45 +117,74 @@ enum SendDataToExistingFlowResult {
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum StartupDisposition {
     Success,
-    #[cfg_attr(target_arch = "wasm32", expect(dead_code))]
+    #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), expect(dead_code))]
     BindRetry,
 }
 
+#[derive(Debug, Clone)]
+pub struct NetworkManagerStartupContext {
+    pub startup_lock: Arc<StartupLock>,
+}
+impl NetworkManagerStartupContext {
+    pub fn new() -> Self {
+        Self {
+            startup_lock: Arc::new(StartupLock::new()),
+        }
+    }
+}
+impl Default for NetworkManagerStartupContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 // The mutable state of the network manager
+#[derive(Debug)]
 struct NetworkManagerInner {
     stats: NetworkManagerStats,
     client_allowlist: LruCache<TypedKey, ClientAllowlistEntry>,
     node_contact_method_cache: LruCache<NodeContactMethodCacheKey, NodeContactMethod>,
     address_check: Option<AddressCheck>,
+    peer_info_change_subscription: Option<EventBusSubscription>,
+    socket_address_change_subscription: Option<EventBusSubscription>,
 }
 
-struct NetworkManagerUnlockedInner {
-    // Handles
-    event_bus: EventBus,
-    config: VeilidConfig,
-    storage_manager: StorageManager,
-    table_store: TableStore,
-    #[cfg(feature = "unstable-blockstore")]
-    block_store: BlockStore,
-    crypto: Crypto,
+pub(crate) struct NetworkManager {
+    registry: VeilidComponentRegistry,
+    inner: Mutex<NetworkManagerInner>,
+
+    // Address filter
+    address_filter: AddressFilter,
+
     // Accessors
-    routing_table: RwLock<Option<RoutingTable>>,
-    address_filter: RwLock<Option<AddressFilter>>,
     components: RwLock<Option<NetworkComponents>>,
-    update_callback: RwLock<Option<UpdateCallback>>,
+
     // Background processes
     rolling_transfers_task: TickTask<EyreReport>,
     address_filter_task: TickTask<EyreReport>,
-    // Network Key
+
+    // Network key
     network_key: Option<SharedSecret>,
-    // Startup Lock
-    startup_lock: StartupLock,
+
+    // Startup context
+    startup_context: NetworkManagerStartupContext,
 }
 
-#[derive(Clone)]
-pub(crate) struct NetworkManager {
-    inner: Arc<Mutex<NetworkManagerInner>>,
-    unlocked_inner: Arc<NetworkManagerUnlockedInner>,
+impl_veilid_component!(NetworkManager);
+
+impl fmt::Debug for NetworkManager {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("NetworkManager")
+            //.field("registry", &self.registry)
+            .field("inner", &self.inner)
+            .field("address_filter", &self.address_filter)
+            // .field("components", &self.components)
+            // .field("rolling_transfers_task", &self.rolling_transfers_task)
+            // .field("address_filter_task", &self.address_filter_task)
+            .field("network_key", &self.network_key)
+            .field("startup_context", &self.startup_context)
+            .finish()
+    }
 }
 
 impl NetworkManager {
@@ -167,52 +194,20 @@ impl NetworkManager {
             client_allowlist: LruCache::new_unbounded(),
             node_contact_method_cache: LruCache::new(NODE_CONTACT_METHOD_CACHE_SIZE),
             address_check: None,
-        }
-    }
-    fn new_unlocked_inner(
-        event_bus: EventBus,
-        config: VeilidConfig,
-        storage_manager: StorageManager,
-        table_store: TableStore,
-        #[cfg(feature = "unstable-blockstore")] block_store: BlockStore,
-        crypto: Crypto,
-        network_key: Option<SharedSecret>,
-    ) -> NetworkManagerUnlockedInner {
-        NetworkManagerUnlockedInner {
-            event_bus,
-            config: config.clone(),
-            storage_manager,
-            table_store,
-            #[cfg(feature = "unstable-blockstore")]
-            block_store,
-            crypto,
-            address_filter: RwLock::new(None),
-            routing_table: RwLock::new(None),
-            components: RwLock::new(None),
-            update_callback: RwLock::new(None),
-            rolling_transfers_task: TickTask::new(
-                "rolling_transfers_task",
-                ROLLING_TRANSFERS_INTERVAL_SECS,
-            ),
-            address_filter_task: TickTask::new(
-                "address_filter_task",
-                ADDRESS_FILTER_TASK_INTERVAL_SECS,
-            ),
-            network_key,
-            startup_lock: StartupLock::new(),
+            peer_info_change_subscription: None,
+            socket_address_change_subscription: None,
         }
     }
 
     pub fn new(
-        event_bus: EventBus,
-        config: VeilidConfig,
-        storage_manager: StorageManager,
-        table_store: TableStore,
-        #[cfg(feature = "unstable-blockstore")] block_store: BlockStore,
-        crypto: Crypto,
+        registry: VeilidComponentRegistry,
+        startup_context: NetworkManagerStartupContext,
     ) -> Self {
         // Make the network key
         let network_key = {
+            let config = registry.config();
+            let crypto = registry.crypto();
+
             let c = config.get();
             let network_key_password = c.network.network_key_password.clone();
             let network_key = if let Some(network_key_password) = network_key_password {
@@ -238,110 +233,52 @@ impl NetworkManager {
             network_key
         };
 
+        let inner = Self::new_inner();
+        let address_filter = AddressFilter::new(registry.clone());
+
         let this = Self {
-            inner: Arc::new(Mutex::new(Self::new_inner())),
-            unlocked_inner: Arc::new(Self::new_unlocked_inner(
-                event_bus,
-                config,
-                storage_manager,
-                table_store,
-                #[cfg(feature = "unstable-blockstore")]
-                block_store,
-                crypto,
-                network_key,
-            )),
+            registry,
+            inner: Mutex::new(inner),
+            address_filter,
+            components: RwLock::new(None),
+            rolling_transfers_task: TickTask::new(
+                "rolling_transfers_task",
+                ROLLING_TRANSFERS_INTERVAL_SECS,
+            ),
+            address_filter_task: TickTask::new(
+                "address_filter_task",
+                ADDRESS_FILTER_TASK_INTERVAL_SECS,
+            ),
+            network_key,
+            startup_context,
         };
 
         this.setup_tasks();
 
         this
     }
-    pub fn event_bus(&self) -> EventBus {
-        self.unlocked_inner.event_bus.clone()
+
+    pub fn address_filter(&self) -> &AddressFilter {
+        &self.address_filter
     }
-    pub fn config(&self) -> VeilidConfig {
-        self.unlocked_inner.config.clone()
-    }
-    pub fn with_config<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&VeilidConfigInner) -> R,
-    {
-        f(&self.unlocked_inner.config.get())
-    }
-    pub fn storage_manager(&self) -> StorageManager {
-        self.unlocked_inner.storage_manager.clone()
-    }
-    pub fn table_store(&self) -> TableStore {
-        self.unlocked_inner.table_store.clone()
-    }
-    #[cfg(feature = "unstable-blockstore")]
-    pub fn block_store(&self) -> BlockStore {
-        self.unlocked_inner.block_store.clone()
-    }
-    pub fn crypto(&self) -> Crypto {
-        self.unlocked_inner.crypto.clone()
-    }
-    pub fn address_filter(&self) -> AddressFilter {
-        self.unlocked_inner
-            .address_filter
-            .read()
-            .as_ref()
-            .unwrap()
-            .clone()
-    }
-    pub fn routing_table(&self) -> RoutingTable {
-        self.unlocked_inner
-            .routing_table
-            .read()
-            .as_ref()
-            .unwrap()
-            .clone()
-    }
+
     fn net(&self) -> Network {
-        self.unlocked_inner
-            .components
-            .read()
-            .as_ref()
-            .unwrap()
-            .net
-            .clone()
+        self.components.read().as_ref().unwrap().net.clone()
     }
     fn opt_net(&self) -> Option<Network> {
-        self.unlocked_inner
-            .components
-            .read()
-            .as_ref()
-            .map(|x| x.net.clone())
+        self.components.read().as_ref().map(|x| x.net.clone())
     }
     fn receipt_manager(&self) -> ReceiptManager {
-        self.unlocked_inner
-            .components
+        self.components
             .read()
             .as_ref()
             .unwrap()
             .receipt_manager
             .clone()
     }
-    pub fn rpc_processor(&self) -> RPCProcessor {
-        self.unlocked_inner
-            .components
-            .read()
-            .as_ref()
-            .unwrap()
-            .rpc_processor
-            .clone()
-    }
-    pub fn opt_rpc_processor(&self) -> Option<RPCProcessor> {
-        self.unlocked_inner
-            .components
-            .read()
-            .as_ref()
-            .map(|x| x.rpc_processor.clone())
-    }
 
     pub fn connection_manager(&self) -> ConnectionManager {
-        self.unlocked_inner
-            .components
+        self.components
             .read()
             .as_ref()
             .unwrap()
@@ -349,103 +286,48 @@ impl NetworkManager {
             .clone()
     }
     pub fn opt_connection_manager(&self) -> Option<ConnectionManager> {
-        self.unlocked_inner
-            .components
+        self.components
             .read()
             .as_ref()
             .map(|x| x.connection_manager.clone())
     }
 
-    pub fn update_callback(&self) -> UpdateCallback {
-        self.unlocked_inner
-            .update_callback
-            .read()
-            .as_ref()
-            .unwrap()
-            .clone()
-    }
-
     #[instrument(level = "debug", skip_all, err)]
-    pub async fn init(&self, update_callback: UpdateCallback) -> EyreResult<()> {
-        let routing_table = RoutingTable::new(self.clone());
-        routing_table.init().await?;
-        let address_filter = AddressFilter::new(self.config(), routing_table.clone());
-        *self.unlocked_inner.routing_table.write() = Some(routing_table.clone());
-        *self.unlocked_inner.address_filter.write() = Some(address_filter);
-        *self.unlocked_inner.update_callback.write() = Some(update_callback);
-
-        // Register event handlers
-        let this = self.clone();
-        self.event_bus().subscribe(move |evt| {
-            let this = this.clone();
-            Box::pin(async move {
-                this.peer_info_change_event_handler(evt);
-            })
-        });
-        let this = self.clone();
-        self.event_bus().subscribe(move |evt| {
-            let this = this.clone();
-            Box::pin(async move {
-                this.socket_address_change_event_handler(evt);
-            })
-        });
-
+    async fn init_async(&self) -> EyreResult<()> {
         Ok(())
     }
 
-    #[instrument(level = "debug", skip_all)]
-    pub async fn terminate(&self) {
-        let routing_table = self.unlocked_inner.routing_table.write().take();
-        if let Some(routing_table) = routing_table {
-            routing_table.terminate().await;
-        }
-        *self.unlocked_inner.update_callback.write() = None;
+    async fn post_init_async(&self) -> EyreResult<()> {
+        Ok(())
     }
+
+    async fn pre_terminate_async(&self) {}
+
+    #[instrument(level = "debug", skip_all)]
+    async fn terminate_async(&self) {}
 
     #[instrument(level = "debug", skip_all, err)]
     pub async fn internal_startup(&self) -> EyreResult<StartupDisposition> {
-        if self.unlocked_inner.components.read().is_some() {
+        if self.components.read().is_some() {
             log_net!(debug "NetworkManager::internal_startup already started");
             return Ok(StartupDisposition::Success);
         }
 
         // Clean address filter for things that should not be persistent
-        self.address_filter().restart();
+        self.address_filter.restart();
 
         // Create network components
-        let connection_manager = ConnectionManager::new(self.clone());
-        let net = Network::new(
-            self.clone(),
-            self.routing_table(),
-            connection_manager.clone(),
-        );
-        let rpc_processor = RPCProcessor::new(
-            self.clone(),
-            self.unlocked_inner
-                .update_callback
-                .read()
-                .as_ref()
-                .unwrap()
-                .clone(),
-        );
+        let connection_manager = ConnectionManager::new(self.registry());
+        let net = Network::new(self.registry());
         let receipt_manager = ReceiptManager::new();
-        *self.unlocked_inner.components.write() = Some(NetworkComponents {
+
+        *self.components.write() = Some(NetworkComponents {
             net: net.clone(),
             connection_manager: connection_manager.clone(),
-            rpc_processor: rpc_processor.clone(),
             receipt_manager: receipt_manager.clone(),
         });
 
-        // Start network components
-        connection_manager.startup().await?;
-        match net.startup().await? {
-            StartupDisposition::Success => {}
-            StartupDisposition::BindRetry => {
-                return Ok(StartupDisposition::BindRetry);
-            }
-        }
-
-        let (detect_address_changes, ip6_prefix_size) = self.with_config(|c| {
+        let (detect_address_changes, ip6_prefix_size) = self.config().with(|c| {
             (
                 c.network.detect_address_changes,
                 c.network.max_connections_per_ip6_prefix_size as usize,
@@ -456,9 +338,30 @@ impl NetworkManager {
             ip6_prefix_size,
         };
         let address_check = AddressCheck::new(address_check_config, net.clone());
-        self.inner.lock().address_check = Some(address_check);
 
-        rpc_processor.startup().await?;
+        // Register event handlers
+        let peer_info_change_subscription =
+            impl_subscribe_event_bus!(self, Self, peer_info_change_event_handler);
+
+        let socket_address_change_subscription =
+            impl_subscribe_event_bus!(self, Self, socket_address_change_event_handler);
+
+        {
+            let mut inner = self.inner.lock();
+            inner.address_check = Some(address_check);
+            inner.peer_info_change_subscription = Some(peer_info_change_subscription);
+            inner.socket_address_change_subscription = Some(socket_address_change_subscription);
+        }
+
+        // Start network components
+        connection_manager.startup().await?;
+        match net.startup().await? {
+            StartupDisposition::Success => {}
+            StartupDisposition::BindRetry => {
+                return Ok(StartupDisposition::BindRetry);
+            }
+        }
+
         receipt_manager.startup().await?;
 
         log_net!("NetworkManager::internal_startup end");
@@ -468,15 +371,11 @@ impl NetworkManager {
 
     #[instrument(level = "debug", skip_all, err)]
     pub async fn startup(&self) -> EyreResult<StartupDisposition> {
-        let guard = self.unlocked_inner.startup_lock.startup()?;
+        let guard = self.startup_context.startup_lock.startup()?;
 
         match self.internal_startup().await {
             Ok(StartupDisposition::Success) => {
                 guard.success();
-
-                // Inform api clients that things have changed
-                self.send_network_update();
-
                 Ok(StartupDisposition::Success)
             }
             Ok(StartupDisposition::BindRetry) => {
@@ -492,25 +391,30 @@ impl NetworkManager {
 
     #[instrument(level = "debug", skip_all)]
     async fn shutdown_internal(&self) {
-        // Cancel all tasks
-        self.cancel_tasks().await;
-
-        // Shutdown address check
-        self.inner.lock().address_check = Option::<AddressCheck>::None;
+        // Shutdown event bus subscriptions and address check
+        {
+            let mut inner = self.inner.lock();
+            if let Some(sub) = inner.socket_address_change_subscription.take() {
+                self.event_bus().unsubscribe(sub);
+            }
+            if let Some(sub) = inner.peer_info_change_subscription.take() {
+                self.event_bus().unsubscribe(sub);
+            }
+            inner.address_check = None;
+        }
 
         // Shutdown network components if they started up
         log_net!(debug "shutting down network components");
 
         {
-            let components = self.unlocked_inner.components.read().clone();
+            let components = self.components.read().clone();
             if let Some(components) = components {
                 components.net.shutdown().await;
-                components.rpc_processor.shutdown().await;
                 components.receipt_manager.shutdown().await;
                 components.connection_manager.shutdown().await;
             }
         }
-        *self.unlocked_inner.components.write() = None;
+        *self.components.write() = None;
 
         // reset the state
         log_net!(debug "resetting network manager state");
@@ -521,21 +425,22 @@ impl NetworkManager {
 
     #[instrument(level = "debug", skip_all)]
     pub async fn shutdown(&self) {
-        log_net!(debug "starting network manager shutdown");
+        // Cancel all tasks
+        log_net!(debug "stopping network manager tasks");
+        self.cancel_tasks().await;
 
-        let Ok(guard) = self.unlocked_inner.startup_lock.shutdown().await else {
-            log_net!(debug "network manager is already shut down");
-            return;
-        };
+        // Proceed with shutdown
+        log_net!(debug "starting network manager shutdown");
+        let guard = self
+            .startup_context
+            .startup_lock
+            .shutdown()
+            .await
+            .expect("should be started up");
 
         self.shutdown_internal().await;
 
         guard.success();
-
-        // send update
-        log_net!(debug "sending network state update to api clients");
-        self.send_network_update();
-
         log_net!(debug "finished network manager shutdown");
     }
 
@@ -568,7 +473,9 @@ impl NetworkManager {
     }
 
     pub fn purge_client_allowlist(&self) {
-        let timeout_ms = self.with_config(|c| c.network.client_allowlist_timeout_ms);
+        let timeout_ms = self
+            .config()
+            .with(|c| c.network.client_allowlist_timeout_ms);
         let mut inner = self.inner.lock();
         let cutoff_timestamp =
             Timestamp::now() - TimestampDuration::new((timeout_ms as u64) * 1000u64);
@@ -607,14 +514,15 @@ impl NetworkManager {
         extra_data: D,
         callback: impl ReceiptCallback,
     ) -> EyreResult<Vec<u8>> {
-        let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
+        let Ok(_guard) = self.startup_context.startup_lock.enter() else {
             bail!("network is not started");
         };
         let receipt_manager = self.receipt_manager();
         let routing_table = self.routing_table();
+        let crypto = self.crypto();
 
         // Generate receipt and serialized form to return
-        let vcrypto = self.crypto().best();
+        let vcrypto = crypto.best();
 
         let nonce = vcrypto.random_nonce();
         let node_id = routing_table.node_id(vcrypto.kind());
@@ -628,7 +536,7 @@ impl NetworkManager {
             extra_data,
         )?;
         let out = receipt
-            .to_signed_data(self.crypto(), &node_id_secret)
+            .to_signed_data(&crypto, &node_id_secret)
             .wrap_err("failed to generate signed receipt")?;
 
         // Record the receipt for later
@@ -645,15 +553,16 @@ impl NetworkManager {
         expiration_us: TimestampDuration,
         extra_data: D,
     ) -> EyreResult<(Vec<u8>, EventualValueFuture<ReceiptEvent>)> {
-        let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
+        let Ok(_guard) = self.startup_context.startup_lock.enter() else {
             bail!("network is not started");
         };
 
         let receipt_manager = self.receipt_manager();
         let routing_table = self.routing_table();
+        let crypto = self.crypto();
 
         // Generate receipt and serialized form to return
-        let vcrypto = self.crypto().best();
+        let vcrypto = crypto.best();
 
         let nonce = vcrypto.random_nonce();
         let node_id = routing_table.node_id(vcrypto.kind());
@@ -667,7 +576,7 @@ impl NetworkManager {
             extra_data,
         )?;
         let out = receipt
-            .to_signed_data(self.crypto(), &node_id_secret)
+            .to_signed_data(&crypto, &node_id_secret)
             .wrap_err("failed to generate signed receipt")?;
 
         // Record the receipt for later
@@ -685,13 +594,14 @@ impl NetworkManager {
         &self,
         receipt_data: R,
     ) -> NetworkResult<()> {
-        let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
+        let Ok(_guard) = self.startup_context.startup_lock.enter() else {
             return NetworkResult::service_unavailable("network is not started");
         };
 
         let receipt_manager = self.receipt_manager();
+        let crypto = self.crypto();
 
-        let receipt = match Receipt::from_signed_data(self.crypto(), receipt_data.as_ref()) {
+        let receipt = match Receipt::from_signed_data(&crypto, receipt_data.as_ref()) {
             Err(e) => {
                 return NetworkResult::invalid_message(e.to_string());
             }
@@ -710,13 +620,14 @@ impl NetworkManager {
         receipt_data: R,
         inbound_noderef: FilteredNodeRef,
     ) -> NetworkResult<()> {
-        let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
+        let Ok(_guard) = self.startup_context.startup_lock.enter() else {
             return NetworkResult::service_unavailable("network is not started");
         };
 
         let receipt_manager = self.receipt_manager();
+        let crypto = self.crypto();
 
-        let receipt = match Receipt::from_signed_data(self.crypto(), receipt_data.as_ref()) {
+        let receipt = match Receipt::from_signed_data(&crypto, receipt_data.as_ref()) {
             Err(e) => {
                 return NetworkResult::invalid_message(e.to_string());
             }
@@ -734,13 +645,14 @@ impl NetworkManager {
         &self,
         receipt_data: R,
     ) -> NetworkResult<()> {
-        let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
+        let Ok(_guard) = self.startup_context.startup_lock.enter() else {
             return NetworkResult::service_unavailable("network is not started");
         };
 
         let receipt_manager = self.receipt_manager();
+        let crypto = self.crypto();
 
-        let receipt = match Receipt::from_signed_data(self.crypto(), receipt_data.as_ref()) {
+        let receipt = match Receipt::from_signed_data(&crypto, receipt_data.as_ref()) {
             Err(e) => {
                 return NetworkResult::invalid_message(e.to_string());
             }
@@ -759,13 +671,14 @@ impl NetworkManager {
         receipt_data: R,
         private_route: PublicKey,
     ) -> NetworkResult<()> {
-        let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
+        let Ok(_guard) = self.startup_context.startup_lock.enter() else {
             return NetworkResult::service_unavailable("network is not started");
         };
 
         let receipt_manager = self.receipt_manager();
+        let crypto = self.crypto();
 
-        let receipt = match Receipt::from_signed_data(self.crypto(), receipt_data.as_ref()) {
+        let receipt = match Receipt::from_signed_data(&crypto, receipt_data.as_ref()) {
             Err(e) => {
                 return NetworkResult::invalid_message(e.to_string());
             }
@@ -784,7 +697,7 @@ impl NetworkManager {
         signal_flow: Flow,
         signal_info: SignalInfo,
     ) -> EyreResult<NetworkResult<()>> {
-        let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
+        let Ok(_guard) = self.startup_context.startup_lock.enter() else {
             return Ok(NetworkResult::service_unavailable("network is not started"));
         };
 
@@ -884,7 +797,8 @@ impl NetworkManager {
     ) -> EyreResult<Vec<u8>> {
         // DH to get encryption key
         let routing_table = self.routing_table();
-        let Some(vcrypto) = self.crypto().get(dest_node_id.kind) else {
+        let crypto = self.crypto();
+        let Some(vcrypto) = crypto.get(dest_node_id.kind) else {
             bail!("should not have a destination with incompatible crypto here");
         };
 
@@ -905,12 +819,7 @@ impl NetworkManager {
             dest_node_id.value,
         );
         envelope
-            .to_encrypted_data(
-                self.crypto(),
-                body.as_ref(),
-                &node_id_secret,
-                &self.unlocked_inner.network_key,
-            )
+            .to_encrypted_data(&crypto, body.as_ref(), &node_id_secret, &self.network_key)
             .wrap_err("envelope failed to encode")
     }
 
@@ -925,7 +834,7 @@ impl NetworkManager {
         destination_node_ref: Option<NodeRef>,
         body: B,
     ) -> EyreResult<NetworkResult<SendDataMethod>> {
-        let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
+        let Ok(_guard) = self.startup_context.startup_lock.enter() else {
             return Ok(NetworkResult::no_connection_other("network is not started"));
         };
 
@@ -966,7 +875,7 @@ impl NetworkManager {
         dial_info: DialInfo,
         rcpt_data: Vec<u8>,
     ) -> EyreResult<()> {
-        let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
+        let Ok(_guard) = self.startup_context.startup_lock.enter() else {
             log_net!(debug "not sending out-of-band receipt to {} because network is stopped", dial_info);
             return Ok(());
         };
@@ -993,7 +902,7 @@ impl NetworkManager {
     // and passes it to the RPC handler
     #[instrument(level = "trace", target = "net", skip_all)]
     async fn on_recv_envelope(&self, data: &mut [u8], flow: Flow) -> EyreResult<bool> {
-        let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
+        let Ok(_guard) = self.startup_context.startup_lock.enter() else {
             return Ok(false);
         };
 
@@ -1043,21 +952,20 @@ impl NetworkManager {
         }
 
         // Decode envelope header (may fail signature validation)
-        let envelope =
-            match Envelope::from_signed_data(self.crypto(), data, &self.unlocked_inner.network_key)
-            {
-                Ok(v) => v,
-                Err(e) => {
-                    log_net!(debug "envelope failed to decode: {}", e);
-                    // safe to punish here because relays also check here to ensure they arent forwarding things that don't decode
-                    self.address_filter()
-                        .punish_ip_addr(remote_addr, PunishmentReason::FailedToDecodeEnvelope);
-                    return Ok(false);
-                }
-            };
+        let crypto = self.crypto();
+        let envelope = match Envelope::from_signed_data(&crypto, data, &self.network_key) {
+            Ok(v) => v,
+            Err(e) => {
+                log_net!(debug "envelope failed to decode: {}", e);
+                // safe to punish here because relays also check here to ensure they arent forwarding things that don't decode
+                self.address_filter()
+                    .punish_ip_addr(remote_addr, PunishmentReason::FailedToDecodeEnvelope);
+                return Ok(false);
+            }
+        };
 
         // Get timestamp range
-        let (tsbehind, tsahead) = self.with_config(|c| {
+        let (tsbehind, tsahead) = self.config().with(|c| {
             (
                 c.network
                     .rpc
@@ -1136,7 +1044,10 @@ impl NetworkManager {
                 // which only performs a lightweight lookup before passing the packet back out
 
                 // If our node has the relay capability disabled, we should not be asked to relay
-                if self.with_config(|c| c.capabilities.disable.contains(&CAP_RELAY)) {
+                if self
+                    .config()
+                    .with(|c| c.capabilities.disable.contains(&CAP_RELAY))
+                {
                     log_net!(debug "node has relay capability disabled, dropping relayed envelope from {} to {}", sender_id, recipient_id);
                     return Ok(false);
                 }
@@ -1191,12 +1102,8 @@ impl NetworkManager {
         let node_id_secret = routing_table.node_id_secret_key(envelope.get_crypto_kind());
 
         // Decrypt the envelope body
-        let body = match envelope.decrypt_body(
-            self.crypto(),
-            data,
-            &node_id_secret,
-            &self.unlocked_inner.network_key,
-        ) {
+        let crypto = self.crypto();
+        let body = match envelope.decrypt_body(&crypto, data, &node_id_secret, &self.network_key) {
             Ok(v) => v,
             Err(e) => {
                 log_net!(debug "failed to decrypt envelope body: {}", e);

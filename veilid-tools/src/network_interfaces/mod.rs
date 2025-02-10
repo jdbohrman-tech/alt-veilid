@@ -1,6 +1,7 @@
 mod tools;
 
 use crate::*;
+use serde::*;
 
 cfg_if::cfg_if! {
     if #[cfg(any(target_os = "linux", target_os = "android"))] {
@@ -18,12 +19,15 @@ cfg_if::cfg_if! {
         mod openbsd;
         mod sockaddr_tools;
         use self::openbsd::PlatformSupportOpenBSD as PlatformSupport;
+    } else if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
+        mod wasm;
+        use self::wasm::PlatformSupportWasm as PlatformSupport;
     } else {
         compile_error!("No network interfaces support for this platform!");
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Hash, Clone, Serialize, Deserialize)]
 pub enum IfAddr {
     V4(Ifv4Addr),
     V6(Ifv6Addr),
@@ -51,7 +55,7 @@ impl IfAddr {
 }
 
 /// Details about the ipv4 address of an interface on this host.
-#[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Hash, Clone, Serialize, Deserialize)]
 pub struct Ifv4Addr {
     /// The IP address of the interface.
     pub ip: Ipv4Addr,
@@ -62,7 +66,7 @@ pub struct Ifv4Addr {
 }
 
 /// Details about the ipv6 address of an interface on this host.
-#[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Hash, Clone, Serialize, Deserialize)]
 pub struct Ifv6Addr {
     /// The IP address of the interface.
     pub ip: Ipv6Addr,
@@ -73,7 +77,9 @@ pub struct Ifv6Addr {
 }
 
 /// Some of the flags associated with an interface.
-#[derive(Debug, Default, PartialEq, Eq, Ord, PartialOrd, Hash, Clone, Copy)]
+#[derive(
+    Debug, Default, PartialEq, Eq, Ord, PartialOrd, Hash, Clone, Copy, Serialize, Deserialize,
+)]
 pub struct InterfaceFlags {
     pub is_loopback: bool,
     pub is_running: bool,
@@ -82,7 +88,9 @@ pub struct InterfaceFlags {
 }
 
 /// Some of the flags associated with an address.
-#[derive(Debug, Default, PartialEq, Eq, Ord, PartialOrd, Hash, Clone, Copy)]
+#[derive(
+    Debug, Default, PartialEq, Eq, Ord, PartialOrd, Hash, Clone, Copy, Serialize, Deserialize,
+)]
 pub struct AddressFlags {
     // common flags
     pub is_dynamic: bool,
@@ -91,10 +99,10 @@ pub struct AddressFlags {
     pub is_preferred: bool,
 }
 
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 pub struct InterfaceAddress {
-    if_addr: IfAddr,
-    flags: AddressFlags,
+    pub if_addr: IfAddr,
+    pub flags: AddressFlags,
 }
 
 use core::cmp::Ordering;
@@ -226,7 +234,7 @@ impl InterfaceAddress {
 //     Wired,      // Wired is usually free or cheap and high speed
 // }
 
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct NetworkInterface {
     pub name: String,
     pub flags: InterfaceFlags,

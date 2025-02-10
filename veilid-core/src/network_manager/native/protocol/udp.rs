@@ -1,19 +1,20 @@
 use super::*;
-use sockets::*;
 
 #[derive(Clone)]
 pub struct RawUdpProtocolHandler {
+    registry: VeilidComponentRegistry,
     socket: Arc<UdpSocket>,
     assembly_buffer: AssemblyBuffer,
-    address_filter: Option<AddressFilter>,
 }
 
+impl_veilid_component_registry_accessor!(RawUdpProtocolHandler);
+
 impl RawUdpProtocolHandler {
-    pub fn new(socket: Arc<UdpSocket>, address_filter: Option<AddressFilter>) -> Self {
+    pub fn new(registry: VeilidComponentRegistry, socket: Arc<UdpSocket>) -> Self {
         Self {
+            registry,
             socket,
             assembly_buffer: AssemblyBuffer::new(),
-            address_filter,
         }
     }
 
@@ -24,10 +25,12 @@ impl RawUdpProtocolHandler {
             let (size, remote_addr) = network_result_value_or_log!(self.socket.recv_from(data).await.into_network_result()? => continue);
 
             // Check to see if it is punished
-            if let Some(af) = self.address_filter.as_ref() {
-                if af.is_ip_addr_punished(remote_addr.ip()) {
-                    continue;
-                }
+            if self
+                .network_manager()
+                .address_filter()
+                .is_ip_addr_punished(remote_addr.ip())
+            {
+                continue;
             }
 
             // Insert into assembly buffer
@@ -91,10 +94,12 @@ impl RawUdpProtocolHandler {
         }
 
         // Check to see if it is punished
-        if let Some(af) = self.address_filter.as_ref() {
-            if af.is_ip_addr_punished(remote_addr.ip()) {
-                return Ok(NetworkResult::no_connection_other("punished"));
-            }
+        if self
+            .network_manager()
+            .address_filter()
+            .is_ip_addr_punished(remote_addr.ip())
+        {
+            return Ok(NetworkResult::no_connection_other("punished"));
         }
 
         // Fragment and send
@@ -137,11 +142,13 @@ impl RawUdpProtocolHandler {
 
     #[instrument(level = "trace", target = "protocol", err)]
     pub async fn new_unspecified_bound_handler(
+        registry: VeilidComponentRegistry,
         socket_addr: &SocketAddr,
     ) -> io::Result<RawUdpProtocolHandler> {
         // get local wildcard address for bind
         let local_socket_addr = compatible_unspecified_socket_addr(socket_addr);
-        let socket = UdpSocket::bind(local_socket_addr).await?;
-        Ok(RawUdpProtocolHandler::new(Arc::new(socket), None))
+        let socket = bind_async_udp_socket(local_socket_addr)?
+            .ok_or(io::Error::from(io::ErrorKind::AddrInUse))?;
+        Ok(RawUdpProtocolHandler::new(registry, Arc::new(socket)))
     }
 }

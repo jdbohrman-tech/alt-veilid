@@ -16,18 +16,20 @@ pub(crate) use traits::*;
 // Default NodeRef
 
 pub(crate) struct NodeRef {
-    routing_table: RoutingTable,
+    registry: VeilidComponentRegistry,
     entry: Arc<BucketEntry>,
     #[cfg(feature = "tracking")]
     track_id: usize,
 }
 
+impl_veilid_component_registry_accessor!(NodeRef);
+
 impl NodeRef {
-    pub fn new(routing_table: RoutingTable, entry: Arc<BucketEntry>) -> Self {
+    pub fn new(registry: VeilidComponentRegistry, entry: Arc<BucketEntry>) -> Self {
         entry.ref_count.fetch_add(1u32, Ordering::AcqRel);
 
         Self {
-            routing_table,
+            registry,
             entry,
             #[cfg(feature = "tracking")]
             track_id: entry.track(),
@@ -36,7 +38,7 @@ impl NodeRef {
 
     pub fn default_filtered(&self) -> FilteredNodeRef {
         FilteredNodeRef::new(
-            self.routing_table.clone(),
+            self.registry.clone(),
             self.entry.clone(),
             NodeRefFilter::new(),
             Sequencing::default(),
@@ -45,7 +47,7 @@ impl NodeRef {
 
     pub fn sequencing_filtered(&self, sequencing: Sequencing) -> FilteredNodeRef {
         FilteredNodeRef::new(
-            self.routing_table.clone(),
+            self.registry.clone(),
             self.entry.clone(),
             NodeRefFilter::new(),
             sequencing,
@@ -57,7 +59,7 @@ impl NodeRef {
         routing_domain_set: R,
     ) -> FilteredNodeRef {
         FilteredNodeRef::new(
-            self.routing_table.clone(),
+            self.registry.clone(),
             self.entry.clone(),
             NodeRefFilter::new().with_routing_domain_set(routing_domain_set.into()),
             Sequencing::default(),
@@ -66,7 +68,7 @@ impl NodeRef {
 
     pub fn custom_filtered(&self, filter: NodeRefFilter) -> FilteredNodeRef {
         FilteredNodeRef::new(
-            self.routing_table.clone(),
+            self.registry.clone(),
             self.entry.clone(),
             filter,
             Sequencing::default(),
@@ -76,7 +78,7 @@ impl NodeRef {
     #[expect(dead_code)]
     pub fn dial_info_filtered(&self, filter: DialInfoFilter) -> FilteredNodeRef {
         FilteredNodeRef::new(
-            self.routing_table.clone(),
+            self.registry.clone(),
             self.entry.clone(),
             NodeRefFilter::new().with_dial_info_filter(filter),
             Sequencing::default(),
@@ -92,9 +94,6 @@ impl NodeRef {
 }
 
 impl NodeRefAccessorsTrait for NodeRef {
-    fn routing_table(&self) -> RoutingTable {
-        self.routing_table.clone()
-    }
     fn entry(&self) -> Arc<BucketEntry> {
         self.entry.clone()
     }
@@ -125,7 +124,8 @@ impl NodeRefOperateTrait for NodeRef {
     where
         F: FnOnce(&RoutingTableInner, &BucketEntryInner) -> T,
     {
-        let inner = &*self.routing_table.inner.read();
+        let routing_table = self.routing_table();
+        let inner = &*routing_table.inner.read();
         self.entry.with(inner, f)
     }
 
@@ -133,7 +133,8 @@ impl NodeRefOperateTrait for NodeRef {
     where
         F: FnOnce(&mut RoutingTableInner, &mut BucketEntryInner) -> T,
     {
-        let inner = &mut *self.routing_table.inner.write();
+        let routing_table = self.routing_table();
+        let inner = &mut *routing_table.inner.write();
         self.entry.with_mut(inner, f)
     }
 }
@@ -145,7 +146,7 @@ impl Clone for NodeRef {
         self.entry.ref_count.fetch_add(1u32, Ordering::AcqRel);
 
         Self {
-            routing_table: self.routing_table.clone(),
+            registry: self.registry.clone(),
             entry: self.entry.clone(),
             #[cfg(feature = "tracking")]
             track_id: self.entry.write().track(),
@@ -178,7 +179,7 @@ impl Drop for NodeRef {
             // get node ids with inner unlocked because nothing could be referencing this entry now
             // and we don't know when it will get dropped, possibly inside a lock
             let node_ids = self.entry.with_inner(|e| e.node_ids());
-            self.routing_table.queue_bucket_kicks(node_ids);
+            self.routing_table().queue_bucket_kicks(node_ids);
         }
     }
 }

@@ -20,7 +20,7 @@ impl Address {
             SocketAddr::V6(v6) => Address::IPV6(*v6.ip()),
         }
     }
-    #[cfg_attr(target_arch = "wasm32", expect(dead_code))]
+    #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), expect(dead_code))]
     pub fn from_ip_addr(addr: IpAddr) -> Address {
         match addr {
             IpAddr::V4(v4) => Address::IPV4(v4),

@@ -15,7 +15,7 @@ async fn shutdown(api: VeilidAPI) {
     trace!("test_table_store: finished");
 }
 
-pub async fn test_protected_store(ps: ProtectedStore) {
+pub async fn test_protected_store(ps: &ProtectedStore) {
     info!("testing protected store");
 
     let _ = ps.remove_user_secret("_test_key").await;
@@ -81,7 +81,7 @@ pub async fn test_protected_store(ps: ProtectedStore) {
 pub async fn test_all() {
     let api = startup().await;
     let ps = api.protected_store().unwrap();
-    test_protected_store(ps.clone()).await;
+    test_protected_store(&ps).await;
 
     shutdown(api).await;
 }

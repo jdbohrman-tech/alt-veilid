@@ -1,7 +1,7 @@
 use super::*;
 
 cfg_if! {
-    if #[cfg(target_arch = "wasm32")] {
+    if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
         use futures_util::future::{select, Either};
 
         pub async fn timeout<F, T>(dur_ms: u32, f: F) -> Result<T, TimeoutError>

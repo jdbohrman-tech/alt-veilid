@@ -9,13 +9,13 @@ impl RPCProcessor {
     /// the identity of the node and defeat the private route.
     #[instrument(level = "trace", target = "rpc", skip(self), err)]
     pub async fn rpc_call_find_node(
-        self,
+        &self,
         dest: Destination,
         node_id: TypedKey,
         capabilities: Vec<Capability>,
     ) -> RPCNetworkResult<Answer<Vec<Arc<PeerInfo>>>> {
         let _guard = self
-            .unlocked_inner
+            .startup_context
             .startup_lock
             .enter()
             .map_err(RPCError::map_try_again("not started up"))?;

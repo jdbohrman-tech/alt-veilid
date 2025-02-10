@@ -1,15 +1,13 @@
 use super::*;
-use sockets::*;
 use stop_token::future::FutureExt;
 
 impl Network {
     #[instrument(level = "trace", skip_all)]
     pub(super) async fn create_udp_listener_tasks(&self) -> EyreResult<()> {
         // Spawn socket tasks
-        let mut task_count = {
-            let c = self.config.get();
-            c.network.protocol.udp.socket_pool_size
-        };
+        let mut task_count = self
+            .config()
+            .with(|c| c.network.protocol.udp.socket_pool_size);
         if task_count == 0 {
             task_count = get_concurrency() / 2;
             if task_count == 0 {
@@ -38,7 +36,6 @@ impl Network {
 
                 // Spawn a local async task for each socket
                 let mut protocol_handlers_unordered = FuturesUnordered::new();
-                let network_manager = this.network_manager();
                 let stop_token = {
                     let inner = this.inner.lock();
                     if inner.stop_source.is_none() {
@@ -49,7 +46,7 @@ impl Network {
                 };
 
                 for ph in protocol_handlers {
-                    let network_manager = network_manager.clone();
+                    let network_manager = this.network_manager();
                     let stop_token = stop_token.clone();
                     let ph_future = async move {
                         let mut data = vec![0u8; 65536];
@@ -114,28 +111,14 @@ impl Network {
     async fn create_udp_protocol_handler(&self, addr: SocketAddr) -> EyreResult<bool> {
         log_net!(debug "create_udp_protocol_handler on {:?}", &addr);
 
-        // Create a reusable socket
-        let Some(socket) = new_bound_default_udp_socket(addr)? else {
+        // Create a single-address-family UDP socket with default options bound to an address
+        let Some(udp_socket) = bind_async_udp_socket(addr)? else {
             return Ok(false);
         };
-
-        // Make an async UdpSocket from the socket2 socket
-        let std_udp_socket: std::net::UdpSocket = socket.into();
-        cfg_if! {
-            if #[cfg(feature="rt-async-std")] {
-                let udp_socket = UdpSocket::from(std_udp_socket);
-            } else if #[cfg(feature="rt-tokio")] {
-                std_udp_socket.set_nonblocking(true).expect("failed to set nonblocking");
-                let udp_socket = UdpSocket::from_std(std_udp_socket).wrap_err("failed to make inbound tokio udpsocket")?;
-            } else {
-                compile_error!("needs executor implementation");
-            }
-        }
         let socket_arc = Arc::new(udp_socket);
 
         // Create protocol handler
-        let protocol_handler =
-            RawUdpProtocolHandler::new(socket_arc, Some(self.network_manager().address_filter()));
+        let protocol_handler = RawUdpProtocolHandler::new(self.registry(), socket_arc);
 
         // Record protocol handler
         let mut inner = self.inner.lock();

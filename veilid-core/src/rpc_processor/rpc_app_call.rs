@@ -5,12 +5,12 @@ impl RPCProcessor {
     // Can be sent via all methods including relays and routes
     #[instrument(level = "trace", target = "rpc", skip(self, message), fields(message.len = message.len(), ret.latency, ret.len), err)]
     pub async fn rpc_call_app_call(
-        self,
+        &self,
         dest: Destination,
         message: Vec<u8>,
     ) -> RPCNetworkResult<Answer<Vec<u8>>> {
         let _guard = self
-            .unlocked_inner
+            .startup_context
             .startup_lock
             .enter()
             .map_err(RPCError::map_try_again("not started up"))?;
@@ -117,22 +117,18 @@ impl RPCProcessor {
             .map(|nr| nr.node_ids().get(crypto_kind).unwrap());
 
         // Register a waiter for this app call
-        let handle = self
-            .unlocked_inner
-            .waiting_app_call_table
-            .add_op_waiter(op_id, ());
+        let handle = self.waiting_app_call_table.add_op_waiter(op_id, ());
 
         // Pass the call up through the update callback
         let message_q = app_call_q.destructure();
-        (self.unlocked_inner.update_callback)(VeilidUpdate::AppCall(Box::new(VeilidAppCall::new(
+        (self.update_callback())(VeilidUpdate::AppCall(Box::new(VeilidAppCall::new(
             sender, route_id, message_q, op_id,
         ))));
 
         // Wait for an app call answer to come back from the app
         let res = self
-            .unlocked_inner
             .waiting_app_call_table
-            .wait_for_op(handle, self.unlocked_inner.timeout_us)
+            .wait_for_op(handle, self.timeout_us)
             .await?;
         let (message_a, _latency) = match res {
             TimeoutOr::Timeout => {
@@ -158,12 +154,11 @@ impl RPCProcessor {
     #[instrument(level = "trace", target = "rpc", skip_all)]
     pub fn app_call_reply(&self, call_id: OperationId, message: Vec<u8>) -> Result<(), RPCError> {
         let _guard = self
-            .unlocked_inner
+            .startup_context
             .startup_lock
             .enter()
             .map_err(RPCError::map_try_again("not started up"))?;
-        self.unlocked_inner
-            .waiting_app_call_table
+        self.waiting_app_call_table
             .complete_op_waiter(call_id, message)
             .map_err(RPCError::ignore)
     }

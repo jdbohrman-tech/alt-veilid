@@ -49,14 +49,13 @@ fn is_bytes_eq_32(a: &[u8], v: u8) -> bool {
 }
 
 /// None CryptoSystem
-#[derive(Clone)]
 pub struct CryptoSystemNONE {
-    crypto: Crypto,
+    registry: VeilidComponentRegistry,
 }
 
 impl CryptoSystemNONE {
-    pub fn new(crypto: Crypto) -> Self {
-        Self { crypto }
+    pub fn new(registry: VeilidComponentRegistry) -> Self {
+        Self { registry }
     }
 }
 
@@ -66,13 +65,13 @@ impl CryptoSystem for CryptoSystemNONE {
         CRYPTO_KIND_NONE
     }
 
-    fn crypto(&self) -> Crypto {
-        self.crypto.clone()
+    fn crypto(&self) -> VeilidComponentGuard<'_, Crypto> {
+        self.registry().lookup::<Crypto>().unwrap()
     }
 
     // Cached Operations
     fn cached_dh(&self, key: &PublicKey, secret: &SecretKey) -> VeilidAPIResult<SharedSecret> {
-        self.crypto
+        self.crypto()
             .cached_dh_internal::<CryptoSystemNONE>(self, key, secret)
     }
 

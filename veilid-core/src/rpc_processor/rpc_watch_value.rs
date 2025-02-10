@@ -23,7 +23,7 @@ impl RPCProcessor {
             ),err)]
     #[allow(clippy::too_many_arguments)]
     pub async fn rpc_call_watch_value(
-        self,
+        &self,
         dest: Destination,
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
@@ -33,7 +33,7 @@ impl RPCProcessor {
         watch_id: Option<u64>,
     ) -> RPCNetworkResult<Answer<WatchValueAnswer>> {
         let _guard = self
-            .unlocked_inner
+            .startup_context
             .startup_lock
             .enter()
             .map_err(RPCError::map_try_again("not started up"))?;
@@ -47,7 +47,8 @@ impl RPCProcessor {
         };
 
         // Get the target node id
-        let Some(vcrypto) = self.crypto().get(key.kind) else {
+        let crypto = self.crypto();
+        let Some(vcrypto) = crypto.get(key.kind) else {
             return Err(RPCError::internal("unsupported cryptosystem"));
         };
         let Some(target_node_id) = target_node_ids.get(key.kind) else {
@@ -77,7 +78,7 @@ impl RPCProcessor {
             count,
             watch_id,
             watcher,
-            vcrypto.clone(),
+            &vcrypto,
         )?;
         let question = RPCQuestion::new(
             network_result_try!(self.get_destination_respond_to(&dest)?),
@@ -150,7 +151,7 @@ impl RPCProcessor {
         }
 
         // Validate peers returned are, in fact, closer to the key than the node we sent this to
-        let valid = match RoutingTable::verify_peers_closer(vcrypto, target_node_id, key, &peers) {
+        let valid = match RoutingTable::verify_peers_closer(&vcrypto, target_node_id, key, &peers) {
             Ok(v) => v,
             Err(e) => {
                 return Ok(NetworkResult::invalid_message(format!(
@@ -230,8 +231,7 @@ impl RPCProcessor {
 
         // Get target for ValueChanged notifications
         let dest = network_result_try!(self.get_respond_to_destination(&msg));
-        let rss = routing_table.route_spec_store();
-        let target = dest.get_target(rss)?;
+        let target = dest.get_target(&routing_table)?;
 
         if debug_target_enabled!("dht") {
             let debug_string = format!(
@@ -257,7 +257,9 @@ impl RPCProcessor {
             .find_preferred_peers_closer_to_key(routing_domain, key, vec![CAP_DHT, CAP_DHT_WATCH]));
 
         // See if we would have accepted this as a set, same set_value_count for watches
-        let set_value_count = self.with_config(|c| c.network.dht.set_value_count as usize);
+        let set_value_count = self
+            .config()
+            .with(|c| c.network.dht.set_value_count as usize);
         let (ret_accepted, ret_expiration, ret_watch_id) =
             if closer_to_key_peers.len() >= set_value_count {
                 // Not close enough, not accepted

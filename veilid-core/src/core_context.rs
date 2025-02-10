@@ -1,241 +1,25 @@
-use crate::attachment_manager::*;
+use crate::attachment_manager::{AttachmentManager, AttachmentManagerStartupContext};
 use crate::crypto::Crypto;
 use crate::logging::*;
-use crate::storage_manager::*;
+use crate::network_manager::{NetworkManager, NetworkManagerStartupContext};
+use crate::routing_table::RoutingTable;
+use crate::rpc_processor::{RPCProcessor, RPCProcessorStartupContext};
+use crate::storage_manager::StorageManager;
 use crate::veilid_api::*;
 use crate::veilid_config::*;
 use crate::*;
 
 pub type UpdateCallback = Arc<dyn Fn(VeilidUpdate) + Send + Sync>;
 
-/// Internal services startup mechanism.
-/// Ensures that everything is started up, and shut down in the right order
-/// and provides an atomic state for if the system is properly operational.
-struct StartupShutdownContext {
-    pub config: VeilidConfig,
-    pub update_callback: UpdateCallback,
-
-    pub event_bus: Option<EventBus>,
-    pub protected_store: Option<ProtectedStore>,
-    pub table_store: Option<TableStore>,
-    #[cfg(feature = "unstable-blockstore")]
-    pub block_store: Option<BlockStore>,
-    pub crypto: Option<Crypto>,
-    pub attachment_manager: Option<AttachmentManager>,
-    pub storage_manager: Option<StorageManager>,
-}
-
-impl StartupShutdownContext {
-    pub fn new_empty(config: VeilidConfig, update_callback: UpdateCallback) -> Self {
-        Self {
-            config,
-            update_callback,
-            event_bus: None,
-            protected_store: None,
-            table_store: None,
-            #[cfg(feature = "unstable-blockstore")]
-            block_store: None,
-            crypto: None,
-            attachment_manager: None,
-            storage_manager: None,
-        }
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn new_full(
-        config: VeilidConfig,
-        update_callback: UpdateCallback,
-        event_bus: EventBus,
-        protected_store: ProtectedStore,
-        table_store: TableStore,
-        #[cfg(feature = "unstable-blockstore")] block_store: BlockStore,
-        crypto: Crypto,
-        attachment_manager: AttachmentManager,
-        storage_manager: StorageManager,
-    ) -> Self {
-        Self {
-            config,
-            update_callback,
-            event_bus: Some(event_bus),
-            protected_store: Some(protected_store),
-            table_store: Some(table_store),
-            #[cfg(feature = "unstable-blockstore")]
-            block_store: Some(block_store),
-            crypto: Some(crypto),
-            attachment_manager: Some(attachment_manager),
-            storage_manager: Some(storage_manager),
-        }
-    }
-
-    #[instrument(level = "trace", target = "core_context", err, skip_all)]
-    pub async fn startup(&mut self) -> EyreResult<()> {
-        info!("Veilid API starting up");
-
-        info!("init api tracing");
-        let (program_name, namespace) = {
-            let config = self.config.get();
-            (config.program_name.clone(), config.namespace.clone())
-        };
-
-        ApiTracingLayer::add_callback(program_name, namespace, self.update_callback.clone())
-            .await?;
-
-        // Add the event bus
-        let event_bus = EventBus::new();
-        if let Err(e) = event_bus.startup().await {
-            error!("failed to start up event bus: {}", e);
-            self.shutdown().await;
-            return Err(e.into());
-        }
-        self.event_bus = Some(event_bus.clone());
-
-        // Set up protected store
-        let protected_store = ProtectedStore::new(event_bus.clone(), self.config.clone());
-        if let Err(e) = protected_store.init().await {
-            error!("failed to init protected store: {}", e);
-            self.shutdown().await;
-            return Err(e);
-        }
-        self.protected_store = Some(protected_store.clone());
-
-        // Set up tablestore and crypto system
-        let table_store = TableStore::new(
-            event_bus.clone(),
-            self.config.clone(),
-            protected_store.clone(),
-        );
-        let crypto = Crypto::new(event_bus.clone(), self.config.clone(), table_store.clone());
-        table_store.set_crypto(crypto.clone());
-
-        // Initialize table store first, so crypto code can load caches
-        // Tablestore can use crypto during init, just not any cached operations or things
-        // that require flushing back to the tablestore
-        if let Err(e) = table_store.init().await {
-            error!("failed to init table store: {}", e);
-            self.shutdown().await;
-            return Err(e);
-        }
-        self.table_store = Some(table_store.clone());
-
-        // Set up crypto
-        if let Err(e) = crypto.init().await {
-            error!("failed to init crypto: {}", e);
-            self.shutdown().await;
-            return Err(e);
-        }
-        self.crypto = Some(crypto.clone());
-
-        // Set up block store
-        #[cfg(feature = "unstable-blockstore")]
-        {
-            let block_store = BlockStore::new(event_bus.clone(), self.config.clone());
-            if let Err(e) = block_store.init().await {
-                error!("failed to init block store: {}", e);
-                self.shutdown().await;
-                return Err(e);
-            }
-            self.block_store = Some(block_store.clone());
-        }
-
-        // Set up storage manager
-        let update_callback = self.update_callback.clone();
-
-        let storage_manager = StorageManager::new(
-            event_bus.clone(),
-            self.config.clone(),
-            self.crypto.clone().unwrap(),
-            self.table_store.clone().unwrap(),
-            #[cfg(feature = "unstable-blockstore")]
-            self.block_store.clone().unwrap(),
-        );
-        if let Err(e) = storage_manager.init(update_callback).await {
-            error!("failed to init storage manager: {}", e);
-            self.shutdown().await;
-            return Err(e);
-        }
-        self.storage_manager = Some(storage_manager.clone());
-
-        // Set up attachment manager
-        let update_callback = self.update_callback.clone();
-        let attachment_manager = AttachmentManager::new(
-            event_bus.clone(),
-            self.config.clone(),
-            storage_manager,
-            table_store,
-            #[cfg(feature = "unstable-blockstore")]
-            block_store,
-            crypto,
-        );
-        if let Err(e) = attachment_manager.init(update_callback).await {
-            error!("failed to init attachment manager: {}", e);
-            self.shutdown().await;
-            return Err(e);
-        }
-        self.attachment_manager = Some(attachment_manager);
-
-        info!("Veilid API startup complete");
-        Ok(())
-    }
-
-    #[instrument(level = "trace", target = "core_context", skip_all)]
-    pub async fn shutdown(&mut self) {
-        info!("Veilid API shutting down");
-
-        if let Some(attachment_manager) = &mut self.attachment_manager {
-            attachment_manager.terminate().await;
-        }
-        if let Some(storage_manager) = &mut self.storage_manager {
-            storage_manager.terminate().await;
-        }
-        #[cfg(feature = "unstable-blockstore")]
-        if let Some(block_store) = &mut self.block_store {
-            block_store.terminate().await;
-        }
-        if let Some(crypto) = &mut self.crypto {
-            crypto.terminate().await;
-        }
-        if let Some(table_store) = &mut self.table_store {
-            table_store.terminate().await;
-        }
-        if let Some(protected_store) = &mut self.protected_store {
-            protected_store.terminate().await;
-        }
-        if let Some(event_bus) = &mut self.event_bus {
-            event_bus.shutdown().await;
-        }
-
-        info!("Veilid API shutdown complete");
-
-        // api logger terminate is idempotent
-        let (program_name, namespace) = {
-            let config = self.config.get();
-            (config.program_name.clone(), config.namespace.clone())
-        };
-
-        if let Err(e) = ApiTracingLayer::remove_callback(program_name, namespace).await {
-            error!("Error removing callback from ApiTracingLayer: {}", e);
-        }
-
-        // send final shutdown update
-        (self.update_callback)(VeilidUpdate::Shutdown);
-    }
-}
+type InitKey = (String, String);
 
 /////////////////////////////////////////////////////////////////////////////
-pub struct VeilidCoreContext {
-    pub config: VeilidConfig,
-    pub update_callback: UpdateCallback,
-    // Event bus
-    pub event_bus: EventBus,
-    // Services
-    pub storage_manager: StorageManager,
-    pub protected_store: ProtectedStore,
-    pub table_store: TableStore,
-    #[cfg(feature = "unstable-blockstore")]
-    pub block_store: BlockStore,
-    pub crypto: Crypto,
-    pub attachment_manager: AttachmentManager,
+#[derive(Clone, Debug)]
+pub(crate) struct VeilidCoreContext {
+    registry: VeilidComponentRegistry,
 }
+
+impl_veilid_component_registry_accessor!(VeilidCoreContext);
 
 impl VeilidCoreContext {
     #[instrument(level = "trace", target = "core_context", err, skip_all)]
@@ -244,10 +28,9 @@ impl VeilidCoreContext {
         config_callback: ConfigCallback,
     ) -> VeilidAPIResult<VeilidCoreContext> {
         // Set up config from callback
-        let mut config = VeilidConfig::new();
-        config.setup(config_callback, update_callback.clone())?;
+        let config = VeilidConfig::new_from_callback(config_callback, update_callback)?;
 
-        Self::new_common(update_callback, config).await
+        Self::new_common(config).await
     }
 
     #[instrument(level = "trace", target = "core_context", err, skip_all)]
@@ -256,16 +39,12 @@ impl VeilidCoreContext {
         config_inner: VeilidConfigInner,
     ) -> VeilidAPIResult<VeilidCoreContext> {
         // Set up config from json
-        let mut config = VeilidConfig::new();
-        config.setup_from_config(config_inner, update_callback.clone())?;
-        Self::new_common(update_callback, config).await
+        let config = VeilidConfig::new_from_config(config_inner, update_callback);
+        Self::new_common(config).await
     }
 
     #[instrument(level = "trace", target = "core_context", err, skip_all)]
-    async fn new_common(
-        update_callback: UpdateCallback,
-        config: VeilidConfig,
-    ) -> VeilidAPIResult<VeilidCoreContext> {
+    async fn new_common(config: VeilidConfig) -> VeilidAPIResult<VeilidCoreContext> {
         cfg_if! {
             if #[cfg(target_os = "android")] {
                 if !crate::intf::android::is_android_ready() {
@@ -274,45 +53,134 @@ impl VeilidCoreContext {
             }
         }
 
-        let mut sc = StartupShutdownContext::new_empty(config.clone(), update_callback);
-        sc.startup().await.map_err(VeilidAPIError::generic)?;
+        info!("Veilid API starting up");
 
-        Ok(VeilidCoreContext {
-            config: sc.config,
-            update_callback: sc.update_callback,
-            event_bus: sc.event_bus.unwrap(),
-            storage_manager: sc.storage_manager.unwrap(),
-            protected_store: sc.protected_store.unwrap(),
-            table_store: sc.table_store.unwrap(),
-            #[cfg(feature = "unstable-blockstore")]
-            block_store: sc.block_store.unwrap(),
-            crypto: sc.crypto.unwrap(),
-            attachment_manager: sc.attachment_manager.unwrap(),
-        })
+        let (program_name, namespace, update_callback) = {
+            let cfginner = config.get();
+            (
+                cfginner.program_name.clone(),
+                cfginner.namespace.clone(),
+                config.update_callback(),
+            )
+        };
+
+        ApiTracingLayer::add_callback(program_name, namespace, update_callback.clone()).await?;
+
+        // Create component registry
+        let registry = VeilidComponentRegistry::new(config);
+
+        // Register all components
+        registry.register(ProtectedStore::new);
+        registry.register(Crypto::new);
+        registry.register(TableStore::new);
+        #[cfg(feature = "unstable-blockstore")]
+        registry.register(BlockStore::new);
+        registry.register(StorageManager::new);
+        registry.register(RoutingTable::new);
+        registry
+            .register_with_context(NetworkManager::new, NetworkManagerStartupContext::default());
+        registry.register_with_context(RPCProcessor::new, RPCProcessorStartupContext::default());
+        registry.register_with_context(
+            AttachmentManager::new,
+            AttachmentManagerStartupContext::default(),
+        );
+
+        // Run initialization
+        // This should make the majority of subsystems functional
+        registry.init().await.map_err(VeilidAPIError::internal)?;
+
+        // Run post-initialization
+        // This should resolve any inter-subsystem dependencies
+        // required for background processes that utilize multiple subsystems
+        // Background processes also often require registry lookup of the
+        // current subsystem, which is not available until after init succeeds
+        if let Err(e) = registry.post_init().await {
+            registry.terminate().await;
+            return Err(VeilidAPIError::internal(e));
+        }
+
+        info!("Veilid API startup complete");
+
+        Ok(Self { registry })
     }
 
     #[instrument(level = "trace", target = "core_context", skip_all)]
     async fn shutdown(self) {
-        let mut sc = StartupShutdownContext::new_full(
-            self.config.clone(),
-            self.update_callback.clone(),
-            self.event_bus,
-            self.protected_store,
-            self.table_store,
-            #[cfg(feature = "unstable-blockstore")]
-            self.block_store,
-            self.crypto,
-            self.attachment_manager,
-            self.storage_manager,
-        );
-        sc.shutdown().await;
+        info!("Veilid API shutdown complete");
+
+        let (program_name, namespace, update_callback) = {
+            let config = self.registry.config();
+            let cfginner = config.get();
+            (
+                cfginner.program_name.clone(),
+                cfginner.namespace.clone(),
+                config.update_callback(),
+            )
+        };
+
+        // Run pre-termination
+        // This should shut down background processes that may require the existence of
+        // other subsystems that may not exist during final termination
+        self.registry.pre_terminate().await;
+
+        // Run termination
+        // This should finish any shutdown operations for the subsystems
+        self.registry.terminate().await;
+
+        if let Err(e) = ApiTracingLayer::remove_callback(program_name, namespace).await {
+            error!("Error removing callback from ApiTracingLayer: {}", e);
+        }
+
+        // send final shutdown update
+        update_callback(VeilidUpdate::Shutdown);
+    }
+}
+
+/////////////////////////////////////////////////////////////////////////////
+
+pub trait RegisteredComponents {
+    fn protected_store<'a>(&self) -> VeilidComponentGuard<'a, ProtectedStore>;
+    fn crypto<'a>(&self) -> VeilidComponentGuard<'a, Crypto>;
+    fn table_store<'a>(&self) -> VeilidComponentGuard<'a, TableStore>;
+    fn storage_manager<'a>(&self) -> VeilidComponentGuard<'a, StorageManager>;
+    fn routing_table<'a>(&self) -> VeilidComponentGuard<'a, RoutingTable>;
+    fn network_manager<'a>(&self) -> VeilidComponentGuard<'a, NetworkManager>;
+    fn rpc_processor<'a>(&self) -> VeilidComponentGuard<'a, RPCProcessor>;
+    fn attachment_manager<'a>(&self) -> VeilidComponentGuard<'a, AttachmentManager>;
+}
+
+impl<T: VeilidComponentRegistryAccessor> RegisteredComponents for T {
+    fn protected_store<'a>(&self) -> VeilidComponentGuard<'a, ProtectedStore> {
+        self.registry().lookup::<ProtectedStore>().unwrap()
+    }
+    fn crypto<'a>(&self) -> VeilidComponentGuard<'a, Crypto> {
+        self.registry().lookup::<Crypto>().unwrap()
+    }
+    fn table_store<'a>(&self) -> VeilidComponentGuard<'a, TableStore> {
+        self.registry().lookup::<TableStore>().unwrap()
+    }
+    fn storage_manager<'a>(&self) -> VeilidComponentGuard<'a, StorageManager> {
+        self.registry().lookup::<StorageManager>().unwrap()
+    }
+    fn routing_table<'a>(&self) -> VeilidComponentGuard<'a, RoutingTable> {
+        self.registry().lookup::<RoutingTable>().unwrap()
+    }
+    fn network_manager<'a>(&self) -> VeilidComponentGuard<'a, NetworkManager> {
+        self.registry().lookup::<NetworkManager>().unwrap()
+    }
+    fn rpc_processor<'a>(&self) -> VeilidComponentGuard<'a, RPCProcessor> {
+        self.registry().lookup::<RPCProcessor>().unwrap()
+    }
+    fn attachment_manager<'a>(&self) -> VeilidComponentGuard<'a, AttachmentManager> {
+        self.registry().lookup::<AttachmentManager>().unwrap()
     }
 }
 
 /////////////////////////////////////////////////////////////////////////////
 
 lazy_static::lazy_static! {
-    static ref INITIALIZED: AsyncMutex<HashSet<(String,String)>> = AsyncMutex::new(HashSet::new());
+    static ref INITIALIZED: Mutex<HashSet<InitKey>> = Mutex::new(HashSet::new());
+    static ref STARTUP_TABLE: AsyncTagLockTable<InitKey> = AsyncTagLockTable::new();
 }
 
 /// Initialize a Veilid node.
@@ -345,9 +213,11 @@ pub async fn api_startup(
         })?;
     let init_key = (program_name, namespace);
 
+    // Only allow one startup/shutdown per program_name+namespace combination simultaneously
+    let _tag_guard = STARTUP_TABLE.lock_tag(init_key.clone()).await;
+
     // See if we have an API started up already
-    let mut initialized_lock = INITIALIZED.lock().await;
-    if initialized_lock.contains(&init_key) {
+    if INITIALIZED.lock().contains(&init_key) {
         apibail_already_initialized!();
     }
 
@@ -358,7 +228,8 @@ pub async fn api_startup(
     // Return an API object around our context
     let veilid_api = VeilidAPI::new(context);
 
-    initialized_lock.insert(init_key);
+    // Add to the initialized set
+    INITIALIZED.lock().insert(init_key);
 
     Ok(veilid_api)
 }
@@ -403,12 +274,13 @@ pub async fn api_startup_config(
     // Get the program_name and namespace we're starting up in
     let program_name = config.program_name.clone();
     let namespace = config.namespace.clone();
-
     let init_key = (program_name, namespace);
 
+    // Only allow one startup/shutdown per program_name+namespace combination simultaneously
+    let _tag_guard = STARTUP_TABLE.lock_tag(init_key.clone()).await;
+
     // See if we have an API started up already
-    let mut initialized_lock = INITIALIZED.lock().await;
-    if initialized_lock.contains(&init_key) {
+    if INITIALIZED.lock().contains(&init_key) {
         apibail_already_initialized!();
     }
 
@@ -418,20 +290,32 @@ pub async fn api_startup_config(
     // Return an API object around our context
     let veilid_api = VeilidAPI::new(context);
 
-    initialized_lock.insert(init_key);
+    // Add to the initialized set
+    INITIALIZED.lock().insert(init_key);
 
     Ok(veilid_api)
 }
 
 #[instrument(level = "trace", target = "core_context", skip_all)]
-pub async fn api_shutdown(context: VeilidCoreContext) {
-    let mut initialized_lock = INITIALIZED.lock().await;
-
+pub(crate) async fn api_shutdown(context: VeilidCoreContext) {
     let init_key = {
-        let config = context.config.get();
-        (config.program_name.clone(), config.namespace.clone())
+        let registry = context.registry();
+        let config = registry.config();
+        let cfginner = config.get();
+        (cfginner.program_name.clone(), cfginner.namespace.clone())
     };
 
+    // Only allow one startup/shutdown per program_name+namespace combination simultaneously
+    let _tag_guard = STARTUP_TABLE.lock_tag(init_key.clone()).await;
+
+    // See if we have an API started up already
+    if !INITIALIZED.lock().contains(&init_key) {
+        return;
+    }
+
+    // Shutdown the context
     context.shutdown().await;
-    initialized_lock.remove(&init_key);
+
+    // Remove from the initialized set
+    INITIALIZED.lock().remove(&init_key);
 }

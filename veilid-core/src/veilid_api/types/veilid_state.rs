@@ -3,7 +3,7 @@ use super::*;
 /// Attachment abstraction for network 'signal strength'.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(
-    target_arch = "wasm32",
+    all(target_arch = "wasm32", target_os = "unknown"),
     derive(Tsify),
     tsify(namespace, from_wasm_abi, into_wasm_abi)
 )]
@@ -77,7 +77,7 @@ impl TryFrom<&str> for AttachmentState {
 
 /// Describe the attachment state of the Veilid node
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct VeilidStateAttachment {
     /// The overall quality of the routing table if attached, or the current state the attachment state machine.
     pub state: AttachmentState,
@@ -94,11 +94,14 @@ pub struct VeilidStateAttachment {
 
 /// Describe a recently accessed peer
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct PeerTableData {
     /// The node ids used by this peer
     #[schemars(with = "Vec<String>")]
-    #[cfg_attr(target_arch = "wasm32", tsify(type = "string[]"))]
+    #[cfg_attr(
+        all(target_arch = "wasm32", target_os = "unknown"),
+        tsify(type = "string[]")
+    )]
     pub node_ids: Vec<TypedKey>,
     /// The peer's human readable address.
     pub peer_address: String,
@@ -108,7 +111,7 @@ pub struct PeerTableData {
 
 /// Describe the current network state of the Veilid node
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct VeilidStateNetwork {
     /// If the network has been started or not.
     pub started: bool,
@@ -123,7 +126,7 @@ pub struct VeilidStateNetwork {
 
 /// Describe a private route change that has happened
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct VeilidRouteChange {
     /// If a private route that was allocated has died, it is listed here.
     #[schemars(with = "Vec<String>")]
@@ -138,7 +141,7 @@ pub struct VeilidRouteChange {
 /// add the ability to change the configuration or have it changed by the Veilid node
 /// itself during runtime.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct VeilidStateConfig {
     /// If the Veilid node configuration has changed the full new config will be here.
     pub config: VeilidConfigInner,
@@ -146,7 +149,7 @@ pub struct VeilidStateConfig {
 
 /// Describe when DHT records have subkey values changed
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 pub struct VeilidValueChange {
     /// The DHT Record key that changed
     #[schemars(with = "String")]
@@ -167,7 +170,11 @@ pub struct VeilidValueChange {
 /// An update from the veilid-core to the host application describing a change
 /// to the internal state of the Veilid node.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify), tsify(into_wasm_abi))]
+#[cfg_attr(
+    all(target_arch = "wasm32", target_os = "unknown"),
+    derive(Tsify),
+    tsify(into_wasm_abi)
+)]
 #[serde(tag = "kind")]
 pub enum VeilidUpdate {
     Log(Box<VeilidLog>),
@@ -184,7 +191,11 @@ from_impl_to_jsvalue!(VeilidUpdate);
 
 /// A queriable state of the internals of veilid-core.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[cfg_attr(target_arch = "wasm32", derive(Tsify), tsify(into_wasm_abi))]
+#[cfg_attr(
+    all(target_arch = "wasm32", target_os = "unknown"),
+    derive(Tsify),
+    tsify(into_wasm_abi)
+)]
 pub struct VeilidState {
     pub attachment: Box<VeilidStateAttachment>,
     pub network: Box<VeilidStateNetwork>,

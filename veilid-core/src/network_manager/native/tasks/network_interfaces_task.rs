@@ -3,20 +3,28 @@ use super::*;
 impl Network {
     #[instrument(level = "trace", target = "net", skip_all, err)]
     pub(super) async fn network_interfaces_task_routine(
-        self,
-        _stop_token: StopToken,
+        &self,
+        stop_token: StopToken,
         _l: Timestamp,
         _t: Timestamp,
     ) -> EyreResult<()> {
-        let _guard = self.unlocked_inner.network_task_lock.lock().await;
+        // Network lock ensures only one task operating on the low level network state
+        // can happen at the same time.
+        let _guard = match self.network_task_lock.try_lock() {
+            Ok(v) => v,
+            Err(_) => {
+                // If we can't get the lock right now, then
+                return Ok(());
+            }
+        };
 
-        self.update_network_state().await?;
+        self.update_network_state(stop_token).await?;
 
         Ok(())
     }
 
     // See if our interface addresses have changed, if so redo public dial info if necessary
-    async fn update_network_state(&self) -> EyreResult<bool> {
+    async fn update_network_state(&self, _stop_token: StopToken) -> EyreResult<bool> {
         let mut local_network_changed = false;
         let mut public_internet_changed = false;
 
@@ -29,7 +37,7 @@ impl Network {
             }
         };
 
-        if new_network_state != last_network_state {
+        if last_network_state.is_none() || new_network_state != last_network_state.unwrap() {
             // Save new network state
             {
                 let mut inner = self.inner.lock();
@@ -37,17 +45,13 @@ impl Network {
             }
 
             // network state has changed
-            let mut editor_local_network = self
-                .unlocked_inner
-                .routing_table
-                .edit_local_network_routing_domain();
+            let routing_table = self.routing_table();
+
+            let mut editor_local_network = routing_table.edit_local_network_routing_domain();
             editor_local_network.set_local_networks(new_network_state.local_networks);
             editor_local_network.clear_dial_info_details(None, None);
 
-            let mut editor_public_internet = self
-                .unlocked_inner
-                .routing_table
-                .edit_public_internet_routing_domain();
+            let mut editor_public_internet = routing_table.edit_public_internet_routing_domain();
 
             // Update protocols
             self.register_all_dial_info(&mut editor_public_internet, &mut editor_local_network)

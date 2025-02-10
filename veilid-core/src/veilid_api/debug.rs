@@ -95,7 +95,7 @@ fn get_dht_report_scope(text: &str) -> Option<DHTReportScope> {
 }
 
 fn get_route_id(
-    rss: RouteSpecStore,
+    registry: VeilidComponentRegistry,
     allow_allocated: bool,
     allow_remote: bool,
 ) -> impl Fn(&str) -> Option<RouteId> {
@@ -103,6 +103,9 @@ fn get_route_id(
         if text.is_empty() {
             return None;
         }
+        let routing_table = registry.routing_table();
+        let rss = routing_table.route_spec_store();
+
         match RouteId::from_str(text).ok() {
             Some(key) => {
                 if allow_allocated {
@@ -153,11 +156,13 @@ fn get_dht_schema(text: &str) -> Option<VeilidAPIResult<DHTSchema>> {
     Some(deserialize_json::<DHTSchema>(text))
 }
 
-fn get_safety_selection(routing_table: RoutingTable) -> impl Fn(&str) -> Option<SafetySelection> {
+fn get_safety_selection(
+    registry: VeilidComponentRegistry,
+) -> impl Fn(&str) -> Option<SafetySelection> {
     move |text| {
-        let rss = routing_table.route_spec_store();
-        let default_route_hop_count =
-            routing_table.with_config(|c| c.network.rpc.default_route_hop_count as usize);
+        let default_route_hop_count = registry
+            .config()
+            .with(|c| c.network.rpc.default_route_hop_count as usize);
 
         if !text.is_empty() && &text[0..1] == "-" {
             // Unsafe
@@ -172,7 +177,7 @@ fn get_safety_selection(routing_table: RoutingTable) -> impl Fn(&str) -> Option<
             let mut sequencing = Sequencing::default();
             for x in text.split(',') {
                 let x = x.trim();
-                if let Some(pr) = get_route_id(rss.clone(), true, false)(x) {
+                if let Some(pr) = get_route_id(registry.clone(), true, false)(x) {
                     preferred_route = Some(pr)
                 }
                 if let Some(n) = get_number(x) {
@@ -229,7 +234,9 @@ fn get_keypair(text: &str) -> Option<KeyPair> {
     KeyPair::from_str(text).ok()
 }
 
-fn get_crypto_system_version(crypto: Crypto) -> impl FnOnce(&str) -> Option<CryptoSystemVersion> {
+fn get_crypto_system_version<'a>(
+    crypto: &'a Crypto,
+) -> impl FnOnce(&str) -> Option<CryptoSystemGuard<'a>> {
     move |text| {
         let kindstr = get_string(text)?;
         let kind = CryptoKind::from_str(&kindstr).ok()?;
@@ -250,12 +257,12 @@ fn get_dht_key_no_safety(text: &str) -> Option<TypedKey> {
 }
 
 fn get_dht_key(
-    routing_table: RoutingTable,
+    registry: VeilidComponentRegistry,
 ) -> impl FnOnce(&str) -> Option<(TypedKey, Option<SafetySelection>)> {
     move |text| {
         // Safety selection
         let (text, ss) = if let Some((first, second)) = text.split_once('+') {
-            let ss = get_safety_selection(routing_table.clone())(second)?;
+            let ss = get_safety_selection(registry)(second)?;
             (first, Some(ss))
         } else {
             (text, None)
@@ -277,7 +284,7 @@ fn get_dht_key(
 }
 
 fn resolve_filtered_node_ref(
-    routing_table: RoutingTable,
+    registry: VeilidComponentRegistry,
     safety_selection: SafetySelection,
 ) -> impl FnOnce(&str) -> SendPinBoxFuture<Option<FilteredNodeRef>> {
     move |text| {
@@ -290,14 +297,14 @@ fn resolve_filtered_node_ref(
 
             let nr = if let Some(key) = get_public_key(text) {
                 let node_id = TypedKey::new(best_crypto_kind(), key);
-                routing_table
+                registry
                     .rpc_processor()
                     .resolve_node(node_id, safety_selection)
                     .await
                     .ok()
                     .flatten()?
             } else if let Some(node_id) = get_typed_key(text) {
-                routing_table
+                registry
                     .rpc_processor()
                     .resolve_node(node_id, safety_selection)
                     .await
@@ -315,8 +322,9 @@ fn resolve_filtered_node_ref(
     }
 }
 
-fn get_node_ref(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<NodeRef> {
+fn get_node_ref(registry: VeilidComponentRegistry) -> impl FnOnce(&str) -> Option<NodeRef> {
     move |text| {
+        let routing_table = registry.routing_table();
         let nr = if let Some(key) = get_public_key(text) {
             routing_table.lookup_any_node_ref(key).ok().flatten()?
         } else if let Some(node_id) = get_typed_key(text) {
@@ -329,9 +337,11 @@ fn get_node_ref(routing_table: RoutingTable) -> impl FnOnce(&str) -> Option<Node
 }
 
 fn get_filtered_node_ref(
-    routing_table: RoutingTable,
+    registry: VeilidComponentRegistry,
 ) -> impl FnOnce(&str) -> Option<FilteredNodeRef> {
     move |text| {
+        let routing_table = registry.routing_table();
+
         // Safety selection
         let (text, seq) = if let Some((first, second)) = text.split_once('+') {
             let seq = get_sequencing(second)?;
@@ -558,19 +568,19 @@ impl VeilidAPI {
             )?;
         }
         // Dump routing table bucket info
-        let routing_table = self.network_manager()?.routing_table();
+        let routing_table = self.core_context()?.routing_table();
         Ok(routing_table.debug_info_buckets(min_state))
     }
 
     async fn debug_dialinfo(&self, _args: String) -> VeilidAPIResult<String> {
         // Dump routing table dialinfo
-        let routing_table = self.network_manager()?.routing_table();
+        let routing_table = self.core_context()?.routing_table();
         Ok(routing_table.debug_info_dialinfo())
     }
     async fn debug_peerinfo(&self, args: String) -> VeilidAPIResult<String> {
         // Dump routing table peerinfo
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
-        let routing_table = self.network_manager()?.routing_table();
+        let routing_table = self.core_context()?.routing_table();
 
         let mut ai = 0;
         let mut opt_routing_domain = None;
@@ -601,7 +611,7 @@ impl VeilidAPI {
 
     async fn debug_txtrecord(&self, _args: String) -> VeilidAPIResult<String> {
         // Dump routing table txt record
-        let routing_table = self.network_manager()?.routing_table();
+        let routing_table = self.core_context()?.routing_table();
         Ok(routing_table.debug_info_txtrecord().await)
     }
 
@@ -614,7 +624,7 @@ impl VeilidAPI {
             0,
             "debug_keypair",
             "kind",
-            get_crypto_system_version(crypto.clone()),
+            get_crypto_system_version(&crypto),
         )
         .unwrap_or_else(|_| crypto.best());
 
@@ -646,7 +656,7 @@ impl VeilidAPI {
         }
 
         // Dump routing table entries
-        let routing_table = self.network_manager()?.routing_table();
+        let routing_table = self.core_context()?.routing_table();
         Ok(match fastest {
             true => routing_table.debug_info_entries_fastest(min_state, capabilities, 100000),
             false => routing_table.debug_info_entries(min_state, capabilities),
@@ -655,31 +665,30 @@ impl VeilidAPI {
 
     async fn debug_entry(&self, args: String) -> VeilidAPIResult<String> {
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
-        let routing_table = self.network_manager()?.routing_table();
+        let registry = self.core_context()?.registry();
 
         let node_ref = get_debug_argument_at(
             &args,
             0,
             "debug_entry",
             "node_id",
-            get_node_ref(routing_table),
+            get_node_ref(registry.clone()),
         )?;
 
         // Dump routing table entry
-        let routing_table = self.network_manager()?.routing_table();
-        Ok(routing_table.debug_info_entry(node_ref))
+        Ok(registry.routing_table().debug_info_entry(node_ref))
     }
 
     async fn debug_relay(&self, args: String) -> VeilidAPIResult<String> {
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
-        let routing_table = self.network_manager()?.routing_table();
+        let registry = self.core_context()?.registry();
 
         let relay_node = get_debug_argument_at(
             &args,
             0,
             "debug_relay",
             "node_id",
-            get_node_ref(routing_table),
+            get_node_ref(registry.clone()),
         )
         .ok();
 
@@ -694,7 +703,7 @@ impl VeilidAPI {
         .unwrap_or(RoutingDomain::PublicInternet);
 
         // Dump routing table entry
-        let routing_table = self.network_manager()?.routing_table();
+        let routing_table = registry.routing_table();
         match routing_domain {
             RoutingDomain::LocalNetwork => {
                 let mut editor = routing_table.edit_local_network_routing_domain();
@@ -715,8 +724,8 @@ impl VeilidAPI {
 
     async fn debug_nodeinfo(&self, _args: String) -> VeilidAPIResult<String> {
         // Dump routing table entry
-        let routing_table = self.network_manager()?.routing_table();
-        let nodeinfo = routing_table.debug_info_nodeinfo();
+        let registry = self.core_context()?.registry();
+        let nodeinfo = registry.routing_table().debug_info_nodeinfo();
 
         // Dump core state
         let state = self.get_state().await?;
@@ -739,7 +748,7 @@ impl VeilidAPI {
 
         // Dump connection table
         let connman =
-            if let Some(connection_manager) = self.network_manager()?.opt_connection_manager() {
+            if let Some(connection_manager) = registry.network_manager().opt_connection_manager() {
                 connection_manager.debug_print().await
             } else {
                 "Connection manager unavailable when detached".to_owned()
@@ -750,8 +759,8 @@ impl VeilidAPI {
 
     async fn debug_nodeid(&self, _args: String) -> VeilidAPIResult<String> {
         // Dump routing table entry
-        let routing_table = self.network_manager()?.routing_table();
-        let nodeid = routing_table.debug_info_nodeid();
+        let registry = self.core_context()?.registry();
+        let nodeid = registry.routing_table().debug_info_nodeid();
         Ok(nodeid)
     }
 
@@ -808,8 +817,8 @@ impl VeilidAPI {
                 apibail_internal!("Must be attached to restart network");
             }
 
-            let netman = self.network_manager()?;
-            netman.restart_network();
+            let registry = self.core_context()?.registry();
+            registry.network_manager().restart_network();
 
             Ok("Network restarted".to_owned())
         } else {
@@ -818,6 +827,8 @@ impl VeilidAPI {
     }
 
     async fn debug_purge(&self, args: String) -> VeilidAPIResult<String> {
+        let registry = self.core_context()?.registry();
+
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
         if !args.is_empty() {
             if args[0] == "buckets" {
@@ -828,20 +839,18 @@ impl VeilidAPI {
                 ) {
                     apibail_internal!("Must be detached to purge");
                 }
-                self.network_manager()?.routing_table().purge_buckets();
+                registry.routing_table().purge_buckets();
                 Ok("Buckets purged".to_owned())
             } else if args[0] == "connections" {
                 // Purge connection table
-                let opt_connection_manager = self.network_manager()?.opt_connection_manager();
+                let opt_connection_manager = registry.network_manager().opt_connection_manager();
 
                 if let Some(connection_manager) = &opt_connection_manager {
                     connection_manager.shutdown().await;
                 }
 
                 // Eliminate last_connections from routing table entries
-                self.network_manager()?
-                    .routing_table()
-                    .purge_last_connections();
+                registry.routing_table().purge_last_connections();
 
                 if let Some(connection_manager) = &opt_connection_manager {
                     connection_manager
@@ -852,9 +861,10 @@ impl VeilidAPI {
                 Ok("Connections purged".to_owned())
             } else if args[0] == "routes" {
                 // Purge route spec store
-                self.inner.lock().debug_cache.imported_routes.clear();
-                let rss = self.network_manager()?.routing_table().route_spec_store();
-                match rss.purge().await {
+                self.with_debug_cache(|dc| {
+                    dc.imported_routes.clear();
+                });
+                match registry.routing_table().route_spec_store().purge().await {
                     Ok(_) => Ok("Routes purged".to_owned()),
                     Err(e) => Ok(format!("Routes purged but failed to save: {}", e)),
                 }
@@ -902,18 +912,18 @@ impl VeilidAPI {
     async fn debug_contact(&self, args: String) -> VeilidAPIResult<String> {
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
 
-        let network_manager = self.network_manager()?;
-        let routing_table = network_manager.routing_table();
+        let registry = self.core_context()?.registry();
 
         let node_ref = get_debug_argument_at(
             &args,
             0,
             "debug_contact",
             "node_ref",
-            get_filtered_node_ref(routing_table),
+            get_filtered_node_ref(registry.clone()),
         )?;
 
-        let cm = network_manager
+        let cm = registry
+            .network_manager()
             .get_node_contact_method(node_ref)
             .map_err(VeilidAPIError::internal)?;
 
@@ -921,9 +931,8 @@ impl VeilidAPI {
     }
 
     async fn debug_resolve(&self, args: String) -> VeilidAPIResult<String> {
-        let netman = self.network_manager()?;
-        let routing_table = netman.routing_table();
-        let Some(_rpc) = netman.opt_rpc_processor() else {
+        let registry = self.core_context()?.registry();
+        if !registry.attachment_manager().is_attached() {
             apibail_internal!("Must be attached first");
         };
 
@@ -934,10 +943,11 @@ impl VeilidAPI {
             0,
             "debug_resolve",
             "destination",
-            self.clone().get_destination(routing_table.clone()),
+            self.clone().get_destination(registry.clone()),
         )
         .await?;
 
+        let routing_table = registry.routing_table();
         match &dest {
             Destination::Direct {
                 node: target,
@@ -954,7 +964,7 @@ impl VeilidAPI {
             } => Ok(format!(
                 "Destination: {:#?}\nTarget Entry:\n{}\nRelay Entry:\n{}\n",
                 &dest,
-                routing_table.clone().debug_info_entry(target.clone()),
+                routing_table.debug_info_entry(target.clone()),
                 routing_table.debug_info_entry(relay.unfiltered())
             )),
             Destination::PrivateRoute {
@@ -965,9 +975,8 @@ impl VeilidAPI {
     }
 
     async fn debug_ping(&self, args: String) -> VeilidAPIResult<String> {
-        let netman = self.network_manager()?;
-        let routing_table = netman.routing_table();
-        let Some(rpc) = netman.opt_rpc_processor() else {
+        let registry = self.core_context()?.registry();
+        if !registry.attachment_manager().is_attached() {
             apibail_internal!("Must be attached first");
         };
 
@@ -978,12 +987,13 @@ impl VeilidAPI {
             0,
             "debug_ping",
             "destination",
-            self.clone().get_destination(routing_table),
+            self.clone().get_destination(registry.clone()),
         )
         .await?;
 
         // Send a StatusQ
-        let out = match rpc
+        let rpc_processor = registry.rpc_processor();
+        let out = match rpc_processor
             .rpc_call_status(dest)
             .await
             .map_err(VeilidAPIError::internal)?
@@ -998,9 +1008,8 @@ impl VeilidAPI {
     }
 
     async fn debug_app_message(&self, args: String) -> VeilidAPIResult<String> {
-        let netman = self.network_manager()?;
-        let routing_table = netman.routing_table();
-        let Some(rpc) = netman.opt_rpc_processor() else {
+        let registry = self.core_context()?.registry();
+        if !registry.attachment_manager().is_attached() {
             apibail_internal!("Must be attached first");
         };
 
@@ -1011,15 +1020,17 @@ impl VeilidAPI {
             arg,
             "debug_app_message",
             "destination",
-            self.clone().get_destination(routing_table),
+            self.clone().get_destination(registry.clone()),
         )
         .await?;
 
         let data = get_debug_argument(&rest, "debug_app_message", "data", get_data)?;
         let data_len = data.len();
 
-        // Send a AppMessage
-        let out = match rpc
+        // Send an AppMessage
+        let rpc_processor = registry.rpc_processor();
+
+        let out = match rpc_processor
             .rpc_call_app_message(dest, data)
             .await
             .map_err(VeilidAPIError::internal)?
@@ -1034,9 +1045,8 @@ impl VeilidAPI {
     }
 
     async fn debug_app_call(&self, args: String) -> VeilidAPIResult<String> {
-        let netman = self.network_manager()?;
-        let routing_table = netman.routing_table();
-        let Some(rpc) = netman.opt_rpc_processor() else {
+        let registry = self.core_context()?.registry();
+        if !registry.attachment_manager().is_attached() {
             apibail_internal!("Must be attached first");
         };
 
@@ -1047,15 +1057,17 @@ impl VeilidAPI {
             arg,
             "debug_app_call",
             "destination",
-            self.clone().get_destination(routing_table),
+            self.clone().get_destination(registry.clone()),
         )
         .await?;
 
         let data = get_debug_argument(&rest, "debug_app_call", "data", get_data)?;
         let data_len = data.len();
 
-        // Send a AppMessage
-        let out = match rpc
+        // Send an AppCall
+        let rpc_processor = registry.rpc_processor();
+
+        let out = match rpc_processor
             .rpc_call_app_call(dest, data)
             .await
             .map_err(VeilidAPIError::internal)?
@@ -1074,8 +1086,8 @@ impl VeilidAPI {
     }
 
     async fn debug_app_reply(&self, args: String) -> VeilidAPIResult<String> {
-        let netman = self.network_manager()?;
-        let Some(rpc) = netman.opt_rpc_processor() else {
+        let registry = self.core_context()?.registry();
+        if !registry.attachment_manager().is_attached() {
             apibail_internal!("Must be attached first");
         };
 
@@ -1087,7 +1099,9 @@ impl VeilidAPI {
             let data = get_debug_argument(&rest, "debug_app_reply", "data", get_data)?;
             (call_id, data)
         } else {
-            let call_id = rpc
+            let rpc_processor = registry.rpc_processor();
+
+            let call_id = rpc_processor
                 .get_app_call_ids()
                 .first()
                 .cloned()
@@ -1109,8 +1123,8 @@ impl VeilidAPI {
     async fn debug_route_allocate(&self, args: Vec<String>) -> VeilidAPIResult<String> {
         // [ord|*ord] [rel] [<count>] [in|out] [avoid_node_id]
 
-        let netman = self.network_manager()?;
-        let routing_table = netman.routing_table();
+        let registry = self.core_context()?.registry();
+        let routing_table = registry.routing_table();
         let rss = routing_table.route_spec_store();
         let config = self.config().unwrap();
         let default_route_hop_count = {
@@ -1167,8 +1181,8 @@ impl VeilidAPI {
     }
     async fn debug_route_release(&self, args: Vec<String>) -> VeilidAPIResult<String> {
         // <route id>
-        let netman = self.network_manager()?;
-        let routing_table = netman.routing_table();
+        let registry = self.core_context()?.registry();
+        let routing_table = registry.routing_table();
         let rss = routing_table.route_spec_store();
 
         let route_id = get_debug_argument_at(
@@ -1176,21 +1190,21 @@ impl VeilidAPI {
             1,
             "debug_route",
             "route_id",
-            get_route_id(rss.clone(), true, true),
+            get_route_id(registry.clone(), true, true),
         )?;
 
         // Release route
         let out = match rss.release_route(route_id) {
             true => {
                 // release imported
-                let mut inner = self.inner.lock();
-                let dc = &mut inner.debug_cache;
-                for (n, ir) in dc.imported_routes.iter().enumerate() {
-                    if *ir == route_id {
-                        dc.imported_routes.remove(n);
-                        break;
+                self.with_debug_cache(|dc| {
+                    for (n, ir) in dc.imported_routes.iter().enumerate() {
+                        if *ir == route_id {
+                            dc.imported_routes.remove(n);
+                            break;
+                        }
                     }
-                }
+                });
                 "Released".to_owned()
             }
             false => "Route does not exist".to_owned(),
@@ -1200,8 +1214,8 @@ impl VeilidAPI {
     }
     async fn debug_route_publish(&self, args: Vec<String>) -> VeilidAPIResult<String> {
         // <route id> [full]
-        let netman = self.network_manager()?;
-        let routing_table = netman.routing_table();
+        let registry = self.core_context()?.registry();
+        let routing_table = registry.routing_table();
         let rss = routing_table.route_spec_store();
 
         let route_id = get_debug_argument_at(
@@ -1209,7 +1223,7 @@ impl VeilidAPI {
             1,
             "debug_route",
             "route_id",
-            get_route_id(rss.clone(), true, false),
+            get_route_id(registry.clone(), true, false),
         )?;
         let full = {
             if args.len() > 2 {
@@ -1252,8 +1266,8 @@ impl VeilidAPI {
     }
     async fn debug_route_unpublish(&self, args: Vec<String>) -> VeilidAPIResult<String> {
         // <route id>
-        let netman = self.network_manager()?;
-        let routing_table = netman.routing_table();
+        let registry = self.core_context()?.registry();
+        let routing_table = registry.routing_table();
         let rss = routing_table.route_spec_store();
 
         let route_id = get_debug_argument_at(
@@ -1261,7 +1275,7 @@ impl VeilidAPI {
             1,
             "debug_route",
             "route_id",
-            get_route_id(rss.clone(), true, false),
+            get_route_id(registry.clone(), true, false),
         )?;
 
         // Unpublish route
@@ -1274,8 +1288,8 @@ impl VeilidAPI {
     }
     async fn debug_route_print(&self, args: Vec<String>) -> VeilidAPIResult<String> {
         // <route id>
-        let netman = self.network_manager()?;
-        let routing_table = netman.routing_table();
+        let registry = self.core_context()?.registry();
+        let routing_table = registry.routing_table();
         let rss = routing_table.route_spec_store();
 
         let route_id = get_debug_argument_at(
@@ -1283,7 +1297,7 @@ impl VeilidAPI {
             1,
             "debug_route",
             "route_id",
-            get_route_id(rss.clone(), true, true),
+            get_route_id(registry.clone(), true, true),
         )?;
 
         match rss.debug_route(&route_id) {
@@ -1293,8 +1307,8 @@ impl VeilidAPI {
     }
     async fn debug_route_list(&self, _args: Vec<String>) -> VeilidAPIResult<String> {
         //
-        let netman = self.network_manager()?;
-        let routing_table = netman.routing_table();
+        let registry = self.core_context()?.registry();
+        let routing_table = registry.routing_table();
         let rss = routing_table.route_spec_store();
 
         let routes = rss.list_allocated_routes(|k, _| Some(*k));
@@ -1316,29 +1330,33 @@ impl VeilidAPI {
     }
     async fn debug_route_import(&self, args: Vec<String>) -> VeilidAPIResult<String> {
         // <blob>
+        let registry = self.core_context()?.registry();
+        let routing_table = registry.routing_table();
+        let rss = routing_table.route_spec_store();
 
         let blob = get_debug_argument_at(&args, 1, "debug_route", "blob", get_string)?;
         let blob_dec = BASE64URL_NOPAD
             .decode(blob.as_bytes())
             .map_err(VeilidAPIError::generic)?;
-        let rss = self.routing_table()?.route_spec_store();
+
         let route_id = rss
             .import_remote_private_route_blob(blob_dec)
             .map_err(VeilidAPIError::generic)?;
 
-        let mut inner = self.inner.lock();
-        let dc = &mut inner.debug_cache;
-        let n = dc.imported_routes.len();
-        let out = format!("Private route #{} imported: {}", n, route_id);
-        dc.imported_routes.push(route_id);
+        let out = self.with_debug_cache(|dc| {
+            let n = dc.imported_routes.len();
+            let out = format!("Private route #{} imported: {}", n, route_id);
+            dc.imported_routes.push(route_id);
+            out
+        });
 
         Ok(out)
     }
 
     async fn debug_route_test(&self, args: Vec<String>) -> VeilidAPIResult<String> {
         // <route id>
-        let netman = self.network_manager()?;
-        let routing_table = netman.routing_table();
+        let registry = self.core_context()?.registry();
+        let routing_table = registry.routing_table();
         let rss = routing_table.route_spec_store();
 
         let route_id = get_debug_argument_at(
@@ -1346,7 +1364,7 @@ impl VeilidAPI {
             1,
             "debug_route",
             "route_id",
-            get_route_id(rss.clone(), true, true),
+            get_route_id(registry.clone(), true, true),
         )?;
 
         let success = rss
@@ -1391,7 +1409,8 @@ impl VeilidAPI {
 
     async fn debug_record_list(&self, args: Vec<String>) -> VeilidAPIResult<String> {
         // <local|remote>
-        let storage_manager = self.storage_manager()?;
+        let registry = self.core_context()?.registry();
+        let storage_manager = registry.storage_manager();
 
         let scope = get_debug_argument_at(&args, 1, "debug_record_list", "scope", get_string)?;
         let out = match scope.as_str() {
@@ -1422,7 +1441,8 @@ impl VeilidAPI {
 
     async fn debug_record_purge(&self, args: Vec<String>) -> VeilidAPIResult<String> {
         // <local|remote> [bytes]
-        let storage_manager = self.storage_manager()?;
+        let registry = self.core_context()?.registry();
+        let storage_manager = registry.storage_manager();
 
         let scope = get_debug_argument_at(&args, 1, "debug_record_purge", "scope", get_string)?;
         let bytes = get_debug_argument_at(&args, 2, "debug_record_purge", "bytes", get_number).ok();
@@ -1435,8 +1455,6 @@ impl VeilidAPI {
     }
 
     async fn debug_record_create(&self, args: Vec<String>) -> VeilidAPIResult<String> {
-        let netman = self.network_manager()?;
-        let routing_table = netman.routing_table();
         let crypto = self.crypto()?;
 
         let schema = get_debug_argument_at(
@@ -1453,7 +1471,7 @@ impl VeilidAPI {
             2,
             "debug_record_create",
             "kind",
-            get_crypto_system_version(crypto.clone()),
+            get_crypto_system_version(&crypto),
         )
         .unwrap_or_else(|_| crypto.best());
 
@@ -1462,7 +1480,7 @@ impl VeilidAPI {
             3,
             "debug_record_create",
             "safety_selection",
-            get_safety_selection(routing_table),
+            get_safety_selection(self.core_context()?.registry()),
         )
         .ok();
 
@@ -1484,9 +1502,9 @@ impl VeilidAPI {
         };
 
         // Save routing context for record
-        let mut inner = self.inner.lock();
-        let dc = &mut inner.debug_cache;
-        dc.opened_record_contexts.insert(*record.key(), rc);
+        self.with_debug_cache(|dc| {
+            dc.opened_record_contexts.insert(*record.key(), rc);
+        });
 
         Ok(format!(
             "Created: {} {}:{}\n{:?}",
@@ -1498,15 +1516,14 @@ impl VeilidAPI {
     }
 
     async fn debug_record_open(&self, args: Vec<String>) -> VeilidAPIResult<String> {
-        let netman = self.network_manager()?;
-        let routing_table = netman.routing_table();
+        let registry = self.core_context()?.registry();
 
         let (key, ss) = get_debug_argument_at(
             &args,
             1,
             "debug_record_open",
             "key",
-            get_dht_key(routing_table),
+            get_dht_key(registry.clone()),
         )?;
         let writer =
             get_debug_argument_at(&args, 2, "debug_record_open", "writer", get_keypair).ok();
@@ -1529,9 +1546,9 @@ impl VeilidAPI {
         };
 
         // Save routing context for record
-        let mut inner = self.inner.lock();
-        let dc = &mut inner.debug_cache;
-        dc.opened_record_contexts.insert(*record.key(), rc);
+        self.with_debug_cache(|dc| {
+            dc.opened_record_contexts.insert(*record.key(), rc);
+        });
 
         Ok(format!("Opened: {} : {:?}", key, record))
     }
@@ -1670,7 +1687,8 @@ impl VeilidAPI {
     }
 
     async fn debug_record_info(&self, args: Vec<String>) -> VeilidAPIResult<String> {
-        let storage_manager = self.storage_manager()?;
+        let registry = self.core_context()?.registry();
+        let storage_manager = registry.storage_manager();
 
         let key =
             get_debug_argument_at(&args, 1, "debug_record_info", "key", get_dht_key_no_safety)?;
@@ -1971,7 +1989,8 @@ impl VeilidAPI {
 
     async fn debug_punish_list(&self, _args: Vec<String>) -> VeilidAPIResult<String> {
         //
-        let network_manager = self.network_manager()?;
+        let registry = self.core_context()?.registry();
+        let network_manager = registry.network_manager();
         let address_filter = network_manager.address_filter();
 
         let out = format!("Address filter punishments:\n{:#?}", address_filter);
@@ -1980,7 +1999,8 @@ impl VeilidAPI {
 
     async fn debug_punish_clear(&self, _args: Vec<String>) -> VeilidAPIResult<String> {
         //
-        let network_manager = self.network_manager()?;
+        let registry = self.core_context()?.registry();
+        let network_manager = registry.network_manager();
         let address_filter = network_manager.address_filter();
 
         address_filter.clear_punishments();
@@ -2192,14 +2212,14 @@ TableDB Operations:
 
     fn get_destination(
         self,
-        routing_table: RoutingTable,
+        registry: VeilidComponentRegistry,
     ) -> impl FnOnce(&str) -> SendPinBoxFuture<Option<Destination>> {
         move |text| {
             let text = text.to_owned();
             Box::pin(async move {
                 // Safety selection
                 let (text, ss) = if let Some((first, second)) = text.split_once('+') {
-                    let ss = get_safety_selection(routing_table.clone())(second)?;
+                    let ss = get_safety_selection(registry.clone())(second)?;
                     (first, Some(ss))
                 } else {
                     (text.as_str(), None)
@@ -2208,18 +2228,20 @@ TableDB Operations:
                     return None;
                 }
                 if &text[0..1] == "#" {
+                    let routing_table = registry.routing_table();
                     let rss = routing_table.route_spec_store();
 
                     // Private route
                     let text = &text[1..];
 
-                    let private_route =
-                        if let Some(prid) = get_route_id(rss.clone(), false, true)(text) {
-                            rss.best_remote_private_route(&prid)?
-                        } else {
-                            let mut inner = self.inner.lock();
-                            let dc = &mut inner.debug_cache;
-                            let n = get_number(text)?;
+                    let private_route = if let Some(prid) =
+                        get_route_id(registry.clone(), false, true)(text)
+                    {
+                        rss.best_remote_private_route(&prid)?
+                    } else {
+                        let n = get_number(text)?;
+
+                        self.with_debug_cache(|dc| {
                             let prid = *dc.imported_routes.get(n)?;
                             let Some(private_route) = rss.best_remote_private_route(&prid) else {
                                 // Remove imported route
@@ -2227,8 +2249,9 @@ TableDB Operations:
                                 info!("removed dead imported route {}", n);
                                 return None;
                             };
-                            private_route
-                        };
+                            Some(private_route)
+                        })?
+                    };
 
                     Some(Destination::private_route(
                         private_route,
@@ -2236,12 +2259,10 @@ TableDB Operations:
                     ))
                 } else if let Some((first, second)) = text.split_once('@') {
                     // Relay
-                    let relay_nr = resolve_filtered_node_ref(
-                        routing_table.clone(),
-                        ss.unwrap_or_default(),
-                    )(second)
-                    .await?;
-                    let target_nr = get_node_ref(routing_table)(first)?;
+                    let relay_nr =
+                        resolve_filtered_node_ref(registry.clone(), ss.unwrap_or_default())(second)
+                            .await?;
+                    let target_nr = get_node_ref(registry.clone())(first)?;
 
                     let mut d = Destination::relay(relay_nr, target_nr);
                     if let Some(ss) = ss {
@@ -2252,7 +2273,7 @@ TableDB Operations:
                 } else {
                     // Direct
                     let target_nr =
-                        resolve_filtered_node_ref(routing_table, ss.unwrap_or_default())(text)
+                        resolve_filtered_node_ref(registry.clone(), ss.unwrap_or_default())(text)
                             .await?;
 
                     let mut d = Destination::direct(target_nr);
@@ -2273,14 +2294,11 @@ TableDB Operations:
         key: &str,
         arg: usize,
     ) -> VeilidAPIResult<(TypedKey, RoutingContext)> {
-        let mut inner = self.inner.lock();
-        let dc = &mut inner.debug_cache;
-
         let key = match get_debug_argument_at(args, arg, context, key, get_dht_key_no_safety)
             .ok()
             .or_else(|| {
                 // If unspecified, use the most recent key opened or created
-                dc.opened_record_contexts.back().map(|kv| kv.0).copied()
+                self.with_debug_cache(|dc| dc.opened_record_contexts.back().map(|kv| kv.0).copied())
             }) {
             Some(k) => k,
             None => {
@@ -2289,7 +2307,9 @@ TableDB Operations:
         };
 
         // Get routing context for record
-        let Some(rc) = dc.opened_record_contexts.get(&key).cloned() else {
+
+        let Some(rc) = self.with_debug_cache(|dc| dc.opened_record_contexts.get(&key).cloned())
+        else {
             apibail_missing_argument!("key is not opened", "key");
         };
 

@@ -129,6 +129,8 @@ async def test_open_writer_dht_value(api_connection: veilid.VeilidAPI):
         vdtemp = await rc.set_dht_value(key, ValueSubkey(0), vb)
         assert vdtemp is None
 
+        await sync(rc, [rec])
+
         vdtemp = await rc.get_dht_value(key, ValueSubkey(0), True)
         assert vdtemp.data == vb
 
@@ -147,6 +149,7 @@ async def test_open_writer_dht_value(api_connection: veilid.VeilidAPI):
         # and verified they stored correctly
         # Delete things locally and reopen and see if we can write
         # with the same writer key
+        await sync(rc, [rec])
 
         await rc.close_dht_record(key)
         await rc.delete_dht_record(key)
@@ -169,6 +172,8 @@ async def test_open_writer_dht_value(api_connection: veilid.VeilidAPI):
         # Verify subkey 1 can be set a second time and it updates because seq is newer
         vdtemp = await rc.set_dht_value(key, ValueSubkey(1), vc)
         assert vdtemp is None
+
+        await sync(rc, [rec])
 
         # Verify the network got the subkey update with a refresh check
         vdtemp = await rc.get_dht_value(key, ValueSubkey(1), True)
@@ -575,22 +580,7 @@ async def test_dht_write_read_local():
 
                 print(f'  {n}: {desc.key} {desc.owner}:{desc.owner_secret}')
             
-            print('syncing records to the network')
-
-            syncrecords = records.copy()
-            while len(syncrecords) > 0:
-                donerecords = set()
-                subkeysleft = 0
-                for desc0 in records:
-                    rr = await rc0.inspect_dht_record(desc0.key, [])
-                    left = 0; [left := left + (x[1]-x[0]+1) for x in rr.offline_subkeys]
-                    if left == 0:
-                        donerecords.add(desc0)
-                    else:
-                        subkeysleft += left
-                syncrecords = [x for x in syncrecords if x not in donerecords]
-                print(f'  {len(syncrecords)} records {subkeysleft} subkeys left')
-                time.sleep(1)
+            await sync(rc0, records)
 
             for desc0 in records:
                 await rc0.close_dht_record(desc0.key)
@@ -613,3 +603,20 @@ async def test_dht_write_read_local():
                 
                 print(f'  {n}')
                 n += 1
+
+async def sync(rc: veilid.RoutingContext, records: list[veilid.DHTRecordDescriptor]):
+    print('syncing records to the network')
+    syncrecords = records.copy()
+    while len(syncrecords) > 0:
+        donerecords = set()
+        subkeysleft = 0
+        for desc in records:
+            rr = await rc.inspect_dht_record(desc.key, [])
+            left = 0; [left := left + (x[1]-x[0]+1) for x in rr.offline_subkeys]
+            if left == 0:
+                donerecords.add(desc)
+            else:
+                subkeysleft += left
+        syncrecords = [x for x in syncrecords if x not in donerecords]
+        print(f'  {len(syncrecords)} records {subkeysleft} subkeys left')
+        time.sleep(1)

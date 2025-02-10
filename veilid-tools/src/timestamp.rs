@@ -1,7 +1,7 @@
 use super::*;
 
 cfg_if! {
-    if #[cfg(target_arch = "wasm32")] {
+    if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
         use js_sys::Date;
 
         pub fn get_timestamp() -> u64 {

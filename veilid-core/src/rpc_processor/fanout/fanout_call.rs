@@ -91,14 +91,14 @@ pub fn capability_fanout_node_info_filter(caps: Vec<Capability>) -> FanoutNodeIn
 /// If the algorithm times out, a Timeout result is returned, however operations will still have been performed and a
 /// timeout is not necessarily indicative of an algorithmic 'failure', just that no definitive stopping condition was found
 /// in the given time
-pub(crate) struct FanoutCall<R, F, C, D>
+pub(crate) struct FanoutCall<'a, R, F, C, D>
 where
     R: Unpin,
     F: Future<Output = FanoutCallResult>,
     C: Fn(NodeRef) -> F,
     D: Fn(&[NodeRef]) -> Option<R>,
 {
-    routing_table: RoutingTable,
+    routing_table: &'a RoutingTable,
     node_id: TypedKey,
     context: Mutex<FanoutContext<R>>,
     node_count: usize,
@@ -109,7 +109,7 @@ where
     check_done: D,
 }
 
-impl<R, F, C, D> FanoutCall<R, F, C, D>
+impl<'a, R, F, C, D> FanoutCall<'a, R, F, C, D>
 where
     R: Unpin,
     F: Future<Output = FanoutCallResult>,
@@ -118,7 +118,7 @@ where
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        routing_table: RoutingTable,
+        routing_table: &'a RoutingTable,
         node_id: TypedKey,
         node_count: usize,
         fanout: usize,
@@ -126,13 +126,13 @@ where
         node_info_filter: FanoutNodeInfoFilter,
         call_routine: C,
         check_done: D,
-    ) -> Arc<Self> {
+    ) -> Self {
         let context = Mutex::new(FanoutContext {
             fanout_queue: FanoutQueue::new(node_id.kind),
             result: None,
         });
 
-        Arc::new(Self {
+        Self {
             routing_table,
             node_id,
             context,
@@ -142,11 +142,11 @@ where
             node_info_filter,
             call_routine,
             check_done,
-        })
+        }
     }
 
     #[instrument(level = "trace", target = "fanout", skip_all)]
-    fn evaluate_done(self: Arc<Self>, ctx: &mut FanoutContext<R>) -> bool {
+    fn evaluate_done(&self, ctx: &mut FanoutContext<R>) -> bool {
         // If we have a result, then we're done
         if ctx.result.is_some() {
             return true;
@@ -158,7 +158,7 @@ where
     }
 
     #[instrument(level = "trace", target = "fanout", skip_all)]
-    fn add_to_fanout_queue(self: Arc<Self>, new_nodes: &[NodeRef]) {
+    fn add_to_fanout_queue(&self, new_nodes: &[NodeRef]) {
         event!(target: "fanout", Level::DEBUG,
             "FanoutCall::add_to_fanout_queue:\n  new_nodes={{\n{}}}\n",
             new_nodes
@@ -169,24 +169,23 @@ where
         );
 
         let ctx = &mut *self.context.lock();
-        let this = self.clone();
         ctx.fanout_queue.add(new_nodes, |current_nodes| {
-            let mut current_nodes_vec = this
+            let mut current_nodes_vec = self
                 .routing_table
-                .sort_and_clean_closest_noderefs(this.node_id, current_nodes);
+                .sort_and_clean_closest_noderefs(self.node_id, current_nodes);
             current_nodes_vec.truncate(self.node_count);
             current_nodes_vec
         });
     }
 
     #[instrument(level = "trace", target = "fanout", skip_all)]
-    async fn fanout_processor(self: Arc<Self>) -> bool {
+    async fn fanout_processor(&self) -> bool {
         // Loop until we have a result or are done
         loop {
             // Get the closest node we haven't processed yet if we're not done yet
             let next_node = {
                 let mut ctx = self.context.lock();
-                if self.clone().evaluate_done(&mut ctx) {
+                if self.evaluate_done(&mut ctx) {
                     break true;
                 }
                 ctx.fanout_queue.next()
@@ -221,7 +220,7 @@ where
                     let new_nodes = self
                         .routing_table
                         .register_nodes_with_peer_info_list(filtered_v);
-                    self.clone().add_to_fanout_queue(&new_nodes);
+                    self.add_to_fanout_queue(&new_nodes);
                 }
                 #[allow(unused_variables)]
                 Ok(x) => {
@@ -239,10 +238,9 @@ where
     }
 
     #[instrument(level = "trace", target = "fanout", skip_all)]
-    fn init_closest_nodes(self: Arc<Self>) -> Result<(), RPCError> {
+    fn init_closest_nodes(&self) -> Result<(), RPCError> {
         // Get the 'node_count' closest nodes to the key out of our routing table
         let closest_nodes = {
-            let routing_table = self.routing_table.clone();
             let node_info_filter = self.node_info_filter.clone();
             let filter = Box::new(
                 move |rti: &RoutingTableInner, opt_entry: Option<Arc<BucketEntry>>| {
@@ -277,20 +275,20 @@ where
             let filters = VecDeque::from([filter]);
 
             let transform = |_rti: &RoutingTableInner, v: Option<Arc<BucketEntry>>| {
-                NodeRef::new(routing_table.clone(), v.unwrap().clone())
+                NodeRef::new(self.routing_table.registry(), v.unwrap().clone())
             };
 
-            routing_table
+            self.routing_table
                 .find_preferred_closest_nodes(self.node_count, self.node_id, filters, transform)
                 .map_err(RPCError::invalid_format)?
         };
-        self.clone().add_to_fanout_queue(&closest_nodes);
+        self.add_to_fanout_queue(&closest_nodes);
         Ok(())
     }
 
     #[instrument(level = "trace", target = "fanout", skip_all)]
     pub async fn run(
-        self: Arc<Self>,
+        &self,
         init_fanout_queue: Vec<NodeRef>,
     ) -> TimeoutOr<Result<Option<R>, RPCError>> {
         // Get timeout in milliseconds
@@ -302,17 +300,17 @@ where
         };
 
         // Initialize closest nodes list
-        if let Err(e) = self.clone().init_closest_nodes() {
+        if let Err(e) = self.init_closest_nodes() {
             return TimeoutOr::value(Err(e));
         }
 
         // Ensure we include the most recent nodes
-        self.clone().add_to_fanout_queue(&init_fanout_queue);
+        self.add_to_fanout_queue(&init_fanout_queue);
 
         // Do a quick check to see if we're already done
         {
             let mut ctx = self.context.lock();
-            if self.clone().evaluate_done(&mut ctx) {
+            if self.evaluate_done(&mut ctx) {
                 return TimeoutOr::value(ctx.result.take().transpose());
             }
         }
@@ -322,7 +320,7 @@ where
         {
             // Spin up 'fanout' tasks to process the fanout
             for _ in 0..self.fanout {
-                let h = self.clone().fanout_processor();
+                let h = self.fanout_processor();
                 unord.push(h);
             }
         }

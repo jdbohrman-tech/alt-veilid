@@ -9,14 +9,14 @@ const MAX_INSPECT_VALUE_A_PEERS_LEN: usize = 20;
 pub(in crate::rpc_processor) struct ValidateInspectValueContext {
     pub last_descriptor: Option<SignedValueDescriptor>,
     pub subkeys: ValueSubkeyRangeSet,
-    pub vcrypto: CryptoSystemVersion,
+    pub crypto_kind: CryptoKind,
 }
 
 impl fmt::Debug for ValidateInspectValueContext {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ValidateInspectValueContext")
             .field("last_descriptor", &self.last_descriptor)
-            .field("vcrypto", &self.vcrypto.kind().to_string())
+            .field("crypto_kind", &self.crypto_kind)
             .finish()
     }
 }
@@ -155,6 +155,11 @@ impl RPCOperationInspectValueA {
             panic!("Wrong context type for InspectValueA");
         };
 
+        let crypto = validate_context.crypto();
+        let Some(vcrypto) = crypto.get(inspect_value_context.crypto_kind) else {
+            return Err(RPCError::protocol("unsupported cryptosystem"));
+        };
+
         // Ensure seqs returned does not exceeed subkeys requested
         #[allow(clippy::unnecessary_cast)]
         if self.seqs.len() as u64 > inspect_value_context.subkeys.len() as u64 {
@@ -168,9 +173,7 @@ impl RPCOperationInspectValueA {
         // Validate descriptor
         if let Some(descriptor) = &self.descriptor {
             // Ensure the descriptor itself validates
-            descriptor
-                .validate(inspect_value_context.vcrypto.clone())
-                .map_err(RPCError::protocol)?;
+            descriptor.validate(&vcrypto).map_err(RPCError::protocol)?;
 
             // Ensure descriptor matches last one
             if let Some(last_descriptor) = &inspect_value_context.last_descriptor {
@@ -182,7 +185,7 @@ impl RPCOperationInspectValueA {
             }
         }
 
-        PeerInfo::validate_vec(&mut self.peers, validate_context.crypto.clone());
+        PeerInfo::validate_vec(&mut self.peers, &crypto);
         Ok(())
     }
 

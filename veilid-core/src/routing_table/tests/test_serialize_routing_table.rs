@@ -1,25 +1,27 @@
 use super::*;
+use crate::{routing_table::*, RegisteredComponents};
 
 pub async fn test_routingtable_buckets_round_trip() {
-    let original = mock_routing_table();
-    let copy = mock_routing_table();
-    original.init().await.unwrap();
-    copy.init().await.unwrap();
-
-    // Add lots of routes to `original` here to exercise all various types.
-
-    let (serialized_bucket_map, all_entry_bytes) = original.serialized_buckets();
-
-    copy.populate_routing_table(
-        &mut copy.inner.write(),
-        serialized_bucket_map,
-        all_entry_bytes,
-    )
-    .unwrap();
+    let original_registry = mock_registry::init("a").await;
+    let copy_registry = mock_registry::init("b").await;
 
     // Wrap to close lifetime of 'inner' which is borrowed here so terminate() can succeed
     // (it also .write() locks routing table inner)
     {
+        let original = original_registry.routing_table();
+        let copy = copy_registry.routing_table();
+
+        // Add lots of routes to `original` here to exercise all various types.
+
+        let (serialized_bucket_map, all_entry_bytes) = original.serialized_buckets();
+
+        RoutingTable::populate_routing_table_inner(
+            &mut copy.inner.write(),
+            serialized_bucket_map,
+            all_entry_bytes,
+        )
+        .unwrap();
+
         let original_inner = &*original.inner.read();
         let copy_inner = &*copy.inner.read();
 
@@ -51,8 +53,8 @@ pub async fn test_routingtable_buckets_round_trip() {
     }
 
     // Even if these are mocks, we should still practice good hygiene.
-    original.terminate().await;
-    copy.terminate().await;
+    mock_registry::terminate(original_registry).await;
+    mock_registry::terminate(copy_registry).await;
 }
 
 pub async fn test_round_trip_peerinfo() {

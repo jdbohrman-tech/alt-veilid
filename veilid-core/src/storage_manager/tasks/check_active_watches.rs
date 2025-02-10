@@ -4,19 +4,16 @@ impl StorageManager {
     // Check if client-side watches on opened records either have dead nodes or if the watch has expired
     #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub(super) async fn check_active_watches_task_routine(
-        self,
+        &self,
         _stop_token: StopToken,
         _last_ts: Timestamp,
         _cur_ts: Timestamp,
     ) -> EyreResult<()> {
         {
             let mut inner = self.inner.lock().await;
-            let Some(routing_table) = inner.opt_routing_table.clone() else {
-                return Ok(());
-            };
-            let rss = routing_table.route_spec_store();
 
-            let opt_update_callback = inner.update_callback.clone();
+            let routing_table = self.routing_table();
+            let update_callback = self.update_callback();
 
             let cur_ts = Timestamp::now();
             for (k, v) in inner.opened_records.iter_mut() {
@@ -35,7 +32,11 @@ impl StorageManager {
                 // See if the private route we're using is dead
                 if !is_dead {
                     if let Some(value_changed_route) = active_watch.opt_value_changed_route {
-                        if rss.get_route_id_for_key(&value_changed_route).is_none() {
+                        if routing_table
+                            .route_spec_store()
+                            .get_route_id_for_key(&value_changed_route)
+                            .is_none()
+                        {
                             // Route we would receive value changes on is dead
                             is_dead = true;
                         }
@@ -50,15 +51,13 @@ impl StorageManager {
                 if is_dead {
                     v.clear_active_watch();
 
-                    if let Some(update_callback) = opt_update_callback.clone() {
-                        // Send valuechange with dead count and no subkeys
-                        update_callback(VeilidUpdate::ValueChange(Box::new(VeilidValueChange {
-                            key: *k,
-                            subkeys: ValueSubkeyRangeSet::new(),
-                            count: 0,
-                            value: None,
-                        })));
-                    }
+                    // Send valuechange with dead count and no subkeys
+                    update_callback(VeilidUpdate::ValueChange(Box::new(VeilidValueChange {
+                        key: *k,
+                        subkeys: ValueSubkeyRangeSet::new(),
+                        count: 0,
+                        value: None,
+                    })));
                 }
             }
         }

@@ -4,26 +4,27 @@ impl RPCProcessor {
     // Can only be sent directly, not via relays or routes
     #[instrument(level = "trace", target = "rpc", skip(self), ret, err)]
     pub async fn rpc_call_validate_dial_info(
-        self,
+        &self,
         peer: NodeRef,
         dial_info: DialInfo,
         redirect: bool,
     ) -> Result<bool, RPCError> {
         let _guard = self
-            .unlocked_inner
+            .startup_context
             .startup_lock
             .enter()
             .map_err(RPCError::map_try_again("not started up"))?;
         let stop_token = self
-            .unlocked_inner
+            .startup_context
             .startup_lock
             .stop_token()
             .ok_or(RPCError::try_again("not started up"))?;
 
         let network_manager = self.network_manager();
 
-        let validate_dial_info_receipt_time_ms =
-            self.with_config(|c| c.network.dht.validate_dial_info_receipt_time_ms as u64);
+        let validate_dial_info_receipt_time_ms = self
+            .config()
+            .with(|c| c.network.dht.validate_dial_info_receipt_time_ms as u64);
 
         let receipt_time = TimestampDuration::new_ms(validate_dial_info_receipt_time_ms);
 
@@ -130,7 +131,9 @@ impl RPCProcessor {
             // an ipv6 address
             let sender_node_id = detail.envelope.get_sender_typed_id();
             let routing_domain = detail.routing_domain;
-            let node_count = self.with_config(|c| c.network.dht.max_find_node_count as usize);
+            let node_count = self
+                .config()
+                .with(|c| c.network.dht.max_find_node_count as usize);
 
             // Filter on nodes that can validate dial info, and can reach a specific dial info
             let outbound_dial_info_entry_filter =

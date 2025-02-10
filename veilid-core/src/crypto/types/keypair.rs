@@ -2,7 +2,7 @@ use super::*;
 
 #[derive(Clone, Copy, Default, PartialOrd, Ord, PartialEq, Eq, Hash)]
 #[cfg_attr(
-    target_arch = "wasm32",
+    all(target_arch = "wasm32", target_os = "unknown"),
     derive(Tsify),
     tsify(from_wasm_abi, into_wasm_abi)
 )]

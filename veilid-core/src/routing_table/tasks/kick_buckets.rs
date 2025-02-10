@@ -11,15 +11,15 @@ impl RoutingTable {
     // Attempts to keep the size of the routing table down to the bucket depth
     #[instrument(level = "trace", skip(self), err)]
     pub async fn kick_buckets_task_routine(
-        self,
+        &self,
         _stop_token: StopToken,
         _last_ts: Timestamp,
         cur_ts: Timestamp,
     ) -> EyreResult<()> {
-        let kick_queue: Vec<BucketIndex> =
-            core::mem::take(&mut *self.unlocked_inner.kick_queue.lock())
-                .into_iter()
-                .collect();
+        let crypto = self.crypto();
+        let kick_queue: Vec<BucketIndex> = core::mem::take(&mut *self.kick_queue.lock())
+            .into_iter()
+            .collect();
         let mut inner = self.inner.write();
 
         // Get our exempt nodes for each crypto kind
@@ -30,7 +30,7 @@ impl RoutingTable {
             let Some(buckets) = inner.buckets.get(&kind) else {
                 continue;
             };
-            let sort = make_closest_node_id_sort(self.crypto(), our_node_id);
+            let sort = make_closest_node_id_sort(&crypto, our_node_id);
 
             let mut closest_peers = BTreeSet::<CryptoKey>::new();
             let mut closest_unreliable_count = 0usize;

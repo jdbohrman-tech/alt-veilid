@@ -50,14 +50,13 @@ pub(super) struct RecordStore<D>
 where
     D: fmt::Debug + Clone + Serialize + for<'d> Deserialize<'d>,
 {
-    table_store: TableStore,
     name: String,
     limits: RecordStoreLimits,
 
     /// The tabledb used for record data
-    record_table: Option<TableDB>,
+    record_table: TableDB,
     /// The tabledb used for subkey data
-    subkey_table: Option<TableDB>,
+    subkey_table: TableDB,
     /// The in-memory index that keeps track of what records are in the tabledb
     record_index: LruCache<RecordTableKey, Record<D>>,
     /// The in-memory cache of commonly accessed subkey data so we don't have to keep hitting the db
@@ -78,6 +77,30 @@ where
     changed_watched_values: HashSet<RecordTableKey>,
     /// A mutex to ensure we handle this concurrently
     purge_dead_records_mutex: Arc<AsyncMutex<()>>,
+}
+
+impl<D> fmt::Debug for RecordStore<D>
+where
+    D: fmt::Debug + Clone + Serialize + for<'d> Deserialize<'d>,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RecordStore")
+            .field("name", &self.name)
+            .field("limits", &self.limits)
+            .field("record_table", &self.record_table)
+            .field("subkey_table", &self.subkey_table)
+            .field("record_index", &self.record_index)
+            .field("subkey_cache", &self.subkey_cache)
+            .field("inspect_cache", &self.inspect_cache)
+            .field("subkey_cache_total_size", &self.subkey_cache_total_size)
+            .field("total_storage_space", &self.total_storage_space)
+            .field("dead_records", &self.dead_records)
+            .field("changed_records", &self.changed_records)
+            .field("watched_records", &self.watched_records)
+            .field("changed_watched_values", &self.changed_watched_values)
+            .field("purge_dead_records_mutex", &self.purge_dead_records_mutex)
+            .finish()
+    }
 }
 
 /// The result of the do_get_value_operation
@@ -104,7 +127,11 @@ impl<D> RecordStore<D>
 where
     D: fmt::Debug + Clone + Serialize + for<'d> Deserialize<'d>,
 {
-    pub fn new(table_store: TableStore, name: &str, limits: RecordStoreLimits) -> Self {
+    pub async fn try_create(
+        table_store: &TableStore,
+        name: &str,
+        limits: RecordStoreLimits,
+    ) -> EyreResult<Self> {
         let subkey_cache_size = limits.subkey_cache_size;
         let limit_subkey_cache_total_size = limits
             .max_subkey_cache_memory_mb
@@ -113,12 +140,14 @@ where
             .max_storage_space_mb
             .map(|mb| mb as u64 * 1_048_576u64);
 
-        Self {
-            table_store,
+        let record_table = table_store.open(&format!("{}_records", name), 1).await?;
+        let subkey_table = table_store.open(&format!("{}_subkeys", name), 1).await?;
+
+        let mut out = Self {
             name: name.to_owned(),
             limits,
-            record_table: None,
-            subkey_table: None,
+            record_table,
+            subkey_table,
             record_index: LruCache::new(limits.max_records.unwrap_or(usize::MAX)),
             subkey_cache: LruCache::new(subkey_cache_size),
             inspect_cache: InspectCache::new(subkey_cache_size),
@@ -137,25 +166,20 @@ where
             watched_records: HashMap::new(),
             purge_dead_records_mutex: Arc::new(AsyncMutex::new(())),
             changed_watched_values: HashSet::new(),
-        }
+        };
+
+        out.setup().await?;
+
+        Ok(out)
     }
 
-    pub async fn init(&mut self) -> EyreResult<()> {
-        let record_table = self
-            .table_store
-            .open(&format!("{}_records", self.name), 1)
-            .await?;
-        let subkey_table = self
-            .table_store
-            .open(&format!("{}_subkeys", self.name), 1)
-            .await?;
-
+    async fn setup(&mut self) -> EyreResult<()> {
         // Pull record index from table into a vector to ensure we sort them
-        let record_table_keys = record_table.get_keys(0).await?;
+        let record_table_keys = self.record_table.get_keys(0).await?;
         let mut record_index_saved: Vec<(RecordTableKey, Record<D>)> =
             Vec::with_capacity(record_table_keys.len());
         for rtk in record_table_keys {
-            if let Some(vr) = record_table.load_json::<Record<D>>(0, &rtk).await? {
+            if let Some(vr) = self.record_table.load_json::<Record<D>>(0, &rtk).await? {
                 let rik = RecordTableKey::try_from(rtk.as_ref())?;
                 record_index_saved.push((rik, vr));
             }
@@ -204,8 +228,6 @@ where
             self.dead_records.push(dr);
         }
 
-        self.record_table = Some(record_table);
-        self.subkey_table = Some(subkey_table);
         Ok(())
     }
 
@@ -284,11 +306,8 @@ where
             return;
         }
 
-        let record_table = self.record_table.clone().unwrap();
-        let subkey_table = self.subkey_table.clone().unwrap();
-
-        let rt_xact = record_table.transact();
-        let st_xact = subkey_table.transact();
+        let rt_xact = self.record_table.transact();
+        let st_xact = self.subkey_table.transact();
         let dead_records = mem::take(&mut self.dead_records);
         for dr in dead_records {
             // Record should already be gone from index
@@ -350,9 +369,7 @@ where
             return;
         }
 
-        let record_table = self.record_table.clone().unwrap();
-
-        let rt_xact = record_table.transact();
+        let rt_xact = self.record_table.transact();
         let changed_records = mem::take(&mut self.changed_records);
         for rtk in changed_records {
             // Get the changed record and save it to the table
@@ -381,11 +398,6 @@ where
             apibail_internal!("record already exists");
         }
 
-        // Get record table
-        let Some(record_table) = self.record_table.clone() else {
-            apibail_internal!("record store not initialized");
-        };
-
         // If over size limit, dont create record
         self.total_storage_space
             .add((mem::size_of::<RecordTableKey>() + record.total_size()) as u64)
@@ -396,7 +408,7 @@ where
         }
 
         // Save to record table
-        record_table
+        self.record_table
             .store_json(0, &rtk.bytes(), &record)
             .await
             .map_err(VeilidAPIError::internal)?;
@@ -552,11 +564,6 @@ where
             }));
         }
 
-        // Get subkey table
-        let Some(subkey_table) = self.subkey_table.clone() else {
-            apibail_internal!("record store not initialized");
-        };
-
         // If subkey exists in subkey cache, use that
         let stk = SubkeyTableKey { key, subkey };
         if let Some(record_data) = self.subkey_cache.get(&stk) {
@@ -568,7 +575,8 @@ where
             }));
         }
         // If not in cache, try to pull from table store if it is in our stored subkey set
-        let Some(record_data) = subkey_table
+        let Some(record_data) = self
+            .subkey_table
             .load_json::<RecordData>(0, &stk.bytes())
             .await
             .map_err(VeilidAPIError::internal)?
@@ -624,11 +632,6 @@ where
             }));
         }
 
-        // Get subkey table
-        let Some(subkey_table) = self.subkey_table.clone() else {
-            apibail_internal!("record store not initialized");
-        };
-
         // If subkey exists in subkey cache, use that
         let stk = SubkeyTableKey { key, subkey };
         if let Some(record_data) = self.subkey_cache.peek(&stk) {
@@ -640,7 +643,8 @@ where
             }));
         }
         // If not in cache, try to pull from table store if it is in our stored subkey set
-        let Some(record_data) = subkey_table
+        let Some(record_data) = self
+            .subkey_table
             .load_json::<RecordData>(0, &stk.bytes())
             .await
             .map_err(VeilidAPIError::internal)?
@@ -724,11 +728,6 @@ where
             apibail_invalid_argument!("subkey out of range", "subkey", subkey);
         }
 
-        // Get subkey table
-        let Some(subkey_table) = self.subkey_table.clone() else {
-            apibail_internal!("record store not initialized");
-        };
-
         // Get the previous subkey and ensure we aren't going over the record size limit
         let mut prior_subkey_size = 0usize;
 
@@ -740,7 +739,8 @@ where
             prior_subkey_size = record_data.data_size();
         } else {
             // If not in cache, try to pull from table store
-            if let Some(record_data) = subkey_table
+            if let Some(record_data) = self
+                .subkey_table
                 .load_json::<RecordData>(0, &stk_bytes)
                 .await
                 .map_err(VeilidAPIError::internal)?
@@ -771,7 +771,7 @@ where
         }
 
         // Write subkey
-        subkey_table
+        self.subkey_table
             .store_json(0, &stk_bytes, &subkey_record_data)
             .await
             .map_err(VeilidAPIError::internal)?;
@@ -810,11 +810,6 @@ where
         subkeys: ValueSubkeyRangeSet,
         want_descriptor: bool,
     ) -> VeilidAPIResult<Option<InspectResult>> {
-        // Get subkey table
-        let Some(subkey_table) = self.subkey_table.clone() else {
-            apibail_internal!("record store not initialized");
-        };
-
         // Get record from index
         let Some((subkeys, opt_descriptor)) = self.with_record(key, |record| {
             // Get number of subkeys from schema and ensure we are getting the
@@ -859,7 +854,8 @@ where
             } else {
                 // If not in cache, try to pull from table store if it is in our stored subkey set
                 // XXX: This would be better if it didn't have to pull the whole record data to get the seq.
-                if let Some(record_data) = subkey_table
+                if let Some(record_data) = self
+                    .subkey_table
                     .load_json::<RecordData>(0, &stk.bytes())
                     .await
                     .map_err(VeilidAPIError::internal)?
