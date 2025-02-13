@@ -478,35 +478,9 @@ impl RPCProcessor {
                     }
                 };
 
-                // Reply directly to the request's source
-                let sender_node_id = detail.envelope.get_sender_typed_id();
-
-                // This may be a different node's reference than the 'sender' in the case of a relay
-                let peer_noderef = detail.peer_noderef.clone();
-
-                // If the sender_id is that of the peer, then this is a direct reply
-                // else it is a relayed reply through the peer
-                if peer_noderef.node_ids().contains(&sender_node_id) {
-                    NetworkResult::value(Destination::direct(peer_noderef))
-                } else {
-                    // Look up the sender node, we should have added it via senderNodeInfo before getting here.
-                    let res = match self.routing_table().lookup_node_ref(sender_node_id) {
-                        Ok(v) => v,
-                        Err(e) => {
-                            return NetworkResult::invalid_message(format!(
-                                "failed to look up node info for respond to: {}",
-                                e
-                            ))
-                        }
-                    };
-                    if let Some(sender_noderef) = res {
-                        NetworkResult::value(Destination::relay(peer_noderef, sender_noderef))
-                    } else {
-                        NetworkResult::invalid_message(
-                            "not responding to sender that has no node info",
-                        )
-                    }
-                }
+                // Get the filtered noderef of the sender
+                let sender_noderef = detail.sender_noderef.clone();
+                NetworkResult::value(Destination::direct(sender_noderef))
             }
             RespondTo::PrivateRoute(pr) => {
                 match &request.header.detail {

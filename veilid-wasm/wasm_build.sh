@@ -26,19 +26,11 @@ if [[ "$1" == "release" ]]; then
     OUTPUTDIR=$SCRIPTDIR/../target/wasm32-unknown-unknown/release/pkg
     INPUTDIR=$SCRIPTDIR/../target/wasm32-unknown-unknown/release
 
-    # Path to, but not including, the cargo workspace ("veilid")
-    WORKSPACE_PARENT=$(dirname $(dirname $(cargo locate-project --workspace --message-format=plain)))
-    # Do not include said path in wasm blob output
-    RUSTFLAGS="--remap-path-prefix=$WORKSPACE_PARENT=/home/user $RUSTFLAGS"
-    # Do not include user home directory in wasm blob output
-    RUSTFLAGS="--remap-path-prefix=$HOME=/home/user $RUSTFLAGS"
-    # Explicitly mark RUSTFLAGS as an environment variable, so it's passed to cargo
-    export RUSTFLAGS
-
-    cargo build --target wasm32-unknown-unknown --release
+    ./wasm_remap_paths.sh cargo build --target wasm32-unknown-unknown --release
     mkdir -p $OUTPUTDIR
     wasm-bindgen --out-dir $OUTPUTDIR --target web --weak-refs $INPUTDIR/veilid_wasm.wasm
-    wasm-strip $OUTPUTDIR/veilid_wasm_bg.wasm
+    wasm-tools strip $OUTPUTDIR/veilid_wasm_bg.wasm -o $OUTPUTDIR/veilid_wasm_bg.wasm.stripped
+    mv $OUTPUTDIR/veilid_wasm_bg.wasm.stripped $OUTPUTDIR/veilid_wasm_bg.wasm
 else
     OUTPUTDIR=$SCRIPTDIR/../target/wasm32-unknown-unknown/debug/pkg
     INPUTDIR=$SCRIPTDIR/../target/wasm32-unknown-unknown/debug
@@ -54,7 +46,7 @@ else
     # wasm-strip $OUTPUTDIR/veilid_wasm_bg.wasm
 fi
 
-popd &> /dev/null
+    popd &> /dev/null
 
 # Print for use with scripts
 echo SUCCESS:OUTPUTDIR=$(get_abs_filename $OUTPUTDIR)

@@ -245,6 +245,7 @@ fn main() -> EyreResult<()> {
             NamedSocketAddrs::from_str(&otlp).wrap_err("failed to parse OTLP address")?;
         settingsrw.logging.otlp.level = LogLevel::Trace;
     }
+    #[cfg(feature = "flame")]
     if let Some(flame) = args.flame {
         let flame = if flame.is_empty() {
             Settings::get_default_flame_path(
@@ -260,7 +261,7 @@ fn main() -> EyreResult<()> {
         settingsrw.logging.flame.enabled = true;
         settingsrw.logging.flame.path = flame;
     }
-    #[cfg(unix)]
+    #[cfg(all(unix, feature = "perfetto"))]
     if let Some(perfetto) = args.perfetto {
         let perfetto = if perfetto.is_empty() {
             Settings::get_default_perfetto_path(

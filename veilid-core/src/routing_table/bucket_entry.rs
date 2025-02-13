@@ -600,8 +600,16 @@ impl BucketEntryInner {
     }
 
     // Clears the table of last flows to ensure we create new ones and drop any existing ones
-    pub(super) fn clear_last_flows(&mut self) {
-        self.last_flows.clear();
+    // With a DialInfo::all filter specified, only clear the flows that match the filter
+    pub(super) fn clear_last_flows(&mut self, dial_info_filter: DialInfoFilter) {
+        if dial_info_filter != DialInfoFilter::all() {
+            self.last_flows.retain(|k, _v| {
+                !(dial_info_filter.protocol_type_set.contains(k.0)
+                    && dial_info_filter.address_type_set.contains(k.1))
+            })
+        } else {
+            self.last_flows.clear();
+        }
     }
 
     // Clears the table of last flows except the most recent one
@@ -751,7 +759,7 @@ impl BucketEntryInner {
     pub fn set_punished(&mut self, punished: Option<PunishmentReason>) {
         self.punishment = punished;
         if punished.is_some() {
-            self.clear_last_flows();
+            self.clear_last_flows(DialInfoFilter::all());
         }
     }
 

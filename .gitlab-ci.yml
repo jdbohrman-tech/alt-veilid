@@ -2,6 +2,7 @@ variables:
   NO_DOCKER: 1
   FORCE_COLOR: 1
   EARTHLY_EXEC_CMD: "/bin/sh"
+  EARTHLY_DISABLE_REMOTE_REGISTRY_PROXY: 1
   GIT_SUBMODULE_STRATEGY: normal
 
 stages:
@@ -35,7 +36,7 @@ format:
 
 .earthly: &earthly_setup
   - apk update && apk add git
-  - wget https://github.com/earthly/earthly/releases/download/v0.7.15/earthly-linux-amd64 -O /usr/local/bin/earthly
+  - wget https://github.com/earthly/earthly/releases/download/v0.8.15/earthly-linux-amd64 -O /usr/local/bin/earthly
   - chmod +x /usr/local/bin/earthly
   - earthly bootstrap
   - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
@@ -106,7 +107,7 @@ semgrep:
     - if: $CI_PIPELINE_SOURCE == "push"  # Include all commits
     - if: $CI_PIPELINE_SOURCE == "schedule"  # Optionally include scheduled pipelines
     - when: always  # Ensure it runs if the pipeline is triggered for any other reason
-  
+
 
   variables:
     # Connect to Semgrep AppSec Platform through your SEMGREP_APP_TOKEN.
@@ -154,7 +155,7 @@ create_build_machines:
     - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh create amd64-rpm
   rules:
     - if: '$CI_COMMIT_TAG =~ /v\d.+/'
-  
+
 package_amd64_deb:
   stage: build_packages
   needs:
@@ -264,7 +265,7 @@ dryrun_create_build_machines:
     - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh create amd64-rpm
   rules:
     - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
-  
+
 dryrun_package_amd64_deb:
   stage: build_packages
   needs:
@@ -290,7 +291,7 @@ dryrun_package_arm64_deb:
     - bash scripts/cicd/build-machine/scp-arm64-debs-to-orchestrator.sh
   rules:
     - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
-    
+
 dryrun_package_amd64_rpm:
   stage: build_packages
   needs:
@@ -345,9 +346,9 @@ dryrun_deploy_repos:
   stage: distribute
   needs:
     - dryrun_build_repositories
-  tags: 
+  tags:
     - repo-server
-  script: 
+  script:
     - ls -al $HOME/repo.tar
   rules:
     - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
@@ -378,7 +379,7 @@ nightly_create_build_machines:
     - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh create amd64-rpm
   rules:
     - if: $IS_NIGHTLY == "true"
-  
+
 nightly_package_amd64_deb:
   stage: build_packages
   needs:

@@ -16,14 +16,16 @@ use std::collections::BTreeMap;
 use std::path::*;
 use std::sync::Arc;
 use tracing_appender::*;
+#[cfg(feature = "flame")]
 use tracing_flame::FlameLayer;
-#[cfg(unix)]
+#[cfg(all(unix, feature = "perfetto"))]
 use tracing_perfetto::PerfettoLayer;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::*;
 
 struct VeilidLogsInner {
     _file_guard: Option<non_blocking::WorkerGuard>,
+    #[cfg(feature = "flame")]
     _flame_guard: Option<tracing_flame::FlushGuard<std::io::BufWriter<std::fs::File>>>,
     filters: BTreeMap<&'static str, veilid_core::VeilidLayerFilter>,
 }
@@ -91,7 +93,9 @@ impl VeilidLogs {
         }
 
         // Flamegraph logger
+        #[cfg(feature = "flame")]
         let mut flame_guard = None;
+        #[cfg(feature = "flame")]
         if settingsr.logging.flame.enabled {
             let filter = veilid_core::VeilidLayerFilter::new_no_default(
                 veilid_core::VeilidConfigLogLevel::Trace,
@@ -114,7 +118,7 @@ impl VeilidLogs {
         }
 
         // Perfetto logger
-        #[cfg(unix)]
+        #[cfg(all(unix, feature = "perfetto"))]
         if settingsr.logging.perfetto.enabled {
             let filter = veilid_core::VeilidLayerFilter::new_no_default(
                 veilid_core::VeilidConfigLogLevel::Trace,
@@ -259,6 +263,7 @@ impl VeilidLogs {
         Ok(VeilidLogs {
             inner: Arc::new(Mutex::new(VeilidLogsInner {
                 _file_guard: file_guard,
+                #[cfg(feature = "flame")]
                 _flame_guard: flame_guard,
                 filters,
             })),

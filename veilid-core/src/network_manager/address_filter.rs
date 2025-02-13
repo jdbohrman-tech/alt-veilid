@@ -32,7 +32,6 @@ struct AddressFilterInner {
     dial_info_failures: BTreeMap<DialInfo, Timestamp>,
 }
 
-#[derive(Debug)]
 pub(crate) struct AddressFilter {
     registry: VeilidComponentRegistry,
     inner: Mutex<AddressFilterInner>,
@@ -42,6 +41,33 @@ pub(crate) struct AddressFilter {
     max_connection_frequency_per_min: usize,
     punishment_duration_min: usize,
     dial_info_failure_duration_min: usize,
+}
+
+impl fmt::Debug for AddressFilter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("AddressFilter")
+            //.field("registry", &self.registry)
+            .field("inner", &self.inner)
+            .field("max_connections_per_ip4", &self.max_connections_per_ip4)
+            .field(
+                "max_connections_per_ip6_prefix",
+                &self.max_connections_per_ip6_prefix,
+            )
+            .field(
+                "max_connections_per_ip6_prefix_size",
+                &self.max_connections_per_ip6_prefix_size,
+            )
+            .field(
+                "max_connection_frequency_per_min",
+                &self.max_connection_frequency_per_min,
+            )
+            .field("punishment_duration_min", &self.punishment_duration_min)
+            .field(
+                "dial_info_failure_duration_min",
+                &self.dial_info_failure_duration_min,
+            )
+            .finish()
+    }
 }
 
 impl_veilid_component_registry_accessor!(AddressFilter);

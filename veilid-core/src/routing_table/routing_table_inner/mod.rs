@@ -341,7 +341,7 @@ impl RoutingTableInner {
             for bucket in &self.buckets[&ck] {
                 for entry in bucket.entries() {
                     entry.1.with_mut_inner(|e| {
-                        e.clear_last_flows();
+                        e.clear_last_flows(DialInfoFilter::all());
                     });
                 }
             }

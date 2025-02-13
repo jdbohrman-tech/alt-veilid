@@ -4,11 +4,11 @@ use super::*;
 pub(in crate::rpc_processor) struct RPCMessageHeaderDetailDirect {
     /// The decoded header of the envelope
     pub envelope: Envelope,
-    /// The noderef of the peer that sent the message (not the original sender).
+    /// The noderef of the original peer that sent the message (not the relay if it is relayed)
     /// Ensures node doesn't get evicted from routing table until we're done with it
     /// Should be filtered to the routing domain of the peer that we received from
-    pub peer_noderef: FilteredNodeRef,
-    /// The flow from the peer sent the message (not the original sender)
+    pub sender_noderef: FilteredNodeRef,
+    /// The flow from the peer sent the message (possibly a relay)
     pub flow: Flow,
     /// The routing domain of the peer that we received from
     pub routing_domain: RoutingDomain,
@@ -65,13 +65,6 @@ impl MessageHeader {
             RPCMessageHeaderDetail::PrivateRouted(p) => p.direct.envelope.get_crypto_kind(),
         }
     }
-    // pub fn direct_peer_noderef(&self) -> NodeRef {
-    //     match &self.detail {
-    //         RPCMessageHeaderDetail::Direct(d) => d.peer_noderef.clone(),
-    //         RPCMessageHeaderDetail::SafetyRouted(s) => s.direct.peer_noderef.clone(),
-    //         RPCMessageHeaderDetail::PrivateRouted(p) => p.direct.peer_noderef.clone(),
-    //     }
-    // }
     pub fn routing_domain(&self) -> RoutingDomain {
         match &self.detail {
             RPCMessageHeaderDetail::Direct(d) => d.routing_domain,

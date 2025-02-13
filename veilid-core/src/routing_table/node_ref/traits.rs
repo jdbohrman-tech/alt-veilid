@@ -228,7 +228,7 @@ pub(crate) trait NodeRefCommonTrait: NodeRefAccessorsTrait + NodeRefOperateTrait
     }
 
     fn clear_last_flows(&self) {
-        self.operate_mut(|_rti, e| e.clear_last_flows())
+        self.operate_mut(|_rti, e| e.clear_last_flows(self.dial_info_filter()))
     }
 
     fn set_last_flow(&self, flow: Flow, ts: Timestamp) {
