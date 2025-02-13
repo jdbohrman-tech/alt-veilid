@@ -114,6 +114,11 @@ impl DiscoveryContext {
     async fn request_public_address(&self, node_ref: FilteredNodeRef) -> Option<SocketAddress> {
         let rpc = self.rpc_processor();
 
+        // Ensure a fresh connection is made so it comes from our public address
+        // This will only clear the dialinfo filtered flows, as this is a FilteredNodeRef
+        // filtered down to the protocol/address type we are checking the public address for
+        node_ref.clear_last_flows();
+
         let res = network_result_value_or_log!(match rpc.rpc_call_status(Destination::direct(node_ref.clone())).await {
                 Ok(v) => v,
                 Err(e) => {
@@ -301,6 +306,9 @@ impl DiscoveryContext {
         redirect: bool,
     ) -> bool {
         // ask the node to send us a dial info validation receipt
+        // no need to clear_last_flows here, because the dial_info is always returned via the
+        // send_out_of_band_receipt mechanism, which will always create a new flow
+        // and the outgoing rpc call is safely able to use existing flows
         match self
             .rpc_processor()
             .rpc_call_validate_dial_info(node_ref.clone(), dial_info, redirect)

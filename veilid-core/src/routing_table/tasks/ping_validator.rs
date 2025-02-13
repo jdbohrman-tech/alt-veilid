@@ -2,10 +2,10 @@ use super::*;
 
 /// Keepalive pings are done occasionally to ensure holepunched public dialinfo
 /// remains valid, as well as to make sure we remain in any relay node's routing table
-const RELAY_KEEPALIVE_PING_INTERVAL_SECS: u32 = 1;
+const RELAY_KEEPALIVE_PING_INTERVAL_SECS: u32 = 10;
 
 /// Keepalive pings are done for active watch nodes to make sure they are still there
-const ACTIVE_WATCH_KEEPALIVE_PING_INTERVAL_SECS: u32 = 1;
+const ACTIVE_WATCH_KEEPALIVE_PING_INTERVAL_SECS: u32 = 10;
 
 /// Ping queue processing depth per validator
 const MAX_PARALLEL_PINGS: usize = 8;

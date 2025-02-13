@@ -1116,29 +1116,34 @@ impl NetworkManager {
             }
         };
 
-        // Add the node without its peer info
-        let source_noderef = match routing_table.register_node_with_id(
-            routing_domain,
-            envelope.get_sender_typed_id(),
-            ts,
-        ) {
-            Ok(v) => v,
-            Err(e) => {
-                // If the node couldn't be registered just skip this envelope,
-                log_net!(debug "failed to register node with existing connection: {}", e);
-                return Ok(false);
-            }
-        };
+        // Add the sender's node without its peer info
+        // Gets noderef filtered to the routing domain
+        let sender_noderef =
+            match routing_table.register_node_with_id(routing_domain, sender_id, ts) {
+                Ok(v) => v,
+                Err(e) => {
+                    // If the node couldn't be registered just skip this envelope,
+                    log_net!(debug "failed to register node with existing connection: {}", e);
+                    return Ok(false);
+                }
+            };
+
+        // Filter the noderef further by its inbound flow
+        let sender_noderef = sender_noderef.filtered_clone(
+            NodeRefFilter::new()
+                .with_address_type(flow.address_type())
+                .with_protocol_type(flow.protocol_type()),
+        );
 
         // Set the envelope version for the peer
-        source_noderef.add_envelope_version(envelope.get_version());
+        sender_noderef.add_envelope_version(envelope.get_version());
 
         // Set the last flow for the peer
-        self.set_last_flow(source_noderef.unfiltered(), flow, ts);
+        self.set_last_flow(sender_noderef.unfiltered(), flow, ts);
 
         // Pass message to RPC system
         if let Err(e) =
-            rpc.enqueue_direct_message(envelope, source_noderef, flow, routing_domain, body)
+            rpc.enqueue_direct_message(envelope, sender_noderef, flow, routing_domain, body)
         {
             // Couldn't enqueue, but not the sender's fault
             log_net!(debug "failed to enqueue direct message: {}", e);

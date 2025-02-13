@@ -164,7 +164,7 @@ impl RPCProcessor {
         pr_pubkey: TypedKey,
     ) -> RPCNetworkResult<()> {
         // Get sender id of the peer with the crypto kind of the route
-        let Some(sender_id) = detail.peer_noderef.node_ids().get(pr_pubkey.kind) else {
+        let Some(sender_id) = detail.sender_noderef.node_ids().get(pr_pubkey.kind) else {
             return Ok(NetworkResult::invalid_message(
                 "route node doesnt have a required crypto kind for routed operation",
             ));

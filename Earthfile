@@ -1,4 +1,4 @@
-VERSION 0.7
+VERSION 0.8
 
 ########################################################################################################################
 ## ARGUMENTS
@@ -14,7 +14,6 @@ VERSION 0.7
 # Start with older Ubuntu to ensure GLIBC symbol versioning support for older linux
 # Ensure we are using an amd64 platform because some of these targets use cross-platform tooling
 FROM ubuntu:18.04
-
 ENV ZIG_VERSION=0.13.0
 ENV CMAKE_VERSION_MINOR=3.30
 ENV CMAKE_VERSION_PATCH=3.30.1
@@ -26,14 +25,40 @@ ENV CARGO_HOME=/usr/local/cargo
 ENV PATH=$PATH:/usr/local/cargo/bin:/usr/local/zig
 ENV LD_LIBRARY_PATH=/usr/local/lib
 ENV RUST_BACKTRACE=1
+ENV RETRY_COUNT=12
 
 WORKDIR /veilid
 
+IF [ $(arch) = "x86_64" ]
+    ENV DEFAULT_CARGO_TARGET = "x86_64-unknown-linux-gnu"
+ELSE IF [ $(arch) = "aarch64" ]
+    ENV DEFAULT_CARGO_TARGET = "aarch64-unknown-linux-gnu"
+ELSE
+    RUN echo "Unsupported host platform"
+    RUN false
+END
+
 # Install build prerequisites & setup required directories
 deps-base:
+    RUN echo '\
+        Acquire::Retries "'$RETRY_COUNT'";\
+        Acquire::https::Timeout "240";\
+        Acquire::http::Timeout "240";\
+        APT::Get::Assume-Yes "true";\
+        APT::Install-Recommends "false";\
+        APT::Install-Suggests "false";\
+        Debug::Acquire::https "true";\
+        ' > /etc/apt/apt.conf.d/99custom
     RUN apt-get -y update
-    RUN apt-get install -y iproute2 curl build-essential libssl-dev openssl file git pkg-config libdbus-1-dev libdbus-glib-1-dev libgirepository1.0-dev libcairo2-dev checkinstall unzip libncursesw5-dev libncurses5-dev
-    RUN curl -O https://cmake.org/files/v$CMAKE_VERSION_MINOR/cmake-$CMAKE_VERSION_PATCH-linux-$(arch).sh
+    RUN apt-get install -y ca-certificates iproute2 curl build-essential libssl-dev openssl file git pkg-config libdbus-1-dev libdbus-glib-1-dev libgirepository1.0-dev libcairo2-dev checkinstall unzip libncursesw5-dev libncurses5-dev
+    IF [ $(arch) = "x86_64" ]
+        RUN apt-get install -y gcc-aarch64-linux-gnu
+    ELSE IF [ $(arch) = "aarch64" ]
+        RUN apt-get install -y gcc-x86-64-linux-gnu
+    ELSE
+        RUN apt-get install -y gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu
+    END
+    RUN curl --retry $RETRY_COUNT --retry-connrefused -O https://cmake.org/files/v$CMAKE_VERSION_MINOR/cmake-$CMAKE_VERSION_PATCH-linux-$(arch).sh
     RUN mkdir /opt/cmake
     RUN sh cmake-$CMAKE_VERSION_PATCH-linux-$(arch).sh --skip-license --prefix=/opt/cmake
     RUN ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake
@@ -41,27 +66,34 @@ deps-base:
 # Install Rust
 deps-rust:
     FROM +deps-base
-    RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain=$RUST_VERSION -y -c clippy --no-modify-path --profile minimal
+    RUN curl --retry $RETRY_COUNT --retry-connrefused --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain=$RUST_VERSION -y -c clippy --no-modify-path --profile minimal
     RUN chmod -R a+w $RUSTUP_HOME $CARGO_HOME; \
         rustup --version; \
         cargo --version; \
         rustc --version;
-    # Linux
-    RUN rustup target add x86_64-unknown-linux-gnu
-    RUN rustup target add aarch64-unknown-linux-gnu
-    # Android
-    RUN rustup target add aarch64-linux-android
-    RUN rustup target add armv7-linux-androideabi
-    RUN rustup target add i686-linux-android
-    RUN rustup target add x86_64-linux-android
-    # WASM
-    RUN rustup target add wasm32-unknown-unknown
-    RUN cargo install wasm-pack
-    RUN cargo install -f wasm-bindgen-cli --version $WASM_BINDGEN_CLI_VERSION
+    RUN retry=0; until [ "$retry" -ge $RETRY_COUNT ]; do \
+        rustup target add \
+            # Linux
+                x86_64-unknown-linux-gnu \
+                aarch64-unknown-linux-gnu \
+            # Android
+                aarch64-linux-android \
+                armv7-linux-androideabi \
+                i686-linux-android \
+                x86_64-linux-android \
+            # WASM
+                wasm32-unknown-unknown \
+            && break; \
+            retry=$((retry+1)); \
+            echo "retry #$retry..."; \
+            sleep 10; \
+        done
+    RUN cargo install wasm-pack wasm-tools --locked
+    RUN cargo install -f wasm-bindgen-cli --locked --version $WASM_BINDGEN_CLI_VERSION
     # Caching tool
-    RUN cargo install cargo-chef
+    RUN cargo install cargo-chef --locked
     # Install Linux cross-platform tooling
-    RUN curl -O https://ziglang.org/download/$ZIG_VERSION/zig-linux-$(arch)-$ZIG_VERSION.tar.xz
+    RUN curl --retry $RETRY_COUNT --retry-connrefused -O https://ziglang.org/download/$ZIG_VERSION/zig-linux-$(arch)-$ZIG_VERSION.tar.xz
     RUN tar -C /usr/local -xJf zig-linux-$(arch)-$ZIG_VERSION.tar.xz
     RUN mv /usr/local/zig-linux-$(arch)-$ZIG_VERSION /usr/local/zig
     RUN cargo install cargo-zigbuild
@@ -73,14 +105,16 @@ deps-rust:
 # Install android tooling
 deps-android:
     FROM +deps-base
-    BUILD +deps-rust
+    WAIT
+        BUILD +deps-rust
+    END
     COPY +deps-rust/cargo /usr/local/cargo
     COPY +deps-rust/rustup /usr/local/rustup
     COPY +deps-rust/cargo-zigbuild /usr/local/cargo/bin/cargo-zigbuild
     COPY +deps-rust/zig /usr/local/zig
     RUN apt-get install -y openjdk-9-jdk-headless
     RUN mkdir /Android; mkdir /Android/Sdk
-    RUN curl -o /Android/cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-9123335_latest.zip
+    RUN curl --retry $RETRY_COUNT --retry-connrefused -o /Android/cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-9123335_latest.zip
     RUN cd /Android; unzip /Android/cmdline-tools.zip
     RUN yes | /Android/cmdline-tools/bin/sdkmanager --sdk_root=/Android/Sdk build-tools\;34.0.0 ndk\;27.0.12077973 cmake\;3.22.1 platform-tools platforms\;android-34 cmdline-tools\;latest
     RUN rm -rf /Android/cmdline-tools
@@ -89,30 +123,34 @@ deps-android:
 # Just linux build not android
 deps-linux:
     FROM +deps-base
-    BUILD +deps-rust
+    WAIT
+        BUILD +deps-rust
+    END
     COPY +deps-rust/cargo /usr/local/cargo
     COPY +deps-rust/rustup /usr/local/rustup
     COPY +deps-rust/cargo-zigbuild /usr/local/cargo/bin/cargo-zigbuild
     COPY +deps-rust/zig /usr/local/zig
 
+# Make a cache image with downloaded and built dependencies
 build-linux-cache:
     FROM +deps-linux
     RUN mkdir veilid-cli veilid-core veilid-server veilid-tools veilid-wasm veilid-flutter veilid-flutter/rust
-    COPY --dir .cargo scripts Cargo.lock Cargo.toml .
-    COPY veilid-cli/Cargo.toml veilid-cli
-    COPY veilid-core/Cargo.toml veilid-core
-    COPY veilid-server/Cargo.toml veilid-server
-    COPY veilid-tools/Cargo.toml veilid-tools
-    COPY veilid-flutter/rust/Cargo.lock veilid-flutter/rust/Cargo.toml veilid-flutter/rust
-    COPY veilid-wasm/Cargo.toml veilid-wasm
-    RUN cat /veilid/scripts/earthly/cargo-linux/config.toml >> .cargo/config.toml
+    COPY --keep-ts --dir .cargo scripts Cargo.lock Cargo.toml .
+    COPY --keep-ts veilid-cli/Cargo.toml veilid-cli
+    COPY --keep-ts veilid-core/Cargo.toml veilid-core
+    COPY --keep-ts veilid-server/Cargo.toml veilid-server
+    COPY --keep-ts veilid-tools/Cargo.toml veilid-tools
+    COPY --keep-ts veilid-flutter/rust/Cargo.toml veilid-flutter/rust
+    COPY --keep-ts veilid-wasm/Cargo.toml veilid-wasm/wasm_remap_paths.sh veilid-wasm
     RUN cargo chef prepare --recipe-path recipe.json
-    RUN cargo chef cook --recipe-path recipe.json
-    RUN echo $PROJECT_PATH
-    SAVE ARTIFACT target
+    RUN cargo chef cook --profile=test --tests --target $DEFAULT_CARGO_TARGET --recipe-path recipe.json -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
+    RUN cargo chef cook --zigbuild --release --target x86_64-unknown-linux-gnu --recipe-path recipe.json -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
+    RUN cargo chef cook --zigbuild --release --target aarch64-unknown-linux-gnu --recipe-path recipe.json -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
+    RUN veilid-wasm/wasm_remap_paths.sh cargo chef cook --zigbuild --release --target wasm32-unknown-unknown --recipe-path recipe.json -p veilid-wasm
     ARG CI_REGISTRY_IMAGE=registry.gitlab.com/veilid/veilid
     SAVE IMAGE --push $CI_REGISTRY_IMAGE/build-cache:latest
 
+# Import the whole veilid code repository from the earthly host
 code-linux:
     # This target will either use the full earthly cache of local use (+build-linux-cache), or will use a containerized
     # version of the +build-linux-cache from the registry
@@ -126,40 +164,29 @@ code-linux:
         FROM $CI_REGISTRY_IMAGE/build-cache:latest
         # FROM registry.gitlab.com/veilid/build-cache:latest
     END
-    COPY --dir .cargo build_docs.sh files scripts veilid-cli veilid-core veilid-server veilid-tools veilid-flutter veilid-wasm Cargo.lock Cargo.toml /veilid
+    COPY --keep-ts --dir .cargo build_docs.sh files scripts veilid-cli veilid-core veilid-server veilid-tools veilid-flutter veilid-wasm Cargo.lock Cargo.toml /veilid
 
 # Code + Linux + Android deps
 code-android:
     FROM +deps-android
-    COPY --dir .cargo files scripts veilid-cli veilid-core veilid-server veilid-tools veilid-flutter veilid-wasm Cargo.lock Cargo.toml /veilid
-    RUN cat /veilid/scripts/earthly/cargo-linux/config.toml >> /veilid/.cargo/config.toml
-    RUN cat /veilid/scripts/earthly/cargo-android/config.toml >> /veilid/.cargo/config.toml
+    COPY --keep-ts --dir .cargo files scripts veilid-cli veilid-core veilid-server veilid-tools veilid-flutter veilid-wasm Cargo.lock Cargo.toml /veilid
+    COPY --keep-ts scripts/earthly/cargo-android/config.toml /veilid/.cargo/config.toml
 
 # Clippy only
 clippy:
     FROM +code-linux
-    RUN cargo clippy
+    RUN cargo clippy --target x86_64-unknown-linux-gnu
     RUN cargo clippy --manifest-path=veilid-wasm/Cargo.toml --target wasm32-unknown-unknown
 
 # Build
-build-release:
-    FROM +code-linux
-    RUN cargo build --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
-    SAVE ARTIFACT ./target/release AS LOCAL ./target/earthly/release
-
-build:
-    FROM +code-linux
-    RUN cargo build -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
-    SAVE ARTIFACT ./target/debug AS LOCAL ./target/earthly/debug
-
 build-linux-amd64:
     FROM +code-linux
+    # Ensure we have enough memory
+    IF [ $(free -wmt | grep Total | awk  '{print $2}') -lt 7500 ]
+        RUN echo "not enough container memory to build. increase build host memory."
+        RUN false
+    END
     RUN cargo zigbuild --target x86_64-unknown-linux-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
-    SAVE ARTIFACT ./target/x86_64-unknown-linux-gnu AS LOCAL ./target/artifacts/x86_64-unknown-linux-gnu
-
-build-linux-amd64-debug:
-    FROM +code-linux
-    RUN cargo zigbuild --target x86_64-unknown-linux-gnu -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
     SAVE ARTIFACT ./target/x86_64-unknown-linux-gnu AS LOCAL ./target/artifacts/x86_64-unknown-linux-gnu
 
 build-linux-arm64:
@@ -184,7 +211,7 @@ build-android:
 # Unit tests
 unit-tests-clippy-linux:
     FROM +code-linux
-    RUN cargo clippy
+    RUN cargo clippy --target $DEFAULT_CARGO_TARGET
 
 unit-tests-clippy-wasm-linux:
     FROM +code-linux
@@ -196,13 +223,13 @@ unit-tests-docs-linux:
         
 unit-tests-native-linux:
     FROM +code-linux
-    RUN cargo test -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
+    RUN cargo test --tests --target $DEFAULT_CARGO_TARGET -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
 
 unit-tests-wasm-linux:
     FROM +code-linux
     # Just run build now because actual unit tests require network access
     # which should be moved to a separate integration test
-    RUN veilid-wasm/wasm_build.sh
+    RUN veilid-wasm/wasm_build.sh release
 
 unit-tests-linux:
     WAIT
@@ -228,7 +255,7 @@ package-linux-amd64-deb:
     #################################
     ### DEBIAN DPKG .DEB FILES
     #################################
-    COPY --dir package /veilid
+    COPY --keep-ts --dir package /veilid
     # veilid-server
     RUN /veilid/package/debian/earthly_make_veilid_server_deb.sh amd64 x86_64-unknown-linux-gnu "$IS_NIGHTLY"
     SAVE ARTIFACT --keep-ts /dpkg/out/*.deb AS LOCAL ./target/packages/
@@ -239,15 +266,15 @@ package-linux-amd64-deb:
 
 package-linux-amd64-rpm:
     ARG IS_NIGHTLY="false"
-    FROM --platform amd64 rockylinux:9
+    FROM --platform linux/amd64 rockylinux:9
     RUN yum install -y createrepo rpm-build rpm-sign yum-utils rpmdevtools
     RUN rpmdev-setuptree
     #################################
     ### RPMBUILD .RPM FILES
     #################################
     RUN mkdir -p /veilid/target
-    COPY --dir .cargo files scripts veilid-cli veilid-core veilid-server veilid-tools veilid-flutter veilid-wasm Cargo.lock Cargo.toml package /veilid
-    COPY +build-linux-amd64/x86_64-unknown-linux-gnu /veilid/target/x86_64-unknown-linux-gnu
+    COPY --keep-ts --dir package /veilid
+    COPY --keep-ts +build-linux-amd64/x86_64-unknown-linux-gnu /veilid/target/x86_64-unknown-linux-gnu
     RUN mkdir -p /rpm-work-dir/veilid-server
     # veilid-server
     RUN veilid/package/rpm/veilid-server/earthly_make_veilid_server_rpm.sh x86_64 x86_64-unknown-linux-gnu "$IS_NIGHTLY"
@@ -263,7 +290,7 @@ package-linux-arm64-deb:
     #################################
     ### DEBIAN DPKG .DEB FILES
     #################################
-    COPY --dir package /veilid
+    COPY --keep-ts --dir package /veilid
     # veilid-server
     RUN /veilid/package/debian/earthly_make_veilid_server_deb.sh arm64 aarch64-unknown-linux-gnu "$IS_NIGHTLY"
     SAVE ARTIFACT --keep-ts /dpkg/out/*.deb AS LOCAL ./target/packages/
@@ -274,15 +301,15 @@ package-linux-arm64-deb:
 
 package-linux-arm64-rpm:
     ARG IS_NIGHTLY="false"
-    FROM --platform arm64 rockylinux:8
+    FROM --platform linux/arm64 rockylinux:9
     RUN yum install -y createrepo rpm-build rpm-sign yum-utils rpmdevtools
     RUN rpmdev-setuptree
     #################################
     ### RPMBUILD .RPM FILES
     #################################
     RUN mkdir -p /veilid/target
-    COPY --dir .cargo files scripts veilid-cli veilid-core veilid-server veilid-tools veilid-flutter veilid-wasm Cargo.lock Cargo.toml package /veilid
-    COPY +build-linux-arm64/aarch64-unknown-linux-gnu /veilid/target/aarch64-unknown-linux-gnu
+    COPY --keep-ts --dir package /veilid
+    COPY --keep-ts +build-linux-arm64/aarch64-unknown-linux-gnu /veilid/target/aarch64-unknown-linux-gnu
     RUN mkdir -p /rpm-work-dir/veilid-server
     # veilid-server
     RUN veilid/package/rpm/veilid-server/earthly_make_veilid_server_rpm.sh aarch64 aarch64-unknown-linux-gnu "$IS_NIGHTLY"
@@ -293,13 +320,25 @@ package-linux-arm64-rpm:
     SAVE ARTIFACT --keep-ts /root/rpmbuild/RPMS/aarch64/*.rpm AS LOCAL ./target/packages/
 
 package-linux-amd64:
-    BUILD +package-linux-amd64-deb
-    BUILD +package-linux-amd64-rpm
+    WAIT
+        BUILD +package-linux-amd64-deb
+    END
+    WAIT
+        BUILD +package-linux-amd64-rpm
+    END
 
 package-linux-arm64:
-    BUILD +package-linux-arm64-deb
-    BUILD +package-linux-arm64-rpm
+    WAIT
+        BUILD +package-linux-arm64-deb
+    END
+    WAIT
+        BUILD +package-linux-arm64-rpm
+    END
     
 package-linux:
-    BUILD +package-linux-amd64
-    BUILD +package-linux-arm64
+    WAIT
+        BUILD +package-linux-amd64
+    END
+    WAIT
+        BUILD +package-linux-arm64
+    END

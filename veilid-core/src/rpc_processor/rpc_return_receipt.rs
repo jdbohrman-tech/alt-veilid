@@ -45,7 +45,7 @@ impl RPCProcessor {
         let res = match msg.header.detail {
             RPCMessageHeaderDetail::Direct(detail) => {
                 network_manager
-                    .handle_in_band_receipt(receipt, detail.peer_noderef)
+                    .handle_in_band_receipt(receipt, detail.sender_noderef)
                     .await
             }
             RPCMessageHeaderDetail::SafetyRouted(_) => {

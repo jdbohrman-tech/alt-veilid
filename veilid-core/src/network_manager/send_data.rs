@@ -198,7 +198,7 @@ impl NetworkManager {
         target_node_ref: FilteredNodeRef,
         data: Vec<u8>,
     ) -> EyreResult<NetworkResult<SendDataMethod>> {
-        // Try to send data to the last socket we've seen this peer on
+        // Try to send data to the last flow we've seen this peer on
         let Some(flow) = target_node_ref.last_flow() else {
             return Ok(NetworkResult::no_connection_other(format!(
                 "Node is not reachable and has no existing connection: {}",
@@ -250,7 +250,7 @@ impl NetworkManager {
                 .sequencing_filtered(Sequencing::NoPreference)
         };
 
-        // First try to send data to the last socket we've seen this peer on
+        // First try to send data to the last flow we've seen this peer on
         let data = if let Some(flow) = seq_target_node_ref.last_flow() {
             match self.net().send_data_to_existing_flow(flow, data).await? {
                 SendDataToExistingFlowResult::Sent(unique_flow) => {
@@ -299,7 +299,7 @@ impl NetworkManager {
         target_node_ref: FilteredNodeRef,
         data: Vec<u8>,
     ) -> EyreResult<NetworkResult<SendDataMethod>> {
-        // First try to send data to the last socket we've seen this peer on
+        // First try to send data to the last flow we've seen this peer on
         let data = if let Some(flow) = target_node_ref.last_flow() {
             match self.net().send_data_to_existing_flow(flow, data).await? {
                 SendDataToExistingFlowResult::Sent(unique_flow) => {
@@ -351,7 +351,7 @@ impl NetworkManager {
         // Since we have the best dial info already, we can find a connection to use by protocol type
         let node_ref = node_ref.filtered_clone(NodeRefFilter::from(dial_info.make_filter()));
 
-        // First try to send data to the last socket we've seen this peer on
+        // First try to send data to the last flow we've seen this peer on
         let data = if let Some(flow) = node_ref.last_flow() {
             #[cfg(feature = "verbose-tracing")]
             log_net!(debug

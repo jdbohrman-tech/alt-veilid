@@ -1588,7 +1588,7 @@ impl RPCProcessor {
     pub fn enqueue_direct_message(
         &self,
         envelope: Envelope,
-        peer_noderef: FilteredNodeRef,
+        sender_noderef: FilteredNodeRef,
         flow: Flow,
         routing_domain: RoutingDomain,
         body: Vec<u8>,
@@ -1599,14 +1599,14 @@ impl RPCProcessor {
             .enter()
             .wrap_err("not started up")?;
 
-        if peer_noderef.routing_domain_set() != routing_domain {
+        if sender_noderef.routing_domain_set() != routing_domain {
             bail!("routing domain should match peer noderef filter");
         }
 
         let header = MessageHeader {
             detail: RPCMessageHeaderDetail::Direct(RPCMessageHeaderDetailDirect {
                 envelope,
-                peer_noderef,
+                sender_noderef,
                 flow,
                 routing_domain,
             }),

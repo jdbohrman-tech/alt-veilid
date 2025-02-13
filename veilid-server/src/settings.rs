@@ -204,20 +204,20 @@ core:
             tcp:
                 connect: true
                 listen: true
-                max_connections: 32
+                max_connections: 256
                 listen_address: ':5150'
                 #'public_address: ''
             ws:
                 connect: true
                 listen: true
-                max_connections: 32
+                max_connections: 256
                 listen_address: ':5150'
                 path: 'ws'
                 # url: 'ws://localhost:5150/ws'
             wss:
                 connect: true
                 listen: false
-                max_connections: 32
+                max_connections: 256
                 listen_address: ':5150'
                 path: 'ws'
                 # url: ''
@@ -501,12 +501,14 @@ pub struct Terminal {
     pub ignore_log_targets: Vec<String>,
 }
 
+#[cfg(feature = "flame")]
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Flame {
     pub enabled: bool,
     pub path: String,
 }
 
+#[cfg(all(unix, feature = "perfetto"))]
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Perfetto {
     pub enabled: bool,
@@ -541,6 +543,7 @@ pub struct Api {
     pub ignore_log_targets: Vec<String>,
 }
 
+#[cfg(feature = "opentelemetry-otlp")]
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Otlp {
     pub enabled: bool,
@@ -563,9 +566,13 @@ pub struct Logging {
     pub terminal: Terminal,
     pub file: File,
     pub api: Api,
+    #[cfg(feature = "opentelemetry-otlp")]
     pub otlp: Otlp,
+    #[cfg(feature = "flame")]
     pub flame: Flame,
+    #[cfg(all(unix, feature = "perfetto"))]
     pub perfetto: Perfetto,
+    #[cfg(feature = "rt-tokio")]
     pub console: Console,
 }
 
@@ -904,6 +911,7 @@ impl Settings {
     }
 
     /// Determine default flamegraph output path
+    #[cfg(feature = "flame")]
     pub fn get_default_flame_path(subnode_index: u16, subnode_count: u16) -> PathBuf {
         let name = if subnode_count == 1 {
             if subnode_index == 0 {
@@ -922,7 +930,7 @@ impl Settings {
     }
 
     /// Determine default perfetto output path
-    #[cfg(unix)]
+    #[cfg(all(unix, feature = "perfetto"))]
     pub fn get_default_perfetto_path(subnode_index: u16, subnode_count: u16) -> PathBuf {
         let name = if subnode_count == 1 {
             if subnode_index == 0 {
@@ -1075,14 +1083,24 @@ impl Settings {
         set_config_value!(inner.logging.api.enabled, value);
         set_config_value!(inner.logging.api.level, value);
         set_config_value!(inner.logging.api.ignore_log_targets, value);
-        set_config_value!(inner.logging.otlp.enabled, value);
-        set_config_value!(inner.logging.otlp.level, value);
-        set_config_value!(inner.logging.otlp.grpc_endpoint, value);
-        set_config_value!(inner.logging.otlp.ignore_log_targets, value);
-        set_config_value!(inner.logging.flame.enabled, value);
-        set_config_value!(inner.logging.flame.path, value);
-        set_config_value!(inner.logging.perfetto.enabled, value);
-        set_config_value!(inner.logging.perfetto.path, value);
+        #[cfg(feature = "opentelemetry-otlp")]
+        {
+            set_config_value!(inner.logging.otlp.enabled, value);
+            set_config_value!(inner.logging.otlp.level, value);
+            set_config_value!(inner.logging.otlp.grpc_endpoint, value);
+            set_config_value!(inner.logging.otlp.ignore_log_targets, value);
+        }
+        #[cfg(feature = "flame")]
+        {
+            set_config_value!(inner.logging.flame.enabled, value);
+            set_config_value!(inner.logging.flame.path, value);
+        }
+        #[cfg(all(unix, feature = "perfetto"))]
+        {
+            set_config_value!(inner.logging.perfetto.enabled, value);
+            set_config_value!(inner.logging.perfetto.path, value);
+        }
+        #[cfg(feature = "rt-tokio")]
         set_config_value!(inner.logging.console.enabled, value);
         set_config_value!(inner.testing.subnode_index, value);
         #[cfg(feature = "virtual-network")]
@@ -1730,10 +1748,16 @@ mod tests {
             s.logging.otlp.grpc_endpoint,
             NamedSocketAddrs::from_str("localhost:4317").unwrap()
         );
-        assert!(!s.logging.flame.enabled);
-        assert_eq!(s.logging.flame.path, "");
-        assert!(!s.logging.perfetto.enabled);
-        assert_eq!(s.logging.perfetto.path, "");
+        #[cfg(feature = "flame")]
+        {
+            assert!(!s.logging.flame.enabled);
+            assert_eq!(s.logging.flame.path, "");
+        }
+        #[cfg(all(unix, feature = "perfetto"))]
+        {
+            assert!(!s.logging.perfetto.enabled);
+            assert_eq!(s.logging.perfetto.path, "");
+        }
         assert!(!s.logging.console.enabled);
         assert_eq!(s.testing.subnode_index, 0);
         #[cfg(feature = "virtual-network")]
@@ -1885,7 +1909,7 @@ mod tests {
         //
         assert!(s.core.network.protocol.tcp.connect);
         assert!(s.core.network.protocol.tcp.listen);
-        assert_eq!(s.core.network.protocol.tcp.max_connections, 32);
+        assert_eq!(s.core.network.protocol.tcp.max_connections, 256);
         assert_eq!(s.core.network.protocol.tcp.listen_address.name, ":5150");
         for addr in &s.core.network.protocol.tcp.listen_address.addrs {
             assert!(valid_socket_addrs.contains(addr));
@@ -1896,7 +1920,7 @@ mod tests {
         //
         assert!(s.core.network.protocol.ws.connect);
         assert!(s.core.network.protocol.ws.listen);
-        assert_eq!(s.core.network.protocol.ws.max_connections, 32);
+        assert_eq!(s.core.network.protocol.ws.max_connections, 256);
         assert_eq!(s.core.network.protocol.ws.listen_address.name, ":5150");
         for addr in &s.core.network.protocol.ws.listen_address.addrs {
             assert!(valid_socket_addrs.contains(addr));
@@ -1910,7 +1934,7 @@ mod tests {
         //
         assert!(s.core.network.protocol.wss.connect);
         assert!(!s.core.network.protocol.wss.listen);
-        assert_eq!(s.core.network.protocol.wss.max_connections, 32);
+        assert_eq!(s.core.network.protocol.wss.max_connections, 256);
         assert_eq!(s.core.network.protocol.wss.listen_address.name, ":5150");
         for addr in &s.core.network.protocol.wss.listen_address.addrs {
             assert!(valid_socket_addrs.contains(addr));
