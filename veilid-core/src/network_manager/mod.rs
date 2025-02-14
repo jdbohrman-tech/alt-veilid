@@ -766,10 +766,7 @@ impl NetworkManager {
                 // Both sides will do this and then the receipt will get sent over the punched hole
                 let unique_flow = network_result_try!(
                     self.net()
-                        .send_data_to_dial_info(
-                            hole_punch_dial_info_detail.dial_info.clone(),
-                            Vec::new(),
-                        )
+                        .send_hole_punch(hole_punch_dial_info_detail.dial_info.clone(),)
                         .await?
                 );
 
