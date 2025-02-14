@@ -140,6 +140,63 @@ impl RawUdpProtocolHandler {
         Ok(NetworkResult::value(flow))
     }
 
+    #[instrument(level = "trace", target = "protocol", err, skip(self), fields(ret.flow))]
+    pub async fn send_hole_punch(
+        &self,
+        remote_addr: SocketAddr,
+        ttl: u32,
+    ) -> io::Result<NetworkResult<Flow>> {
+        // Check to see if it is punished
+        if self
+            .network_manager()
+            .address_filter()
+            .is_ip_addr_punished(remote_addr.ip())
+        {
+            return Ok(NetworkResult::no_connection_other("punished"));
+        }
+
+        // Get synchronous socket
+        let res = socket2_operation(self.socket.as_ref(), |s| {
+            // Get original TTL
+            let original_ttl = s.ttl()?;
+
+            // Set TTL
+            s.set_ttl(ttl)?;
+
+            // Send zero length packet
+            let res = s.send_to(&[], &remote_addr.into());
+
+            // Restore TTL immediately
+            s.set_ttl(original_ttl)?;
+
+            res
+        });
+
+        // Check for errors
+        let len = network_result_try!(res.into_network_result()?);
+        if len != 0 {
+            bail_io_error_other!("wrong size send");
+        }
+
+        // Return a flow for the sent message
+        let peer_addr = PeerAddress::new(
+            SocketAddress::from_socket_addr(remote_addr),
+            ProtocolType::UDP,
+        );
+        let local_socket_addr = self.socket.local_addr()?;
+
+        let flow = Flow::new(
+            peer_addr,
+            SocketAddress::from_socket_addr(local_socket_addr),
+        );
+
+        log_net!("udp::send_hole_punch: {:?}", flow);
+
+        #[cfg(feature = "verbose-tracing")]
+        tracing::Span::current().record("ret.flow", format!("{:?}", flow).as_str());
+        Ok(NetworkResult::value(flow))
+    }
+
     #[instrument(level = "trace", target = "protocol", err)]
     pub async fn new_unspecified_bound_handler(
         registry: VeilidComponentRegistry,

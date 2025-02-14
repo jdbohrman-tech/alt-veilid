@@ -259,7 +259,6 @@ impl Settings {
                 if let Some(ipc_path) = ipc_path.or(self.ipc_path.clone()) {
                     if is_ipc_socket_path(&ipc_path) {
                         // try direct path
-                        enable_network = false;
                         client_api_ipc_path = Some(ipc_path);
                     } else {
                         // try subnode index inside path

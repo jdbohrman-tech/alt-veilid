@@ -50,6 +50,7 @@ build_cache:
   extends: .base
   stage: prepare
   script:
+    - 'echo "CI_PIPELINE_SOURCE: $CI_PIPELINE_SOURCE"'
     - apk update && apk add jq && apk add curl
     - if ! docker manifest inspect $CI_REGISTRY_IMAGE/build-cache:latest > /dev/null; then
     -   CACHE_EPOCH=0

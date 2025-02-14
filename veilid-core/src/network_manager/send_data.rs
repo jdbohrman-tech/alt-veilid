@@ -806,12 +806,9 @@ impl NetworkManager {
         // punch should come through and create a real 'last connection' for us if this succeeds
         network_result_try!(
             self.net()
-                .send_data_to_dial_info(hole_punch_did.dial_info.clone(), Vec::new())
+                .send_hole_punch(hole_punch_did.dial_info.clone())
                 .await?
         );
-
-        // Add small delay to encourage packets to be delivered in order
-        sleep(HOLE_PUNCH_DELAY_MS).await;
 
         // Issue the signal
         let rpc = self.rpc_processor();
@@ -825,13 +822,6 @@ impl NetworkManager {
             )
             .await
             .wrap_err("failed to send signal")?);
-
-        // Another hole punch after the signal for UDP redundancy
-        network_result_try!(
-            self.net()
-                .send_data_to_dial_info(hole_punch_did.dial_info, Vec::new())
-                .await?
-        );
 
         // Wait for the return receipt
         let inbound_nr = match eventual_value

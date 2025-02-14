@@ -31,6 +31,12 @@ fn io_error_kind_from_error<T>(e: io::Error) -> io::Result<NetworkResult<T>> {
             return Ok(NetworkResult::NoConnection(e));
         }
     }
+    #[cfg(windows)]
+    if let Some(os_err) = e.raw_os_error() {
+        if os_err == winapi::um::winsock2::WSAENETRESET {
+            return Ok(NetworkResult::NoConnection(e));
+        }
+    }
     match e.kind() {
         io::ErrorKind::TimedOut => Ok(NetworkResult::Timeout),
         io::ErrorKind::UnexpectedEof

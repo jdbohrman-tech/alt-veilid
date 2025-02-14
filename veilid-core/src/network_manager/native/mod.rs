@@ -34,7 +34,7 @@ use std::path::{Path, PathBuf};
 pub const UPDATE_NETWORK_CLASS_TASK_TICK_PERIOD_SECS: u32 = 1;
 pub const NETWORK_INTERFACES_TASK_TICK_PERIOD_SECS: u32 = 1;
 pub const UPNP_TASK_TICK_PERIOD_SECS: u32 = 1;
-
+pub const HOLE_PUNCH_TTL: u32 = 3;
 pub const PEEK_DETECT_LEN: usize = 64;
 
 cfg_if! {
@@ -644,6 +644,55 @@ impl Network {
                 // Network accounting
                 self.network_manager()
                     .stats_packet_sent(dial_info.ip_addr(), ByteCount::new(data_len as u64));
+
+                Ok(NetworkResult::value(unique_flow))
+            }
+            .in_current_span(),
+        )
+        .await
+    }
+
+    // Send hole punch attempt to a specific dialinfo. May not be appropriate for all protocols.
+    // Returns a flow for the connection used to send the data
+    #[instrument(level = "trace", target = "net", err, skip(self))]
+    pub async fn send_hole_punch(
+        &self,
+        dial_info: DialInfo,
+    ) -> EyreResult<NetworkResult<UniqueFlow>> {
+        let _guard = self.startup_lock.enter()?;
+
+        self.record_dial_info_failure(
+            dial_info.clone(),
+            async move {
+                let unique_flow;
+                if dial_info.protocol_type() == ProtocolType::UDP {
+                    // Handle connectionless protocol
+                    let peer_socket_addr = dial_info.to_socket_addr();
+                    let ph = match self.find_best_udp_protocol_handler(&peer_socket_addr, &None) {
+                        Some(ph) => ph,
+                        None => {
+                            return Ok(NetworkResult::no_connection_other(
+                                "no appropriate UDP protocol handler for dial_info",
+                            ));
+                        }
+                    };
+                    let flow = network_result_try!(ph
+                        .send_hole_punch(peer_socket_addr, HOLE_PUNCH_TTL)
+                        .await
+                        .wrap_err("failed to send hole punch to dial info")?);
+                    unique_flow = UniqueFlow {
+                        flow,
+                        connection_id: None,
+                    };
+                } else {
+                    return Ok(NetworkResult::ServiceUnavailable(
+                        "unimplemented for this protocol".to_owned(),
+                    ));
+                }
+
+                // Network accounting
+                self.network_manager()
+                    .stats_packet_sent(dial_info.ip_addr(), ByteCount::new(0));
 
                 Ok(NetworkResult::value(unique_flow))
             }

@@ -98,7 +98,7 @@ pub fn set_tcp_stream_linger(
         unsafe {
             let s = socket2::Socket::from_raw_fd(tcp_stream.as_raw_fd());
             let res = s.set_linger(linger);
-            s.into_raw_fd();
+            let _ = s.into_raw_fd();
             res
         }
     }
@@ -109,7 +109,7 @@ pub fn set_tcp_stream_linger(
         unsafe {
             let s = socket2::Socket::from_raw_socket(tcp_stream.as_raw_socket());
             let res = s.set_linger(linger);
-            s.into_raw_socket();
+            let _ = s.into_raw_socket();
             res
         }
     }
@@ -281,4 +281,37 @@ async fn nonblocking_connect(
 
 pub fn domain_for_address(address: SocketAddr) -> core::ffi::c_int {
     socket2::Domain::for_address(address).into()
+}
+
+// Run operations on underlying socket
+cfg_if! {
+    if #[cfg(unix)] {
+        pub fn socket2_operation<S: std::os::fd::AsRawFd, F: FnOnce(&mut socket2::Socket) -> R, R>(
+            s: &S,
+            callback: F,
+        ) -> R {
+            use std::os::fd::{FromRawFd, IntoRawFd};
+            let mut s = unsafe { socket2::Socket::from_raw_fd(s.as_raw_fd()) };
+            let res = callback(&mut s);
+            let _ = s.into_raw_fd();
+            res
+        }
+    } else if #[cfg(windows)] {
+        pub fn socket2_operation<
+            S: std::os::windows::io::AsRawSocket,
+            F: FnOnce(&mut socket2::Socket) -> R,
+            R,
+        >(
+            s: &S,
+            callback: F,
+        ) -> R {
+            use std::os::windows::io::{FromRawSocket, IntoRawSocket};
+            let mut s = unsafe { socket2::Socket::from_raw_socket(s.as_raw_socket()) };
+            let res = callback(&mut s);
+            let _ = s.into_raw_socket();
+            res
+        }
+    } else {
+        #[compile_error("unimplemented")]
+    }
 }
