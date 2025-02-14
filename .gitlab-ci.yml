@@ -89,12 +89,12 @@ test_build:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
-        - veilid-*/**
+        - veilid-*/**/*
         - '**/*[Cc]argo*'
       when: always
     - if: $CI_PIPELINE_SOURCE == "push"
       changes:
-        - veilid-*/**
+        - veilid-*/**/*
         - '**/*[Cc]argo*'
       when: always
     - when: never
