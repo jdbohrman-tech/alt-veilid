@@ -336,6 +336,18 @@ impl Network {
         .await
     }
 
+    // Send hole punch attempt to a specific dialinfo. May not be appropriate for all protocols.
+    // Returns a flow for the connection used to send the data
+    #[instrument(level = "trace", target = "net", err, skip(self))]
+    pub async fn send_hole_punch(
+        &self,
+        dial_info: DialInfo,
+    ) -> EyreResult<NetworkResult<UniqueFlow>> {
+        return Ok(NetworkResult::ServiceUnavailable(
+            "unimplemented for this platform".to_owned(),
+        ));
+    }
+
     /////////////////////////////////////////////////////////////////
 
     pub async fn startup_internal(&self) -> EyreResult<StartupDisposition> {

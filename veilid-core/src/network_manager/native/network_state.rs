@@ -14,12 +14,10 @@ pub struct ProtocolConfig {
 pub(super) struct NetworkState {
     /// the calculated protocol configuration for inbound/outbound protocols
     pub protocol_config: ProtocolConfig,
-    /// does our network have ipv4 on any network?
+    /// does our network have ipv4 on any interface?
     pub enable_ipv4: bool,
-    /// does our network have ipv6 on the global internet?
-    pub enable_ipv6_global: bool,
-    /// does our network have ipv6 on the local network?
-    pub enable_ipv6_local: bool,
+    /// does our network have ipv6 on any interface?
+    pub enable_ipv6: bool,
     /// The list of stable interface addresses we have last seen
     pub stable_interface_addresses: Vec<IpAddr>,
     /// The local networks (network+mask) most recently seen
@@ -84,21 +82,15 @@ impl Network {
 
         // determine if we have ipv4/ipv6 addresses
         let mut enable_ipv4 = false;
-        let mut enable_ipv6_global = false;
-        let mut enable_ipv6_local = false;
+        let mut enable_ipv6 = false;
 
         let stable_interface_addresses = self.make_stable_interface_addresses();
 
-        for addr in stable_interface_addresses.iter().copied() {
+        for addr in stable_interface_addresses.iter() {
             if addr.is_ipv4() {
                 enable_ipv4 = true;
             } else if addr.is_ipv6() {
-                let address = Address::from_ip_addr(addr);
-                if address.is_global() {
-                    enable_ipv6_global = true;
-                } else if address.is_local() {
-                    enable_ipv6_local = true;
-                }
+                enable_ipv6 = true;
             }
         }
 
@@ -141,10 +133,8 @@ impl Network {
                 family_global.insert(AddressType::IPV4);
                 family_local.insert(AddressType::IPV4);
             }
-            if enable_ipv6_global {
+            if enable_ipv6 {
                 family_global.insert(AddressType::IPV6);
-            }
-            if enable_ipv6_local {
                 family_local.insert(AddressType::IPV6);
             }
 
@@ -178,8 +168,7 @@ impl Network {
         Ok(NetworkState {
             protocol_config,
             enable_ipv4,
-            enable_ipv6_global,
-            enable_ipv6_local,
+            enable_ipv6,
             stable_interface_addresses,
             local_networks,
         })

@@ -38,7 +38,7 @@ impl DialInfoFilter {
         self.address_type_set = address_set;
         self
     }
-    pub fn filtered(mut self, other_dif: &DialInfoFilter) -> Self {
+    pub fn filtered(mut self, other_dif: DialInfoFilter) -> Self {
         self.protocol_type_set &= other_dif.protocol_type_set;
         self.address_type_set &= other_dif.address_type_set;
         self
@@ -54,7 +54,7 @@ impl DialInfoFilter {
             Sequencing::EnsureOrdered => (
                 true,
                 self.filtered(
-                    &DialInfoFilter::all().with_protocol_type_set(ProtocolType::all_ordered_set()),
+                    DialInfoFilter::all().with_protocol_type_set(ProtocolType::all_ordered_set()),
                 ),
             ),
         }

@@ -85,10 +85,10 @@ impl NodeInfo {
         &self.dial_info_detail_list
     }
 
-    pub fn first_filtered_dial_info_detail<S, F>(
+    pub fn first_filtered_dial_info_detail<'a, S, F>(
         &self,
-        sort: Option<S>,
-        filter: F,
+        sort: Option<&'a S>,
+        filter: &'a F,
     ) -> Option<DialInfoDetail>
     where
         S: Fn(&DialInfoDetail, &DialInfoDetail) -> std::cmp::Ordering,
@@ -114,8 +114,8 @@ impl NodeInfo {
 
     pub fn filtered_dial_info_details<S, F>(
         &self,
-        sort: Option<S>,
-        filter: F,
+        sort: Option<&S>,
+        filter: &F,
     ) -> Vec<DialInfoDetail>
     where
         S: Fn(&DialInfoDetail, &DialInfoDetail) -> std::cmp::Ordering,

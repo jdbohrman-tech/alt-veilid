@@ -63,7 +63,7 @@ impl FilteredNodeRef {
     }
 
     pub fn merge_filter(&mut self, filter: NodeRefFilter) {
-        self.filter = self.filter.filtered(&filter);
+        self.filter = self.filter.filtered(filter);
     }
 
     pub fn set_sequencing(&mut self, sequencing: Sequencing) {

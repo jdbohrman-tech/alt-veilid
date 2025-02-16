@@ -182,6 +182,9 @@ pub(crate) struct BucketEntryInner {
     local_network: BucketEntryLocalNetwork,
     /// Statistics gathered for the peer
     peer_stats: PeerStats,
+    /// The peer info cache for speedy access to fully encapsulated per-routing-domain peer info
+    #[serde(skip)]
+    peer_info_cache: Mutex<BTreeMap<RoutingDomain, Option<Arc<PeerInfo>>>>,
     /// The accounting for the latency statistics
     #[serde(skip)]
     latency_stats_accounting: LatencyStatsAccounting,
@@ -277,7 +280,7 @@ impl BucketEntryInner {
 
     /// Add a node id for a particular crypto kind.
     /// Returns Ok(Some(node)) any previous existing node id associated with that crypto kind
-    /// Returns Ok(None) if no previous existing node id was associated with that crypto kind
+    /// Returns Ok(None) if no previous existing node id was associated with that crypto kind, or one existed but nothing changed.
     /// Results Err() if this operation would add more crypto kinds than we support
     pub fn add_node_id(&mut self, node_id: TypedKey) -> EyreResult<Option<TypedKey>> {
         let total_node_id_count = self.validated_node_ids.len() + self.unsupported_node_ids.len();
@@ -292,8 +295,13 @@ impl BucketEntryInner {
             if old_node_id == node_id {
                 return Ok(None);
             }
-            // Won't change number of crypto kinds
+            // Won't change number of crypto kinds, but the node id changed
             node_ids.add(node_id);
+
+            // Also clear the peerinfo cache since the node ids changed
+            let mut pi_cache = self.peer_info_cache.lock();
+            pi_cache.clear();
+
             return Ok(Some(old_node_id));
         }
         // Check to ensure we aren't adding more crypto kinds than we support
@@ -301,6 +309,11 @@ impl BucketEntryInner {
             bail!("too many crypto kinds for this node");
         }
         node_ids.add(node_id);
+
+        // Also clear the peerinfo cache since the node ids changed
+        let mut pi_cache = self.peer_info_cache.lock();
+        pi_cache.clear();
+
         Ok(None)
     }
 
@@ -314,7 +327,14 @@ impl BucketEntryInner {
             &mut self.unsupported_node_ids
         };
 
-        node_ids.remove(crypto_kind)
+        let opt_dead_id = node_ids.remove(crypto_kind);
+        if opt_dead_id.is_some() {
+            // Also clear the peerinfo cache since the node ids changed
+            let mut pi_cache = self.peer_info_cache.lock();
+            pi_cache.clear();
+        }
+
+        opt_dead_id
     }
 
     pub fn best_node_id(&self) -> TypedKey {
@@ -413,9 +433,6 @@ impl BucketEntryInner {
         move |e1, e2| Self::cmp_fastest_reliable(cur_ts, e1, e2)
     }
 
-    // xxx: if we ever implement a 'remove_signed_node_info' to take nodes out of a routing domain
-    // then we need to call 'on_entry_node_info_updated' with that removal. as of right now
-    // this never happens, because we only have one routing domain implemented.
     pub fn update_signed_node_info(
         &mut self,
         routing_domain: RoutingDomain,
@@ -429,7 +446,10 @@ impl BucketEntryInner {
 
         // See if we have an existing signed_node_info to update or not
         let mut node_info_changed = false;
+        let mut had_previous_node_info = false;
         if let Some(current_sni) = opt_current_sni {
+            had_previous_node_info = true;
+
             // Always allow overwriting unsigned node (bootstrap)
             if current_sni.has_any_signature() {
                 // If the timestamp hasn't changed or is less, ignore this update
@@ -478,6 +498,12 @@ impl BucketEntryInner {
         // over so that connection is still valid.
         if node_info_changed {
             self.clear_last_flows_except_latest();
+        }
+
+        // Clear the peerinfo cache since the node info changed or was added
+        if node_info_changed || !had_previous_node_info {
+            let mut pi_cache = self.peer_info_cache.lock();
+            pi_cache.remove(&routing_domain);
         }
 
         node_info_changed
@@ -535,16 +561,29 @@ impl BucketEntryInner {
         opt_current_sni.as_ref().map(|s| s.as_ref())
     }
 
-    pub fn make_peer_info(&self, routing_domain: RoutingDomain) -> Option<PeerInfo> {
+    pub fn get_peer_info(&self, routing_domain: RoutingDomain) -> Option<Arc<PeerInfo>> {
+        // Return cached peer info if we have it
+        let mut pi_cache = self.peer_info_cache.lock();
+        if let Some(opt_pi) = pi_cache.get(&routing_domain).cloned() {
+            return opt_pi;
+        }
+
+        // Create a new peerinfo
         let opt_current_sni = match routing_domain {
             RoutingDomain::LocalNetwork => &self.local_network.signed_node_info,
             RoutingDomain::PublicInternet => &self.public_internet.signed_node_info,
         };
         // Peer info includes all node ids, even unvalidated ones
         let node_ids = self.node_ids();
-        opt_current_sni
+        let opt_pi = opt_current_sni
             .as_ref()
-            .map(|s| PeerInfo::new(routing_domain, node_ids, *s.clone()))
+            .map(|s| Arc::new(PeerInfo::new(routing_domain, node_ids, *s.clone())));
+
+        // Cache the peerinfo
+        pi_cache.insert(routing_domain, opt_pi.clone());
+
+        // Return the peerinfo
+        opt_pi
     }
 
     pub fn best_routing_domain(
@@ -1138,6 +1177,7 @@ impl BucketEntry {
                 transfer: TransferStatsDownUp::default(),
                 state: StateStats::default(),
             },
+            peer_info_cache: Mutex::new(BTreeMap::new()),
             latency_stats_accounting: LatencyStatsAccounting::new(),
             transfer_stats_accounting: TransferStatsAccounting::new(),
             state_stats_accounting: Mutex::new(StateStatsAccounting::new()),

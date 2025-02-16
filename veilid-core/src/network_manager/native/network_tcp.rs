@@ -350,6 +350,14 @@ impl Network {
                         .or_default();
                     bapp.push(addr);
 
+                    log_net!(
+                        debug
+                        "set_preferred_local_address: {:?} {:?} -> {:?}",
+                        protocol_type,
+                        addr,
+                        PeerAddress::new(SocketAddress::from_socket_addr(addr), protocol_type)
+                    );
+
                     Self::set_preferred_local_address(
                         &mut inner,
                         PeerAddress::new(SocketAddress::from_socket_addr(addr), protocol_type),

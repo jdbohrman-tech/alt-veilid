@@ -738,7 +738,7 @@ impl RPCProcessor {
                         // No private route was specified for the request
                         // but we are using a safety route, so we must create an empty private route
                         // Destination relay is ignored for safety routed operations
-                        let peer_info = match destination_node_ref.make_peer_info(routing_domain) {
+                        let peer_info = match destination_node_ref.get_peer_info(routing_domain) {
                             None => {
                                 return Ok(NetworkResult::no_connection_other(
                                     "No peer info for stub private route",
@@ -748,7 +748,7 @@ impl RPCProcessor {
                         };
                         let private_route = PrivateRoute::new_stub(
                             destination_node_ref.best_node_id(),
-                            RouteNode::PeerInfo(Arc::new(peer_info)),
+                            RouteNode::PeerInfo(peer_info),
                         );
 
                         // Wrap with safety route

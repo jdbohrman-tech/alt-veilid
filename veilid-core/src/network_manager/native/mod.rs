@@ -31,6 +31,8 @@ use std::path::{Path, PathBuf};
 
 /////////////////////////////////////////////////////////////////
 
+pub const MAX_DIAL_INFO_FAILURE_COUNT: usize = 100;
+pub const UPDATE_OUTBOUND_ONLY_NETWORK_CLASS_PERIOD_SECS: u32 = 10;
 pub const UPDATE_NETWORK_CLASS_TASK_TICK_PERIOD_SECS: u32 = 1;
 pub const NETWORK_INTERFACES_TASK_TICK_PERIOD_SECS: u32 = 1;
 pub const UPNP_TASK_TICK_PERIOD_SECS: u32 = 1;
@@ -82,15 +84,17 @@ struct NetworkInner {
     /// set if the network needs to be restarted due to a low level configuration change
     /// such as dhcp release or change of address or interfaces being added or removed
     network_needs_restart: bool,
-
+    /// the number of consecutive dial info failures per routing domain,
+    /// which may indicate the network is down for that domain
+    dial_info_failure_count: BTreeMap<RoutingDomain, usize>,
+    /// the next time we are allowed to check for better dialinfo when we are OutboundOnly
+    next_outbound_only_dial_info_check: Timestamp,
     /// join handles for all the low level network background tasks
     join_handles: Vec<MustJoinHandle<()>>,
     /// stop source for shutting down the low level network background tasks
     stop_source: Option<StopSource>,
     /// set if we need to calculate our public dial info again
     needs_public_dial_info_check: bool,
-    /// set if we have yet to clear the network during public dial info checking
-    network_already_cleared: bool,
     /// the punishment closure to enax
     public_dial_info_check_punishment: Option<Box<dyn FnOnce() + Send + 'static>>,
     /// Actual bound addresses per protocol
@@ -151,8 +155,9 @@ impl Network {
     fn new_inner() -> NetworkInner {
         NetworkInner {
             network_needs_restart: false,
+            dial_info_failure_count: BTreeMap::new(),
+            next_outbound_only_dial_info_check: Timestamp::default(),
             needs_public_dial_info_check: false,
-            network_already_cleared: false,
             public_dial_info_check_punishment: None,
             join_handles: Vec::new(),
             stop_source: None,
@@ -312,11 +317,42 @@ impl Network {
         dial_info: DialInfo,
         fut: F,
     ) -> EyreResult<NetworkResult<T>> {
+        let opt_routing_domain = self
+            .routing_table()
+            .routing_domain_for_address(dial_info.address());
+
         let network_result = fut.await?;
         if matches!(network_result, NetworkResult::NoConnection(_)) {
+            // Dial info failure
             self.network_manager()
                 .address_filter()
                 .set_dial_info_failed(dial_info);
+
+            // Increment consecutive failure count for this routing domain
+            if let Some(rd) = opt_routing_domain {
+                let dial_info_failure_count = {
+                    let mut inner = self.inner.lock();
+                    *inner
+                        .dial_info_failure_count
+                        .entry(rd)
+                        .and_modify(|x| *x += 1)
+                        .or_insert(1)
+                };
+
+                if dial_info_failure_count == MAX_DIAL_INFO_FAILURE_COUNT {
+                    log_net!(debug "Node may be offline. Exceeded maximum dial info failure count for {:?}", rd);
+                    // todo: what operations should we perform here?
+                    // self.set_needs_dial_info_check(rd);
+                }
+            }
+        } else {
+            // Dial info success
+
+            // Clear failure count for this routing domain
+            if let Some(rd) = opt_routing_domain {
+                let mut inner = self.inner.lock();
+                inner.dial_info_failure_count.remove(&rd);
+            }
         }
         Ok(network_result)
     }
@@ -793,6 +829,20 @@ impl Network {
             editor_local_network.publish();
         }
 
+        if self.config().with(|c| c.network.detect_address_changes) {
+            // Say we need to detect the public dialinfo
+            self.set_needs_public_dial_info_check(None);
+        } else {
+            // Warn if we have no public dialinfo, because we're not going to magically find some
+            // with detect address changes turned off
+            let pi = routing_table.get_current_peer_info(RoutingDomain::PublicInternet);
+            if !pi.signed_node_info().has_any_dial_info() {
+                warn!(
+                    "This node has no valid public dial info.\nConfigure this node with a static public IP address and correct firewall rules."
+                );
+            }
+        }
+
         Ok(StartupDisposition::Success)
     }
 
@@ -918,6 +968,17 @@ impl Network {
     }
 
     //////////////////////////////////////////
+    // pub fn set_needs_dial_info_check(&self, routing_domain: RoutingDomain) {
+    //     match routing_domain {
+    //         RoutingDomain::LocalNetwork => {
+    //             // nothing here yet
+    //         }
+    //         RoutingDomain::PublicInternet => {
+    //             self.set_needs_public_dial_info_check(None);
+    //         }
+    //     }
+    // }
+
     pub fn set_needs_public_dial_info_check(
         &self,
         punishment: Option<Box<dyn FnOnce() + Send + 'static>>,

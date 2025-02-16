@@ -72,7 +72,7 @@ impl Address {
     pub fn canonical(&self) -> Address {
         match self {
             Address::IPV4(v4) => Address::IPV4(*v4),
-            Address::IPV6(v6) => match v6.to_ipv4() {
+            Address::IPV6(v6) => match v6.to_ipv4_mapped() {
                 Some(v4) => Address::IPV4(v4),
                 None => Address::IPV6(*v6),
             },

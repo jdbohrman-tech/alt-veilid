@@ -10,9 +10,9 @@ impl NetworkManager {
         let bootstrap_nodes = routing_table.find_bootstrap_nodes_filtered(2);
 
         // Serialize out peer info
-        let bootstrap_peerinfo: Vec<PeerInfo> = bootstrap_nodes
+        let bootstrap_peerinfo: Vec<Arc<PeerInfo>> = bootstrap_nodes
             .iter()
-            .filter_map(|nr| nr.make_peer_info(RoutingDomain::PublicInternet))
+            .filter_map(|nr| nr.get_peer_info(RoutingDomain::PublicInternet))
             .collect();
         let json_bytes = serialize_json(bootstrap_peerinfo).as_bytes().to_vec();
 

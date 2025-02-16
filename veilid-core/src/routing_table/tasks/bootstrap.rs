@@ -330,12 +330,12 @@ impl RoutingTable {
         peers: Vec<Arc<PeerInfo>>,
         stop_token: StopToken,
     ) -> EyreResult<()> {
-        log_rtab!(debug "  bootstrapped peers: {:?}", &peers);
+        log_rtab!(debug "  bootstrap peers: {:?}", &peers);
 
         // Get crypto kinds to bootstrap
         let crypto_kinds = self.get_bootstrap_crypto_kinds();
 
-        log_rtab!(debug "  bootstrapped crypto kinds: {:?}", &crypto_kinds);
+        log_rtab!(debug "  bootstrap crypto kinds: {:?}", &crypto_kinds);
 
         // Run all bootstrap operations concurrently
         let mut unord = FuturesUnordered::<SendPinBoxFuture<()>>::new();

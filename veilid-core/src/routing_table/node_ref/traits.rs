@@ -70,8 +70,8 @@ pub(crate) trait NodeRefCommonTrait: NodeRefAccessorsTrait + NodeRefOperateTrait
         self.operate(|_rti, e| e.peer_stats().clone())
     }
 
-    fn make_peer_info(&self, routing_domain: RoutingDomain) -> Option<PeerInfo> {
-        self.operate(|_rti, e| e.make_peer_info(routing_domain))
+    fn get_peer_info(&self, routing_domain: RoutingDomain) -> Option<Arc<PeerInfo>> {
+        self.operate(|_rti, e| e.get_peer_info(routing_domain))
     }
     fn node_info(&self, routing_domain: RoutingDomain) -> Option<NodeInfo> {
         self.operate(|_rti, e| e.node_info(routing_domain).cloned())
@@ -150,7 +150,7 @@ pub(crate) trait NodeRefCommonTrait: NodeRefAccessorsTrait + NodeRefOperateTrait
         self.operate(|_rt, e| {
             for routing_domain in routing_domain_set {
                 if let Some(ni) = e.node_info(routing_domain) {
-                    if let Some(did) = ni.first_filtered_dial_info_detail(sort, filter) {
+                    if let Some(did) = ni.first_filtered_dial_info_detail(sort.as_ref(), &filter) {
                         return Some(did);
                     }
                 }
@@ -177,7 +177,7 @@ pub(crate) trait NodeRefCommonTrait: NodeRefAccessorsTrait + NodeRefOperateTrait
         self.operate(|_rt, e| {
             for routing_domain in routing_domain_set {
                 if let Some(ni) = e.node_info(routing_domain) {
-                    let mut dids = ni.filtered_dial_info_details(sort, filter);
+                    let mut dids = ni.filtered_dial_info_details(sort.as_ref(), &filter);
                     out.append(&mut dids);
                 }
             }

@@ -493,11 +493,9 @@ impl RouteSpecStore {
         let nodes_pi: Vec<Arc<PeerInfo>> = nodes
             .iter()
             .map(|nr| {
-                Arc::new(
-                    nr.locked(rti)
-                        .make_peer_info(RoutingDomain::PublicInternet)
-                        .unwrap(),
-                )
+                nr.locked(rti)
+                    .get_peer_info(RoutingDomain::PublicInternet)
+                    .unwrap()
             })
             .collect();
 
@@ -1260,14 +1258,14 @@ impl RouteSpecStore {
                             let pi = rti
                                 .with_node_entry(node_id, |entry| {
                                     entry.with(rti, |_rti, e| {
-                                        e.make_peer_info(RoutingDomain::PublicInternet)
+                                        e.get_peer_info(RoutingDomain::PublicInternet)
                                     })
                                 })
                                 .flatten();
                             if pi.is_none() {
                                 apibail_internal!("peer info should exist for route but doesn't");
                             }
-                            RouteNode::PeerInfo(Arc::new(pi.unwrap()))
+                            RouteNode::PeerInfo(pi.unwrap())
                         },
                         next_hop: Some(route_hop_data),
                     };
@@ -1504,14 +1502,14 @@ impl RouteSpecStore {
                     let pi = rti
                         .with_node_entry(node_id, |entry| {
                             entry.with(rti, |_rti, e| {
-                                e.make_peer_info(RoutingDomain::PublicInternet)
+                                e.get_peer_info(RoutingDomain::PublicInternet)
                             })
                         })
                         .flatten();
                     if pi.is_none() {
                         apibail_internal!("peer info should exist for route but doesn't");
                     }
-                    RouteNode::PeerInfo(Arc::new(pi.unwrap()))
+                    RouteNode::PeerInfo(pi.unwrap())
                 },
                 next_hop: Some(route_hop_data),
             }

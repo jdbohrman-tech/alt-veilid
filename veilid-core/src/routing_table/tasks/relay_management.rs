@@ -6,30 +6,14 @@ impl RoutingTable {
     fn public_internet_wants_relay(&self) -> Option<RelayKind> {
         let own_peer_info = self.get_current_peer_info(RoutingDomain::PublicInternet);
         let own_node_info = own_peer_info.signed_node_info().node_info();
-        let network_class = own_node_info.network_class();
 
-        // Never give a relay to something with an invalid network class
-        if matches!(network_class, NetworkClass::Invalid) {
-            return None;
-        }
-
-        // If we -need- a relay always request one
+        // If we need a relay, always request one
         let requires_relay = self
             .inner
             .read()
             .with_routing_domain(RoutingDomain::PublicInternet, |rdd| rdd.requires_relay());
         if let Some(rk) = requires_relay {
             return Some(rk);
-        }
-
-        // If we don't always need a relay, but we don't have support for
-        // all the address types then we should request one anyway
-        let mut address_types = AddressTypeSet::empty();
-        for did in own_node_info.dial_info_detail_list() {
-            address_types |= did.dial_info.address_type();
-        }
-        if address_types != AddressTypeSet::all() {
-            return Some(RelayKind::Inbound);
         }
 
         // If we are behind some NAT, then we should get ourselves a relay just
@@ -200,7 +184,7 @@ impl RoutingTable {
             // Disqualify nodes that don't cover all our inbound ports for tcp and udp
             // as we need to be able to use the relay for keepalives for all nat mappings
             let mut low_level_protocol_ports = mapped_port_info.low_level_protocol_ports.clone();
-            let dids = node_info.filtered_dial_info_details(DialInfoDetail::NO_SORT, |did| {
+            let dids = node_info.filtered_dial_info_details(DialInfoDetail::NO_SORT, &|did| {
                 did.matches_filter(&outbound_dif)
             });
             for did in &dids {

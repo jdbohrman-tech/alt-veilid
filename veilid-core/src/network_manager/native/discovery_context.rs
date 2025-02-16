@@ -414,37 +414,48 @@ impl DiscoveryContext {
         &self,
         unord: &mut FuturesUnordered<SendPinBoxFuture<Option<DetectionResult>>>,
     ) {
-        let external_1 = self.inner.lock().external_info.first().cloned().unwrap();
+        let external_infos = self.inner.lock().external_info.clone();
 
-        let this = self.clone();
-        let do_no_nat_fut: SendPinBoxFuture<Option<DetectionResult>> = Box::pin(async move {
-            // Do a validate_dial_info on the external address from a redirected node
-            if this
-                .validate_dial_info(external_1.node.clone(), external_1.dial_info.clone(), true)
-                .await
-            {
-                // Add public dial info with Direct dialinfo class
-                Some(DetectionResult {
-                    config: this.config,
-                    ddi: DetectedDialInfo::Detected(DialInfoDetail {
-                        dial_info: external_1.dial_info.clone(),
-                        class: DialInfoClass::Direct,
-                    }),
-                    external_address_types: AddressTypeSet::only(external_1.address.address_type()),
-                })
-            } else {
-                // Add public dial info with Blocked dialinfo class
-                Some(DetectionResult {
-                    config: this.config,
-                    ddi: DetectedDialInfo::Detected(DialInfoDetail {
-                        dial_info: external_1.dial_info.clone(),
-                        class: DialInfoClass::Blocked,
-                    }),
-                    external_address_types: AddressTypeSet::only(external_1.address.address_type()),
-                })
-            }
-        });
-        unord.push(do_no_nat_fut);
+        // Have all the external validator nodes check us
+        for external_info in external_infos {
+            let this = self.clone();
+            let do_no_nat_fut: SendPinBoxFuture<Option<DetectionResult>> = Box::pin(async move {
+                // Do a validate_dial_info on the external address from a redirected node
+                if this
+                    .validate_dial_info(
+                        external_info.node.clone(),
+                        external_info.dial_info.clone(),
+                        true,
+                    )
+                    .await
+                {
+                    // Add public dial info with Direct dialinfo class
+                    Some(DetectionResult {
+                        config: this.config,
+                        ddi: DetectedDialInfo::Detected(DialInfoDetail {
+                            dial_info: external_info.dial_info.clone(),
+                            class: DialInfoClass::Direct,
+                        }),
+                        external_address_types: AddressTypeSet::only(
+                            external_info.address.address_type(),
+                        ),
+                    })
+                } else {
+                    // Add public dial info with Blocked dialinfo class
+                    Some(DetectionResult {
+                        config: this.config,
+                        ddi: DetectedDialInfo::Detected(DialInfoDetail {
+                            dial_info: external_info.dial_info.clone(),
+                            class: DialInfoClass::Blocked,
+                        }),
+                        external_address_types: AddressTypeSet::only(
+                            external_info.address.address_type(),
+                        ),
+                    })
+                }
+            });
+            unord.push(do_no_nat_fut);
+        }
     }
 
     // If we know we are behind NAT check what kind
@@ -725,7 +736,7 @@ impl DiscoveryContext {
         // NAT Detection
         ///////////
 
-        // If our local interface list contains external_1 then there is no NAT in place
+        // If our local interface list contains any of the external addresses then there is no NAT in place
         let local_address_in_external_info = self
             .inner
             .lock()

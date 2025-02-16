@@ -14,14 +14,9 @@ impl Network {
         t: Timestamp,
     ) -> EyreResult<()> {
         // Network lock ensures only one task operating on the low level network state
-        // can happen at the same time.
-        let _guard = match self.network_task_lock.try_lock() {
-            Ok(v) => v,
-            Err(_) => {
-                // If we can't get the lock right now, then
-                return Ok(());
-            }
-        };
+        // can happen at the same time. This a blocking lock so we can ensure this runs
+        // as soon as network_interfaces_task is finished
+        let _guard = self.network_task_lock.lock().await;
 
         // Do the public dial info check
         let finished = self.do_public_dial_info_check(stop_token, l, t).await?;
@@ -29,7 +24,13 @@ impl Network {
         // Done with public dial info check
         if finished {
             let mut inner = self.inner.lock();
+
+            // Note that we did the check successfully
             inner.needs_public_dial_info_check = false;
+
+            // Don't try to re-do OutboundOnly dialinfo for another 10 seconds
+            inner.next_outbound_only_dial_info_check = Timestamp::now()
+                + TimestampDuration::new_secs(UPDATE_OUTBOUND_ONLY_NETWORK_CLASS_PERIOD_SECS)
         }
 
         Ok(())
@@ -94,7 +95,7 @@ impl Network {
     ) -> EyreResult<bool> {
         // Figure out if we can optimize TCP/WS checking since they are often on the same port
         let (protocol_config, inbound_protocol_map) = {
-            let mut inner = self.inner.lock();
+            let inner = self.inner.lock();
             let Some(protocol_config) = inner
                 .network_state
                 .as_ref()
@@ -102,9 +103,6 @@ impl Network {
             else {
                 bail!("should not be doing public dial info check before we have an initial network state");
             };
-
-            // Allow network to be cleared if external addresses change
-            inner.network_already_cleared = false;
 
             let mut inbound_protocol_map =
                 HashMap::<(AddressType, LowLevelProtocolType, u16), Vec<ProtocolType>>::new();
@@ -171,6 +169,7 @@ impl Network {
 
         // Wait for all discovery futures to complete and apply discoverycontexts
         let mut external_address_types = AddressTypeSet::new();
+        let mut detection_results = HashMap::<DiscoveryContextConfig, DetectionResult>::new();
         loop {
             match unord
                 .next()
@@ -185,8 +184,34 @@ impl Network {
                     // Add the external address kinds to the set we've seen
                     external_address_types |= dr.external_address_types;
 
-                    // Import the dialinfo
-                    self.update_with_detection_result(&mut editor, &inbound_protocol_map, dr);
+                    // Get best detection result for each discovery context config
+                    if let Some(cur_dr) = detection_results.get_mut(&dr.config) {
+                        let ddi = &mut cur_dr.ddi;
+                        // Upgrade existing dialinfo
+                        match ddi {
+                            DetectedDialInfo::SymmetricNAT => {
+                                // Whatever we got is better than or equal to symmetric
+                                *ddi = dr.ddi;
+                            }
+                            DetectedDialInfo::Detected(cur_did) => match dr.ddi {
+                                DetectedDialInfo::SymmetricNAT => {
+                                    // Nothing is worse than this
+                                }
+                                DetectedDialInfo::Detected(did) => {
+                                    // Pick the best dial info class we detected
+                                    // because some nodes could be degenerate and if any node can validate a
+                                    // better dial info class we should go with it and leave the
+                                    // degenerate nodes in the dust to fade into obscurity
+                                    if did.class < cur_did.class {
+                                        cur_did.class = did.class;
+                                    }
+                                }
+                            },
+                        }
+                        cur_dr.external_address_types |= dr.external_address_types;
+                    } else {
+                        detection_results.insert(dr.config, dr);
+                    }
                 }
                 Ok(Some(None)) => {
                     // Found no dial info for this protocol/address combination
@@ -200,6 +225,12 @@ impl Network {
                     return Ok(true);
                 }
             }
+        }
+
+        // Apply best effort coalesced detection results
+        for (_, dr) in detection_results {
+            // Import the dialinfo
+            self.update_with_detection_result(&mut editor, &inbound_protocol_map, dr);
         }
 
         // See if we have any discovery contexts that did not complete for a
