@@ -4,7 +4,7 @@ if [ "$1" = "create" ] && [ "$2" = "amd64-deb" ]
 then
 	## Create amd64-deb build machine
 	echo "Creating amd64-deb build machine"
-	doctl compute droplet create build-server-amd64-deb-tmp --image 154584863 \
+	doctl compute droplet create build-server-amd64-deb-tmp --image 178721112 \
 		--size c2-8vcpu-16gb-intel --region nyc1 --enable-private-networking \
 		--ssh-keys 38852180,38632397,41187560 --tag-names build-machines,build-orchestration --wait
 	echo "Done"
@@ -13,7 +13,7 @@ elif [ "$1" = "create" ] && [ "$2" = "arm64-deb" ]
 then
 	## Create arm64-deb build machine
 	echo "Creating arm64-deb build machine"
-	doctl compute droplet create build-server-arm64-deb-tmp --image 154584861 \
+	doctl compute droplet create build-server-arm64-deb-tmp --image 178721107 \
 		--size c2-8vcpu-16gb-intel --region nyc1 --enable-private-networking \
 		--ssh-keys 38852180,38632397,41187560 --tag-names build-machines,build-orchestration --wait
 	echo "Done"
@@ -22,7 +22,7 @@ elif [ "$1" = "create" ] && [ "$2" = "amd64-rpm" ]
 then
 	## Create amd64-rpm build machine
 	echo "Creating amd64-rpm build machine"
-	doctl compute droplet create build-server-amd64-rpm-tmp --image 154584864 \
+	doctl compute droplet create build-server-amd64-rpm-tmp --image 178721114 \
 		--size c2-8vcpu-16gb-intel --region nyc1 --enable-private-networking \
 		--ssh-keys 38852180,38632397,41187560 --tag-names build-machines,build-orchestration --wait
 	echo "Done"
@@ -31,7 +31,7 @@ elif [ "$1" = "create" ] && [ "$2" = "arm64-rpm" ] ## This snapshot does not yet
 then
 	## Create arm64-rpm build machine
 	echo "Creating arm64-rpm build machine"
-	doctl compute droplet create build-server-arm64-rpm-tmp --image 154584864 \
+	doctl compute droplet create build-server-arm64-rpm-tmp --image 178721114 \
 		--size c2-8vcpu-16gb-intel --region nyc1 --enable-private-networking \
 		--ssh-keys 38852180,38632397,41187560 --tag-names build-machines,build-orchestration --wait
 	echo "Done"
