@@ -219,7 +219,7 @@ impl RoutingTableInner {
         peer_b: Arc<PeerInfo>,
         dial_info_filter: DialInfoFilter,
         sequencing: Sequencing,
-        dif_sort: Option<Arc<DialInfoDetailSort>>,
+        dif_sort: Option<&DialInfoDetailSort>,
     ) -> ContactMethod {
         self.with_routing_domain(routing_domain, |rdd| {
             rdd.get_contact_method(self, peer_a, peer_b, dial_info_filter, sequencing, dif_sort)
@@ -256,7 +256,7 @@ impl RoutingTableInner {
     }
 
     /// Return the domain's currently registered network class
-    pub fn get_network_class(&self, routing_domain: RoutingDomain) -> Option<NetworkClass> {
+    pub fn get_network_class(&self, routing_domain: RoutingDomain) -> NetworkClass {
         self.with_routing_domain(routing_domain, |rdd| rdd.network_class())
     }
 
@@ -624,7 +624,7 @@ impl RoutingTableInner {
                 // New node id, get the old peer info if we don't have it yet
                 if old_peer_infos.is_empty() {
                     for rd in RoutingDomainSet::all() {
-                        if let Some(old_peer_info) = e.make_peer_info(rd) {
+                        if let Some(old_peer_info) = e.get_peer_info(rd) {
                             old_peer_infos.push(old_peer_info);
                         }
                     }
@@ -667,7 +667,7 @@ impl RoutingTableInner {
             if !old_peer_infos.is_empty() {
                 let mut new_peer_infos = vec![];
                 for rd in RoutingDomainSet::all() {
-                    if let Some(new_peer_info) = e.make_peer_info(rd) {
+                    if let Some(new_peer_info) = e.get_peer_info(rd) {
                         new_peer_infos.push(new_peer_info);
                     }
                 }
@@ -895,13 +895,13 @@ impl RoutingTableInner {
         let mut updated = false;
         let mut old_peer_info = None;
         let nr = self.create_node_ref(&node_ids, |_rti, e| {
-            old_peer_info = e.make_peer_info(routing_domain);
+            old_peer_info = e.get_peer_info(routing_domain);
             updated = e.update_signed_node_info(routing_domain, &signed_node_info);
         })?;
 
         // Process any new or updated PeerInfo
         if old_peer_info.is_none() || updated {
-            let new_peer_info = nr.locked(self).make_peer_info(routing_domain);
+            let new_peer_info = nr.locked(self).get_peer_info(routing_domain);
             self.on_entry_peer_info_updated(old_peer_info, new_peer_info);
         }
 
@@ -940,8 +940,8 @@ impl RoutingTableInner {
     /// 2. nodes are removed that don't have any peer info
     fn on_entry_peer_info_updated(
         &mut self,
-        old_peer_info: Option<PeerInfo>,
-        new_peer_info: Option<PeerInfo>,
+        old_peer_info: Option<Arc<PeerInfo>>,
+        new_peer_info: Option<Arc<PeerInfo>>,
     ) {
         let (routing_domain, node_ids) = match (old_peer_info.as_ref(), new_peer_info.as_ref()) {
             (None, None) => {
@@ -1114,9 +1114,7 @@ impl RoutingTableInner {
     ) -> Arc<PeerInfo> {
         match entry {
             None => own_peer_info.clone(),
-            Some(entry) => {
-                entry.with_inner(|e| Arc::new(e.make_peer_info(routing_domain).unwrap()))
-            }
+            Some(entry) => entry.with_inner(|e| e.get_peer_info(routing_domain).unwrap()),
         }
     }
 

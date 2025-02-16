@@ -552,7 +552,7 @@ impl RoutingTable {
         peer_b: Arc<PeerInfo>,
         dial_info_filter: DialInfoFilter,
         sequencing: Sequencing,
-        dif_sort: Option<Arc<DialInfoDetailSort>>,
+        dif_sort: Option<&DialInfoDetailSort>,
     ) -> ContactMethod {
         self.inner.read().get_contact_method(
             routing_domain,
@@ -586,7 +586,7 @@ impl RoutingTable {
 
     /// Return the domain's currently registered network class
     #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), expect(dead_code))]
-    pub fn get_network_class(&self, routing_domain: RoutingDomain) -> Option<NetworkClass> {
+    pub fn get_network_class(&self, routing_domain: RoutingDomain) -> NetworkClass {
         self.inner.read().get_network_class(routing_domain)
     }
 
@@ -796,7 +796,7 @@ impl RoutingTable {
                 e.with(rti, |_rti, e| {
                     if let Some(ni) = e.node_info(routing_domain) {
                         if ni
-                            .first_filtered_dial_info_detail(DialInfoDetail::NO_SORT, |did| {
+                            .first_filtered_dial_info_detail(DialInfoDetail::NO_SORT, &|did| {
                                 did.matches_filter(&dial_info_filter)
                             })
                             .is_some()

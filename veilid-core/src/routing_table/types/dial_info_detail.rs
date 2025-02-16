@@ -19,7 +19,8 @@ impl MatchesDialInfoFilter for DialInfoDetail {
     }
 }
 
-pub type DialInfoDetailSort = dyn Fn(&DialInfoDetail, &DialInfoDetail) -> core::cmp::Ordering;
+pub type DialInfoDetailSort<'a> =
+    Box<dyn Fn(&DialInfoDetail, &DialInfoDetail) -> core::cmp::Ordering + 'a>;
 
 impl DialInfoDetail {
     pub fn ordered_sequencing_sort(a: &DialInfoDetail, b: &DialInfoDetail) -> core::cmp::Ordering {
@@ -29,7 +30,5 @@ impl DialInfoDetail {
         }
         a.class.cmp(&b.class)
     }
-    pub const NO_SORT: std::option::Option<
-        for<'r, 's> fn(&'r DialInfoDetail, &'s DialInfoDetail) -> std::cmp::Ordering,
-    > = None::<fn(&DialInfoDetail, &DialInfoDetail) -> core::cmp::Ordering>;
+    pub const NO_SORT: std::option::Option<&DialInfoDetailSort<'static>> = None::<_>;
 }

@@ -9,7 +9,8 @@ impl Network {
         _t: Timestamp,
     ) -> EyreResult<()> {
         // Network lock ensures only one task operating on the low level network state
-        // can happen at the same time.
+        // can happen at the same time. Try lock is here to give preference to other longer
+        // running processes like update_network_class_task.
         let _guard = match self.network_task_lock.try_lock() {
             Ok(v) => v,
             Err(_) => {
@@ -68,7 +69,6 @@ impl Network {
 
         // If any of the new addresses were PublicInternet addresses, re-run public dial info check
         if public_internet_changed {
-            // inner.network_needs_restart = true;
             self.set_needs_public_dial_info_check(None);
         }
 

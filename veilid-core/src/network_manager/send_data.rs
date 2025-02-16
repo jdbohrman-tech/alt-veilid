@@ -397,9 +397,6 @@ impl NetworkManager {
         }))
     }
 
-    /// Figure out how to reach a node from our own node over the best routing domain and reference the nodes we want to access
-    /// Uses NodeRefs to ensure nodes are referenced, this is not a part of 'RoutingTable' because RoutingTable is not
-    /// allowed to use NodeRefs due to recursive locking
     #[instrument(level = "trace", target = "net", skip_all, err)]
     pub fn get_node_contact_method(
         &self,
@@ -430,48 +427,76 @@ impl NetworkManager {
         let peer_a = routing_table.get_current_peer_info(routing_domain);
         let own_node_info_ts = peer_a.signed_node_info().timestamp();
 
-        // Peer B is the target node, get just the timestamp for the cache check
-        let target_node_info_ts = match target_node_ref.operate(|_rti, e| {
-            e.signed_node_info(routing_domain)
-                .map(|sni| sni.timestamp())
-        }) {
-            Some(ts) => ts,
-            None => {
-                log_net!(
-                    "no node info for node {:?} in {:?}",
-                    target_node_ref,
-                    routing_domain
-                );
-                return Ok(NodeContactMethod::Unreachable);
+        // Peer B is the target node, get the whole peer info now
+        let Some(peer_b) = target_node_ref.get_peer_info(routing_domain) else {
+            log_net!("no node info for node {:?}", target_node_ref);
+            return Ok(NodeContactMethod::Unreachable);
+        };
+
+        // Calculate the dial info failures map
+        let address_filter = self.address_filter();
+        let dial_info_failures_map = {
+            let mut dial_info_failures_map = BTreeMap::<DialInfo, Timestamp>::new();
+            for did in peer_b
+                .signed_node_info()
+                .node_info()
+                .filtered_dial_info_details(DialInfoDetail::NO_SORT, &|_| true)
+            {
+                if let Some(ts) = address_filter.get_dial_info_failed_ts(&did.dial_info) {
+                    dial_info_failures_map.insert(did.dial_info, ts);
+                }
             }
+            dial_info_failures_map
         };
 
         // Get cache key
-        let mut ncm_key = NodeContactMethodCacheKey {
+        let ncm_key = NodeContactMethodCacheKey {
             node_ids: target_node_ref.node_ids(),
             own_node_info_ts,
-            target_node_info_ts,
+            target_node_info_ts: peer_b.signed_node_info().timestamp(),
             target_node_ref_filter: target_node_ref.filter(),
             target_node_ref_sequencing: target_node_ref.sequencing(),
+            dial_info_failures_map,
         };
         if let Some(ncm) = self.inner.lock().node_contact_method_cache.get(&ncm_key) {
             return Ok(ncm.clone());
         }
 
-        // Peer B is the target node, get the whole peer info now
-        let peer_b = match target_node_ref.make_peer_info(routing_domain) {
-            Some(pi) => Arc::new(pi),
-            None => {
-                log_net!("no node info for node {:?}", target_node_ref);
-                return Ok(NodeContactMethod::Unreachable);
-            }
-        };
-        // Update the key's timestamp to ensure we avoid any race conditions
-        ncm_key.target_node_info_ts = peer_b.signed_node_info().timestamp();
+        // Calculate the node contact method
+        let routing_table = self.routing_table();
+        let ncm = Self::get_node_contact_method_uncached(
+            &routing_table,
+            routing_domain,
+            target_node_ref,
+            peer_a,
+            peer_b,
+            &ncm_key,
+        )?;
 
+        // Cache this
+        self.inner
+            .lock()
+            .node_contact_method_cache
+            .insert(ncm_key, ncm.clone());
+
+        Ok(ncm)
+    }
+
+    /// Figure out how to reach a node from our own node over the best routing domain and reference the nodes we want to access
+    /// Uses NodeRefs to ensure nodes are referenced, this is not a part of 'RoutingTable' because RoutingTable is not
+    /// allowed to use NodeRefs due to recursive locking
+    #[instrument(level = "trace", target = "net", skip_all, err)]
+    fn get_node_contact_method_uncached(
+        routing_table: &RoutingTable,
+        routing_domain: RoutingDomain,
+        target_node_ref: FilteredNodeRef,
+        peer_a: Arc<PeerInfo>,
+        peer_b: Arc<PeerInfo>,
+        ncm_key: &NodeContactMethodCacheKey,
+    ) -> EyreResult<NodeContactMethod> {
         // Dial info filter comes from the target node ref but must be filtered by this node's outbound capabilities
         let dial_info_filter = target_node_ref.dial_info_filter().filtered(
-            &DialInfoFilter::all()
+            DialInfoFilter::all()
                 .with_address_type_set(peer_a.signed_node_info().node_info().address_types())
                 .with_protocol_type_set(peer_a.signed_node_info().node_info().outbound_protocols()),
         );
@@ -487,26 +512,17 @@ impl NetworkManager {
         // }
 
         // Deprioritize dial info that have recently failed
-        let address_filter = self.address_filter();
-        let mut dial_info_failures_map = BTreeMap::<DialInfo, Timestamp>::new();
-        for did in peer_b
-            .signed_node_info()
-            .node_info()
-            .filtered_dial_info_details(DialInfoDetail::NO_SORT, |_| true)
-        {
-            if let Some(ts) = address_filter.get_dial_info_failed_ts(&did.dial_info) {
-                dial_info_failures_map.insert(did.dial_info, ts);
-            }
-        }
-        let dif_sort: Option<Arc<DialInfoDetailSort>> = if dial_info_failures_map.is_empty() {
+        let dif_sort: Option<DialInfoDetailSort> = if ncm_key.dial_info_failures_map.is_empty() {
             None
         } else {
-            Some(Arc::new(move |a: &DialInfoDetail, b: &DialInfoDetail| {
-                let ats = dial_info_failures_map
+            Some(Box::new(|a: &DialInfoDetail, b: &DialInfoDetail| {
+                let ats = ncm_key
+                    .dial_info_failures_map
                     .get(&a.dial_info)
                     .copied()
                     .unwrap_or_default();
-                let bts = dial_info_failures_map
+                let bts = ncm_key
+                    .dial_info_failures_map
                     .get(&b.dial_info)
                     .copied()
                     .unwrap_or_default();
@@ -521,7 +537,7 @@ impl NetworkManager {
             peer_b.clone(),
             dial_info_filter,
             sequencing,
-            dif_sort,
+            dif_sort.as_ref(),
         );
 
         // Translate the raw contact method to a referenced contact method
@@ -549,7 +565,7 @@ impl NetworkManager {
                 let tighten = peer_a
                     .signed_node_info()
                     .node_info()
-                    .filtered_dial_info_details(DialInfoDetail::NO_SORT, |did| {
+                    .filtered_dial_info_details(DialInfoDetail::NO_SORT, &|did| {
                         did.matches_filter(&dial_info_filter)
                     })
                     .iter()
@@ -634,11 +650,6 @@ impl NetworkManager {
             }
         };
 
-        // Cache this
-        self.inner
-            .lock()
-            .node_contact_method_cache
-            .insert(ncm_key, ncm.clone());
         Ok(ncm)
     }
 
@@ -806,9 +817,12 @@ impl NetworkManager {
         // punch should come through and create a real 'last connection' for us if this succeeds
         network_result_try!(
             self.net()
-                .send_hole_punch(hole_punch_did.dial_info.clone())
+                .send_data_to_dial_info(hole_punch_did.dial_info.clone(), Vec::new())
                 .await?
         );
+
+        // Add small delay to encourage packets to be delivered in order
+        sleep(HOLE_PUNCH_DELAY_MS).await;
 
         // Issue the signal
         let rpc = self.rpc_processor();
@@ -822,6 +836,13 @@ impl NetworkManager {
             )
             .await
             .wrap_err("failed to send signal")?);
+
+        // Another hole punch after the signal for UDP redundancy
+        network_result_try!(
+            self.net()
+                .send_data_to_dial_info(hole_punch_did.dial_info, Vec::new())
+                .await?
+        );
 
         // Wait for the return receipt
         let inbound_nr = match eventual_value

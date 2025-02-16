@@ -36,7 +36,7 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
         RoutingDomain::PublicInternet
     }
 
-    fn network_class(&self) -> Option<NetworkClass> {
+    fn network_class(&self) -> NetworkClass {
         self.common.network_class()
     }
     fn outbound_protocols(&self) -> ProtocolTypeSet {
@@ -48,11 +48,14 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
     fn address_types(&self) -> AddressTypeSet {
         self.common.address_types()
     }
+    fn compatible_address_types(&self) -> AddressTypeSet {
+        AddressType::IPV4 | AddressType::IPV6
+    }
     fn capabilities(&self) -> Vec<Capability> {
         self.common.capabilities()
     }
     fn requires_relay(&self) -> Option<RelayKind> {
-        self.common.requires_relay()
+        self.common.requires_relay(self.compatible_address_types())
     }
     fn relay_node(&self) -> Option<FilteredNodeRef> {
         self.common.relay_node()
@@ -160,7 +163,7 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
         peer_b: Arc<PeerInfo>,
         dial_info_filter: DialInfoFilter,
         sequencing: Sequencing,
-        dif_sort: Option<Arc<DialInfoDetailSort>>,
+        dif_sort: Option<&DialInfoDetailSort>,
     ) -> ContactMethod {
         let ip6_prefix_size = rti
             .config()
@@ -191,9 +194,9 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                 first_filtered_dial_info_detail_between_nodes(
                     node_a,
                     node_b,
-                    &dial_info_filter,
+                    dial_info_filter,
                     sequencing,
-                    dif_sort.clone(),
+                    dif_sort,
                 )
             })
             .flatten()
@@ -228,9 +231,9 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                 if first_filtered_dial_info_detail_between_nodes(
                     node_a,
                     node_b_relay,
-                    &dial_info_filter,
+                    dial_info_filter,
                     sequencing,
-                    dif_sort.clone(),
+                    dif_sort,
                 )
                 .is_some()
                 {
@@ -242,9 +245,9 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                         if let Some(reverse_did) = first_filtered_dial_info_detail_between_nodes(
                             node_b,
                             node_a,
-                            &dial_info_filter,
+                            dial_info_filter,
                             sequencing,
-                            dif_sort.clone(),
+                            dif_sort,
                         ) {
                             // Ensure we aren't on the same public IP address (no hairpin nat)
                             if reverse_did.dial_info.ip_addr() != target_did.dial_info.ip_addr() {
@@ -262,22 +265,22 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
 
                         // Does node B have a direct udp dialinfo node A can reach?
                         let udp_dial_info_filter = dial_info_filter
-                            .filtered(&DialInfoFilter::all().with_protocol_type(ProtocolType::UDP));
+                            .filtered(DialInfoFilter::all().with_protocol_type(ProtocolType::UDP));
                         if let Some(target_udp_did) = first_filtered_dial_info_detail_between_nodes(
                             node_a,
                             node_b,
-                            &udp_dial_info_filter,
+                            udp_dial_info_filter,
                             sequencing,
-                            dif_sort.clone(),
+                            dif_sort,
                         ) {
                             // Does node A have a direct udp dialinfo that node B can reach?
                             if let Some(reverse_udp_did) =
                                 first_filtered_dial_info_detail_between_nodes(
                                     node_b,
                                     node_a,
-                                    &udp_dial_info_filter,
+                                    udp_dial_info_filter,
                                     sequencing,
-                                    dif_sort.clone(),
+                                    dif_sort,
                                 )
                             {
                                 // Ensure we aren't on the same public IP address (no hairpin nat)
@@ -322,9 +325,9 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
             if first_filtered_dial_info_detail_between_nodes(
                 node_a,
                 node_b_relay,
-                &dial_info_filter,
+                dial_info_filter,
                 sequencing,
-                dif_sort.clone(),
+                dif_sort,
             )
             .is_some()
             {
@@ -337,9 +340,9 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
                         first_filtered_dial_info_detail_between_nodes(
                             node_b,
                             node_a,
-                            &dial_info_filter,
+                            dial_info_filter,
                             sequencing,
-                            dif_sort.clone(),
+                            dif_sort,
                         )
                     })
                     .flatten()

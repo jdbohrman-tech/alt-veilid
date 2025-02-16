@@ -133,9 +133,9 @@ impl RoutingTable {
             filters,
             // transform
             |rti, entry| {
-                entry.unwrap().with(rti, |_rti, e| {
-                    Arc::new(e.make_peer_info(routing_domain).unwrap())
-                })
+                entry
+                    .unwrap()
+                    .with(rti, |_rti, e| e.get_peer_info(routing_domain).unwrap())
             },
         ) {
             Ok(v) => v,
@@ -187,8 +187,8 @@ impl RoutingTable {
             if d_far < d_near {
                 let warning = format!(
                     r#"peer: {}
-near (key): {} 
-far (self): {} 
+near (key): {}
+far (self): {}
     d_near: {}
      d_far: {}
        cmp: {:?}"#,

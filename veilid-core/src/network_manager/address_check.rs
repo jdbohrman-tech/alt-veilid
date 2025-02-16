@@ -299,10 +299,14 @@ impl AddressCheck {
         flow: Flow,                    // the flow used
         reporting_ipblock: IpAddr,     // the IP block this report came from
     ) -> bool {
-        let acckey =
-            AddressCheckCacheKey(routing_domain, flow.protocol_type(), flow.address_type());
+        // Don't do this if we aren't ever going to use it
+        if !self.config.detect_address_changes {
+            return false;
+        }
 
         // Add the currently seen socket address into the consistency table
+        let acckey =
+            AddressCheckCacheKey(routing_domain, flow.protocol_type(), flow.address_type());
         let cache = self
             .address_consistency_table
             .entry(acckey)

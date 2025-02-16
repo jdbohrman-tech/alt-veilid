@@ -177,8 +177,8 @@ core:
             public_watch_limit: 32
             member_watch_limit: 8
             max_watch_expiration_ms: 600000
-        upnp: true
-        detect_address_changes: true
+        upnp: false
+        detect_address_changes: false
         restricted_nat_retries: 0
         tls:
             certificate_path: '%CERTIFICATE_PATH%'
@@ -1851,8 +1851,8 @@ mod tests {
         assert_eq!(s.core.network.dht.member_watch_limit, 8u32);
         assert_eq!(s.core.network.dht.max_watch_expiration_ms, 600_000u32);
         //
-        assert!(s.core.network.upnp);
-        assert!(s.core.network.detect_address_changes);
+        assert!(!s.core.network.upnp);
+        assert!(!s.core.network.detect_address_changes);
         assert_eq!(s.core.network.restricted_nat_retries, 0u32);
         //
         assert_eq!(

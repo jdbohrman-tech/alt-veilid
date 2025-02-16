@@ -158,6 +158,14 @@ impl Network {
                             .or_default();
                         bapp.push(addr);
 
+                        log_net!(
+                            debug
+                            "set_preferred_local_address: {:?} {:?} -> {:?}",
+                            ProtocolType::UDP,
+                            addr,
+                            PeerAddress::new(SocketAddress::from_socket_addr(addr), ProtocolType::UDP)
+                        );
+
                         Self::set_preferred_local_address(
                             &mut inner,
                             PeerAddress::new(

@@ -13,10 +13,11 @@ pub trait RoutingDomainDetail {
     // Common accessors
     #[expect(dead_code)]
     fn routing_domain(&self) -> RoutingDomain;
-    fn network_class(&self) -> Option<NetworkClass>;
+    fn network_class(&self) -> NetworkClass;
     fn outbound_protocols(&self) -> ProtocolTypeSet;
     fn inbound_protocols(&self) -> ProtocolTypeSet;
     fn address_types(&self) -> AddressTypeSet;
+    fn compatible_address_types(&self) -> AddressTypeSet;
     fn capabilities(&self) -> Vec<Capability>;
     fn requires_relay(&self) -> Option<RelayKind>;
     fn relay_node(&self) -> Option<FilteredNodeRef>;
@@ -47,7 +48,7 @@ pub trait RoutingDomainDetail {
         peer_b: Arc<PeerInfo>,
         dial_info_filter: DialInfoFilter,
         sequencing: Sequencing,
-        dif_sort: Option<Arc<DialInfoDetailSort>>,
+        dif_sort: Option<&DialInfoDetailSort>,
     ) -> ContactMethod;
 
     // Set last relay keepalive time
@@ -63,13 +64,13 @@ trait RoutingDomainDetailCommonAccessors: RoutingDomainDetail {
 fn first_filtered_dial_info_detail_between_nodes(
     from_node: &NodeInfo,
     to_node: &NodeInfo,
-    dial_info_filter: &DialInfoFilter,
+    dial_info_filter: DialInfoFilter,
     sequencing: Sequencing,
-    dif_sort: Option<Arc<DialInfoDetailSort>>,
+    dif_sort: Option<&DialInfoDetailSort>,
 ) -> Option<DialInfoDetail> {
     // Consider outbound capabilities
-    let dial_info_filter = (*dial_info_filter).filtered(
-        &DialInfoFilter::all()
+    let dial_info_filter = dial_info_filter.filtered(
+        DialInfoFilter::all()
             .with_address_type_set(from_node.address_types())
             .with_protocol_type_set(from_node.outbound_protocols()),
     );
@@ -79,9 +80,9 @@ fn first_filtered_dial_info_detail_between_nodes(
     // based on an external preference table, for example the one kept by
     // AddressFilter to deprioritize dialinfo that have recently failed to connect
     let (ordered, dial_info_filter) = dial_info_filter.apply_sequencing(sequencing);
-    let sort: Option<Box<DialInfoDetailSort>> = if ordered {
+    let sort: Option<DialInfoDetailSort> = if ordered {
         if let Some(dif_sort) = dif_sort {
-            Some(Box::new(move |a, b| {
+            Some(Box::new(|a, b| {
                 let mut ord = dif_sort(a, b);
                 if ord == core::cmp::Ordering::Equal {
                     ord = DialInfoDetail::ordered_sequencing_sort(a, b);
@@ -89,12 +90,12 @@ fn first_filtered_dial_info_detail_between_nodes(
                 ord
             }))
         } else {
-            Some(Box::new(move |a, b| {
+            Some(Box::new(|a, b| {
                 DialInfoDetail::ordered_sequencing_sort(a, b)
             }))
         }
     } else if let Some(dif_sort) = dif_sort {
-        Some(Box::new(move |a, b| dif_sort(a, b)))
+        Some(Box::new(|a, b| dif_sort(a, b)))
     } else {
         None
     };
@@ -106,7 +107,7 @@ fn first_filtered_dial_info_detail_between_nodes(
 
     // Get the best match dial info for node B if we have it
     let direct_filter = |did: &DialInfoDetail| did.matches_filter(&dial_info_filter);
-    to_node.first_filtered_dial_info_detail(sort, direct_filter)
+    to_node.first_filtered_dial_info_detail(sort.as_ref(), &direct_filter)
 }
 
 #[derive(Debug)]
@@ -141,22 +142,18 @@ impl RoutingDomainDetailCommon {
     ///////////////////////////////////////////////////////////////////////
     // Accessors
 
-    pub fn network_class(&self) -> Option<NetworkClass> {
+    pub fn network_class(&self) -> NetworkClass {
         cfg_if! {
             if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
-                Some(NetworkClass::WebApp)
+                NetworkClass::WebApp
             } else {
                 if self.address_types.is_empty() {
-                    None
+                    NetworkClass::Invalid
                 }
                 else if self.dial_info_details.is_empty() {
-                    if self.relay_node.is_none() {
-                        None
-                    } else {
-                        Some(NetworkClass::OutboundOnly)
-                    }
+                    NetworkClass::OutboundOnly
                 } else {
-                    Some(NetworkClass::InboundCapable)
+                    NetworkClass::InboundCapable
                 }
             }
         }
@@ -178,23 +175,30 @@ impl RoutingDomainDetailCommon {
         self.capabilities.clone()
     }
 
-    pub fn requires_relay(&self) -> Option<RelayKind> {
-        match self.network_class()? {
+    pub fn requires_relay(&self, compatible_address_types: AddressTypeSet) -> Option<RelayKind> {
+        match self.network_class() {
             NetworkClass::InboundCapable => {
                 let mut all_inbound_set: HashSet<(ProtocolType, AddressType)> = HashSet::new();
+                let mut address_types = AddressTypeSet::empty();
                 for p in self.inbound_protocols {
                     for a in self.address_types {
                         all_inbound_set.insert((p, a));
                     }
                 }
                 for did in &self.dial_info_details {
+                    // Request an inbound relay if any of our dialinfo require one
                     if did.class.requires_relay() {
                         return Some(RelayKind::Inbound);
                     }
                     let ib = (did.dial_info.protocol_type(), did.dial_info.address_type());
                     all_inbound_set.remove(&ib);
+                    address_types |= did.dial_info.address_type();
                 }
-                if !all_inbound_set.is_empty() {
+
+                // Request an inbound relay if any of our inbound protocols do not have dialinfo for all address types
+                // we want to support, or if this routing domain doesn't support the full range of compatible address types
+                // for the routing domain
+                if !all_inbound_set.is_empty() || address_types != compatible_address_types {
                     return Some(RelayKind::Inbound);
                 }
             }
@@ -316,7 +320,7 @@ impl RoutingDomainDetailCommon {
         let routing_table = rti.routing_table();
 
         let node_info = NodeInfo::new(
-            self.network_class().unwrap_or(NetworkClass::Invalid),
+            self.network_class(),
             self.outbound_protocols,
             self.address_types,
             VALID_ENVELOPE_VERSIONS.to_vec(),
@@ -326,9 +330,10 @@ impl RoutingDomainDetailCommon {
         );
 
         let relay_info = if let Some(rn) = &self.relay_node {
-            let opt_relay_pi = rn.locked(rti).make_peer_info(self.routing_domain);
+            let opt_relay_pi = rn.locked(rti).get_peer_info(self.routing_domain);
             if let Some(relay_pi) = opt_relay_pi {
-                let (_routing_domain, relay_ids, relay_sni) = relay_pi.destructure();
+                let (_routing_domain, relay_ids, relay_sni) =
+                    relay_pi.as_ref().clone().destructure();
                 match relay_sni {
                     SignedNodeInfo::Direct(d) => Some((relay_ids, d)),
                     SignedNodeInfo::Relayed(_) => {

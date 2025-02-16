@@ -55,7 +55,7 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
         RoutingDomain::LocalNetwork
     }
 
-    fn network_class(&self) -> Option<NetworkClass> {
+    fn network_class(&self) -> NetworkClass {
         self.common.network_class()
     }
     fn outbound_protocols(&self) -> ProtocolTypeSet {
@@ -67,11 +67,14 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
     fn address_types(&self) -> AddressTypeSet {
         self.common.address_types()
     }
+    fn compatible_address_types(&self) -> AddressTypeSet {
+        AddressType::IPV4 | AddressType::IPV6
+    }
     fn capabilities(&self) -> Vec<Capability> {
         self.common.capabilities()
     }
     fn requires_relay(&self) -> Option<RelayKind> {
-        self.common.requires_relay()
+        self.common.requires_relay(self.compatible_address_types())
     }
     fn relay_node(&self) -> Option<FilteredNodeRef> {
         self.common.relay_node()
@@ -182,7 +185,7 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
         peer_b: Arc<PeerInfo>,
         dial_info_filter: DialInfoFilter,
         sequencing: Sequencing,
-        dif_sort: Option<Arc<DialInfoDetailSort>>,
+        dif_sort: Option<&DialInfoDetailSort>,
     ) -> ContactMethod {
         // Get the nodeinfos for convenience
         let node_a = peer_a.signed_node_info().node_info();
@@ -198,7 +201,7 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
         if let Some(target_did) = first_filtered_dial_info_detail_between_nodes(
             node_a,
             node_b,
-            &dial_info_filter,
+            dial_info_filter,
             sequencing,
             dif_sort,
         ) {

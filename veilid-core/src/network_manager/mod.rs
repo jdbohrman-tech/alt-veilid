@@ -107,6 +107,7 @@ struct NodeContactMethodCacheKey {
     target_node_info_ts: Timestamp,
     target_node_ref_filter: NodeRefFilter,
     target_node_ref_sequencing: Sequencing,
+    dial_info_failures_map: BTreeMap<DialInfo, Timestamp>,
 }
 
 enum SendDataToExistingFlowResult {
@@ -1177,19 +1178,6 @@ impl NetworkManager {
 
     pub fn restart_network(&self) {
         self.net().restart_network();
-    }
-
-    /// If some other subsystem believes our dial info is no longer valid, this will trigger
-    /// a re-check of the dial info and network class
-    pub fn set_needs_dial_info_check(&self, routing_domain: RoutingDomain) {
-        match routing_domain {
-            RoutingDomain::LocalNetwork => {
-                // nothing here yet
-            }
-            RoutingDomain::PublicInternet => {
-                self.net().set_needs_public_dial_info_check(None);
-            }
-        }
     }
 
     // Report peer info changes

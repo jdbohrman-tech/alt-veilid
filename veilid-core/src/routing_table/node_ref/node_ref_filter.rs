@@ -49,11 +49,11 @@ impl NodeRefFilter {
         self.dial_info_filter = self.dial_info_filter.with_address_type_set(address_set);
         self
     }
-    pub fn filtered(mut self, other_filter: &NodeRefFilter) -> Self {
+    pub fn filtered(mut self, other_filter: NodeRefFilter) -> Self {
         self.routing_domain_set &= other_filter.routing_domain_set;
         self.dial_info_filter = self
             .dial_info_filter
-            .filtered(&other_filter.dial_info_filter);
+            .filtered(other_filter.dial_info_filter);
         self
     }
     #[expect(dead_code)]

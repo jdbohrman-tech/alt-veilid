@@ -39,6 +39,42 @@ impl Network {
         }
     }
 
+    // Determine if we need to check for public dialinfo
+    fn needs_update_network_class_tick(&self) -> bool {
+        let public_internet_network_class = self
+            .routing_table()
+            .get_network_class(RoutingDomain::PublicInternet);
+        let needs_public_dial_info_check = self.needs_public_dial_info_check();
+
+        if needs_public_dial_info_check
+            || public_internet_network_class == NetworkClass::Invalid
+            || (public_internet_network_class == NetworkClass::OutboundOnly
+                && self.inner.lock().next_outbound_only_dial_info_check <= Timestamp::now())
+        {
+            let routing_table = self.routing_table();
+            let rth = routing_table.get_routing_table_health();
+
+            // We want at least two live entries per crypto kind before we start doing this (bootstrap)
+            let mut has_at_least_two = true;
+            for ck in VALID_CRYPTO_KINDS {
+                if rth
+                    .live_entry_counts
+                    .get(&(RoutingDomain::PublicInternet, ck))
+                    .copied()
+                    .unwrap_or_default()
+                    < 2
+                {
+                    has_at_least_two = false;
+                    break;
+                }
+            }
+
+            has_at_least_two
+        } else {
+            false
+        }
+    }
+
     #[instrument(level = "trace", target = "net", name = "Network::tick", skip_all, err)]
     pub async fn tick(&self) -> EyreResult<()> {
         let Ok(_guard) = self.startup_lock.enter() else {
@@ -62,36 +98,8 @@ impl Network {
             // Check our network interfaces to see if they have changed
             self.network_interfaces_task.tick().await?;
 
-            // Check our public dial info to see if it has changed
-            let public_internet_network_class = self
-                .routing_table()
-                .get_network_class(RoutingDomain::PublicInternet)
-                .unwrap_or(NetworkClass::Invalid);
-            let needs_public_dial_info_check = self.needs_public_dial_info_check();
-            if public_internet_network_class == NetworkClass::Invalid
-                || needs_public_dial_info_check
-            {
-                let routing_table = self.routing_table();
-                let rth = routing_table.get_routing_table_health();
-
-                // We want at least two live entries per crypto kind before we start doing this (bootstrap)
-                let mut has_at_least_two = true;
-                for ck in VALID_CRYPTO_KINDS {
-                    if rth
-                        .live_entry_counts
-                        .get(&(RoutingDomain::PublicInternet, ck))
-                        .copied()
-                        .unwrap_or_default()
-                        < 2
-                    {
-                        has_at_least_two = false;
-                        break;
-                    }
-                }
-
-                if has_at_least_two {
-                    self.update_network_class_task.tick().await?;
-                }
+            if self.needs_update_network_class_tick() {
+                self.update_network_class_task.tick().await?;
             }
         }
 
