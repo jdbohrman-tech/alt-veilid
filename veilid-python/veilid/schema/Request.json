@@ -327,6 +327,12 @@
                 "null"
               ]
             },
+            "owner": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "rc_op": {
               "type": "string",
               "enum": [

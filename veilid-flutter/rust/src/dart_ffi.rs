@@ -657,7 +657,13 @@ pub extern "C" fn routing_context_app_message(port: i64, id: u32, target: FfiStr
 
 #[no_mangle]
 #[instrument(level = "trace", target = "ffi", skip_all)]
-pub extern "C" fn routing_context_create_dht_record(port: i64, id: u32, schema: FfiStr, kind: u32) {
+pub extern "C" fn routing_context_create_dht_record(
+    port: i64,
+    id: u32,
+    schema: FfiStr,
+    owner: FfiStr,
+    kind: u32,
+) {
     let crypto_kind = if kind == 0 {
         None
     } else {
@@ -665,13 +671,16 @@ pub extern "C" fn routing_context_create_dht_record(port: i64, id: u32, schema: 
     };
     let schema: veilid_core::DHTSchema =
         veilid_core::deserialize_opt_json(schema.into_opt_string()).unwrap();
+    let owner: Option<veilid_core::KeyPair> = owner
+        .into_opt_string()
+        .map(|s| veilid_core::deserialize_json(&s).unwrap());
 
     DartIsolateWrapper::new(port).spawn_result_json(
         async move {
             let routing_context = get_routing_context(id, "routing_context_create_dht_record")?;
 
             let dht_record_descriptor = routing_context
-                .create_dht_record(schema, None, crypto_kind)
+                .create_dht_record(schema, owner, crypto_kind)
                 .await?;
             APIResult::Ok(dht_record_descriptor)
         }

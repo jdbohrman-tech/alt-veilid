@@ -102,6 +102,33 @@ Future<void> testSetGetDHTValue() async {
   }
 }
 
+Future<void> testSetGetDHTValueWithOwner() async {
+  final rc = await Veilid.instance.routingContext();
+  try {
+    final cs = await Veilid.instance.bestCryptoSystem();
+    final ownerKeyPair = await cs.generateKeyPair();
+
+    final rec = await rc.createDHTRecord(const DHTSchema.dflt(oCnt: 2),
+        owner: ownerKeyPair);
+    expect(await rc.setDHTValue(rec.key, 0, utf8.encode('BLAH BLAH BLAH')),
+        isNull);
+    final vd2 = await rc.getDHTValue(rec.key, 0);
+    expect(vd2, isNotNull);
+
+    final vd3 = await rc.getDHTValue(rec.key, 0, forceRefresh: true);
+    expect(vd3, isNotNull);
+
+    final vd4 = await rc.getDHTValue(rec.key, 1);
+    expect(vd4, isNull);
+
+    expect(vd2, equals(vd3));
+
+    await rc.deleteDHTRecord(rec.key);
+  } finally {
+    rc.close();
+  }
+}
+
 Future<void> testOpenWriterDHTValue() async {
   final rc = await Veilid.instance.routingContext();
   try {

@@ -24,20 +24,25 @@
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="ftest">
+  <meta name="apple-mobile-web-app-title" content="Veilid-flutter Example">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png" />
 
-  <title>ftest</title>
+  <title>Veilid-flutter Example</title>
   <link rel="manifest" href="manifest.json">
 
-  <!-- Load WASM modules -->
+</head>
+
+<body>
   <script type="module">
+    {{flutter_js}}
+    {{flutter_build_config}}
+
     import * as veilid_wasm_module from './wasm/veilid_wasm.js';
 
-    async function run() {
+    async function initVeilidWASM() {
       // save the wasm exports
       window.veilid_wasm = veilid_wasm_module;
       // init the js module
@@ -45,13 +50,23 @@
       // init the wasm library
       await veilid_wasm_module.initialize_veilid_wasm();
     }
-    run();
+
+    const loading = document.createElement('div');
+    document.body.appendChild(loading);
+    loading.textContent = "Loading Entrypoint...";
+    _flutter.loader.load({
+      onEntrypointLoaded: async function (engineInitializer) {
+        loading.textContent = "Initializing engine...";
+        const appRunner = await engineInitializer.initializeEngine();
+
+        loading.textContent = "Initializing Veilid...";
+        await initVeilidWASM();
+
+        loading.textContent = "Running example...";
+        await appRunner.runApp();
+      }
+    });
   </script>
-
-</head>
-
-<body>
-  <script src="flutter_bootstrap.js" async></script>
 </body>
 
 </html>

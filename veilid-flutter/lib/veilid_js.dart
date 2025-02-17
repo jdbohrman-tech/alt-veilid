@@ -134,11 +134,15 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
 
   @override
   Future<DHTRecordDescriptor> createDHTRecord(DHTSchema schema,
-      {CryptoKind kind = 0}) async {
+      {KeyPair? owner, CryptoKind kind = 0}) async {
     final id = _ctx.requireId();
     return DHTRecordDescriptor.fromJson(jsonDecode(await _wrapApiPromise(js_util
-        .callMethod(wasm, 'routing_context_create_dht_record',
-            [id, jsonEncode(schema), kind]))));
+        .callMethod(wasm, 'routing_context_create_dht_record', [
+      id,
+      jsonEncode(schema),
+      if (owner != null) jsonEncode(owner) else null,
+      kind
+    ]))));
   }
 
   @override

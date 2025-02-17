@@ -293,7 +293,7 @@ abstract class VeilidRoutingContext {
 
   // DHT Operations
   Future<DHTRecordDescriptor> createDHTRecord(DHTSchema schema,
-      {CryptoKind kind = 0});
+      {KeyPair? owner, CryptoKind kind = 0});
   Future<DHTRecordDescriptor> openDHTRecord(TypedKey key, {KeyPair? writer});
   Future<void> closeDHTRecord(TypedKey key);
   Future<void> deleteDHTRecord(TypedKey key);

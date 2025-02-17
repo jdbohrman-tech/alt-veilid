@@ -109,7 +109,7 @@ class DefaultVeilidFixture implements VeilidFixture {
 
     _veilidUpdateSubscription = us.listen((update) {
       if (update is VeilidLog) {
-        // print(update.message);
+        print(update.message);
       } else if (update is VeilidUpdateAttachment) {
       } else if (update is VeilidUpdateConfig) {
       } else if (update is VeilidUpdateNetwork) {

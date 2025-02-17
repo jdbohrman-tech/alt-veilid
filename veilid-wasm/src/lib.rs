@@ -488,12 +488,21 @@ pub fn routing_context_app_message(id: u32, target_string: String, message: Stri
 }
 
 #[wasm_bindgen()]
-pub fn routing_context_create_dht_record(id: u32, schema: String, kind: u32) -> Promise {
+pub fn routing_context_create_dht_record(
+    id: u32,
+    schema: String,
+    owner: Option<String>,
+    kind: u32,
+) -> Promise {
     wrap_api_future_json(async move {
         let crypto_kind = if kind == 0 {
             None
         } else {
             Some(veilid_core::FourCC::from(kind))
+        };
+        let owner: Option<veilid_core::KeyPair> = match owner {
+            Some(s) => Some(veilid_core::deserialize_json(&s).map_err(VeilidAPIError::generic)?),
+            None => None,
         };
         let schema: veilid_core::DHTSchema =
             veilid_core::deserialize_json(&schema).map_err(VeilidAPIError::generic)?;
@@ -501,7 +510,7 @@ pub fn routing_context_create_dht_record(id: u32, schema: String, kind: u32) -> 
         let routing_context = get_routing_context(id, "routing_context_create_dht_record")?;
 
         let dht_record_descriptor = routing_context
-            .create_dht_record(schema, None, crypto_kind)
+            .create_dht_record(schema, owner, crypto_kind)
             .await?;
         APIResult::Ok(dht_record_descriptor)
     })

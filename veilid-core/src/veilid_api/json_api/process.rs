@@ -292,16 +292,18 @@ impl JsonRequestProcessor {
                     ),
                 }
             }
-            RoutingContextRequestOp::CreateDhtRecord { schema, kind } => {
-                RoutingContextResponseOp::CreateDhtRecord {
-                    result: to_json_api_result(
-                        routing_context
-                            .create_dht_record(schema, None, kind)
-                            .await
-                            .map(Box::new),
-                    ),
-                }
-            }
+            RoutingContextRequestOp::CreateDhtRecord {
+                schema,
+                owner,
+                kind,
+            } => RoutingContextResponseOp::CreateDhtRecord {
+                result: to_json_api_result(
+                    routing_context
+                        .create_dht_record(schema, owner, kind)
+                        .await
+                        .map(Box::new),
+                ),
+            },
             RoutingContextRequestOp::OpenDhtRecord { key, writer } => {
                 RoutingContextResponseOp::OpenDhtRecord {
                     result: to_json_api_result(
