@@ -189,49 +189,81 @@ impl VeilidRoutingContext {
         APIResult::Ok(answer)
     }
 
-    /// DHT Records Creates a new DHT record a specified crypto kind and schema
+    ///////////////////////////////////
+    /// DHT Records
+
+    /// Deterministicly builds the record key for a given schema and owner public key
+    pub async fn getDhtRecordKey(
+        &self,
+        schema: DHTSchema,
+        owner: String,
+        kind: Option<String>,
+    ) -> APIResult<String> {
+        let owner = PublicKey::from_str(&owner)?;
+        let crypto_kind = kind
+            .map(|kind| veilid_core::FourCC::from_str(&kind))
+            .map_or(APIResult::Ok(None), |r| r.map(Some))?;
+        let routing_context = self.getRoutingContext()?;
+
+        let key = routing_context.get_dht_record_key(schema, &owner, crypto_kind)?;
+        APIResult::Ok(key.to_string())
+    }
+
+    /// Creates a new DHT record
     ///
     /// The record is considered 'open' after the create operation succeeds.
+    /// * 'schema' - the schema to use when creating the DHT record
+    /// * 'owner' - optionally specify an owner keypair to use. If you leave this as None then a random one will be generated
+    /// * 'kind' - specify a cryptosystem kind to use. Normally you will leave this as None to choose the 'best' cryptosystem available.
+    /// Returns the newly allocated DHT record's key if successful.   
     ///
-    /// @returns the newly allocated DHT record's key if successful.
+    /// Note: if you pass in an owner keypair this call is a deterministic! This means that if you try to create a new record for a given owner and schema that already exists it *will* fail.
     pub async fn createDhtRecord(
         &self,
         schema: DHTSchema,
-        kind: String,
+        owner: Option<String>,
+        kind: Option<String>,
     ) -> APIResult<DHTRecordDescriptor> {
-        let crypto_kind = if kind.is_empty() {
-            None
-        } else {
-            Some(veilid_core::FourCC::from_str(&kind)?)
-        };
+        let crypto_kind = kind
+            .map(|kind| veilid_core::FourCC::from_str(&kind))
+            .map_or(APIResult::Ok(None), |r| r.map(Some))?;
+        let owner_keypair = owner
+            .map(|owner| KeyPair::from_str(&owner))
+            .map_or(APIResult::Ok(None), |r| r.map(Some))?;
         let routing_context = self.getRoutingContext()?;
 
         let dht_record_descriptor = routing_context
-            .create_dht_record(schema, None, crypto_kind)
+            .create_dht_record(schema, owner_keypair, crypto_kind)
             .await?;
         APIResult::Ok(dht_record_descriptor)
     }
 
     /// Opens a DHT record at a specific key.
     ///
-    /// Associates a secret if one is provided to provide writer capability. Records may only be opened or created. To re-open with a different routing context, first close the value.
+    /// Associates a 'default_writer' secret if one is provided to provide writer capability. The
+    /// writer can be overridden if specified here via the set_dht_value writer.
+    ///
+    /// Records may only be opened or created. If a record is re-opened it will use the new writer and routing context
+    /// ignoring the settings of the last time it was opened. This allows one to open a record a second time
+    /// without first closing it, which will keep the active 'watches' on the record but change the default writer or
+    /// safety selection.
     ///
     /// @returns the DHT record descriptor for the opened record if successful.
-    /// @param {string} writer - Stringified key pair, in the form of `key:secret` where `key` and `secret` are base64Url encoded.
     /// @param {string} key - key of the DHT record.
+    /// @param {string} default_writer - Stringified key pair, in the form of `key:secret` where `key` and `secret` are base64Url encoded.
     #[wasm_bindgen(skip_jsdoc)]
     pub async fn openDhtRecord(
         &self,
         key: String,
-        writer: Option<String>,
+        default_writer: Option<String>,
     ) -> APIResult<DHTRecordDescriptor> {
         let key = TypedKey::from_str(&key)?;
-        let writer = writer
-            .map(|writer| KeyPair::from_str(&writer))
+        let default_writer = default_writer
+            .map(|default_writer| KeyPair::from_str(&default_writer))
             .map_or(APIResult::Ok(None), |r| r.map(Some))?;
 
         let routing_context = self.getRoutingContext()?;
-        let dht_record_descriptor = routing_context.open_dht_record(key, writer).await?;
+        let dht_record_descriptor = routing_context.open_dht_record(key, default_writer).await?;
         APIResult::Ok(dht_record_descriptor)
     }
 
@@ -245,11 +277,11 @@ impl VeilidRoutingContext {
         APIRESULT_UNDEFINED
     }
 
-    /// Deletes a DHT record at a specific key
+    /// Deletes a DHT record at a specific key.
     ///
     /// If the record is opened, it must be closed before it is deleted.
-    /// Deleting a record does not delete it from the network, but will remove the storage of the record locally,
-    /// and will prevent its value from being refreshed on the network by this node.
+    /// Deleting a record does not delete it from the network, but will remove the storage of the record
+    /// locally, and will prevent its value from being refreshed on the network by this node.
     pub async fn deleteDhtRecord(&self, key: String) -> APIResult<()> {
         let key = TypedKey::from_str(&key)?;
         let routing_context = self.getRoutingContext()?;
@@ -277,7 +309,10 @@ impl VeilidRoutingContext {
         APIResult::Ok(res)
     }
 
-    /// Pushes a changed subkey value to the network
+    /// Pushes a changed subkey value to the network.
+    /// The DHT record must first by opened via open_dht_record or create_dht_record.
+    ///
+    /// The writer, if specified, will override the 'default_writer' specified when the record is opened.
     ///
     /// Returns `undefined` if the value was successfully put.
     /// Returns a Uint8Array of `data` if the value put was older than the one available on the network.
@@ -352,6 +387,7 @@ impl VeilidRoutingContext {
     /// are subtracted from the watched subkey range. If no range is specified, this is equivalent to cancelling the entire range of subkeys.
     /// Only the subkey range is changed, the expiration and count remain the same.
     /// If no subkeys remain, the watch is entirely cancelled and will receive no more updates.
+    ///
     /// Returns true if there is any remaining watch for this record
     /// Returns false if the entire watch has been cancelled
     pub async fn cancelDhtWatch(

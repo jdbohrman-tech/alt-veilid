@@ -76,18 +76,49 @@ describe('VeilidRoutingContext', () => {
       });
     });
 
+    describe('createDhtRecord', () => {
+      it('should create dht record with default schema', async () => {
+        const dhtRecord = await routingContext.createDhtRecord({ kind: 'DFLT', o_cnt: 1 });
+        expect(dhtRecord.key).toBeDefined();
+        expect(dhtRecord.owner).toBeDefined();
+        expect(dhtRecord.owner_secret).toBeDefined(); 
+        expect(dhtRecord.schema).toEqual({ kind: 'DFLT', o_cnt: 1 });
+      });
+
+      it('should create dht record with default schema, no owner', async () => {
+        const dhtRecord = await routingContext.createDhtRecord({ kind: 'DFLT', o_cnt: 1 }, undefined, veilidCrypto.bestCryptoKind());
+        expect(dhtRecord.key).toBeDefined();
+        expect(dhtRecord.owner).toBeDefined();
+        expect(dhtRecord.owner_secret).toBeDefined();
+        expect(dhtRecord.schema).toEqual({ kind: 'DFLT', o_cnt: 1 });
+      });
+
+      it('should create dht record with default schema, with owner, and a deterministic key', async () => {
+        const bestCryptoKind = veilidCrypto.bestCryptoKind();
+        const ownerKeyPair = veilidCrypto.generateKeyPair(bestCryptoKind);
+        const [owner, secret] = ownerKeyPair.split(':');
+        const dhtRecordKey = await routingContext.getDhtRecordKey({ kind: 'DFLT', o_cnt: 1 }, owner, bestCryptoKind);
+        const dhtRecord = await routingContext.createDhtRecord({ kind: 'DFLT', o_cnt: 1 }, ownerKeyPair, bestCryptoKind);
+        expect(dhtRecord.key).toBeDefined();
+        expect(dhtRecord.key).toEqual(dhtRecordKey);
+        expect(dhtRecord.owner).toBeDefined();
+        expect(dhtRecord.owner).toEqual(owner);
+        expect(dhtRecord.owner_secret).toBeDefined();
+        expect(dhtRecord.owner_secret).toEqual(secret);
+        expect(dhtRecord.schema).toEqual({ kind: 'DFLT', o_cnt: 1 });
+      });
+    });
+
     describe('DHT kitchen sink', () => {
       let dhtRecord: DHTRecordDescriptor;
       const data = '🚀 This example DHT data with unicode a Ā 𐀀 文 🚀';
 
       beforeEach('create dht record', async () => {
-        const bestKind = veilidCrypto.bestCryptoKind();
         dhtRecord = await routingContext.createDhtRecord(
           {
             kind: 'DFLT',
             o_cnt: 1,
           },
-          bestKind
         );
 
         expect(dhtRecord.key).toBeDefined();
