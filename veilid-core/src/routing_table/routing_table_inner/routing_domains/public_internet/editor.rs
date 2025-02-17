@@ -101,6 +101,7 @@ impl<'a> RoutingDomainEditorCommonTrait for RoutingDomainEditorPublicInternet<'a
         inbound_protocols: ProtocolTypeSet,
         address_types: AddressTypeSet,
         capabilities: Vec<Capability>,
+        confirmed: bool,
     ) -> &mut Self {
         self.changes.push(RoutingDomainChangePublicInternet::Common(
             RoutingDomainChangeCommon::SetupNetwork {
@@ -108,6 +109,7 @@ impl<'a> RoutingDomainEditorCommonTrait for RoutingDomainEditorPublicInternet<'a
                 inbound_protocols,
                 address_types,
                 capabilities,
+                confirmed,
             },
         ));
         self

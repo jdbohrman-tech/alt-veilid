@@ -1,7 +1,8 @@
 use super::*;
 
 pub(crate) struct PeerInfoChangeEvent {
-    pub peer_info: Arc<PeerInfo>,
+    pub routing_domain: RoutingDomain,
+    pub opt_peer_info: Option<Arc<PeerInfo>>,
 }
 
 pub(crate) struct SocketAddressChangeEvent {

@@ -589,8 +589,9 @@ impl NetworkManager {
                     })
                     .unwrap_or(false);
 
-                let mut target_node_ref =
-                    target_node_ref.filtered_clone(NodeRefFilter::from(dial_info_filter));
+                let mut target_node_ref = target_node_ref.filtered_clone(
+                    NodeRefFilter::from(dial_info_filter).with_routing_domain(routing_domain),
+                );
                 if tighten {
                     target_node_ref.set_sequencing(Sequencing::EnsureOrdered);
                 }
@@ -616,6 +617,7 @@ impl NetworkManager {
                 // but tcp hole punch is very very unreliable it seems
                 let udp_target_node_ref = target_node_ref.filtered_clone(
                     NodeRefFilter::new()
+                        .with_routing_domain(routing_domain)
                         .with_dial_info_filter(dial_info_filter)
                         .with_protocol_type(ProtocolType::UDP),
                 );

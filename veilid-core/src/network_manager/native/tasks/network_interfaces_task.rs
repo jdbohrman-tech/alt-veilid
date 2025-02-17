@@ -69,7 +69,7 @@ impl Network {
 
         // If any of the new addresses were PublicInternet addresses, re-run public dial info check
         if public_internet_changed {
-            self.set_needs_public_dial_info_check(None);
+            self.trigger_update_network_class(RoutingDomain::PublicInternet);
         }
 
         Ok(local_network_changed || public_internet_changed)

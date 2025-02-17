@@ -28,19 +28,21 @@ pub trait RoutingDomainDetail {
     fn outbound_dial_info_filter(&self) -> DialInfoFilter;
     fn get_peer_info(&self, rti: &RoutingTableInner) -> Arc<PeerInfo>;
 
-    /// Can this routing domain contain a particular address
+    // Can this routing domain contain a particular address
     fn can_contain_address(&self, address: Address) -> bool;
     fn ensure_dial_info_is_valid(&self, dial_info: &DialInfo) -> bool;
 
-    /// Refresh caches if external data changes
+    // Refresh caches if external data changes
     fn refresh(&self);
 
-    /// Publish current peer info to the world
+    // Confirm network class as valid
+
+    // Publish current peer info to the world
     fn publish_peer_info(&self, rti: &RoutingTableInner) -> bool;
     fn unpublish_peer_info(&self);
 
-    /// Get the contact method required for node A to reach node B in this routing domain
-    /// Routing table must be locked for reading to use this function
+    // Get the contact method required for node A to reach node B in this routing domain
+    // Routing table must be locked for reading to use this function
     fn get_contact_method(
         &self,
         rti: &RoutingTableInner,
@@ -119,6 +121,7 @@ struct RoutingDomainDetailCommon {
     relay_node: Option<NodeRef>,
     capabilities: Vec<Capability>,
     dial_info_details: Vec<DialInfoDetail>,
+    confirmed: bool,
     // caches
     cached_peer_info: Mutex<Option<Arc<PeerInfo>>>,
     relay_node_last_keepalive: Option<Timestamp>,
@@ -134,6 +137,7 @@ impl RoutingDomainDetailCommon {
             relay_node: Default::default(),
             capabilities: Default::default(),
             dial_info_details: Default::default(),
+            confirmed: false,
             cached_peer_info: Mutex::new(Default::default()),
             relay_node_last_keepalive: Default::default(),
         }
@@ -147,7 +151,7 @@ impl RoutingDomainDetailCommon {
             if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
                 NetworkClass::WebApp
             } else {
-                if self.address_types.is_empty() {
+                if self.address_types.is_empty() || !self.confirmed {
                     NetworkClass::Invalid
                 }
                 else if self.dial_info_details.is_empty() {
@@ -260,11 +264,13 @@ impl RoutingDomainDetailCommon {
         inbound_protocols: ProtocolTypeSet,
         address_types: AddressTypeSet,
         capabilities: Vec<Capability>,
+        confirmed: bool,
     ) {
         self.outbound_protocols = outbound_protocols;
         self.inbound_protocols = inbound_protocols;
         self.address_types = address_types;
         self.capabilities = capabilities;
+        self.confirmed = confirmed;
         self.clear_cache();
     }
 

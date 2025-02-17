@@ -25,9 +25,6 @@ impl Network {
         if finished {
             let mut inner = self.inner.lock();
 
-            // Note that we did the check successfully
-            inner.needs_public_dial_info_check = false;
-
             // Don't try to re-do OutboundOnly dialinfo for another 10 seconds
             inner.next_outbound_only_dial_info_check = Timestamp::now()
                 + TimestampDuration::new_secs(UPDATE_OUTBOUND_ONLY_NETWORK_CLASS_PERIOD_SECS)
@@ -133,14 +130,6 @@ impl Network {
         // Save off existing public dial info for change detection later
         let routing_table = self.routing_table();
 
-        let existing_public_dial_info: HashSet<DialInfoDetail> = routing_table
-            .all_filtered_dial_info_details(
-                RoutingDomain::PublicInternet.into(),
-                &DialInfoFilter::all(),
-            )
-            .into_iter()
-            .collect();
-
         // Set most permissive network config and start from scratch
         let mut editor = routing_table.edit_public_internet_routing_domain();
         editor.setup_network(
@@ -148,6 +137,7 @@ impl Network {
             protocol_config.inbound,
             protocol_config.family_global,
             protocol_config.public_internet_capabilities.clone(),
+            false,
         );
         editor.clear_dial_info_details(None, None);
         editor.commit(true).await;
@@ -233,6 +223,12 @@ impl Network {
             self.update_with_detection_result(&mut editor, &inbound_protocol_map, dr);
         }
 
+        // If we got no external address types, try again
+        if external_address_types.is_empty() {
+            log_net!(debug "Network class discovery failed, trying again, got no external address types");
+            return Ok(false);
+        }
+
         // See if we have any discovery contexts that did not complete for a
         // particular protocol type if its external address type was supported.
         let mut success = true;
@@ -251,33 +247,20 @@ impl Network {
         // All done
         log_net!(debug "Network class discovery finished with address_types {:?}", external_address_types);
 
-        // Set the address types we've seen
+        // Set the address types we've seen and confirm the network class
         editor.setup_network(
             protocol_config.outbound,
             protocol_config.inbound,
             external_address_types,
             protocol_config.public_internet_capabilities,
+            true,
         );
         if editor.commit(true).await {
             editor.publish();
         }
 
-        // See if the dial info changed
-        let new_public_dial_info: HashSet<DialInfoDetail> = self
-            .routing_table()
-            .all_filtered_dial_info_details(
-                RoutingDomain::PublicInternet.into(),
-                &DialInfoFilter::all(),
-            )
-            .into_iter()
-            .collect();
-
-        // Punish nodes that told us our public address had changed when it didn't
-        if new_public_dial_info == existing_public_dial_info {
-            if let Some(punish) = self.inner.lock().public_dial_info_check_punishment.take() {
-                punish();
-            }
-        }
+        // Say we no longer need an update
+        self.inner.lock().needs_update_network_class = false;
 
         Ok(true)
     }
