@@ -93,39 +93,54 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
     }
 
     fn publish_peer_info(&self, rti: &RoutingTableInner) -> bool {
-        let peer_info = {
-            let pi = self.get_peer_info(rti);
+        let opt_peer_info = {
+            let opt_new_peer_info = {
+                let pi = self.get_peer_info(rti);
 
-            // If the network class is not yet determined, don't publish
-            if pi.signed_node_info().node_info().network_class() == NetworkClass::Invalid {
-                log_rtab!(debug "[PublicInternet] Not publishing peer info with invalid network class");
-                return false;
-            }
-
-            // If we need a relay and we don't have one, d  on't publish yet
-            if let Some(_relay_kind) = self.requires_relay() {
-                if pi.signed_node_info().relay_ids().is_empty() {
+                if pi.signed_node_info().node_info().network_class() == NetworkClass::Invalid {
+                    // If the network class is not yet determined, don't publish
+                    log_rtab!(debug "[PublicInternet] Not publishing peer info with invalid network class");
+                    None
+                } else if self.requires_relay().is_some()
+                    && pi.signed_node_info().relay_ids().is_empty()
+                {
+                    // If we need a relay and we don't have one, don't publish yet
                     log_rtab!(debug "[PublicInternet] Not publishing peer info that wants relay until we have a relay");
-                    return false;
+                    None
+                } else {
+                    // This peerinfo is fit to publish
+                    Some(pi)
                 }
-            }
+            };
 
             // Don't publish if the peer info hasnt changed from our previous publication
             let mut ppi_lock = self.published_peer_info.lock();
             if let Some(old_peer_info) = &*ppi_lock {
-                if pi.equivalent(old_peer_info) {
-                    log_rtab!(debug "[PublicInternet] Not publishing peer info because it is equivalent");
-                    return false;
+                if let Some(new_peer_info) = &opt_new_peer_info {
+                    if new_peer_info.equivalent(old_peer_info) {
+                        log_rtab!(debug "[PublicInternet] Not publishing peer info because it is equivalent");
+                        return false;
+                    }
                 }
+            } else if opt_new_peer_info.is_none() {
+                log_rtab!(debug "[PublicInternet] Not publishing peer info because it is still None");
+                return false;
             }
 
-            log_rtab!(debug "[PublicInternet] Published new peer info: {}", pi);
-            *ppi_lock = Some(pi.clone());
+            if opt_new_peer_info.is_some() {
+                log_rtab!(debug "[PublicInternet] Published new peer info: {}", opt_new_peer_info.as_ref().unwrap());
+            } else {
+                log_rtab!(debug "[PublicInternet] Unpublishing because current peer info is invalid");
+            }
+            *ppi_lock = opt_new_peer_info.clone();
 
-            pi
+            opt_new_peer_info
         };
 
-        if let Err(e) = rti.event_bus().post(PeerInfoChangeEvent { peer_info }) {
+        if let Err(e) = rti.event_bus().post(PeerInfoChangeEvent {
+            routing_domain: RoutingDomain::PublicInternet,
+            opt_peer_info,
+        }) {
             log_rtab!(debug "Failed to post event: {}", e);
         }
 

@@ -315,6 +315,8 @@ impl RoutingTable {
                         // Try a different dialinfo next time
                         network_manager.address_filter().set_dial_info_failed(bsdi);
                     } else {
+                        info!("bootstrap of {} successful via {}", crypto_kind, nr);
+
                         // otherwise this bootstrap is valid, lets ask it to find ourselves now
                         routing_table.reverse_find_node(crypto_kind, nr, true, vec![]).await
                     }

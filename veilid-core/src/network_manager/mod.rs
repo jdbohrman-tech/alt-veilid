@@ -1184,7 +1184,7 @@ impl NetworkManager {
     fn peer_info_change_event_handler(&self, evt: Arc<PeerInfoChangeEvent>) {
         let mut inner = self.inner.lock();
         if let Some(address_check) = inner.address_check.as_mut() {
-            address_check.report_peer_info_change(evt.peer_info.clone());
+            address_check.report_peer_info_change(evt.routing_domain, evt.opt_peer_info.clone());
         }
     }
 

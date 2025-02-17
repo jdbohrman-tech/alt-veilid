@@ -283,6 +283,36 @@ fn get_dht_key(
     }
 }
 
+fn resolve_node_ref(
+    registry: VeilidComponentRegistry,
+    safety_selection: SafetySelection,
+) -> impl FnOnce(&str) -> SendPinBoxFuture<Option<NodeRef>> {
+    move |text| {
+        let text = text.to_owned();
+        Box::pin(async move {
+            let nr = if let Some(key) = get_public_key(&text) {
+                let node_id = TypedKey::new(best_crypto_kind(), key);
+                registry
+                    .rpc_processor()
+                    .resolve_node(node_id, safety_selection)
+                    .await
+                    .ok()
+                    .flatten()?
+            } else if let Some(node_id) = get_typed_key(&text) {
+                registry
+                    .rpc_processor()
+                    .resolve_node(node_id, safety_selection)
+                    .await
+                    .ok()
+                    .flatten()?
+            } else {
+                return None;
+            };
+            Some(nr)
+        })
+    }
+}
+
 fn resolve_filtered_node_ref(
     registry: VeilidComponentRegistry,
     safety_selection: SafetySelection,
@@ -683,18 +713,19 @@ impl VeilidAPI {
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
         let registry = self.core_context()?.registry();
 
-        let relay_node = get_debug_argument_at(
+        let relay_node = async_get_debug_argument_at(
             &args,
             0,
             "debug_relay",
             "node_id",
-            get_node_ref(registry.clone()),
+            resolve_node_ref(registry.clone(), SafetySelection::default()),
         )
+        .await
         .ok();
 
         let routing_domain = get_debug_argument_at(
             &args,
-            0,
+            1,
             "debug_relay",
             "routing_domain",
             get_routing_domain,

@@ -2,8 +2,8 @@ use super::*;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub(crate) enum NetworkClass {
-    InboundCapable = 0, // I = Inbound capable without relay, may require signal
-    OutboundOnly = 1, // O = Outbound only, inbound relay required except with reverse connect signal
+    InboundCapable = 0, // I = Has inbound-capable dialinfo, including direct or holepunch-able NAT'd dialinfo
+    OutboundOnly = 1, // O = Has no dialinfo but may be reachable via inbound relay or reverse connections.
     WebApp = 2,       // W = PWA, outbound relay is required in most cases
     Invalid = 3,      // X = Invalid network class, we don't know how to reach this node
 }

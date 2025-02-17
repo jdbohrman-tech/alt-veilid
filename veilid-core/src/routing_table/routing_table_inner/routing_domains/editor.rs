@@ -15,6 +15,7 @@ pub trait RoutingDomainEditorCommonTrait {
         inbound_protocols: ProtocolTypeSet,
         address_types: AddressTypeSet,
         capabilities: Vec<Capability>,
+        confirmed: bool,
     ) -> &mut Self;
     fn commit(&mut self, pause_tasks: bool) -> SendPinBoxFutureLifetime<'_, bool>;
     fn shutdown(&mut self) -> SendPinBoxFutureLifetime<'_, ()>;
@@ -59,12 +60,14 @@ impl<T: RoutingDomainDetailCommonAccessors> RoutingDomainDetailApplyCommonChange
                 inbound_protocols,
                 address_types,
                 capabilities,
+                confirmed,
             } => {
                 self.common_mut().setup_network(
                     outbound_protocols,
                     inbound_protocols,
                     address_types,
                     capabilities.clone(),
+                    confirmed,
                 );
             }
         }
@@ -92,5 +95,6 @@ pub(super) enum RoutingDomainChangeCommon {
         inbound_protocols: ProtocolTypeSet,
         address_types: AddressTypeSet,
         capabilities: Vec<Capability>,
+        confirmed: bool,
     },
 }

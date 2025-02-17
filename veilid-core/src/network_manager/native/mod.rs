@@ -87,16 +87,14 @@ struct NetworkInner {
     /// the number of consecutive dial info failures per routing domain,
     /// which may indicate the network is down for that domain
     dial_info_failure_count: BTreeMap<RoutingDomain, usize>,
+    /// if we need to redo the publicinternet network class
+    needs_update_network_class: bool,
     /// the next time we are allowed to check for better dialinfo when we are OutboundOnly
     next_outbound_only_dial_info_check: Timestamp,
     /// join handles for all the low level network background tasks
     join_handles: Vec<MustJoinHandle<()>>,
     /// stop source for shutting down the low level network background tasks
     stop_source: Option<StopSource>,
-    /// set if we need to calculate our public dial info again
-    needs_public_dial_info_check: bool,
-    /// the punishment closure to enax
-    public_dial_info_check_punishment: Option<Box<dyn FnOnce() + Send + 'static>>,
     /// Actual bound addresses per protocol
     bound_address_per_protocol: BTreeMap<ProtocolType, Vec<SocketAddr>>,
     /// mapping of protocol handlers to accept messages from a set of bound socket addresses
@@ -156,9 +154,8 @@ impl Network {
         NetworkInner {
             network_needs_restart: false,
             dial_info_failure_count: BTreeMap::new(),
+            needs_update_network_class: false,
             next_outbound_only_dial_info_check: Timestamp::default(),
-            needs_public_dial_info_check: false,
-            public_dial_info_check_punishment: None,
             join_handles: Vec::new(),
             stop_source: None,
             bound_address_per_protocol: BTreeMap::new(),
@@ -766,13 +763,16 @@ impl Network {
             network_state.protocol_config.inbound,
             network_state.protocol_config.family_local,
             network_state.protocol_config.local_network_capabilities,
+            true,
         );
 
+        let confirmed_public_internet = !self.config().with(|c| c.network.detect_address_changes);
         editor_public_internet.setup_network(
             network_state.protocol_config.outbound,
             network_state.protocol_config.inbound,
             network_state.protocol_config.family_global,
             network_state.protocol_config.public_internet_capabilities,
+            confirmed_public_internet,
         );
 
         // Start listeners
@@ -829,9 +829,9 @@ impl Network {
             editor_local_network.publish();
         }
 
-        if self.config().with(|c| c.network.detect_address_changes) {
-            // Say we need to detect the public dialinfo
-            self.set_needs_public_dial_info_check(None);
+        if !confirmed_public_internet {
+            // Update public internet network class if we haven't confirmed it
+            self.trigger_update_network_class(RoutingDomain::PublicInternet);
         } else {
             // Warn if we have no public dialinfo, because we're not going to magically find some
             // with detect address changes turned off
@@ -968,38 +968,25 @@ impl Network {
     }
 
     //////////////////////////////////////////
-    // pub fn set_needs_dial_info_check(&self, routing_domain: RoutingDomain) {
-    //     match routing_domain {
-    //         RoutingDomain::LocalNetwork => {
-    //             // nothing here yet
-    //         }
-    //         RoutingDomain::PublicInternet => {
-    //             self.set_needs_public_dial_info_check(None);
-    //         }
-    //     }
-    // }
 
-    pub fn set_needs_public_dial_info_check(
-        &self,
-        punishment: Option<Box<dyn FnOnce() + Send + 'static>>,
-    ) {
-        let Ok(_guard) = self.startup_lock.enter() else {
-            log_net!(debug "ignoring due to not started up");
-            return;
-        };
-        let mut inner = self.inner.lock();
-        inner.needs_public_dial_info_check = true;
-        inner.public_dial_info_check_punishment = punishment;
-    }
-
-    pub fn needs_public_dial_info_check(&self) -> bool {
+    pub fn needs_update_network_class(&self) -> bool {
         let Ok(_guard) = self.startup_lock.enter() else {
             log_net!(debug "ignoring due to not started up");
             return false;
         };
-        let inner = self.inner.lock();
-        inner.needs_public_dial_info_check
+
+        self.inner.lock().needs_update_network_class
     }
 
-    //////////////////////////////////////////
+    pub fn trigger_update_network_class(&self, routing_domain: RoutingDomain) {
+        let Ok(_guard) = self.startup_lock.enter() else {
+            log_net!(debug "ignoring due to not started up");
+            return;
+        };
+
+        if !matches!(routing_domain, RoutingDomain::PublicInternet) {
+            return;
+        }
+        self.inner.lock().needs_update_network_class = true;
+    }
 }

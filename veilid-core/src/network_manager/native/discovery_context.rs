@@ -262,7 +262,9 @@ impl DiscoveryContext {
             }
         }
         if external_address_infos.len() < EXTERNAL_INFO_VALIDATIONS {
-            log_net!(debug "not enough peers responded with an external address for type {:?}:{:?}",
+            log_net!(debug "not enough peers ({}<{}) responded with an external address for type {:?}:{:?}",
+                external_address_infos.len(),
+                EXTERNAL_INFO_VALIDATIONS,
                 protocol_type,
                 address_type);
             return false;

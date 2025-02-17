@@ -6,8 +6,14 @@ impl RoutingTable {
     fn public_internet_wants_relay(&self) -> Option<RelayKind> {
         let own_peer_info = self.get_current_peer_info(RoutingDomain::PublicInternet);
         let own_node_info = own_peer_info.signed_node_info().node_info();
+        let network_class = own_node_info.network_class();
 
-        // If we need a relay, always request one
+        // Never give a relay to something with an invalid network class
+        if matches!(network_class, NetworkClass::Invalid) {
+            return None;
+        }
+
+        // If we -need- a relay always request one
         let requires_relay = self
             .inner
             .read()

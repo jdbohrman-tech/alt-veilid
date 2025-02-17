@@ -40,13 +40,13 @@ impl Network {
     }
 
     // Determine if we need to check for public dialinfo
-    fn needs_update_network_class_tick(&self) -> bool {
+    fn wants_update_network_class_tick(&self) -> bool {
         let public_internet_network_class = self
             .routing_table()
             .get_network_class(RoutingDomain::PublicInternet);
-        let needs_public_dial_info_check = self.needs_public_dial_info_check();
 
-        if needs_public_dial_info_check
+        let needs_update_network_class = self.needs_update_network_class();
+        if needs_update_network_class
             || public_internet_network_class == NetworkClass::Invalid
             || (public_internet_network_class == NetworkClass::OutboundOnly
                 && self.inner.lock().next_outbound_only_dial_info_check <= Timestamp::now())
@@ -98,7 +98,7 @@ impl Network {
             // Check our network interfaces to see if they have changed
             self.network_interfaces_task.tick().await?;
 
-            if self.needs_update_network_class_tick() {
+            if self.wants_update_network_class_tick() {
                 self.update_network_class_task.tick().await?;
             }
         }

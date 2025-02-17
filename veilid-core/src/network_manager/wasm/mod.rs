@@ -401,6 +401,7 @@ impl Network {
             protocol_config.inbound,
             protocol_config.family_global,
             protocol_config.public_internet_capabilities.clone(),
+            true,
         );
 
         // commit routing domain edits
@@ -481,17 +482,8 @@ impl Network {
 
     //////////////////////////////////////////
 
-    pub fn set_needs_public_dial_info_check(
-        &self,
-        _punishment: Option<Box<dyn FnOnce() + Send + 'static>>,
-    ) {
-        let Ok(_guard) = self.startup_lock.enter() else {
-            log_net!(debug "ignoring due to not started up");
-            return;
-        };
-    }
-
-    pub fn needs_public_dial_info_check(&self) -> bool {
+    #[expect(dead_code)]
+    pub fn needs_update_network_class(&self) -> bool {
         let Ok(_guard) = self.startup_lock.enter() else {
             log_net!(debug "ignoring due to not started up");
             return false;
@@ -500,6 +492,12 @@ impl Network {
         false
     }
 
+    pub fn trigger_update_network_class(&self, _routing_domain: RoutingDomain) {
+        let Ok(_guard) = self.startup_lock.enter() else {
+            log_net!(debug "ignoring due to not started up");
+            return;
+        };
+    }
     //////////////////////////////////////////
     #[instrument(level = "trace", target = "net", name = "Network::tick", skip_all, err)]
     pub async fn tick(&self) -> EyreResult<()> {

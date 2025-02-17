@@ -268,6 +268,7 @@ impl AddressFilter {
         inner.punishments_by_ip4.clear();
         inner.punishments_by_ip6_prefix.clear();
         inner.punishments_by_node_id.clear();
+        inner.dial_info_failures.clear();
 
         self.routing_table().clear_punishments();
     }

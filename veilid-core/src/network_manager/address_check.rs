@@ -37,7 +37,7 @@ struct AddressCheckCacheKey(RoutingDomain, ProtocolType, AddressType);
 pub struct AddressCheck {
     config: AddressCheckConfig,
     net: Network,
-    current_network_class: BTreeMap<RoutingDomain, NetworkClass>,
+    published_peer_info: BTreeMap<RoutingDomain, Arc<PeerInfo>>,
     current_addresses: BTreeMap<AddressCheckCacheKey, HashSet<SocketAddress>>,
     // Used by InboundCapable to determine if we have changed our address or re-do our network class
     address_inconsistency_table: BTreeMap<AddressCheckCacheKey, usize>,
@@ -50,7 +50,7 @@ impl fmt::Debug for AddressCheck {
         f.debug_struct("AddressCheck")
             .field("config", &self.config)
             //.field("net", &self.net)
-            .field("current_network_class", &self.current_network_class)
+            .field("current_peer_info", &self.published_peer_info)
             .field("current_addresses", &self.current_addresses)
             .field(
                 "address_inconsistency_table",
@@ -66,20 +66,19 @@ impl AddressCheck {
         Self {
             config,
             net,
-            current_network_class: BTreeMap::new(),
+            published_peer_info: BTreeMap::new(),
             current_addresses: BTreeMap::new(),
             address_inconsistency_table: BTreeMap::new(),
             address_consistency_table: BTreeMap::new(),
         }
     }
 
-    /// Accept a report of any peerinfo that has changed
-    pub fn report_peer_info_change(&mut self, peer_info: Arc<PeerInfo>) {
-        let routing_domain = peer_info.routing_domain();
-        let network_class = peer_info.signed_node_info().node_info().network_class();
-
-        self.current_network_class
-            .insert(routing_domain, network_class);
+    /// Accept a report of any peerinfo that has been -published-
+    pub fn report_peer_info_change(
+        &mut self,
+        routing_domain: RoutingDomain,
+        opt_peer_info: Option<Arc<PeerInfo>>,
+    ) {
         for protocol_type in ProtocolTypeSet::all() {
             for address_type in AddressTypeSet::all() {
                 let acck = AddressCheckCacheKey(routing_domain, protocol_type, address_type);
@@ -93,29 +92,36 @@ impl AddressCheck {
             }
         }
 
-        for did in peer_info
-            .signed_node_info()
-            .node_info()
-            .dial_info_detail_list()
-        {
-            // Strip port from direct and mapped addresses
-            // as the incoming dialinfo may not match the outbound
-            // connections' NAT mapping. In this case we only check for IP address changes.
-            let socket_address =
-                if did.class == DialInfoClass::Direct || did.class == DialInfoClass::Mapped {
-                    did.dial_info.socket_address().with_port(0)
-                } else {
-                    did.dial_info.socket_address()
-                };
+        if let Some(peer_info) = opt_peer_info {
+            self.published_peer_info
+                .insert(routing_domain, peer_info.clone());
 
-            let address_type = did.dial_info.address_type();
-            let protocol_type = did.dial_info.protocol_type();
-            let acck = AddressCheckCacheKey(routing_domain, protocol_type, address_type);
+            for did in peer_info
+                .signed_node_info()
+                .node_info()
+                .dial_info_detail_list()
+            {
+                // Strip port from direct and mapped addresses
+                // as the incoming dialinfo may not match the outbound
+                // connections' NAT mapping. In this case we only check for IP address changes.
+                let socket_address =
+                    if did.class == DialInfoClass::Direct || did.class == DialInfoClass::Mapped {
+                        did.dial_info.socket_address().with_port(0)
+                    } else {
+                        did.dial_info.socket_address()
+                    };
 
-            self.current_addresses
-                .entry(acck)
-                .or_default()
-                .insert(socket_address);
+                let address_type = did.dial_info.address_type();
+                let protocol_type = did.dial_info.protocol_type();
+                let acck = AddressCheckCacheKey(routing_domain, protocol_type, address_type);
+
+                self.current_addresses
+                    .entry(acck)
+                    .or_default()
+                    .insert(socket_address);
+            }
+        } else {
+            self.published_peer_info.remove(&routing_domain);
         }
     }
 
@@ -129,16 +135,16 @@ impl AddressCheck {
         flow: Flow,                    // the flow used
         reporting_peer: NodeRef,       // the peer's noderef reporting the socket address
     ) {
-        // Don't accept any reports if we're already in the middle of a public dial info check
-        if self.net.needs_public_dial_info_check() {
+        // Only process the PublicInternet RoutingDomain for now
+        if !matches!(routing_domain, RoutingDomain::PublicInternet) {
             return;
         }
 
-        // Ignore the LocalNetwork routing domain because we know if our local addresses change
-        // from our interfaces
-        if matches!(routing_domain, RoutingDomain::LocalNetwork) {
+        // Get the routing table and published peer info
+        // If the peer info has invalid network class or is unconfirmed or unpublished this will return
+        let Some(peer_info) = self.published_peer_info.get(&routing_domain).cloned() else {
             return;
-        }
+        };
 
         // Ignore flows that do not start from our listening port (unbound connections etc),
         // because a router is going to map these differently
@@ -177,15 +183,10 @@ impl AddressCheck {
             return;
         }
 
-        // Get current network class / dial info
-        // If we haven't gotten our own network class yet we're done for now
-        let Some(network_class) = self.current_network_class.get(&routing_domain) else {
-            return;
-        };
-
         // Process the state of the address checker and see if we need to
         // perform a full address check for this routing domain
-        let needs_address_detection = match network_class {
+        let needs_address_detection = match peer_info.signed_node_info().node_info().network_class()
+        {
             NetworkClass::InboundCapable => self.detect_for_inbound_capable(
                 routing_domain,
                 socket_address,
@@ -213,7 +214,7 @@ impl AddressCheck {
                 );
 
                 // Re-detect the public dialinfo
-                self.net.set_needs_public_dial_info_check(None);
+                self.net.trigger_update_network_class(routing_domain);
             } else {
                 warn!(
                     "{:?} address may have changed. Restarting the server may be required.",
