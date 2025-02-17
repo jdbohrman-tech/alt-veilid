@@ -225,7 +225,7 @@ impl RoutingContext {
     ///////////////////////////////////
     /// DHT Records
 
-    /// Builds the record key for a given schema and owner public key
+    /// Deterministicly builds the record key for a given schema and owner public key
     #[instrument(target = "veilid_api", level = "debug", ret, err)]
     pub fn get_dht_record_key(
         &self,
