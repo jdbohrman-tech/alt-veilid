@@ -41,6 +41,8 @@ pub enum RoutingContextRequestOp {
     CreateDhtRecord {
         schema: DHTSchema,
         #[schemars(with = "Option<String>")]
+        owner: Option<KeyPair>,
+        #[schemars(with = "Option<String>")]
         kind: Option<CryptoKind>,
     },
     OpenDhtRecord {

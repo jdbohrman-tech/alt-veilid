@@ -49,7 +49,7 @@ class RoutingContext(ABC):
 
     @abstractmethod
     async def create_dht_record(
-        self, schema: types.DHTSchema, kind: Optional[types.CryptoKind] = None
+        self, schema: types.DHTSchema, owner: Optional[types.KeyPair] = None, kind: Optional[types.CryptoKind] = None
     ) -> types.DHTRecordDescriptor:
         pass
 

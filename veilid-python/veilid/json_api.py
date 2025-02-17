@@ -578,7 +578,7 @@ class _JsonRoutingContext(RoutingContext):
         )
 
     async def create_dht_record(
-        self, schema: DHTSchema, kind: Optional[CryptoKind] = None
+        self, schema: DHTSchema, owner: Optional[KeyPair] = None, kind: Optional[CryptoKind] = None
     ) -> DHTRecordDescriptor:
         return DHTRecordDescriptor.from_json(
             raise_api_result(
@@ -588,6 +588,7 @@ class _JsonRoutingContext(RoutingContext):
                     rc_id=self.rc_id,
                     rc_op=RoutingContextOperation.CREATE_DHT_RECORD,
                     kind=kind,
+                    owner=owner,
                     schema=schema,
                 )
             )

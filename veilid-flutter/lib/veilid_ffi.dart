@@ -65,9 +65,9 @@ typedef _RoutingContextAppCallDart = void Function(
 typedef _RoutingContextAppMessageDart = void Function(
     int, int, Pointer<Utf8>, Pointer<Utf8>);
 // fn routing_context_create_dht_record(port: i64,
-//    id: u32, kind: u32, schema: FfiStr)
+//    id: u32, schema: FfiStr, owner: FfiStr, kind: u32)
 typedef _RoutingContextCreateDHTRecordDart = void Function(
-    int, int, Pointer<Utf8>, int);
+    int, int, Pointer<Utf8>, Pointer<Utf8>, int);
 // fn routing_context_open_dht_record(port: i64,
 //    id: u32, key: FfiStr, writer: FfiStr)
 typedef _RoutingContextOpenDHTRecordDart = void Function(
@@ -618,13 +618,15 @@ class VeilidRoutingContextFFI extends VeilidRoutingContext {
 
   @override
   Future<DHTRecordDescriptor> createDHTRecord(DHTSchema schema,
-      {CryptoKind kind = 0}) async {
+      {KeyPair? owner, CryptoKind kind = 0}) async {
     _ctx.ensureValid();
     final nativeSchema = jsonEncode(schema).toNativeUtf8();
+    final nativeOwner =
+        owner != null ? jsonEncode(owner).toNativeUtf8() : nullptr;
     final recvPort = ReceivePort('routing_context_create_dht_record');
     final sendPort = recvPort.sendPort;
     _ctx.ffi._routingContextCreateDHTRecord(
-        sendPort.nativePort, _ctx.id!, nativeSchema, kind);
+        sendPort.nativePort, _ctx.id!, nativeSchema, nativeOwner, kind);
     final dhtRecordDescriptor =
         await processFutureJson(DHTRecordDescriptor.fromJson, recvPort.first);
     return dhtRecordDescriptor;
@@ -1283,10 +1285,12 @@ class VeilidFFI extends Veilid {
         _routingContextAppMessage = dylib.lookupFunction<
             Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>),
             _RoutingContextAppMessageDart>('routing_context_app_message'),
-        _routingContextCreateDHTRecord = dylib.lookupFunction<
-                Void Function(Int64, Uint32, Pointer<Utf8>, Uint32),
-                _RoutingContextCreateDHTRecordDart>(
-            'routing_context_create_dht_record'),
+        _routingContextCreateDHTRecord =
+            dylib.lookupFunction<
+                    Void Function(
+                        Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>, Uint32),
+                    _RoutingContextCreateDHTRecordDart>(
+                'routing_context_create_dht_record'),
         _routingContextOpenDHTRecord = dylib.lookupFunction<
                 Void Function(Int64, Uint32, Pointer<Utf8>, Pointer<Utf8>),
                 _RoutingContextOpenDHTRecordDart>(

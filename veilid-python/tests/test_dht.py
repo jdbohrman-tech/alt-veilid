@@ -52,7 +52,7 @@ async def test_create_delete_dht_record_simple(api_connection: veilid.VeilidAPI)
     rc = await api_connection.new_routing_context()
     async with rc:
         rec = await rc.create_dht_record(
-            veilid.DHTSchema.dflt(1), veilid.CryptoKind.CRYPTO_KIND_VLD0
+            veilid.DHTSchema.dflt(1), kind=veilid.CryptoKind.CRYPTO_KIND_VLD0
         )
         await rc.close_dht_record(rec.key)
         await rc.delete_dht_record(rec.key)
@@ -73,6 +73,38 @@ async def test_set_get_dht_value(api_connection: veilid.VeilidAPI):
     rc = await api_connection.new_routing_context()
     async with rc:
         rec = await rc.create_dht_record(veilid.DHTSchema.dflt(2))
+
+        vd = await rc.set_dht_value(rec.key, ValueSubkey(0), b"BLAH BLAH BLAH")
+        assert vd is None
+
+        vd2 = await rc.get_dht_value(rec.key, ValueSubkey(0), False)
+        assert vd2 is not None
+
+        vd3 = await rc.get_dht_value(rec.key, ValueSubkey(0), True)
+        assert vd3 is not None
+
+        vd4 = await rc.get_dht_value(rec.key, ValueSubkey(1), False)
+        assert vd4 is None
+
+        print("vd2: {}", vd2.__dict__)
+        print("vd3: {}", vd3.__dict__)
+
+        assert vd2 == vd3
+
+        await rc.close_dht_record(rec.key)
+        await rc.delete_dht_record(rec.key)
+
+
+@pytest.mark.asyncio
+async def test_set_get_dht_value_with_owner(api_connection: veilid.VeilidAPI):
+    rc = await api_connection.new_routing_context()
+    async with rc:
+
+        cs = await api_connection.best_crypto_system()
+        async with cs:
+            owner = await cs.generate_key_pair()
+
+        rec = await rc.create_dht_record(veilid.DHTSchema.dflt(2), owner=owner)
 
         vd = await rc.set_dht_value(rec.key, ValueSubkey(0), b"BLAH BLAH BLAH")
         assert vd is None

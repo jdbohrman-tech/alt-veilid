@@ -14,6 +14,7 @@ import 'test_veilid_config.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
   final fixture =
       DefaultVeilidFixture(programName: 'veilid_flutter integration test');
 
@@ -72,6 +73,7 @@ void main() {
             testCreateDeleteDHTRecordNoClose);
         test('get dht value nonexistent', testGetDHTValueNonexistent);
         test('set get dht value', testSetGetDHTValue);
+        test('set get dht value with owner', testSetGetDHTValueWithOwner);
         test('open writer dht value', testOpenWriterDHTValue);
         // xxx: needs to be a multi-server integration test
         // test('watch dht values',
