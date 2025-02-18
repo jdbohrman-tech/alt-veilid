@@ -225,7 +225,7 @@ impl Network {
 
         // If we got no external address types, try again
         if external_address_types.is_empty() {
-            log_net!(debug "Network class discovery failed, trying again, got no external address types");
+            veilid_log!(self debug "Network class discovery failed, trying again, got no external address types");
             return Ok(false);
         }
 
@@ -240,12 +240,12 @@ impl Network {
         }
 
         if !success {
-            log_net!(debug "Network class discovery failed, trying again, needed {:?}", context_configs);
+            veilid_log!(self debug "Network class discovery failed, trying again, needed {:?}", context_configs);
             return Ok(false);
         }
 
         // All done
-        log_net!(debug "Network class discovery finished with address_types {:?}", external_address_types);
+        veilid_log!(self debug "Network class discovery finished with address_types {:?}", external_address_types);
 
         // Set the address types we've seen and confirm the network class
         editor.setup_network(

@@ -55,10 +55,20 @@ impl Network {
 
     pub(super) async fn make_network_state(&self) -> EyreResult<NetworkState> {
         // refresh network interfaces
-        self.interfaces
+        let old_stable_addresses = self.interfaces.stable_addresses();
+        if self
+            .interfaces
             .refresh()
             .await
-            .wrap_err("failed to refresh network interfaces")?;
+            .wrap_err("failed to refresh network interfaces")?
+        {
+            let new_stable_addresses = self.interfaces.stable_addresses();
+
+            veilid_log!(self debug
+                "Network interface addresses changed: \nFrom: {:?}\n  To: {:?}\n",
+                old_stable_addresses, new_stable_addresses
+            );
+        }
 
         // build the set of networks we should consider for the 'LocalNetwork' routing domain
         let mut local_networks: HashSet<(IpAddr, IpAddr)> = HashSet::new();

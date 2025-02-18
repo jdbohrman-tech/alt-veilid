@@ -22,10 +22,6 @@ use crate::settings::*;
 use clap::{Args, Parser};
 use server::*;
 use settings::LogLevel;
-use std::collections::HashMap;
-use std::ffi::OsString;
-use std::path::Path;
-use std::str::FromStr;
 use tools::*;
 use veilid_core::{TypedKeyGroup, TypedSecretGroup};
 use veilid_logs::*;
@@ -85,11 +81,12 @@ pub struct CmdlineArgs {
     otlp: Option<String>,
 
     /// Turn on flamegraph tracing (experimental)
+    #[cfg(feature = "flame")]
     #[arg(long, hide = true, value_name = "PATH", num_args=0..=1, require_equals=true, default_missing_value = "")]
     flame: Option<OsString>,
 
     /// Turn on perfetto tracing (experimental)
-    #[cfg(unix)]
+    #[cfg(all(unix, feature = "perfetto"))]
     #[arg(long, hide = true, value_name = "PATH", num_args=0..=1, require_equals=true, default_missing_value = "")]
     perfetto: Option<OsString>,
 

@@ -3,6 +3,8 @@ use data_encoding::BASE64URL_NOPAD;
 use keyring_manager::*;
 use std::path::Path;
 
+impl_veilid_log_facility!("pstore");
+
 pub struct ProtectedStoreInner {
     keyring_manager: Option<KeyringManager>,
 }
@@ -40,7 +42,7 @@ impl ProtectedStore {
             if let Err(e) = self.remove_user_secret(kpsk).await {
                 error!("failed to delete '{}': {}", kpsk, e);
             } else {
-                log_pstore!(debug "deleted table '{}'", kpsk);
+                veilid_log!(self debug "deleted table '{}'", kpsk);
             }
         }
         Ok(())
@@ -65,7 +67,7 @@ impl ProtectedStore {
                 inner.keyring_manager = match maybe_km {
                     Ok(v) => Some(v),
                     Err(e) => {
-                        info!("Secure key storage service unavailable, falling back to direct disk-based storage: {}", e);
+                        veilid_log!(self info "Secure key storage service unavailable, falling back to direct disk-based storage: {}", e);
                         None
                     }
                 };
@@ -94,7 +96,7 @@ impl ProtectedStore {
                 );
             }
             if inner.keyring_manager.is_none() {
-                log_pstore!(error "QWERQWER");
+                veilid_log!(self error "QWERQWER");
                 bail!("Could not initialize the protected store.");
             }
             c.protected_store.delete

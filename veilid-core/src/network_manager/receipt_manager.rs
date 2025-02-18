@@ -6,6 +6,8 @@ use network_manager::*;
 use routing_table::*;
 use stop_token::future::FutureExt;
 
+impl_veilid_log_facility!("receipt");
+
 #[derive(Clone, Debug)]
 pub enum ReceiptEvent {
     ReturnedOutOfBand,
@@ -155,9 +157,12 @@ struct ReceiptManagerUnlockedInner {
 
 #[derive(Clone)]
 pub(super) struct ReceiptManager {
+    registry: VeilidComponentRegistry,
     inner: Arc<Mutex<ReceiptManagerInner>>,
     unlocked_inner: Arc<ReceiptManagerUnlockedInner>,
 }
+
+impl_veilid_component_registry_accessor!(ReceiptManager);
 
 impl ReceiptManager {
     fn new_inner() -> ReceiptManagerInner {
@@ -169,8 +174,9 @@ impl ReceiptManager {
         }
     }
 
-    pub fn new() -> Self {
+    pub fn new(registry: VeilidComponentRegistry) -> Self {
         Self {
+            registry,
             inner: Arc::new(Mutex::new(Self::new_inner())),
             unlocked_inner: Arc::new(ReceiptManagerUnlockedInner {
                 startup_lock: StartupLock::new(),
@@ -180,7 +186,7 @@ impl ReceiptManager {
 
     pub async fn startup(&self) -> EyreResult<()> {
         let guard = self.unlocked_inner.startup_lock.startup()?;
-        log_net!(debug "startup receipt manager");
+        veilid_log!(self debug "startup receipt manager");
 
         // Retrieve config
         {
@@ -319,23 +325,23 @@ impl ReceiptManager {
         };
 
         // Wait for everything to stop
-        log_net!(debug "waiting for timeout task to stop");
+        veilid_log!(self debug "waiting for timeout task to stop");
         if timeout_task.join().await.is_err() {
             panic!("joining timeout task failed");
         }
     }
 
     pub async fn shutdown(&self) {
-        log_net!(debug "starting receipt manager shutdown");
+        veilid_log!(self debug "starting receipt manager shutdown");
         let Ok(guard) = self.unlocked_inner.startup_lock.shutdown().await else {
-            log_net!(debug "receipt manager is already shut down");
+            veilid_log!(self debug "receipt manager is already shut down");
             return;
         };
 
         *self.inner.lock() = Self::new_inner();
 
         guard.success();
-        log_net!(debug "finished receipt manager shutdown");
+        veilid_log!(self debug "finished receipt manager shutdown");
     }
 
     #[instrument(level = "trace", target = "receipt", skip_all)]
@@ -347,7 +353,7 @@ impl ReceiptManager {
         callback: impl ReceiptCallback,
     ) {
         let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
-            log_net!(debug "ignoring due to not started up");
+            veilid_log!(self debug "ignoring due to not started up");
             return;
         };
         let receipt_nonce = receipt.get_nonce();
@@ -372,7 +378,7 @@ impl ReceiptManager {
         eventual: ReceiptSingleShotType,
     ) {
         let Ok(_guard) = self.unlocked_inner.startup_lock.enter() else {
-            log_net!(debug "ignoring due to not started up");
+            veilid_log!(self debug "ignoring due to not started up");
             return;
         };
         let receipt_nonce = receipt.get_nonce();

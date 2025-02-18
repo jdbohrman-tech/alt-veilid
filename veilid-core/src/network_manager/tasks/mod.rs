@@ -52,21 +52,21 @@ impl NetworkManager {
     }
 
     pub async fn cancel_tasks(&self) {
-        log_net!(debug "stopping receipt manager tasks");
+        veilid_log!(self debug "stopping receipt manager tasks");
         let receipt_manager = self.receipt_manager();
         receipt_manager.cancel_tasks().await;
 
         let net = self.net();
         net.cancel_tasks().await;
 
-        log_net!(debug "stopping rolling transfers task");
+        veilid_log!(self debug "stopping rolling transfers task");
         if let Err(e) = self.rolling_transfers_task.stop().await {
-            warn!("rolling_transfers_task not stopped: {}", e);
+            veilid_log!(self warn "rolling_transfers_task not stopped: {}", e);
         }
 
-        log_net!(debug "stopping address filter task");
+        veilid_log!(self debug "stopping address filter task");
         if let Err(e) = self.address_filter_task.stop().await {
-            warn!("address_filter_task not stopped: {}", e);
+            veilid_log!(self warn "address_filter_task not stopped: {}", e);
         }
     }
 }

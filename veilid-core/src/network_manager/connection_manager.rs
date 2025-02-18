@@ -4,6 +4,8 @@ use connection_table::*;
 use network_connection::*;
 use stop_token::future::FutureExt;
 
+impl_veilid_log_facility!("net");
+
 const PROTECTED_CONNECTION_DROP_SPAN: TimestampDuration = TimestampDuration::new_secs(10);
 const PROTECTED_CONNECTION_DROP_COUNT: usize = 3;
 const NEW_CONNECTION_RETRY_COUNT: usize = 1;
@@ -132,7 +134,7 @@ impl ConnectionManager {
     pub async fn startup(&self) -> EyreResult<()> {
         let guard = self.arc.startup_lock.startup()?;
 
-        log_net!(debug "startup connection manager");
+        veilid_log!(self debug "startup connection manager");
 
         // Create channel for async_processor to receive notifications of networking events
         let (sender, receiver) = flume::unbounded();
@@ -164,14 +166,14 @@ impl ConnectionManager {
     }
 
     pub async fn shutdown(&self) {
-        log_net!(debug "starting connection manager shutdown");
+        veilid_log!(self debug "starting connection manager shutdown");
         let Ok(guard) = self.arc.startup_lock.shutdown().await else {
-            log_net!(debug "connection manager is already shut down");
+            veilid_log!(self debug "connection manager is already shut down");
             return;
         };
 
         // Stop the reconnection processor
-        log_net!(debug "stopping reconnection processor task");
+        veilid_log!(self debug "stopping reconnection processor task");
         self.arc.reconnection_processor.terminate().await;
 
         // Remove the inner from the lock
@@ -185,18 +187,18 @@ impl ConnectionManager {
             }
         };
         // Stop all the connections and the async processor
-        log_net!(debug "stopping async processor task");
+        veilid_log!(self debug "stopping async processor task");
         drop(inner.stop_source.take());
         let async_processor_jh = inner.async_processor_jh.take().unwrap();
         // wait for the async processor to stop
-        log_net!(debug "waiting for async processor to stop");
+        veilid_log!(self debug "waiting for async processor to stop");
         async_processor_jh.await;
         // Wait for the connections to complete
-        log_net!(debug "waiting for connection handlers to complete");
+        veilid_log!(self debug "waiting for connection handlers to complete");
         self.arc.connection_table.join().await;
 
         guard.success();
-        log_net!(debug "finished connection manager shutdown");
+        veilid_log!(self debug "finished connection manager shutdown");
     }
 
     // Internal routine to see if we should keep this connection
@@ -267,11 +269,11 @@ impl ConnectionManager {
             .with_all_connections_mut(|conn| {
                 if let Some(protect_nr) = conn.protected_node_ref() {
                     if self.should_protect_connection(inner, conn).is_none() {
-                        log_net!(debug "== Unprotecting connection: {} -> {} for node {}", conn.connection_id(), conn.debug_print(Timestamp::now()), protect_nr);
+                        veilid_log!(self debug "== Unprotecting connection: {} -> {} for node {}", conn.connection_id(), conn.debug_print(Timestamp::now()), protect_nr);
                         conn.unprotect();
                     }
                 } else if let Some(protect_nr) = self.should_protect_connection(inner, conn) {
-                    log_net!(debug "== Protecting existing connection: {} -> {} for node {}", conn.connection_id(), conn.debug_print(Timestamp::now()), protect_nr);
+                    veilid_log!(self debug "== Protecting existing connection: {} -> {} for node {}", conn.connection_id(), conn.debug_print(Timestamp::now()), protect_nr);
                     conn.protect(protect_nr);
                 }
                 Option::<()>::None
@@ -291,7 +293,7 @@ impl ConnectionManager {
         // Get next connection id to use
         let id = inner.next_id;
         inner.next_id += 1u64;
-        log_net!(
+        veilid_log!(self trace
             "on_new_protocol_network_connection: id={} prot_conn={:?}",
             id,
             prot_conn
@@ -314,7 +316,7 @@ impl ConnectionManager {
 
         // See if this should be a protected connection
         if let Some(protect_nr) = self.should_protect_connection(inner, &conn) {
-            log_net!(debug "== Protecting new connection: {} -> {} for node {}", id, conn.debug_print(Timestamp::now()), protect_nr);
+            veilid_log!(self debug "== Protecting new connection: {} -> {} for node {}", id, conn.debug_print(Timestamp::now()), protect_nr);
             conn.protect(protect_nr);
         }
 
@@ -327,7 +329,7 @@ impl ConnectionManager {
                 // Connection added and a different one LRU'd out
                 // Send it to be terminated
                 #[cfg(feature = "verbose-tracing")]
-                log_net!(debug "== LRU kill connection due to limit: {:?}", conn.debug_print(Timestamp::now()));
+                veilid_log!(self debug "== LRU kill connection due to limit: {:?}", conn.debug_print(Timestamp::now()));
                 let _ = inner.sender.send(ConnectionManagerEvent::Dead(conn));
             }
             Err(ConnectionTableAddError::AddressFilter(conn, e)) => {
@@ -342,7 +344,7 @@ impl ConnectionManager {
             Err(ConnectionTableAddError::AlreadyExists(conn)) => {
                 // Connection already exists
                 let desc = conn.flow();
-                log_net!(debug "== Connection already exists: {:?}", conn.debug_print(Timestamp::now()));
+                veilid_log!(self debug "== Connection already exists: {:?}", conn.debug_print(Timestamp::now()));
                 let _ = inner.sender.send(ConnectionManagerEvent::Dead(conn));
                 return Ok(NetworkResult::no_connection_other(format!(
                     "connection already exists: {:?}",
@@ -352,7 +354,7 @@ impl ConnectionManager {
             Err(ConnectionTableAddError::TableFull(conn)) => {
                 // Connection table is full
                 let desc = conn.flow();
-                log_net!(debug "== Connection table full: {:?}", conn.debug_print(Timestamp::now()));
+                veilid_log!(self debug "== Connection table full: {:?}", conn.debug_print(Timestamp::now()));
                 let _ = inner.sender.send(ConnectionManagerEvent::Dead(conn));
                 return Ok(NetworkResult::no_connection_other(format!(
                     "connection table is full: {:?}",
@@ -415,7 +417,7 @@ impl ConnectionManager {
         // Async lock on the remote address for atomicity per remote
         let _lock_guard = self.arc.address_lock_table.lock_tag(remote_addr).await;
 
-        log_net!("== get_or_create_connection dial_info={:?}", dial_info);
+        veilid_log!(self trace "== get_or_create_connection dial_info={:?}", dial_info);
 
         // If any connection to this remote exists that has the same protocol, return it
         // Any connection will do, we don't have to match the local address but if we can
@@ -425,7 +427,7 @@ impl ConnectionManager {
             .connection_table
             .get_best_connection_by_remote(best_port, peer_address)
         {
-            log_net!(
+            veilid_log!(self trace
                 "== Returning best existing connection {:?}",
                 best_existing_conn
             );
@@ -449,6 +451,7 @@ impl ConnectionManager {
 
         let prot_conn = network_result_try!(loop {
             let result_net_res = ProtocolNetworkConnection::connect(
+                self.registry(),
                 preferred_local_address,
                 &dial_info,
                 self.arc.connection_initial_timeout_ms,
@@ -471,7 +474,7 @@ impl ConnectionManager {
                     }
                 }
             };
-            log_net!(debug "get_or_create_connection retries left: {}", retry_count);
+            veilid_log!(self debug "get_or_create_connection retries left: {}", retry_count);
             retry_count -= 1;
 
             // Release the preferred local address if things can't connect due to a low-level collision we dont have a record of
@@ -632,7 +635,7 @@ impl ConnectionManager {
 
                             if duration < PROTECTED_CONNECTION_DROP_SPAN {
                                 pa.drops_in_span += 1;
-                                log_net!(debug "== Protected connection dropped (count={}): {} -> {} for node {}", pa.drops_in_span, conn.connection_id(), conn.debug_print(Timestamp::now()), protect_nr);
+                                veilid_log!(self debug "== Protected connection dropped (count={}): {} -> {} for node {}", pa.drops_in_span, conn.connection_id(), conn.debug_print(Timestamp::now()), protect_nr);
 
                                 if pa.drops_in_span >= PROTECTED_CONNECTION_DROP_COUNT {
                                     // Consider this as a failure to send if we've dropped the connection too many times in a single timespan
@@ -648,7 +651,7 @@ impl ConnectionManager {
                                 pa.drops_in_span = 1;
                                 pa.span_start_ts = cur_ts;
 
-                                log_net!(debug "== Protected connection dropped (count={}): {} -> {} for node {}", pa.drops_in_span, conn.connection_id(), conn.debug_print(Timestamp::now()), protect_nr);
+                                veilid_log!(self debug "== Protected connection dropped (count={}): {} -> {} for node {}", pa.drops_in_span, conn.connection_id(), conn.debug_print(Timestamp::now()), protect_nr);
                             }
 
                             // Reconnect the protected connection immediately
@@ -656,7 +659,7 @@ impl ConnectionManager {
                                 if let Some(dial_info) = conn.dial_info() {
                                     self.spawn_reconnector(dial_info);
                                 } else {
-                                    log_net!(debug "Can't reconnect to accepted protected connection: {} -> {} for node {}", conn.connection_id(), conn.debug_print(Timestamp::now()), protect_nr);
+                                    veilid_log!(self debug "Can't reconnect to accepted protected connection: {} -> {} for node {}", conn.connection_id(), conn.debug_print(Timestamp::now()), protect_nr);
                                 }
                             }
 
@@ -678,13 +681,13 @@ impl ConnectionManager {
                 Box::pin(async move {
                     match this.get_or_create_connection(dial_info.clone()).await {
                         Ok(NetworkResult::Value(conn)) => {
-                            log_net!(debug "Reconnection successful to {}: {:?}", dial_info,conn);
+                            veilid_log!(this debug "Reconnection successful to {}: {:?}", dial_info,conn);
                         }
                         Ok(res) => {
-                            log_net!(debug "Reconnection unsuccessful to {}: {:?}", dial_info, res);
+                            veilid_log!(this debug "Reconnection unsuccessful to {}: {:?}", dial_info, res);
                         }
                         Err(e) => {
-                            log_net!(debug "Reconnection error to {}: {}", dial_info, e);
+                            veilid_log!(this debug "Reconnection error to {}: {}", dial_info, e);
                         }
                     }
                     false

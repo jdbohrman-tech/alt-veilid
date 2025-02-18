@@ -4,9 +4,13 @@ pub use editor::*;
 
 use super::*;
 
+impl_veilid_log_facility!("rtab");
+
 /// Local Network routing domain internals
 #[derive(Debug)]
 pub struct LocalNetworkRoutingDomainDetail {
+    /// Registry accessor
+    registry: VeilidComponentRegistry,
     /// The local networks this domain will communicate with
     local_networks: Vec<(IpAddr, IpAddr)>,
     /// Common implementation for all routing domains
@@ -15,9 +19,12 @@ pub struct LocalNetworkRoutingDomainDetail {
     published_peer_info: Mutex<Option<Arc<PeerInfo>>>,
 }
 
-impl Default for LocalNetworkRoutingDomainDetail {
-    fn default() -> Self {
+impl_veilid_component_registry_accessor!(LocalNetworkRoutingDomainDetail);
+
+impl LocalNetworkRoutingDomainDetail {
+    pub fn new(registry: VeilidComponentRegistry) -> Self {
         Self {
+            registry,
             local_networks: Default::default(),
             common: RoutingDomainDetailCommon::new(RoutingDomain::LocalNetwork),
             published_peer_info: Default::default(),
@@ -121,13 +128,13 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
 
                 if pi.signed_node_info().node_info().network_class() == NetworkClass::Invalid {
                     // If the network class is not yet determined, don't publish
-                    log_rtab!(debug "[LocalNetwork] Not publishing peer info with invalid network class");
+                    veilid_log!(rti debug "[LocalNetwork] Not publishing peer info with invalid network class");
                     None
                 } else if self.requires_relay().is_some()
                     && pi.signed_node_info().relay_ids().is_empty()
                 {
                     // If we need a relay and we don't have one, don't publish yet
-                    log_rtab!(debug "[LocalNetwork] Not publishing peer info that wants relay until we have a relay");
+                    veilid_log!(rti debug "[LocalNetwork] Not publishing peer info that wants relay until we have a relay");
                     None
                 } else {
                     // This peerinfo is fit to publish
@@ -140,19 +147,19 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
             if let Some(old_peer_info) = &*ppi_lock {
                 if let Some(new_peer_info) = &opt_new_peer_info {
                     if new_peer_info.equivalent(old_peer_info) {
-                        log_rtab!(debug "[LocalNetwork] Not publishing peer info because it is equivalent");
+                        veilid_log!(rti debug "[LocalNetwork] Not publishing peer info because it is equivalent");
                         return false;
                     }
                 }
             } else if opt_new_peer_info.is_none() {
-                log_rtab!(debug "[LocalNetwork] Not publishing peer info because it is still None");
+                veilid_log!(rti debug "[LocalNetwork] Not publishing peer info because it is still None");
                 return false;
             }
 
             if opt_new_peer_info.is_some() {
-                log_rtab!(debug "[LocalNetwork] Published new peer info: {}", opt_new_peer_info.as_ref().unwrap());
+                veilid_log!(rti debug "[LocalNetwork] Published new peer info: {}", opt_new_peer_info.as_ref().unwrap());
             } else {
-                log_rtab!(debug "[LocalNetwork] Unpublishing because current peer info is invalid");
+                veilid_log!(rti debug "[LocalNetwork] Unpublishing because current peer info is invalid");
             }
             *ppi_lock = opt_new_peer_info.clone();
 
@@ -163,7 +170,7 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
             routing_domain: RoutingDomain::LocalNetwork,
             opt_peer_info,
         }) {
-            log_rtab!(debug "Failed to post event: {}", e);
+            veilid_log!(rti debug "Failed to post event: {}", e);
         }
 
         true
@@ -171,7 +178,7 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
 
     fn unpublish_peer_info(&self) {
         let mut ppi_lock = self.published_peer_info.lock();
-        log_rtab!(debug "[LocalNetwork] Unpublished peer info");
+        veilid_log!(self debug "[LocalNetwork] Unpublished peer info");
         *ppi_lock = None;
     }
 
@@ -180,11 +187,11 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
         let can_contain_address = self.can_contain_address(address);
 
         if !can_contain_address {
-            log_network_result!(debug "[LocalNetwork] can not add dial info to this routing domain: {:?}", dial_info);
+            veilid_log!(self debug "[LocalNetwork] can not add dial info to this routing domain: {:?}", dial_info);
             return false;
         }
         if !dial_info.is_valid() {
-            log_rtab!(debug
+            veilid_log!(self debug
                 "shouldn't be registering invalid addresses: {:?}",
                 dial_info
             );

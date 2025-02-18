@@ -5,6 +5,8 @@ pub use routing_domains::*;
 
 use weak_table::PtrWeakHashSet;
 
+impl_veilid_log_facility!("rtab");
+
 pub const RECENT_PEERS_TABLE_SIZE: usize = 64;
 
 // Critical sections
@@ -49,10 +51,12 @@ impl_veilid_component_registry_accessor!(RoutingTableInner);
 impl RoutingTableInner {
     pub(super) fn new(registry: VeilidComponentRegistry) -> RoutingTableInner {
         RoutingTableInner {
-            registry,
+            registry: registry.clone(),
             buckets: BTreeMap::new(),
-            public_internet_routing_domain: PublicInternetRoutingDomainDetail::default(),
-            local_network_routing_domain: LocalNetworkRoutingDomainDetail::default(),
+            public_internet_routing_domain: PublicInternetRoutingDomainDetail::new(
+                registry.clone(),
+            ),
+            local_network_routing_domain: LocalNetworkRoutingDomainDetail::new(registry.clone()),
             all_entries: PtrWeakHashSet::new(),
             live_entry_count: BTreeMap::new(),
             self_latency_stats_accounting: LatencyStatsAccounting::new(),
@@ -306,7 +310,7 @@ impl RoutingTableInner {
         for ck in VALID_CRYPTO_KINDS {
             let mut ckbuckets = Vec::with_capacity(PUBLIC_KEY_LENGTH * 8);
             for _ in 0..PUBLIC_KEY_LENGTH * 8 {
-                let bucket = Bucket::new(ck);
+                let bucket = Bucket::new(self.registry(), ck);
                 ckbuckets.push(bucket);
             }
             self.buckets.insert(ck, ckbuckets);
@@ -316,7 +320,7 @@ impl RoutingTableInner {
     /// Attempt to empty the routing table
     /// should only be performed when there are no node_refs (detached)
     pub fn purge_buckets(&mut self) {
-        log_rtab!(
+        veilid_log!(self trace
             "Starting routing table buckets purge. Table currently has {} nodes",
             self.bucket_entry_count()
         );
@@ -328,7 +332,7 @@ impl RoutingTableInner {
         }
         self.all_entries.remove_expired();
 
-        log_rtab!(debug
+        veilid_log!(self debug
             "Routing table buckets purge complete. Routing table now has {} nodes",
             self.bucket_entry_count()
         );
@@ -336,7 +340,7 @@ impl RoutingTableInner {
 
     /// Attempt to remove last_connections from entries
     pub fn purge_last_connections(&mut self) {
-        log_rtab!("Starting routing table last_connections purge.");
+        veilid_log!(self trace "Starting routing table last_connections purge.");
         for ck in VALID_CRYPTO_KINDS {
             for bucket in &self.buckets[&ck] {
                 for entry in bucket.entries() {
@@ -346,7 +350,7 @@ impl RoutingTableInner {
                 }
             }
         }
-        log_rtab!(debug "Routing table last_connections purge complete.");
+        veilid_log!(self debug "Routing table last_connections purge complete.");
     }
 
     /// Attempt to settle buckets and remove entries down to the desired number
@@ -359,7 +363,7 @@ impl RoutingTableInner {
             // Remove expired entries
             self.all_entries.remove_expired();
 
-            log_rtab!(debug "Bucket {}:{} kicked Routing table now has {} nodes\nKicked nodes:{:#?}", bucket_index.0, bucket_index.1, self.bucket_entry_count(), dead_node_ids);
+            veilid_log!(self debug "Bucket {}:{} kicked Routing table now has {} nodes\nKicked nodes:{:#?}", bucket_index.0, bucket_index.1, self.bucket_entry_count(), dead_node_ids);
         }
     }
 
@@ -763,7 +767,7 @@ impl RoutingTableInner {
         new_entry.with_mut_inner(|e| update_func(self, e));
 
         // Kick the bucket
-        log_rtab!(debug "Routing table now has {} nodes, {} live", self.bucket_entry_count(), self.get_entry_count(RoutingDomainSet::all(), BucketEntryState::Unreliable, &VALID_CRYPTO_KINDS));
+        veilid_log!(self debug "Routing table now has {} nodes, {} live", self.bucket_entry_count(), self.get_entry_count(RoutingDomainSet::all(), BucketEntryState::Unreliable, &VALID_CRYPTO_KINDS));
 
         Ok(nr)
     }
@@ -820,11 +824,11 @@ impl RoutingTableInner {
         F: FnOnce(Arc<BucketEntry>) -> R,
     {
         if self.routing_table().matches_own_node_id(&[node_id]) {
-            log_rtab!(error "can't look up own node id in routing table");
+            veilid_log!(self error "can't look up own node id in routing table");
             return None;
         }
         if !VALID_CRYPTO_KINDS.contains(&node_id.kind) {
-            log_rtab!(error "can't look up node id with invalid crypto kind");
+            veilid_log!(self error "can't look up node id with invalid crypto kind");
             return None;
         }
         let bucket_entry = self.routing_table().calculate_bucket_index(&node_id);
@@ -1345,7 +1349,7 @@ impl RoutingTableInner {
 
         let out =
             self.find_peers_with_sort_and_filter(node_count, cur_ts, filters, sort, transform);
-        log_rtab!(">> find_closest_nodes: node count = {}", out.len());
+        veilid_log!(self trace ">> find_closest_nodes: node count = {}", out.len());
         Ok(out)
     }
 

@@ -31,6 +31,8 @@ use std::path::{Path, PathBuf};
 
 /////////////////////////////////////////////////////////////////
 
+impl_veilid_log_facility!("net");
+
 pub const MAX_DIAL_INFO_FAILURE_COUNT: usize = 100;
 pub const UPDATE_OUTBOUND_ONLY_NETWORK_CLASS_PERIOD_SECS: u32 = 10;
 pub const UPDATE_NETWORK_CLASS_TASK_TICK_PERIOD_SECS: u32 = 1;
@@ -171,8 +173,6 @@ impl Network {
     }
 
     fn new_unlocked_inner(registry: VeilidComponentRegistry) -> NetworkUnlockedInner {
-        let config = registry.config();
-        let program_name = config.get().program_name.clone();
         NetworkUnlockedInner {
             startup_lock: StartupLock::new(),
             interfaces: NetworkInterfaces::new(),
@@ -186,7 +186,7 @@ impl Network {
             ),
             upnp_task: TickTask::new("upnp_task", UPNP_TASK_TICK_PERIOD_SECS),
             network_task_lock: AsyncMutex::new(()),
-            igd_manager: igd_manager::IGDManager::new(program_name),
+            igd_manager: igd_manager::IGDManager::new(registry),
         }
     }
 
@@ -234,22 +234,22 @@ impl Network {
         let config = self.config();
         let c = config.get();
         //
-        log_net!(
+        veilid_log!(self trace
             "loading certificate from {}",
             c.network.tls.certificate_path
         );
         let certs = Self::load_certs(&PathBuf::from(&c.network.tls.certificate_path))?;
-        log_net!("loaded {} certificates", certs.len());
+        veilid_log!(self trace "loaded {} certificates", certs.len());
         if certs.is_empty() {
             return Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Certificates at {} could not be loaded.\nEnsure it is in PEM format, beginning with '-----BEGIN CERTIFICATE-----'",c.network.tls.certificate_path)));
         }
         //
-        log_net!(
+        veilid_log!(self trace
             "loading private key from {}",
             c.network.tls.private_key_path
         );
         let mut keys = Self::load_keys(&PathBuf::from(&c.network.tls.private_key_path))?;
-        log_net!("loaded {} keys", keys.len());
+        veilid_log!(self trace "loaded {} keys", keys.len());
         if keys.is_empty() {
             return Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Private key at {} could not be loaded.\nEnsure it is unencrypted and in RSA or PKCS8 format, beginning with '-----BEGIN RSA PRIVATE KEY-----' or '-----BEGIN PRIVATE KEY-----'",c.network.tls.private_key_path)));
         }
@@ -337,7 +337,7 @@ impl Network {
                 };
 
                 if dial_info_failure_count == MAX_DIAL_INFO_FAILURE_COUNT {
-                    log_net!(debug "Node may be offline. Exceeded maximum dial info failure count for {:?}", rd);
+                    veilid_log!(self debug "Node may be offline. Exceeded maximum dial info failure count for {:?}", rd);
                     // todo: what operations should we perform here?
                     // self.set_needs_dial_info_check(rd);
                 }
@@ -400,6 +400,7 @@ impl Network {
                     ProtocolType::TCP => {
                         let peer_socket_addr = dial_info.to_socket_addr();
                         let pnc = network_result_try!(RawTcpProtocolHandler::connect(
+                            self.registry(),
                             None,
                             peer_socket_addr,
                             connect_timeout_ms
@@ -410,6 +411,7 @@ impl Network {
                     }
                     ProtocolType::WS | ProtocolType::WSS => {
                         let pnc = network_result_try!(WebsocketProtocolHandler::connect(
+                            self.registry(),
                             None,
                             &dial_info,
                             connect_timeout_ms
@@ -507,6 +509,7 @@ impl Network {
                             ProtocolType::TCP => {
                                 let peer_socket_addr = dial_info.to_socket_addr();
                                 RawTcpProtocolHandler::connect(
+                                    self.registry(),
                                     None,
                                     peer_socket_addr,
                                     connect_timeout_ms,
@@ -516,6 +519,7 @@ impl Network {
                             }
                             ProtocolType::WS | ProtocolType::WSS => {
                                 WebsocketProtocolHandler::connect(
+                                    self.registry(),
                                     None,
                                     &dial_info,
                                     connect_timeout_ms,
@@ -571,7 +575,7 @@ impl Network {
                 &peer_socket_addr,
                 &flow.local().map(|sa| sa.socket_addr()),
             ) {
-                network_result_value_or_log!(ph.clone()
+                network_result_value_or_log!(self ph.clone()
                     .send_message(data.clone(), peer_socket_addr)
                     .await
                     .wrap_err("sending data to existing connection")? => [ format!(": data.len={}, flow={:?}", data.len(), flow) ]
@@ -837,7 +841,7 @@ impl Network {
             // with detect address changes turned off
             let pi = routing_table.get_current_peer_info(RoutingDomain::PublicInternet);
             if !pi.signed_node_info().has_any_dial_info() {
-                warn!(
+                veilid_log!(self warn
                     "This node has no valid public dial info.\nConfigure this node with a static public IP address and correct firewall rules."
                 );
             }
@@ -888,7 +892,7 @@ impl Network {
 
         match self.startup_internal().await {
             Ok(StartupDisposition::Success) => {
-                info!("network started");
+                veilid_log!(self info "network started");
                 guard.success();
                 Ok(StartupDisposition::Success)
             }
@@ -927,17 +931,17 @@ impl Network {
             let mut inner = self.inner.lock();
             // take the join handles out
             for h in inner.join_handles.drain(..) {
-                log_net!("joining: {:?}", h);
+                veilid_log!(self trace "joining: {:?}", h);
                 unord.push(h);
             }
             // Drop the stop
             drop(inner.stop_source.take());
         }
-        log_net!(debug "stopping {} low level network tasks", unord.len());
+        veilid_log!(self debug "stopping {} low level network tasks", unord.len());
         // Wait for everything to stop
         while unord.next().await.is_some() {}
 
-        log_net!(debug "clearing dial info");
+        veilid_log!(self debug "clearing dial info");
 
         routing_table
             .edit_public_internet_routing_domain()
@@ -955,23 +959,23 @@ impl Network {
 
     #[instrument(level = "debug", skip_all)]
     pub async fn shutdown(&self) {
-        log_net!(debug "starting low level network shutdown");
+        veilid_log!(self debug "starting low level network shutdown");
         let Ok(guard) = self.startup_lock.shutdown().await else {
-            log_net!(debug "low level network is already shut down");
+            veilid_log!(self debug "low level network is already shut down");
             return;
         };
 
         self.shutdown_internal().await;
 
         guard.success();
-        log_net!(debug "finished low level network shutdown");
+        veilid_log!(self debug "finished low level network shutdown");
     }
 
     //////////////////////////////////////////
 
     pub fn needs_update_network_class(&self) -> bool {
         let Ok(_guard) = self.startup_lock.enter() else {
-            log_net!(debug "ignoring due to not started up");
+            veilid_log!(self debug "ignoring due to not started up");
             return false;
         };
 
@@ -980,7 +984,7 @@ impl Network {
 
     pub fn trigger_update_network_class(&self, routing_domain: RoutingDomain) {
         let Ok(_guard) = self.startup_lock.enter() else {
-            log_net!(debug "ignoring due to not started up");
+            veilid_log!(self debug "ignoring due to not started up");
             return;
         };
 

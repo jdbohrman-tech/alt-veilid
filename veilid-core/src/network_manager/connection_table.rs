@@ -2,6 +2,8 @@ use super::*;
 use futures_util::StreamExt;
 use hashlink::LruCache;
 
+impl_veilid_log_facility!("net");
+
 /// Allow 25% of the table size to be occupied by priority flows
 /// that will not be subject to LRU termination.
 const PRIORITY_FLOW_PERCENTAGE: usize = 25;
@@ -110,7 +112,7 @@ impl ConnectionTable {
             let unord = FuturesUnordered::new();
             for table in &mut inner.conn_by_id {
                 for (_, mut v) in table.drain() {
-                    log_net!("connection table join: {:?}", v);
+                    veilid_log!(self trace "connection table join: {:?}", v);
                     v.close();
                     unord.push(v);
                 }

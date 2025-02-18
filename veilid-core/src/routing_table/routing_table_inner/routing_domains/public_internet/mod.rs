@@ -4,23 +4,20 @@ pub use editor::*;
 
 use super::*;
 
+impl_veilid_log_facility!("rtab");
+
 /// Public Internet routing domain internals
 #[derive(Debug)]
 pub struct PublicInternetRoutingDomainDetail {
+    /// Registry accessor
+    registry: VeilidComponentRegistry,
     /// Common implementation for all routing domains
     common: RoutingDomainDetailCommon,
     /// Published peer info for this routing domain
     published_peer_info: Mutex<Option<Arc<PeerInfo>>>,
 }
 
-impl Default for PublicInternetRoutingDomainDetail {
-    fn default() -> Self {
-        Self {
-            common: RoutingDomainDetailCommon::new(RoutingDomain::PublicInternet),
-            published_peer_info: Default::default(),
-        }
-    }
-}
+impl_veilid_component_registry_accessor!(PublicInternetRoutingDomainDetail);
 
 impl RoutingDomainDetailCommonAccessors for PublicInternetRoutingDomainDetail {
     fn common(&self) -> &RoutingDomainDetailCommon {
@@ -28,6 +25,16 @@ impl RoutingDomainDetailCommonAccessors for PublicInternetRoutingDomainDetail {
     }
     fn common_mut(&mut self) -> &mut RoutingDomainDetailCommon {
         &mut self.common
+    }
+}
+
+impl PublicInternetRoutingDomainDetail {
+    pub fn new(registry: VeilidComponentRegistry) -> Self {
+        Self {
+            registry,
+            common: RoutingDomainDetailCommon::new(RoutingDomain::PublicInternet),
+            published_peer_info: Default::default(),
+        }
     }
 }
 
@@ -99,13 +106,13 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
 
                 if pi.signed_node_info().node_info().network_class() == NetworkClass::Invalid {
                     // If the network class is not yet determined, don't publish
-                    log_rtab!(debug "[PublicInternet] Not publishing peer info with invalid network class");
+                    veilid_log!(self debug "[PublicInternet] Not publishing peer info with invalid network class");
                     None
                 } else if self.requires_relay().is_some()
                     && pi.signed_node_info().relay_ids().is_empty()
                 {
                     // If we need a relay and we don't have one, don't publish yet
-                    log_rtab!(debug "[PublicInternet] Not publishing peer info that wants relay until we have a relay");
+                    veilid_log!(self debug "[PublicInternet] Not publishing peer info that wants relay until we have a relay");
                     None
                 } else {
                     // This peerinfo is fit to publish
@@ -118,19 +125,19 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
             if let Some(old_peer_info) = &*ppi_lock {
                 if let Some(new_peer_info) = &opt_new_peer_info {
                     if new_peer_info.equivalent(old_peer_info) {
-                        log_rtab!(debug "[PublicInternet] Not publishing peer info because it is equivalent");
+                        veilid_log!(self debug "[PublicInternet] Not publishing peer info because it is equivalent");
                         return false;
                     }
                 }
             } else if opt_new_peer_info.is_none() {
-                log_rtab!(debug "[PublicInternet] Not publishing peer info because it is still None");
+                veilid_log!(self debug "[PublicInternet] Not publishing peer info because it is still None");
                 return false;
             }
 
             if opt_new_peer_info.is_some() {
-                log_rtab!(debug "[PublicInternet] Published new peer info: {}", opt_new_peer_info.as_ref().unwrap());
+                veilid_log!(self debug "[PublicInternet] Published new peer info: {}", opt_new_peer_info.as_ref().unwrap());
             } else {
-                log_rtab!(debug "[PublicInternet] Unpublishing because current peer info is invalid");
+                veilid_log!(self debug "[PublicInternet] Unpublishing because current peer info is invalid");
             }
             *ppi_lock = opt_new_peer_info.clone();
 
@@ -141,7 +148,7 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
             routing_domain: RoutingDomain::PublicInternet,
             opt_peer_info,
         }) {
-            log_rtab!(debug "Failed to post event: {}", e);
+            veilid_log!(self debug "Failed to post event: {}", e);
         }
 
         true
@@ -149,7 +156,7 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
 
     fn unpublish_peer_info(&self) {
         let mut ppi_lock = self.published_peer_info.lock();
-        log_rtab!(debug "[PublicInternet] Unpublished peer info");
+        veilid_log!(self debug "[PublicInternet] Unpublished peer info");
         *ppi_lock = None;
     }
 
@@ -158,11 +165,11 @@ impl RoutingDomainDetail for PublicInternetRoutingDomainDetail {
         let can_contain_address = self.can_contain_address(address);
 
         if !can_contain_address {
-            log_network_result!(debug "[PublicInternet] can not add dial info to this routing domain: {:?}", dial_info);
+            veilid_log!(self debug "[PublicInternet] can not add dial info to this routing domain: {:?}", dial_info);
             return false;
         }
         if !dial_info.is_valid() {
-            log_rtab!(debug
+            veilid_log!(self debug
                 "shouldn't be registering invalid addresses: {:?}",
                 dial_info
             );

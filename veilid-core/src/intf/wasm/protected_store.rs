@@ -3,6 +3,8 @@ use data_encoding::BASE64URL_NOPAD;
 
 use web_sys::*;
 
+impl_veilid_log_facility!("pstore");
+
 #[derive(Debug)]
 pub struct ProtectedStore {
     registry: VeilidComponentRegistry,
@@ -21,7 +23,7 @@ impl ProtectedStore {
             if let Err(e) = self.remove_user_secret(kpsk).await {
                 error!("failed to delete '{}': {}", kpsk, e);
             } else {
-                log_pstore!(debug "deleted table '{}'", kpsk);
+                veilid_log!(self debug "deleted table '{}'", kpsk);
             }
         }
         Ok(())

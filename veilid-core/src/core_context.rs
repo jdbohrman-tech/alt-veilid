@@ -9,6 +9,8 @@ use crate::veilid_api::*;
 use crate::veilid_config::*;
 use crate::*;
 
+impl_veilid_log_facility!("corectx");
+
 pub type UpdateCallback = Arc<dyn Fn(VeilidUpdate) + Send + Sync>;
 
 type InitKey = (String, String);
@@ -53,8 +55,6 @@ impl VeilidCoreContext {
             }
         }
 
-        info!("Veilid API starting up");
-
         let (program_name, namespace, update_callback) = {
             let cfginner = config.get();
             (
@@ -64,10 +64,13 @@ impl VeilidCoreContext {
             )
         };
 
-        ApiTracingLayer::add_callback(program_name, namespace, update_callback.clone()).await?;
+        let log_key = VeilidLayerFilter::make_veilid_log_key(&program_name, &namespace).to_string();
+        ApiTracingLayer::add_callback(log_key, update_callback.clone()).await?;
 
         // Create component registry
         let registry = VeilidComponentRegistry::new(config);
+
+        veilid_log!(registry info "Veilid API starting up");
 
         // Register all components
         registry.register(ProtectedStore::new);
@@ -99,14 +102,14 @@ impl VeilidCoreContext {
             return Err(VeilidAPIError::internal(e));
         }
 
-        info!("Veilid API startup complete");
+        veilid_log!(registry info "Veilid API startup complete");
 
         Ok(Self { registry })
     }
 
     #[instrument(level = "trace", target = "core_context", skip_all)]
     async fn shutdown(self) {
-        info!("Veilid API shutdown complete");
+        veilid_log!(self info "Veilid API shutting down");
 
         let (program_name, namespace, update_callback) = {
             let config = self.registry.config();
@@ -127,7 +130,10 @@ impl VeilidCoreContext {
         // This should finish any shutdown operations for the subsystems
         self.registry.terminate().await;
 
-        if let Err(e) = ApiTracingLayer::remove_callback(program_name, namespace).await {
+        veilid_log!(self info "Veilid API shutdown complete");
+
+        let log_key = VeilidLayerFilter::make_veilid_log_key(&program_name, &namespace).to_string();
+        if let Err(e) = ApiTracingLayer::remove_callback(log_key).await {
             error!("Error removing callback from ApiTracingLayer: {}", e);
         }
 

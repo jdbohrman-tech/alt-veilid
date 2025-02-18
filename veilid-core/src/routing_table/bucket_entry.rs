@@ -1245,10 +1245,10 @@ impl Drop for BucketEntry {
         if self.ref_count.load(Ordering::Acquire) != 0 {
             #[cfg(feature = "tracking")]
             {
-                info!("NodeRef Tracking");
+                veilid_log!(self info "NodeRef Tracking");
                 for (id, bt) in &mut self.node_ref_tracks {
                     bt.resolve();
-                    info!("Id: {}\n----------------\n{:#?}", id, bt);
+                    veilid_log!(self info "Id: {}\n----------------\n{:#?}", id, bt);
                 }
             }
 

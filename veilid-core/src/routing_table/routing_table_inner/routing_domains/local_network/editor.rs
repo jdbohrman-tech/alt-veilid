@@ -160,7 +160,7 @@ impl<'a> RoutingDomainEditorCommonTrait for RoutingDomainEditorLocalNetwork<'a> 
                         .filter(|di| !new_dial_info_details.contains(di))
                         .collect::<Vec<_>>();
                     if !removed_dial_info.is_empty() {
-                        info!(
+                        veilid_log!(rti info
                             "[LocalNetwork] removed dial info:\n{}",
                             indent_all_string(&removed_dial_info.to_multiline_string())
                                 .strip_trailing_newline()
@@ -172,7 +172,7 @@ impl<'a> RoutingDomainEditorCommonTrait for RoutingDomainEditorLocalNetwork<'a> 
                         .filter(|di| !old_dial_info_details.contains(di))
                         .collect::<Vec<_>>();
                     if !added_dial_info.is_empty() {
-                        info!(
+                        veilid_log!(rti info
                             "[LocalNetwork] added dial info:\n{}",
                             indent_all_string(&added_dial_info.to_multiline_string())
                                 .strip_trailing_newline()
@@ -182,44 +182,44 @@ impl<'a> RoutingDomainEditorCommonTrait for RoutingDomainEditorLocalNetwork<'a> 
                     if let Some(nrn) = new_relay_node {
                         if let Some(orn) = old_relay_node {
                             if !nrn.same_entry(&orn) {
-                                info!("[LocalNetwork] change relay: {} -> {}", orn, nrn);
+                                veilid_log!(rti info "[LocalNetwork] change relay: {} -> {}", orn, nrn);
                                 peer_info_changed = true;
                             }
                         } else {
-                            info!("[LocalNetwork] set relay: {}", nrn);
+                            veilid_log!(rti info "[LocalNetwork] set relay: {}", nrn);
                             peer_info_changed = true;
                         }
                     }
                     if old_outbound_protocols != new_outbound_protocols {
-                        info!(
+                        veilid_log!(rti info
                             "[LocalNetwork] changed network: outbound {:?}->{:?}",
                             old_outbound_protocols, new_outbound_protocols
                         );
                         peer_info_changed = true;
                     }
                     if old_inbound_protocols != new_inbound_protocols {
-                        info!(
+                        veilid_log!(rti info
                             "[LocalNetwork] changed network: inbound {:?}->{:?}",
-                            old_inbound_protocols, new_inbound_protocols,
+                            old_inbound_protocols, new_inbound_protocols
                         );
                         peer_info_changed = true;
                     }
                     if old_address_types != new_address_types {
-                        info!(
+                        veilid_log!(rti info
                             "[LocalNetwork] changed network: address types {:?}->{:?}",
-                            old_address_types, new_address_types,
+                            old_address_types, new_address_types
                         );
                         peer_info_changed = true;
                     }
                     if old_capabilities != new_capabilities {
-                        info!(
+                        veilid_log!(rti info
                             "[PublicInternet] changed network: capabilities {:?}->{:?}",
                             old_capabilities, new_capabilities
                         );
                         peer_info_changed = true;
                     }
                     if old_network_class != new_network_class {
-                        info!(
+                        veilid_log!(rti info
                             "[LocalNetwork] changed network class: {:?}->{:?}",
                             old_network_class, new_network_class
                         );

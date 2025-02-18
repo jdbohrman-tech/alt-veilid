@@ -1,5 +1,7 @@
 use crate::*;
 
+impl_veilid_log_facility!("bstore");
+
 struct BlockStoreInner {
     //
 }

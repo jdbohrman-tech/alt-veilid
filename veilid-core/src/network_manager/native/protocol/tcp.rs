@@ -2,19 +2,27 @@ use super::*;
 use futures_util::{AsyncReadExt, AsyncWriteExt};
 
 pub struct RawTcpNetworkConnection {
+    registry: VeilidComponentRegistry,
     flow: Flow,
     stream: Mutex<Option<AsyncPeekStream>>,
 }
 
 impl fmt::Debug for RawTcpNetworkConnection {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("RawTCPNetworkConnection").finish()
+        f.debug_struct("RawTcpNetworkConnection")
+            //.field("registry", &self.registry)
+            .field("flow", &self.flow)
+            //.field("stream", &self.stream)
+            .finish()
     }
 }
 
+impl_veilid_component_registry_accessor!(RawTcpNetworkConnection);
+
 impl RawTcpNetworkConnection {
-    pub fn new(flow: Flow, stream: AsyncPeekStream) -> Self {
+    pub fn new(registry: VeilidComponentRegistry, flow: Flow, stream: AsyncPeekStream) -> Self {
         Self {
+            registry,
             flow,
             stream: Mutex::new(Some(stream)),
         }
@@ -37,7 +45,6 @@ impl RawTcpNetworkConnection {
         stream: &mut AsyncPeekStream,
         message: Vec<u8>,
     ) -> io::Result<NetworkResult<()>> {
-        log_net!("sending TCP message of size {}", message.len());
         if message.len() > MAX_MESSAGE_SIZE {
             bail_io_error_other!("sending too large TCP message");
         }
@@ -108,14 +115,19 @@ pub struct RawTcpProtocolHandler
 where
     Self: ProtocolAcceptHandler,
 {
+    registry: VeilidComponentRegistry,
     connection_initial_timeout_ms: u32,
 }
 
+impl_veilid_component_registry_accessor!(RawTcpProtocolHandler);
+
 impl RawTcpProtocolHandler {
-    pub fn new(config: VeilidConfig) -> Self {
-        let c = config.get();
-        let connection_initial_timeout_ms = c.network.connection_initial_timeout_ms;
+    pub fn new(registry: VeilidComponentRegistry) -> Self {
+        let connection_initial_timeout_ms = registry
+            .config()
+            .with(|c| c.network.connection_initial_timeout_ms);
         Self {
+            registry,
             connection_initial_timeout_ms,
         }
     }
@@ -127,7 +139,7 @@ impl RawTcpProtocolHandler {
         socket_addr: SocketAddr,
         local_addr: SocketAddr,
     ) -> io::Result<Option<ProtocolNetworkConnection>> {
-        log_net!("TCP: on_accept_async: enter");
+        veilid_log!(self trace "TCP: on_accept_async: enter");
         let mut peekbuf: [u8; PEEK_DETECT_LEN] = [0u8; PEEK_DETECT_LEN];
         if (timeout(
             self.connection_initial_timeout_ms,
@@ -144,17 +156,19 @@ impl RawTcpProtocolHandler {
             ProtocolType::TCP,
         );
         let conn = ProtocolNetworkConnection::RawTcp(RawTcpNetworkConnection::new(
+            self.registry(),
             Flow::new(peer_addr, SocketAddress::from_socket_addr(local_addr)),
             ps,
         ));
 
-        log_net!("Connection accepted from: {} (TCP)", socket_addr);
+        veilid_log!(self trace "Connection accepted from: {} (TCP)", socket_addr);
 
         Ok(Some(conn))
     }
 
     #[instrument(level = "trace", target = "protocol", err)]
     pub async fn connect(
+        registry: VeilidComponentRegistry,
         local_address: Option<SocketAddr>,
         remote_address: SocketAddr,
         timeout_ms: u32,
@@ -182,9 +196,10 @@ impl RawTcpProtocolHandler {
             ),
             SocketAddress::from_socket_addr(actual_local_address),
         );
-        log_net!("rawtcp::connect: {:?}", flow);
+        veilid_log!(registry trace "rawtcp::connect: {:?}", flow);
 
-        let conn = ProtocolNetworkConnection::RawTcp(RawTcpNetworkConnection::new(flow, ps));
+        let conn =
+            ProtocolNetworkConnection::RawTcp(RawTcpNetworkConnection::new(registry, flow, ps));
 
         Ok(NetworkResult::Value(conn))
     }

@@ -18,6 +18,7 @@ pub(crate) enum ProtocolNetworkConnection {
 
 impl ProtocolNetworkConnection {
     pub async fn connect(
+        registry: VeilidComponentRegistry,
         local_address: Option<SocketAddr>,
         dial_info: &DialInfo,
         timeout_ms: u32,
@@ -32,6 +33,7 @@ impl ProtocolNetworkConnection {
             }
             ProtocolType::TCP => {
                 tcp::RawTcpProtocolHandler::connect(
+                    registry,
                     local_address,
                     dial_info.to_socket_addr(),
                     timeout_ms,
@@ -39,7 +41,13 @@ impl ProtocolNetworkConnection {
                 .await
             }
             ProtocolType::WS | ProtocolType::WSS => {
-                ws::WebsocketProtocolHandler::connect(local_address, dial_info, timeout_ms).await
+                ws::WebsocketProtocolHandler::connect(
+                    registry,
+                    local_address,
+                    dial_info,
+                    timeout_ms,
+                )
+                .await
             }
         }
     }

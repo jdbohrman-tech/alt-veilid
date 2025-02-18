@@ -4,6 +4,8 @@ use super::*;
 use futures_util::stream::FuturesUnordered;
 use igd_manager::{IGDAddressType, IGDProtocolType};
 
+impl_veilid_log_facility!("net");
+
 const PORT_MAP_VALIDATE_TRY_COUNT: usize = 3;
 const PORT_MAP_VALIDATE_DELAY_MS: u32 = 500;
 const PORT_MAP_TRY_COUNT: usize = 3;
@@ -119,10 +121,10 @@ impl DiscoveryContext {
         // filtered down to the protocol/address type we are checking the public address for
         node_ref.clear_last_flows();
 
-        let res = network_result_value_or_log!(match rpc.rpc_call_status(Destination::direct(node_ref.clone())).await {
+        let res = network_result_value_or_log!(self match rpc.rpc_call_status(Destination::direct(node_ref.clone())).await {
                 Ok(v) => v,
                 Err(e) => {
-                    log_net!(error
+                    veilid_log!(self error
                         "failed to get status answer from {:?}: {}",
                         node_ref, e
                     );
@@ -133,8 +135,8 @@ impl DiscoveryContext {
             }
         );
 
-        log_network_result!(
-            debug "request_public_address {:?}: Value({:?})",
+        veilid_log!(self debug target:"network_result",
+            "request_public_address {:?}: Value({:?})",
             node_ref,
             res.answer
         );
@@ -200,7 +202,7 @@ impl DiscoveryContext {
             filters,
         );
         if nodes.is_empty() {
-            log_net!(debug
+            veilid_log!(self debug
                 "no external address detection peers of type {:?}:{:?}",
                 protocol_type,
                 address_type
@@ -262,7 +264,7 @@ impl DiscoveryContext {
             }
         }
         if external_address_infos.len() < EXTERNAL_INFO_VALIDATIONS {
-            log_net!(debug "not enough peers ({}<{}) responded with an external address for type {:?}:{:?}",
+            veilid_log!(self debug "not enough peers ({}<{}) responded with an external address for type {:?}:{:?}",
                 external_address_infos.len(),
                 EXTERNAL_INFO_VALIDATIONS,
                 protocol_type,
@@ -291,7 +293,7 @@ impl DiscoveryContext {
         {
             let mut inner = self.inner.lock();
             inner.external_info = external_address_infos;
-            log_net!(debug "External Addresses ({:?}:{:?}):\n{}",
+            veilid_log!(self debug "External Addresses ({:?}:{:?}):\n{}",
                 protocol_type,
                 address_type,
                 inner.external_info.iter().map(|x| format!("    {} <- {}",x.address, x.node)).collect::<Vec<_>>().join("\n"));
@@ -317,7 +319,7 @@ impl DiscoveryContext {
             .await
         {
             Err(e) => {
-                log_net!("failed to send validate_dial_info to {:?}: {}", node_ref, e);
+                veilid_log!(self trace "failed to send validate_dial_info to {:?}: {}", node_ref, e);
                 false
             }
             Ok(v) => v,
@@ -380,7 +382,7 @@ impl DiscoveryContext {
                 }
 
                 if validate_tries != PORT_MAP_VALIDATE_TRY_COUNT {
-                    log_net!(debug "UPNP port mapping succeeded but port {}/{} is still unreachable.\nretrying\n",
+                    veilid_log!(self debug "UPNP port mapping succeeded but port {}/{} is still unreachable.\nretrying\n",
                     local_port, igd_protocol_type);
                     sleep(PORT_MAP_VALIDATE_DELAY_MS).await
                 } else {
@@ -398,7 +400,7 @@ impl DiscoveryContext {
                 .await;
 
             if tries == PORT_MAP_TRY_COUNT {
-                warn!("UPNP port mapping succeeded but port {}/{} is still unreachable.\nYou may need to add a local firewall allowed port on this machine.\n",
+                veilid_log!(self warn "UPNP port mapping succeeded but port {}/{} is still unreachable.\nYou may need to add a local firewall allowed port on this machine.\n",
                     local_port, igd_protocol_type
                 );
                 break;

@@ -1,5 +1,9 @@
 use super::*;
 
+use futures_util::FutureExt;
+
+impl_veilid_log_facility!("rtab");
+
 /// Keepalive pings are done occasionally to ensure holepunched public dialinfo
 /// remains valid, as well as to make sure we remain in any relay node's routing table
 const RELAY_KEEPALIVE_PING_INTERVAL_SECS: u32 = 10;
@@ -9,8 +13,6 @@ const ACTIVE_WATCH_KEEPALIVE_PING_INTERVAL_SECS: u32 = 10;
 
 /// Ping queue processing depth per validator
 const MAX_PARALLEL_PINGS: usize = 8;
-
-use futures_util::FutureExt;
 
 type PingValidatorFuture = SendPinBoxFuture<Result<(), RPCError>>;
 
@@ -181,7 +183,7 @@ impl RoutingTable {
         for relay_nr_filtered in relay_noderefs {
             futurequeue.push_back(
                 async move {
-                    log_rtab!("--> PublicInternet Relay ping to {:?}", relay_nr_filtered);
+                    veilid_log!(relay_nr_filtered trace "--> PublicInternet Relay ping to {:?}", relay_nr_filtered);
                     let rpc_processor = relay_nr_filtered.rpc_processor();
                     let _ = rpc_processor
                         .rpc_call_status(Destination::direct(relay_nr_filtered))
@@ -227,7 +229,7 @@ impl RoutingTable {
             let registry = self.registry();
             futurequeue.push_back(
                 async move {
-                    log_rtab!("--> Watch Keepalive ping to {:?}", watch_destination);
+                    veilid_log!(registry trace "--> Watch Keepalive ping to {:?}", watch_destination);
                     let rpc_processor = registry.rpc_processor();
                     let _ = rpc_processor.rpc_call_status(watch_destination).await?;
                     Ok(())
@@ -256,7 +258,7 @@ impl RoutingTable {
             futurequeue.push_back(
                 async move {
                     #[cfg(feature = "verbose-tracing")]
-                    log_rtab!(debug "--> PublicInternet Validator ping to {:?}", nr);
+                    veilid_log!(self debug "--> PublicInternet Validator ping to {:?}", nr);
                     let rpc_processor = nr.rpc_processor();
                     let _ = rpc_processor
                         .rpc_call_status(Destination::direct(nr))
@@ -289,7 +291,7 @@ impl RoutingTable {
             futurequeue.push_back(
                 async move {
                     #[cfg(feature = "verbose-tracing")]
-                    log_rtab!(debug "--> LocalNetwork Validator ping to {:?}", nr);
+                    veilid_log!(self debug "--> LocalNetwork Validator ping to {:?}", nr);
                     let rpc_processor = nr.rpc_processor();
                     let _ = rpc_processor
                         .rpc_call_status(Destination::direct(nr))
@@ -315,21 +317,21 @@ impl RoutingTable {
         if count == 0 {
             return;
         }
-        log_rtab!(debug "[{}] Ping validation queue: {} remaining", name, count);
+        veilid_log!(self debug "[{}] Ping validation queue: {} remaining", name, count);
 
         let atomic_count = AtomicUsize::new(count);
         process_batched_future_queue(future_queue, MAX_PARALLEL_PINGS, stop_token, |res| async {
             if let Err(e) = res {
-                log_rtab!(error "[{}] Error performing status ping: {}", name, e);
+                veilid_log!(self error "[{}] Error performing status ping: {}", name, e);
             }
             let remaining = atomic_count.fetch_sub(1, Ordering::AcqRel) - 1;
             if remaining > 0 {
-                log_rtab!(debug "[{}] Ping validation queue: {} remaining", name, remaining);
+                veilid_log!(self debug "[{}] Ping validation queue: {} remaining", name, remaining);
             }
         })
         .await;
         let done_ts = Timestamp::now();
-        log_rtab!(debug
+        veilid_log!(self debug
             "[{}] Ping validation queue finished {} pings in {}",
             name,
             count,

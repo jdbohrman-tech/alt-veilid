@@ -2,6 +2,8 @@ use super::*;
 use igd::*;
 use std::net::UdpSocket;
 
+impl_veilid_log_facility!("net");
+
 const UPNP_GATEWAY_DETECT_TIMEOUT_MS: u32 = 5_000;
 const UPNP_MAPPING_LIFETIME_MS: u32 = 120_000;
 const UPNP_MAPPING_ATTEMPTS: u32 = 3;
@@ -31,9 +33,11 @@ struct IGDManagerInner {
 
 #[derive(Clone)]
 pub struct IGDManager {
-    program_name: String,
+    registry: VeilidComponentRegistry,
     inner: Arc<Mutex<IGDManagerInner>>,
 }
+
+impl_veilid_component_registry_accessor!(IGDManager);
 
 fn convert_protocol_type(igdpt: IGDProtocolType) -> PortMappingProtocol {
     match igdpt {
@@ -76,9 +80,9 @@ impl IGDManager {
     /////////////////////////////////////////////////////////////////////
     // Public Interface
 
-    pub fn new(program_name: String) -> Self {
+    pub fn new(registry: VeilidComponentRegistry) -> Self {
         Self {
-            program_name,
+            registry,
             inner: Arc::new(Mutex::new(IGDManagerInner {
                 local_ip_addrs: BTreeMap::new(),
                 gateways: BTreeMap::new(),
@@ -118,17 +122,17 @@ impl IGDManager {
                     .expect("key found but remove failed");
 
                 // Get local ip address
-                let local_ip = Self::find_local_ip(&mut inner, address_type)?;
+                let local_ip = this.find_local_ip_inner(&mut inner, address_type)?;
 
                 // Find gateway
-                let gw = Self::find_gateway(&mut inner, local_ip)?;
+                let gw = this.find_gateway_inner(&mut inner, local_ip)?;
 
                 // Unmap port
                 match gw.remove_port(convert_protocol_type(protocol_type), mapped_port) {
                     Ok(()) => (),
                     Err(e) => {
                         // Failed to map external port
-                        log_net!(debug "upnp failed to remove external port: {}", e);
+                        veilid_log!(this debug "upnp failed to remove external port: {}", e);
                         return None;
                     }
                 };
@@ -162,32 +166,32 @@ impl IGDManager {
             }
 
             // Get local ip address
-            let local_ip = Self::find_local_ip(&mut inner, address_type)?;
+            let local_ip = this.find_local_ip_inner(&mut inner, address_type)?;
 
             // Find gateway
-            let gw = Self::find_gateway(&mut inner, local_ip)?;
+            let gw = this.find_gateway_inner(&mut inner, local_ip)?;
 
             // Get external address
             let ext_ip = match gw.get_external_ip() {
                 Ok(ip) => ip,
                 Err(e) => {
-                    log_net!(debug "couldn't get external ip from igd: {}", e);
+                    veilid_log!(this debug "couldn't get external ip from igd: {}", e);
                     return None;
                 }
             };
 
             // Ensure external IP matches address type
             if ext_ip.is_ipv4() && address_type != IGDAddressType::IPV4 {
-                log_net!(debug "mismatched ip address type from igd, wanted v4, got v6");
+                veilid_log!(this debug "mismatched ip address type from igd, wanted v4, got v6");
                 return None;
             } else if ext_ip.is_ipv6() && address_type != IGDAddressType::IPV6 {
-                log_net!(debug "mismatched ip address type from igd, wanted v6, got v4");
+                veilid_log!(this debug "mismatched ip address type from igd, wanted v6, got v4");
                 return None;
             }
 
             if let Some(expected_external_address) = expected_external_address {
                 if ext_ip != expected_external_address {
-                    log_net!(debug "gateway external address does not match calculated external address: expected={} vs gateway={}", expected_external_address, ext_ip);
+                    veilid_log!(this debug "gateway external address does not match calculated external address: expected={} vs gateway={}", expected_external_address, ext_ip);
                     return None;
                 }
             }
@@ -198,7 +202,7 @@ impl IGDManager {
                 Ok(mapped_port) => mapped_port,
                 Err(e) => {
                     // Failed to map external port
-                    log_net!(debug "upnp failed to map external port: {}", e);
+                    veilid_log!(this debug "upnp failed to map external port: {}", e);
                     return None;
                 }
             };
@@ -268,7 +272,7 @@ impl IGDManager {
                 // Process full renewals
                 for (k, v) in full_renews {
                     // Get local ip for address type
-                    let local_ip = match Self::get_local_ip(&mut inner, k.address_type) {
+                    let local_ip = match this.get_local_ip_inner(&mut inner, k.address_type) {
                         Some(ip) => ip,
                         None => {
                             return Err(eyre!("local ip missing for address type"));
@@ -276,7 +280,7 @@ impl IGDManager {
                     };
 
                     // Get gateway for interface
-                    let gw = match Self::get_gateway(&mut inner, local_ip) {
+                    let gw = match Self::get_gateway_inner(&mut inner, local_ip) {
                         Some(gw) => gw,
                         None => {
                             return Err(eyre!("gateway missing for interface"));
@@ -295,7 +299,7 @@ impl IGDManager {
                         &desc,
                     ) {
                         Ok(mapped_port) => {
-                            log_net!(debug "full-renewed mapped port {:?} -> {:?}", v, k);
+                            veilid_log!(this debug "full-renewed mapped port {:?} -> {:?}", v, k);
                             inner.port_maps.insert(
                                 k,
                                 PortMapValue {
@@ -309,7 +313,7 @@ impl IGDManager {
                             );
                         }
                         Err(e) => {
-                            info!("failed to full-renew mapped port {:?} -> {:?}: {}", v, k, e);
+                            veilid_log!(this info "failed to full-renew mapped port {:?} -> {:?}: {}", v, k, e);
 
                             // Must restart network now :(
                             return Ok(false);
@@ -319,7 +323,7 @@ impl IGDManager {
                 // Process normal renewals
                 for (k, mut v) in renews {
                     // Get local ip for address type
-                    let local_ip = match Self::get_local_ip(&mut inner, k.address_type) {
+                    let local_ip = match this.get_local_ip_inner(&mut inner, k.address_type) {
                         Some(ip) => ip,
                         None => {
                             return Err(eyre!("local ip missing for address type"));
@@ -327,7 +331,7 @@ impl IGDManager {
                     };
 
                     // Get gateway for interface
-                    let gw = match Self::get_gateway(&mut inner, local_ip) {
+                    let gw = match Self::get_gateway_inner(&mut inner, local_ip) {
                         Some(gw) => gw,
                         None => {
                             return Err(eyre!("gateway missing for address type"));
@@ -343,7 +347,7 @@ impl IGDManager {
                         &desc,
                     ) {
                         Ok(()) => {
-                            log_net!("renewed mapped port {:?} -> {:?}", v, k);
+                            veilid_log!(this trace "renewed mapped port {:?} -> {:?}", v, k);
 
                             inner.port_maps.insert(
                                 k,
@@ -358,7 +362,7 @@ impl IGDManager {
                             );
                         }
                         Err(e) => {
-                            log_net!(debug "failed to renew mapped port {:?} -> {:?}: {}", v, k, e);
+                            veilid_log!(this debug "failed to renew mapped port {:?} -> {:?}: {}", v, k, e);
 
                             // Get closer to the maximum renewal timeline by a factor of two each time
                             v.renewal_lifetime =
@@ -384,14 +388,14 @@ impl IGDManager {
     // Private Implementation
 
     #[instrument(level = "trace", target = "net", skip_all)]
-    fn get_routed_local_ip_address(address_type: IGDAddressType) -> Option<IpAddr> {
+    fn get_routed_local_ip_address(&self, address_type: IGDAddressType) -> Option<IpAddr> {
         let socket = match UdpSocket::bind(match address_type {
             IGDAddressType::IPV4 => SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0),
             IGDAddressType::IPV6 => SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), 0),
         }) {
             Ok(s) => s,
             Err(e) => {
-                log_net!(debug "failed to bind to unspecified address: {}", e);
+                veilid_log!(self debug "failed to bind to unspecified address: {}", e);
                 return None;
             }
         };
@@ -408,7 +412,7 @@ impl IGDManager {
                 ),
             })
             .map_err(|e| {
-                log_net!(debug "failed to connect to dummy address: {}", e);
+                veilid_log!(self debug "failed to connect to dummy address: {}", e);
                 e
             })
             .ok()?;
@@ -417,15 +421,19 @@ impl IGDManager {
     }
 
     #[instrument(level = "trace", target = "net", skip_all)]
-    fn find_local_ip(inner: &mut IGDManagerInner, address_type: IGDAddressType) -> Option<IpAddr> {
+    fn find_local_ip_inner(
+        &self,
+        inner: &mut IGDManagerInner,
+        address_type: IGDAddressType,
+    ) -> Option<IpAddr> {
         if let Some(ip) = inner.local_ip_addrs.get(&address_type) {
             return Some(*ip);
         }
 
-        let ip = match Self::get_routed_local_ip_address(address_type) {
+        let ip = match self.get_routed_local_ip_address(address_type) {
             Some(x) => x,
             None => {
-                log_net!(debug "failed to get local ip address: address_type={:?}", address_type);
+                veilid_log!(self debug "failed to get local ip address: address_type={:?}", address_type);
                 return None;
             }
         };
@@ -435,7 +443,11 @@ impl IGDManager {
     }
 
     #[instrument(level = "trace", target = "net", skip_all)]
-    fn get_local_ip(inner: &mut IGDManagerInner, address_type: IGDAddressType) -> Option<IpAddr> {
+    fn get_local_ip_inner(
+        &self,
+        inner: &mut IGDManagerInner,
+        address_type: IGDAddressType,
+    ) -> Option<IpAddr> {
         if let Some(ip) = inner.local_ip_addrs.get(&address_type) {
             return Some(*ip);
         }
@@ -443,7 +455,11 @@ impl IGDManager {
     }
 
     #[instrument(level = "trace", target = "net", skip_all)]
-    fn find_gateway(inner: &mut IGDManagerInner, local_ip: IpAddr) -> Option<Arc<Gateway>> {
+    fn find_gateway_inner(
+        &self,
+        inner: &mut IGDManagerInner,
+        local_ip: IpAddr,
+    ) -> Option<Arc<Gateway>> {
         if let Some(gw) = inner.gateways.get(&local_ip) {
             return Some(gw.clone());
         }
@@ -456,7 +472,7 @@ impl IGDManager {
                 match igd::search_gateway(opts) {
                     Ok(v) => v,
                     Err(e) => {
-                        log_net!(debug "couldn't find ipv4 igd: {}", e);
+                        veilid_log!(self debug "couldn't find ipv4 igd: {}", e);
                         return None;
                     }
                 }
@@ -471,7 +487,7 @@ impl IGDManager {
                 match igd::search_gateway(opts) {
                     Ok(v) => v,
                     Err(e) => {
-                        log_net!(debug "couldn't find ipv6 igd: {}", e);
+                        veilid_log!(self debug "couldn't find ipv6 igd: {}", e);
                         return None;
                     }
                 }
@@ -483,7 +499,7 @@ impl IGDManager {
     }
 
     #[instrument(level = "trace", target = "net", skip_all)]
-    fn get_gateway(inner: &mut IGDManagerInner, local_ip: IpAddr) -> Option<Arc<Gateway>> {
+    fn get_gateway_inner(inner: &mut IGDManagerInner, local_ip: IpAddr) -> Option<Arc<Gateway>> {
         if let Some(gw) = inner.gateways.get(&local_ip) {
             return Some(gw.clone());
         }
@@ -493,7 +509,9 @@ impl IGDManager {
     fn get_description(&self, protocol_type: IGDProtocolType, local_port: u16) -> String {
         format!(
             "{} map {} for port {}",
-            self.program_name, protocol_type, local_port
+            self.registry.program_name(),
+            protocol_type,
+            local_port
         )
     }
 }

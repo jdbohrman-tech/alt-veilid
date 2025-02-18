@@ -9,6 +9,8 @@ use once_cell::sync::Lazy;
 use routing_table::*;
 use std::fmt::Write;
 
+impl_veilid_log_facility!("veilid_debug");
+
 #[derive(Default)]
 pub(crate) struct DebugCache {
     pub imported_routes: Vec<RouteId>,
@@ -1280,7 +1282,7 @@ impl VeilidAPI {
                 let blob_data = RouteSpecStore::private_routes_to_blob(&private_routes)
                     .map_err(VeilidAPIError::internal)?;
                 let out = BASE64URL_NOPAD.encode(&blob_data);
-                info!(
+                veilid_log!(registry info
                     "Published route {} as {} bytes:\n{}",
                     route_id.encode(),
                     blob_data.len(),
@@ -2277,7 +2279,7 @@ TableDB Operations:
                             let Some(private_route) = rss.best_remote_private_route(&prid) else {
                                 // Remove imported route
                                 dc.imported_routes.remove(n);
-                                info!("removed dead imported route {}", n);
+                                veilid_log!(registry info "removed dead imported route {}", n);
                                 return None;
                             };
                             Some(private_route)

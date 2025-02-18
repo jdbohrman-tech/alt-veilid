@@ -31,6 +31,8 @@ lazy_static! {
     };
 }
 
+pub const PROGRAM_NAME: &str = "veilid-server";
+
 pub fn load_default_config() -> EyreResult<config::Config> {
     #[cfg(not(feature = "geolocation"))]
     let privacy_section = "";
@@ -1259,12 +1261,8 @@ impl Settings {
             let inner = inner.read();
 
             let out: ConfigCallbackReturn = match key.as_str() {
-                "program_name" => Ok(Box::new("veilid-server".to_owned())),
-                "namespace" => Ok(Box::new(if subnode == 0 {
-                    "".to_owned()
-                } else {
-                    format!("subnode{}", subnode)
-                })),
+                "program_name" => Ok(Box::new(PROGRAM_NAME.to_owned())),
+                "namespace" => Ok(Box::new(subnode_namespace(subnode))),
                 "capabilities.disable" => {
                     let mut caps = Vec::<FourCC>::new();
                     for c in &inner.core.capabilities.disable {
@@ -1694,6 +1692,14 @@ impl Settings {
             };
             out
         })
+    }
+}
+
+pub fn subnode_namespace(subnode_index: u16) -> String {
+    if subnode_index == 0 {
+        "".to_owned()
+    } else {
+        format!("subnode{}", subnode_index)
     }
 }
 

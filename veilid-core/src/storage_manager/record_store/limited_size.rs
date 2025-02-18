@@ -1,6 +1,8 @@
 use super::*;
 use num_traits::{PrimInt, Unsigned};
 
+impl_veilid_log_facility!("stor");
+
 #[derive(ThisError, Debug, Clone, Copy, Eq, PartialEq)]
 pub enum LimitError {
     #[error("limit overflow")]
@@ -15,17 +17,48 @@ pub enum NumericError {
     Underflow,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct LimitedSize<T: PrimInt + Unsigned + fmt::Display + fmt::Debug> {
+    registry: VeilidComponentRegistry,
     description: String,
     value: T,
     limit: Option<T>,
     uncommitted_value: Option<T>,
 }
 
+impl<T> VeilidComponentRegistryAccessor for LimitedSize<T>
+where
+    T: PrimInt + Unsigned + fmt::Display + fmt::Debug,
+{
+    fn registry(&self) -> VeilidComponentRegistry {
+        self.registry.clone()
+    }
+}
+
+impl<T> fmt::Debug for LimitedSize<T>
+where
+    T: PrimInt + Unsigned + fmt::Display + fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("LimitedSize")
+            //.field("registry", &self.registry)
+            .field("description", &self.description)
+            .field("value", &self.value)
+            .field("limit", &self.limit)
+            .field("uncommitted_value", &self.uncommitted_value)
+            .finish()
+    }
+}
+
 impl<T: PrimInt + Unsigned + fmt::Display + fmt::Debug> LimitedSize<T> {
-    pub fn new(description: &str, value: T, limit: Option<T>) -> Self {
+    pub fn new(
+        registry: VeilidComponentRegistry,
+        description: &str,
+        value: T,
+        limit: Option<T>,
+    ) -> Self {
         Self {
+            registry,
             description: description.to_owned(),
             value,
             limit,
@@ -65,7 +98,7 @@ impl<T: PrimInt + Unsigned + fmt::Display + fmt::Debug> LimitedSize<T> {
         let current_value = self.current_value();
         let max_v = current_value - T::min_value();
         if v > max_v {
-            log_stor!(debug "Numeric underflow ({})", self.description);
+            veilid_log!(self debug "Numeric underflow ({})", self.description);
             v = max_v;
         }
         let new_value = current_value - v;
@@ -88,11 +121,11 @@ impl<T: PrimInt + Unsigned + fmt::Display + fmt::Debug> LimitedSize<T> {
         if let Some(uncommitted_value) = self.uncommitted_value {
             if let Some(limit) = self.limit {
                 if uncommitted_value > limit {
-                    log_stor!(debug "Commit over limit failed ({}): {} > {}", self.description, uncommitted_value, limit);
+                    veilid_log!(self debug "Commit over limit failed ({}): {} > {}", self.description, uncommitted_value, limit);
                     return Err(LimitError::OverLimit);
                 }
             }
-            log_stor!(debug "Commit ({}): {} => {}", self.description, self.value, uncommitted_value);
+            veilid_log!(self debug "Commit ({}): {} => {}", self.description, self.value, uncommitted_value);
             self.uncommitted_value = None;
             self.value = uncommitted_value;
         }
@@ -101,7 +134,7 @@ impl<T: PrimInt + Unsigned + fmt::Display + fmt::Debug> LimitedSize<T> {
 
     pub fn rollback(&mut self) -> T {
         if let Some(uv) = self.uncommitted_value.take() {
-            log_stor!(debug "Rollback ({}): {} (drop {})", self.description, self.value, uv);
+            veilid_log!(self debug "Rollback ({}): {} (drop {})", self.description, self.value, uv);
         }
         self.value
     }

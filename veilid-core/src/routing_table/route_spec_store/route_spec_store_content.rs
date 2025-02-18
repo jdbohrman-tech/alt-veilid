@@ -10,13 +10,6 @@ pub(super) struct RouteSpecStoreContent {
 }
 
 impl RouteSpecStoreContent {
-    pub fn new() -> Self {
-        Self {
-            id_by_key: HashMap::new(),
-            details: HashMap::new(),
-        }
-    }
-
     pub async fn load(
         table_store: &TableStore,
         routing_table: &RoutingTable,
@@ -54,7 +47,7 @@ impl RouteSpecStoreContent {
             rssd.set_hop_node_refs(hop_node_refs);
         }
         for id in dead_ids {
-            log_rtab!(debug "no entry, killing off private route: {}", id);
+            veilid_log!(table_store trace "no entry, killing off private route: {}", id);
             content.remove_detail(&id);
         }
 

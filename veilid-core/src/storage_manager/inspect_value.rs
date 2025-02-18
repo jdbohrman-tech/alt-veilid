@@ -1,5 +1,7 @@
 use super::*;
 
+impl_veilid_log_facility!("stor");
+
 /// The fully parsed descriptor
 struct DescriptorInfo {
     /// The descriptor itself
@@ -157,7 +159,7 @@ impl StorageManager {
 
                     // Keep the value if we got one and it is newer and it passes schema validation
                     if !answer.seqs.is_empty() {
-                        log_dht!(debug "Got seqs back: len={}", answer.seqs.len());
+                        veilid_log!(self debug "Got seqs back: len={}", answer.seqs.len());
                         let mut ctx = context.lock();
 
                         // Ensure we have a schema and descriptor etc
@@ -234,7 +236,7 @@ impl StorageManager {
                     }
 
                     // Return peers if we have some
-                    log_network_result!(debug "InspectValue fanout call returned peers {}", answer.peers.len());
+                    veilid_log!(registry debug target:"network_result", "InspectValue fanout call returned peers {}", answer.peers.len());
 
                     Ok(NetworkResult::value(FanoutCallOutput { peer_info_list: answer.peers}))
                 }.instrument(tracing::trace_span!("outbound_inspect_value fanout call"))
@@ -281,7 +283,7 @@ impl StorageManager {
             // Failed
             TimeoutOr::Value(Err(e)) => {
                 // If we finished with an error, return that
-                log_dht!(debug "InspectValue Fanout Error: {}", e);
+                veilid_log!(self debug "InspectValue Fanout Error: {}", e);
                 return Err(e.into());
             }
         };
@@ -301,7 +303,7 @@ impl StorageManager {
             fanout_results.push(fanout_result);
         }
 
-        log_dht!(debug "InspectValue Fanout ({:?}):\n{}", kind, debug_fanout_results(&fanout_results));
+        veilid_log!(self debug "InspectValue Fanout ({:?}):\n{}", kind, debug_fanout_results(&fanout_results));
 
         Ok(OutboundInspectValueResult {
             fanout_results,

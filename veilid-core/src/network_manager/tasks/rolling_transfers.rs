@@ -9,7 +9,7 @@ impl NetworkManager {
         last_ts: Timestamp,
         cur_ts: Timestamp,
     ) -> EyreResult<()> {
-        // log_net!("--- network manager rolling_transfers task");
+        // veilid_log!(self trace "--- network manager rolling_transfers task");
         {
             let inner = &mut *self.inner.lock();
 

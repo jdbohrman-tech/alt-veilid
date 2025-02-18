@@ -9,6 +9,8 @@ pub mod update_statistics;
 
 use super::*;
 
+impl_veilid_log_facility!("rtab");
+
 impl RoutingTable {
     pub fn setup_tasks(&self) {
         // Set rolling transfers tick task
@@ -203,59 +205,59 @@ impl RoutingTable {
 
     pub async fn cancel_tasks(&self) {
         // Cancel all tasks being ticked
-        log_rtab!(debug "stopping rolling transfers task");
+        veilid_log!(self debug "stopping rolling transfers task");
         if let Err(e) = self.rolling_transfers_task.stop().await {
-            error!("rolling_transfers_task not stopped: {}", e);
+            veilid_log!(self warn "rolling_transfers_task not stopped: {}", e);
         }
-        log_rtab!(debug "stopping update state stats task");
+        veilid_log!(self debug "stopping update state stats task");
         if let Err(e) = self.update_state_stats_task.stop().await {
-            error!("update_state_stats_task not stopped: {}", e);
+            veilid_log!(self warn "update_state_stats_task not stopped: {}", e);
         }
-        log_rtab!(debug "stopping rolling answers task");
+        veilid_log!(self debug "stopping rolling answers task");
         if let Err(e) = self.rolling_answers_task.stop().await {
-            error!("rolling_answers_task not stopped: {}", e);
+            veilid_log!(self warn "rolling_answers_task not stopped: {}", e);
         }
-        log_rtab!(debug "stopping kick buckets task");
+        veilid_log!(self debug "stopping kick buckets task");
         if let Err(e) = self.kick_buckets_task.stop().await {
-            error!("kick_buckets_task not stopped: {}", e);
+            veilid_log!(self warn "kick_buckets_task not stopped: {}", e);
         }
-        log_rtab!(debug "stopping bootstrap task");
+        veilid_log!(self debug "stopping bootstrap task");
         if let Err(e) = self.bootstrap_task.stop().await {
-            error!("bootstrap_task not stopped: {}", e);
+            veilid_log!(self warn "bootstrap_task not stopped: {}", e);
         }
-        log_rtab!(debug "stopping peer minimum refresh task");
+        veilid_log!(self debug "stopping peer minimum refresh task");
         if let Err(e) = self.peer_minimum_refresh_task.stop().await {
-            error!("peer_minimum_refresh_task not stopped: {}", e);
+            veilid_log!(self warn "peer_minimum_refresh_task not stopped: {}", e);
         }
 
-        log_rtab!(debug "stopping ping_validator tasks");
+        veilid_log!(self debug "stopping ping_validator tasks");
         if let Err(e) = self.ping_validator_public_internet_task.stop().await {
-            error!("ping_validator_public_internet_task not stopped: {}", e);
+            veilid_log!(self warn "ping_validator_public_internet_task not stopped: {}", e);
         }
         if let Err(e) = self.ping_validator_local_network_task.stop().await {
-            error!("ping_validator_local_network_task not stopped: {}", e);
+            veilid_log!(self warn "ping_validator_local_network_task not stopped: {}", e);
         }
         if let Err(e) = self.ping_validator_public_internet_relay_task.stop().await {
-            error!(
+            veilid_log!(self warn
                 "ping_validator_public_internet_relay_task not stopped: {}",
                 e
             );
         }
         if let Err(e) = self.ping_validator_active_watch_task.stop().await {
-            error!("ping_validator_active_watch_task not stopped: {}", e);
+            veilid_log!(self warn "ping_validator_active_watch_task not stopped: {}", e);
         }
 
-        log_rtab!(debug "stopping relay management task");
+        veilid_log!(self debug "stopping relay management task");
         if let Err(e) = self.relay_management_task.stop().await {
-            warn!("relay_management_task not stopped: {}", e);
+            veilid_log!(self warn "relay_management_task not stopped: {}", e);
         }
-        log_rtab!(debug "stopping private route management task");
+        veilid_log!(self debug "stopping private route management task");
         if let Err(e) = self.private_route_management_task.stop().await {
-            warn!("private_route_management_task not stopped: {}", e);
+            veilid_log!(self warn "private_route_management_task not stopped: {}", e);
         }
-        log_rtab!(debug "stopping closest peers refresh task");
+        veilid_log!(self debug "stopping closest peers refresh task");
         if let Err(e) = self.closest_peers_refresh_task.stop().await {
-            warn!("closest_peers_refresh_task not stopped: {}", e);
+            veilid_log!(self warn "closest_peers_refresh_task not stopped: {}", e);
         }
     }
 }

@@ -1,5 +1,7 @@
 use super::*;
 
+impl_veilid_log_facility!("rtab");
+
 pub(crate) struct FilteredNodeRef {
     registry: VeilidComponentRegistry,
     entry: Arc<BucketEntry>,

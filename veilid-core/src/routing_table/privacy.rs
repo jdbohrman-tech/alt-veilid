@@ -1,4 +1,5 @@
 use super::*;
+impl_veilid_log_facility!("rtab");
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Compiled Privacy Objects
@@ -49,7 +50,7 @@ impl RouteNode {
                 match routing_table.lookup_node_ref(TypedKey::new(crypto_kind, *id)) {
                     Ok(nr) => nr,
                     Err(e) => {
-                        log_rtab!(debug "failed to look up route node: {}", e);
+                        veilid_log!(routing_table debug "failed to look up route node: {}", e);
                         None
                     }
                 }
@@ -59,7 +60,7 @@ impl RouteNode {
                 match routing_table.register_node_with_peer_info(pi.clone(), false) {
                     Ok(nr) => Some(nr.unfiltered()),
                     Err(e) => {
-                        log_rtab!(debug "failed to register route node: {}", e);
+                        veilid_log!(routing_table debug "failed to register route node: {}", e);
                         None
                     }
                 }

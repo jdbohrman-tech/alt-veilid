@@ -50,13 +50,13 @@ pub async fn test_add_get_remove() {
         ))),
     );
 
-    let c1 = NetworkConnection::dummy(1.into(), a1);
-    let c1b = NetworkConnection::dummy(10.into(), a1);
+    let c1 = NetworkConnection::dummy(registry.clone(), 1.into(), a1);
+    let c1b = NetworkConnection::dummy(registry.clone(), 10.into(), a1);
     let c1h = c1.get_handle();
-    let c2 = NetworkConnection::dummy(2.into(), a2);
-    let c3 = NetworkConnection::dummy(3.into(), a3);
-    let c4 = NetworkConnection::dummy(4.into(), a4);
-    let c5 = NetworkConnection::dummy(5.into(), a5);
+    let c2 = NetworkConnection::dummy(registry.clone(), 2.into(), a2);
+    let c3 = NetworkConnection::dummy(registry.clone(), 3.into(), a3);
+    let c4 = NetworkConnection::dummy(registry.clone(), 4.into(), a4);
+    let c5 = NetworkConnection::dummy(registry.clone(), 5.into(), a5);
 
     assert_eq!(a1, c2.flow());
     assert_ne!(a3, c4.flow());
@@ -92,9 +92,9 @@ pub async fn test_add_get_remove() {
     assert_eq!(table.peek_connection_by_flow(a2), None);
     assert_eq!(table.peek_connection_by_flow(a1), None);
     assert_eq!(table.connection_count(), 0);
-    let c1 = NetworkConnection::dummy(6.into(), a1);
+    let c1 = NetworkConnection::dummy(registry.clone(), 6.into(), a1);
     table.add_connection(c1).unwrap();
-    let c2 = NetworkConnection::dummy(7.into(), a2);
+    let c2 = NetworkConnection::dummy(registry.clone(), 7.into(), a2);
     assert_err!(table.add_connection(c2));
     table.add_connection(c3).unwrap();
     table.add_connection(c4).unwrap();

@@ -9,7 +9,7 @@ impl Network {
         _t: Timestamp,
     ) -> EyreResult<()> {
         if !self.igd_manager.tick().await? {
-            info!("upnp failed, restarting local network");
+            veilid_log!(self info "upnp failed, restarting local network");
             let mut inner = self.inner.lock();
             inner.network_needs_restart = true;
         }

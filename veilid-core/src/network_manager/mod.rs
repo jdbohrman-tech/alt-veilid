@@ -49,6 +49,8 @@ pub use wasm::{/* LOCAL_NETWORK_CAPABILITIES, */ MAX_CAPABILITIES, PUBLIC_INTERN
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
+impl_veilid_log_facility!("net");
+
 pub const MAX_MESSAGE_SIZE: usize = MAX_ENVELOPE_SIZE;
 pub const IPADDR_TABLE_SIZE: usize = 1024;
 pub const IPADDR_MAX_INACTIVE_DURATION_US: TimestampDuration =
@@ -213,7 +215,7 @@ impl NetworkManager {
             let network_key_password = c.network.network_key_password.clone();
             let network_key = if let Some(network_key_password) = network_key_password {
                 if !network_key_password.is_empty() {
-                    info!("Using network key");
+                    veilid_log!(registry info "Using network key");
 
                     let bcs = crypto.best();
                     // Yes the use of the salt this way is generally bad, but this just needs to be hashed
@@ -310,7 +312,7 @@ impl NetworkManager {
     #[instrument(level = "debug", skip_all, err)]
     pub async fn internal_startup(&self) -> EyreResult<StartupDisposition> {
         if self.components.read().is_some() {
-            log_net!(debug "NetworkManager::internal_startup already started");
+            veilid_log!(self debug "NetworkManager::internal_startup already started");
             return Ok(StartupDisposition::Success);
         }
 
@@ -320,7 +322,7 @@ impl NetworkManager {
         // Create network components
         let connection_manager = ConnectionManager::new(self.registry());
         let net = Network::new(self.registry());
-        let receipt_manager = ReceiptManager::new();
+        let receipt_manager = ReceiptManager::new(self.registry());
 
         *self.components.write() = Some(NetworkComponents {
             net: net.clone(),
@@ -328,17 +330,7 @@ impl NetworkManager {
             receipt_manager: receipt_manager.clone(),
         });
 
-        let (detect_address_changes, ip6_prefix_size) = self.config().with(|c| {
-            (
-                c.network.detect_address_changes,
-                c.network.max_connections_per_ip6_prefix_size as usize,
-            )
-        });
-        let address_check_config = AddressCheckConfig {
-            detect_address_changes,
-            ip6_prefix_size,
-        };
-        let address_check = AddressCheck::new(address_check_config, net.clone());
+        let address_check = AddressCheck::new(net.clone());
 
         // Register event handlers
         let peer_info_change_subscription =
@@ -365,7 +357,7 @@ impl NetworkManager {
 
         receipt_manager.startup().await?;
 
-        log_net!("NetworkManager::internal_startup end");
+        veilid_log!(self trace "NetworkManager::internal_startup end");
 
         Ok(StartupDisposition::Success)
     }
@@ -405,7 +397,7 @@ impl NetworkManager {
         }
 
         // Shutdown network components if they started up
-        log_net!(debug "shutting down network components");
+        veilid_log!(self debug "shutting down network components");
 
         {
             let components = self.components.read().clone();
@@ -418,7 +410,7 @@ impl NetworkManager {
         *self.components.write() = None;
 
         // reset the state
-        log_net!(debug "resetting network manager state");
+        veilid_log!(self debug "resetting network manager state");
         {
             *self.inner.lock() = NetworkManager::new_inner();
         }
@@ -427,11 +419,11 @@ impl NetworkManager {
     #[instrument(level = "debug", skip_all)]
     pub async fn shutdown(&self) {
         // Cancel all tasks
-        log_net!(debug "stopping network manager tasks");
+        veilid_log!(self debug "stopping network manager tasks");
         self.cancel_tasks().await;
 
         // Proceed with shutdown
-        log_net!(debug "starting network manager shutdown");
+        veilid_log!(self debug "starting network manager shutdown");
         let guard = self
             .startup_context
             .startup_lock
@@ -442,7 +434,7 @@ impl NetworkManager {
         self.shutdown_internal().await;
 
         guard.success();
-        log_net!(debug "finished network manager shutdown");
+        veilid_log!(self debug "finished network manager shutdown");
     }
 
     #[expect(dead_code)]
@@ -852,14 +844,14 @@ impl NetworkManager {
         let out = self.build_envelope(best_node_id, envelope_version, body)?;
 
         if !node_ref.same_entry(&destination_node_ref) {
-            log_net!(
+            veilid_log!(self trace
                 "sending envelope to {:?} via {:?}, len={}",
                 destination_node_ref,
                 node_ref,
                 out.len()
             );
         } else {
-            log_net!("sending envelope to {:?}, len={}", node_ref, out.len());
+            veilid_log!(self trace "sending envelope to {:?}, len={}", node_ref, out.len());
         }
 
         // Send the envelope via whatever means necessary
@@ -874,7 +866,7 @@ impl NetworkManager {
         rcpt_data: Vec<u8>,
     ) -> EyreResult<()> {
         let Ok(_guard) = self.startup_context.startup_lock.enter() else {
-            log_net!(debug "not sending out-of-band receipt to {} because network is stopped", dial_info);
+            veilid_log!(self debug "not sending out-of-band receipt to {} because network is stopped", dial_info);
             return Ok(());
         };
 
@@ -885,7 +877,7 @@ impl NetworkManager {
         // should not be subject to our ability to decode it
 
         // Send receipt directly
-        network_result_value_or_log!(self
+        network_result_value_or_log!(self self
             .net()
             .send_data_unbound_to_dial_info(dial_info, rcpt_data)
             .await? => [ format!(": dial_info={}, rcpt_data.len={}", dial_info, rcpt_data.len()) ] {
@@ -904,7 +896,7 @@ impl NetworkManager {
             return Ok(false);
         };
 
-        log_net!("envelope of {} bytes received from {:?}", data.len(), flow);
+        veilid_log!(self trace "envelope of {} bytes received from {:?}", data.len(), flow);
         let remote_addr = flow.remote_address().ip_addr();
 
         // Network accounting
@@ -919,7 +911,7 @@ impl NetworkManager {
 
         // Ensure we can read the magic number
         if data.len() < 4 {
-            log_net!(debug "short packet");
+            veilid_log!(self debug "short packet");
             self.address_filter()
                 .punish_ip_addr(remote_addr, PunishmentReason::ShortPacket);
             return Ok(false);
@@ -932,20 +924,20 @@ impl NetworkManager {
         {
             Some(rd) => rd,
             None => {
-                log_net!(debug "no routing domain for envelope received from {:?}", flow);
+                veilid_log!(self debug "no routing domain for envelope received from {:?}", flow);
                 return Ok(false);
             }
         };
 
         // Is this a direct bootstrap request instead of an envelope?
         if data[0..4] == *BOOT_MAGIC {
-            network_result_value_or_log!(self.handle_boot_request(flow).await? => [ format!(": flow={:?}", flow) ] {});
+            network_result_value_or_log!(self self.handle_boot_request(flow).await? => [ format!(": flow={:?}", flow) ] {});
             return Ok(true);
         }
 
         // Is this an out-of-band receipt instead of an envelope?
         if data[0..3] == *RECEIPT_MAGIC {
-            network_result_value_or_log!(self.handle_out_of_band_receipt(data).await => [ format!(": data.len={}", data.len()) ] {});
+            network_result_value_or_log!(self self.handle_out_of_band_receipt(data).await => [ format!(": data.len={}", data.len()) ] {});
             return Ok(true);
         }
 
@@ -954,7 +946,7 @@ impl NetworkManager {
         let envelope = match Envelope::from_signed_data(&crypto, data, &self.network_key) {
             Ok(v) => v,
             Err(e) => {
-                log_net!(debug "envelope failed to decode: {}", e);
+                veilid_log!(self debug "envelope failed to decode: {}", e);
                 // safe to punish here because relays also check here to ensure they arent forwarding things that don't decode
                 self.address_filter()
                     .punish_ip_addr(remote_addr, PunishmentReason::FailedToDecodeEnvelope);
@@ -983,7 +975,7 @@ impl NetworkManager {
         let ets = envelope.get_timestamp();
         if let Some(tsbehind) = tsbehind {
             if tsbehind.as_u64() != 0 && (ts > ets && ts.saturating_sub(ets) > tsbehind) {
-                log_net!(debug
+                veilid_log!(self debug
                     "Timestamp behind: {}ms ({})",
                     timestamp_to_secs(ts.saturating_sub(ets).as_u64()) * 1000f64,
                     flow.remote()
@@ -993,7 +985,7 @@ impl NetworkManager {
         }
         if let Some(tsahead) = tsahead {
             if tsahead.as_u64() != 0 && (ts < ets && ets.saturating_sub(ts) > tsahead) {
-                log_net!(debug
+                veilid_log!(self debug
                     "Timestamp ahead: {}ms ({})",
                     timestamp_to_secs(ets.saturating_sub(ts).as_u64()) * 1000f64,
                     flow.remote()
@@ -1033,7 +1025,7 @@ impl NetworkManager {
                 {
                     Ok(v) => v.map(|nr| nr.default_filtered()),
                     Err(e) => {
-                        log_net!(debug "failed to resolve recipient node for relay, dropping relayed envelope: {}" ,e);
+                        veilid_log!(self debug "failed to resolve recipient node for relay, dropping relayed envelope: {}" ,e);
                         return Ok(false);
                     }
                 }
@@ -1046,14 +1038,14 @@ impl NetworkManager {
                     .config()
                     .with(|c| c.capabilities.disable.contains(&CAP_RELAY))
                 {
-                    log_net!(debug "node has relay capability disabled, dropping relayed envelope from {} to {}", sender_id, recipient_id);
+                    veilid_log!(self debug "node has relay capability disabled, dropping relayed envelope from {} to {}", sender_id, recipient_id);
                     return Ok(false);
                 }
 
                 // If our own node requires a relay, we should not be asked to relay
                 // on behalf of other nodes, just drop relayed packets if we can't relay
                 if routing_table.relay_node(routing_domain).is_some() {
-                    log_net!(debug "node requires a relay itself, dropping relayed envelope from {} to {}", sender_id, recipient_id);
+                    veilid_log!(self debug "node requires a relay itself, dropping relayed envelope from {} to {}", sender_id, recipient_id);
                     return Ok(false);
                 }
 
@@ -1064,7 +1056,7 @@ impl NetworkManager {
                 match routing_table.lookup_node_ref(recipient_id) {
                     Ok(v) => v.map(|nr| nr.default_filtered()),
                     Err(e) => {
-                        log_net!(debug "failed to look up recipient node for relay, dropping relayed envelope: {}" ,e);
+                        veilid_log!(self debug "failed to look up recipient node for relay, dropping relayed envelope: {}" ,e);
                         return Ok(false);
                     }
                 }
@@ -1078,13 +1070,13 @@ impl NetworkManager {
                 };
 
                 // Relay the packet to the desired destination
-                log_net!("relaying {} bytes to {}", data.len(), relay_nr);
+                veilid_log!(self trace "relaying {} bytes to {}", data.len(), relay_nr);
 
-                network_result_value_or_log!(match self.send_data(relay_nr, data.to_vec())
+                network_result_value_or_log!(self match self.send_data(relay_nr, data.to_vec())
                     .await {
                         Ok(v) => v,
                         Err(e) => {
-                            log_net!(debug "failed to forward envelope: {}" ,e);
+                            veilid_log!(self debug "failed to forward envelope: {}" ,e);
                             return Ok(false);
                         }
                     } => [ format!(": relay_nr={}, data.len={}", relay_nr, data.len()) ] {
@@ -1104,7 +1096,7 @@ impl NetworkManager {
         let body = match envelope.decrypt_body(&crypto, data, &node_id_secret, &self.network_key) {
             Ok(v) => v,
             Err(e) => {
-                log_net!(debug "failed to decrypt envelope body: {}", e);
+                veilid_log!(self debug "failed to decrypt envelope body: {}", e);
                 // Can't punish by ip address here because relaying can't decrypt envelope bodies to check
                 // But because the envelope was properly signed by the time it gets here, it is safe to
                 // punish by node id
@@ -1116,15 +1108,18 @@ impl NetworkManager {
 
         // Add the sender's node without its peer info
         // Gets noderef filtered to the routing domain
-        let sender_noderef =
-            match routing_table.register_node_with_id(routing_domain, sender_id, ts) {
-                Ok(v) => v,
-                Err(e) => {
-                    // If the node couldn't be registered just skip this envelope,
-                    log_net!(debug "failed to register node with existing connection: {}", e);
-                    return Ok(false);
-                }
-            };
+        let sender_noderef = match routing_table.register_node_with_id(
+            routing_domain,
+            sender_id,
+            ts,
+        ) {
+            Ok(v) => v,
+            Err(e) => {
+                // If the node couldn't be registered just skip this envelope,
+                veilid_log!(self debug "failed to register node with existing connection: {}", e);
+                return Ok(false);
+            }
+        };
 
         // Filter the noderef further by its inbound flow
         let sender_noderef = sender_noderef.filtered_clone(
@@ -1144,7 +1139,7 @@ impl NetworkManager {
             rpc.enqueue_direct_message(envelope, sender_noderef, flow, routing_domain, body)
         {
             // Couldn't enqueue, but not the sender's fault
-            log_net!(debug "failed to enqueue direct message: {}", e);
+            veilid_log!(self debug "failed to enqueue direct message: {}", e);
             return Ok(false);
         }
 
