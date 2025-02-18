@@ -1,3 +1,62 @@
+**Changed in Veilid 0.4.2**
+
+veilid-core:
+- (neequ57) Merged !330 - geolocation feature (off by default) to allow excluding/denylisting route nodes based on geography
+- (evelyn) Merged !267 - adding the ability to create dht records with a specified owner key (rust only currently)
+- (rivka segan) Merged !335 - fix logic error that used wss when not tls
+- New startup/shutdown initialization and component system
+- Logs are tagged with the program_name+namespace they are collected in
+  - No more per-facility log macros, one unified `veilid_log!()` macro for all events
+  - Switch between subnodes in veilid-cli switches which logs you're viewing
+  - All global logs and subnode 0 go to console, all other subnodes are accessible via veilid-cli
+- Major refactor to add VeilidComponentRegistry as the 'owner' of all components
+  - Access to components now uses scoped guards for lifetime management rather than loose Arc clones
+  - VeilidComponent trait makes adding common per-component functions easier
+  - Unified initialize, post-initialize, pre-terminate, and terminate phase harness
+- AsyncCryptoSystemGuard added to make heavy operations happier in async environments
+- UDP hole punch needed TTL setting to keep routers from incorrectly making conntracks
+- Public address detection was getting stuck in a lock contention, regression from refactor
+- PeerInfo caching to eliminate some repeated cloning
+- NodeContactMethod cache improvements
+- Symmetric NAT and NetworkClass::OutboundOnly were broken. When routing domain address types are known, but there is no dialinfo, that should be OutboundOnly and not Invalid. It's valid to have no dialinfo. Added network class 'confirmation'.
+
+veilid-tools:
+- replaced deprecated serde_yaml crate with maintained serde_yaml_ng crate
+- Start of VirtualRouter network virtualization
+  - standalone virtual router binary in veilid-tools (`cargo run --bin virtual_router`)
+  - IAC-style configuration system for repeatable virtualized network generation
+
+veilid-flutter:
+- Android NDK version requirement is now 27.0.12077973
+- Android Gradle version is now 8.10.2, with a minimum of 8.8.0
+- Android Java version is now 17
+- rust-android-gradle upgraded to 0.9.6
+- Kotlin version is now 1.9.25
+- API added for create_dht_record with 'owner'
+
+veilid-cli:
+- You can now switch between subnodes easily with the 'connect <N>' command where N is the subnode id
+
+veilid-server:
+- You can now run multiple subnodes concurrently in the same process with `--subnode_count=N`
+- Up to 256 concurrent each of TCP and WebSocket connections now, up from 32
+- Turn off detect_address_changes and upnp by default
+
+veilid-wasm:
+- Fixes for heavy sync crypto code, optimizations in debug mode, wasm tests went from 731 seconds to 112 seconds
+- API added for create_dht_record with 'owner'
+
+veilid-python:
+- API added for create_dht_record with 'owner'
+- api_connector() now attempts IPC connection to veilid-server before trying port 5959 tcp
+- dependencies corrected for pypi package
+
+general:
+- Fix rust-version into workspace cargo.toml
+- Earthfile update to 0.8
+- Earthly updated to 0.8.15
+- Earthfile cache efficiency fixes
+
 **Changed in Veilid 0.4.1**
 
 - Implement top level event bus to do asynchronous lock-free communication between subsystems
