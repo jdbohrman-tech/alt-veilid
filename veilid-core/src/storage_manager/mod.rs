@@ -16,6 +16,8 @@ pub use record_store::{WatchParameters, WatchResult};
 
 pub use types::*;
 
+impl_veilid_log_facility!("stor");
+
 /// The maximum size of a single subkey
 pub(crate) const MAX_SUBKEY_SIZE: usize = ValueData::MAX_LEN;
 /// The maximum total size of all subkeys of a record
@@ -212,7 +214,7 @@ impl StorageManager {
 
     #[instrument(level = "debug", skip_all, err)]
     async fn init_async(&self) -> EyreResult<()> {
-        log_stor!(debug "startup storage manager");
+        veilid_log!(self debug "startup storage manager");
         let table_store = self.table_store();
         let config = self.config();
 
@@ -231,7 +233,7 @@ impl StorageManager {
             inner.metadata_db = Some(metadata_db);
             inner.local_record_store = Some(local_record_store);
             inner.remote_record_store = Some(remote_record_store);
-            Self::load_metadata(&mut inner).await?;
+            self.load_metadata_inner(&mut inner).await?;
         }
 
         // Start deferred results processors
@@ -251,7 +253,7 @@ impl StorageManager {
             async move {
                 let this = registry.storage_manager();
                 if let Err(e) = this.tick().await {
-                    log_stor!(warn "storage manager tick failed: {}", e);
+                    veilid_log!(this warn "storage manager tick failed: {}", e);
                 }
             }
         });
@@ -278,7 +280,7 @@ impl StorageManager {
 
     #[instrument(level = "debug", skip_all)]
     async fn terminate_async(&self) {
-        log_stor!(debug "starting storage manager shutdown");
+        veilid_log!(self debug "starting storage manager shutdown");
 
         // Stop deferred result processor
         self.deferred_result_processor.terminate().await;
@@ -290,28 +292,28 @@ impl StorageManager {
             // Final flush on record stores
             if let Some(mut local_record_store) = inner.local_record_store.take() {
                 if let Err(e) = local_record_store.flush().await {
-                    log_stor!(error "termination local record store tick failed: {}", e);
+                    veilid_log!(self error "termination local record store tick failed: {}", e);
                 }
             }
             if let Some(mut remote_record_store) = inner.remote_record_store.take() {
                 if let Err(e) = remote_record_store.flush().await {
-                    log_stor!(error "termination remote record store tick failed: {}", e);
+                    veilid_log!(self error "termination remote record store tick failed: {}", e);
                 }
             }
 
             // Save metadata
-            if let Err(e) = Self::save_metadata(&mut inner).await {
-                log_stor!(error "termination metadata save failed: {}", e);
+            if let Err(e) = self.save_metadata_inner(&mut inner).await {
+                veilid_log!(self error "termination metadata save failed: {}", e);
             }
 
             // Reset inner state
             *inner = Self::new_inner();
         }
 
-        log_stor!(debug "finished storage manager shutdown");
+        veilid_log!(self debug "finished storage manager shutdown");
     }
 
-    async fn save_metadata(inner: &mut StorageManagerInner) -> EyreResult<()> {
+    async fn save_metadata_inner(&self, inner: &mut StorageManagerInner) -> EyreResult<()> {
         if let Some(metadata_db) = &inner.metadata_db {
             let tx = metadata_db.transact();
             tx.store_json(0, OFFLINE_SUBKEY_WRITES, &inner.offline_subkey_writes)?;
@@ -320,7 +322,7 @@ impl StorageManager {
         Ok(())
     }
 
-    async fn load_metadata(inner: &mut StorageManagerInner) -> EyreResult<()> {
+    async fn load_metadata_inner(&self, inner: &mut StorageManagerInner) -> EyreResult<()> {
         if let Some(metadata_db) = &inner.metadata_db {
             inner.offline_subkey_writes = match metadata_db
                 .load_json(0, OFFLINE_SUBKEY_WRITES)
@@ -329,7 +331,7 @@ impl StorageManager {
                 Ok(v) => v.unwrap_or_default(),
                 Err(_) => {
                     if let Err(e) = metadata_db.delete(0, OFFLINE_SUBKEY_WRITES).await {
-                        log_stor!(debug "offline_subkey_writes format changed, clearing: {}", e);
+                        veilid_log!(self debug "offline_subkey_writes format changed, clearing: {}", e);
                     }
                     Default::default()
                 }
@@ -416,7 +418,7 @@ impl StorageManager {
 
         // Now that the record is made we should always succeed to open the existing record
         // The initial writer is the owner of the record
-        Self::open_existing_record_inner(&mut inner, key, Some(owner), safety_selection)
+        self.open_existing_record_inner(&mut inner, key, Some(owner), safety_selection)
             .await
             .map(|r| r.unwrap())
     }
@@ -432,8 +434,9 @@ impl StorageManager {
         let mut inner = self.inner.lock().await;
 
         // See if we have a local record already or not
-        if let Some(res) =
-            Self::open_existing_record_inner(&mut inner, key, writer, safety_selection).await?
+        if let Some(res) = self
+            .open_existing_record_inner(&mut inner, key, writer, safety_selection)
+            .await?
         {
             return Ok(res);
         }
@@ -477,14 +480,15 @@ impl StorageManager {
             // because waiting for the outbound_get_value action could result in the key being opened
             // via some parallel process
 
-            if let Some(res) =
-                Self::open_existing_record_inner(&mut inner, key, writer, safety_selection).await?
+            if let Some(res) = self
+                .open_existing_record_inner(&mut inner, key, writer, safety_selection)
+                .await?
             {
                 return Ok(res);
             }
 
             // Open the new record
-            Self::open_new_record_inner(
+            self.open_new_record_inner(
                 &mut inner,
                 key,
                 writer,
@@ -522,7 +526,7 @@ impl StorageManager {
 
         // Send a one-time cancel request for the watch if we have one and we're online
         if !self.dht_is_online() {
-            log_stor!(debug "skipping last-ditch watch cancel because we are offline");
+            veilid_log!(self debug "skipping last-ditch watch cancel because we are offline");
             return Ok(());
         }
         // Use the safety selection we opened the record with
@@ -540,7 +544,7 @@ impl StorageManager {
         {
             Ok(v) => v,
             Err(e) => {
-                log_stor!(debug
+                veilid_log!(self debug
                     "close record watch cancel failed: {}", e
                 );
                 None
@@ -548,12 +552,12 @@ impl StorageManager {
         };
         if let Some(owvresult) = opt_owvresult {
             if owvresult.expiration_ts.as_u64() != 0 {
-                log_stor!(debug
+                veilid_log!(self debug
                     "close record watch cancel should have zero expiration"
                 );
             }
         } else {
-            log_stor!(debug "close record watch cancel unsuccessful");
+            veilid_log!(self debug "close record watch cancel unsuccessful");
         }
 
         Ok(())
@@ -722,7 +726,7 @@ impl StorageManager {
         )?);
 
         // Write the value locally first
-        log_stor!(debug "Writing subkey locally: {}:{} len={}", key, subkey, signed_value_data.value_data().data().len() );
+        veilid_log!(self debug "Writing subkey locally: {}:{} len={}", key, subkey, signed_value_data.value_data().data().len() );
         Self::handle_set_local_value_inner(
             &mut inner,
             key,
@@ -733,7 +737,7 @@ impl StorageManager {
         .await?;
 
         if !self.dht_is_online() {
-            log_stor!(debug "Writing subkey offline: {}:{} len={}", key, subkey, signed_value_data.value_data().data().len() );
+            veilid_log!(self debug "Writing subkey offline: {}:{} len={}", key, subkey, signed_value_data.value_data().data().len() );
             // Add to offline writes to flush
             Self::add_offline_subkey_write_inner(&mut inner, key, subkey, safety_selection);
             return Ok(None);
@@ -742,7 +746,7 @@ impl StorageManager {
         // Drop the lock for network access
         drop(inner);
 
-        log_stor!(debug "Writing subkey to the network: {}:{} len={}", key, subkey, signed_value_data.value_data().data().len() );
+        veilid_log!(self debug "Writing subkey to the network: {}:{} len={}", key, subkey, signed_value_data.value_data().data().len() );
 
         // Use the safety selection we opened the record with
         let res_rx = match self
@@ -904,7 +908,7 @@ impl StorageManager {
         if count == 0 {
             // Expiration returned should be zero if we requested a cancellation
             if expiration_ts.as_u64() != 0 {
-                log_stor!(debug "got active watch despite asking for a cancellation");
+                veilid_log!(self debug "got active watch despite asking for a cancellation");
             }
             return Ok(Timestamp::new(0));
         }
@@ -1122,7 +1126,7 @@ impl StorageManager {
             .await
             .map_err(VeilidAPIError::from)?;
 
-        network_result_value_or_log!(rpc_processor
+        network_result_value_or_log!(self rpc_processor
             .rpc_call_value_changed(dest, vc.key, vc.subkeys.clone(), vc.count, vc.watch_id, vc.value.map(|v| (*v).clone()) )
             .await
             .map_err(VeilidAPIError::from)? => [format!(": dest={:?} vc={:?}", dest, vc)] {});
@@ -1163,12 +1167,12 @@ impl StorageManager {
                     .with(|c| c.network.dht.get_value_count as usize);
                 let value_node_count = fanout_result.value_nodes.len();
                 if value_node_count < get_consensus {
-                    log_stor!(debug "timeout with insufficient consensus ({}<{}), adding offline subkey: {}:{}",
+                    veilid_log!(self debug "timeout with insufficient consensus ({}<{}), adding offline subkey: {}:{}",
                         value_node_count, get_consensus,
                         key, subkey);
                     true
                 } else {
-                    log_stor!(debug "timeout with sufficient consensus ({}>={}): set_value {}:{}",
+                    veilid_log!(self debug "timeout with sufficient consensus ({}>={}): set_value {}:{}",
                         value_node_count, get_consensus,
                         key, subkey);
                     false
@@ -1180,12 +1184,12 @@ impl StorageManager {
                     .with(|c| c.network.dht.get_value_count as usize);
                 let value_node_count = fanout_result.value_nodes.len();
                 if value_node_count < get_consensus {
-                    log_stor!(debug "exhausted with insufficient consensus ({}<{}), adding offline subkey: {}:{}",
+                    veilid_log!(self debug "exhausted with insufficient consensus ({}<{}), adding offline subkey: {}:{}",
                         value_node_count, get_consensus,
                         key, subkey);
                     true
                 } else {
-                    log_stor!(debug "exhausted with sufficient consensus ({}>={}): set_value {}:{}",
+                    veilid_log!(self debug "exhausted with sufficient consensus ({}>={}): set_value {}:{}",
                         value_node_count, get_consensus,
                         key, subkey);
                     false
@@ -1261,6 +1265,7 @@ impl StorageManager {
 
     #[instrument(level = "trace", target = "stor", skip_all, err)]
     async fn move_remote_record_to_local_inner(
+        &self,
         inner: &mut StorageManagerInner,
         key: TypedKey,
         safety_selection: SafetySelection,
@@ -1297,12 +1302,12 @@ impl StorageManager {
         for subkey in remote_record.stored_subkeys().iter() {
             let Some(get_result) = remote_record_store.get_subkey(key, subkey, false).await? else {
                 // Subkey was missing
-                warn!("Subkey was missing: {} #{}", key, subkey);
+                veilid_log!(self warn "Subkey was missing: {} #{}", key, subkey);
                 continue;
             };
             let Some(subkey_data) = get_result.opt_value else {
                 // Subkey was missing
-                warn!("Subkey data was missing: {} #{}", key, subkey);
+                veilid_log!(self warn "Subkey data was missing: {} #{}", key, subkey);
                 continue;
             };
             local_record_store
@@ -1322,6 +1327,7 @@ impl StorageManager {
 
     #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub async fn open_existing_record_inner(
+        &self,
         inner: &mut StorageManagerInner,
         key: TypedKey,
         writer: Option<KeyPair>,
@@ -1347,9 +1353,9 @@ impl StorageManager {
             None => {
                 // If we don't have a local record yet, check to see if we have a remote record
                 // if so, migrate it to a local record
-                let Some(v) =
-                    Self::move_remote_record_to_local_inner(&mut *inner, key, safety_selection)
-                        .await?
+                let Some(v) = self
+                    .move_remote_record_to_local_inner(&mut *inner, key, safety_selection)
+                    .await?
                 else {
                     // No remote record either
                     return Ok(None);
@@ -1388,6 +1394,7 @@ impl StorageManager {
 
     #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub async fn open_new_record_inner(
+        &self,
         inner: &mut StorageManagerInner,
         key: TypedKey,
         writer: Option<KeyPair>,

@@ -4,6 +4,8 @@ use futures_util::stream::{FuturesUnordered, StreamExt};
 use futures_util::FutureExt;
 use stop_token::future::FutureExt as _;
 
+impl_veilid_log_facility!("rtab");
+
 const BACKGROUND_SAFETY_ROUTE_COUNT: usize = 2;
 
 impl RoutingTable {
@@ -95,7 +97,7 @@ impl RoutingTable {
 
         // Process dead routes
         for r in expired_routes {
-            log_rtab!(debug "Expired route: {}", r);
+            veilid_log!(self debug "Expired route: {}", r);
             self.route_spec_store().release_route(r);
         }
 
@@ -113,7 +115,7 @@ impl RoutingTable {
         if routes_needing_testing.is_empty() {
             return Ok(());
         }
-        log_rtab!("Testing routes: {:?}", routes_needing_testing);
+        veilid_log!(self trace "Testing routes: {:?}", routes_needing_testing);
 
         #[derive(Default, Debug)]
         struct TestRouteContext {
@@ -134,7 +136,7 @@ impl RoutingTable {
                             Ok(None) => true,
                             // Test failure
                             Err(e) => {
-                                log_rtab!(error "Test route failed: {}", e);
+                                veilid_log!(self error "Test route failed: {}", e);
                                 return;
                             }
                         };
@@ -157,7 +159,7 @@ impl RoutingTable {
         // Process failed routes
         let ctx = Arc::try_unwrap(ctx).unwrap().into_inner();
         for r in ctx.dead_routes {
-            log_rtab!(debug "Dead route failed to test: {}", r);
+            veilid_log!(self debug "Dead route failed to test: {}", r);
             self.route_spec_store().release_route(r);
         }
 
@@ -220,7 +222,7 @@ impl RoutingTable {
                     true,
                 ) {
                     Err(VeilidAPIError::TryAgain { message }) => {
-                        log_rtab!(debug "Route allocation unavailable: {}", message);
+                        veilid_log!(self debug "Route allocation unavailable: {}", message);
                     }
                     Err(e) => return Err(e.into()),
                     Ok(v) => {

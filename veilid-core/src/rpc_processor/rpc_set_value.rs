@@ -89,7 +89,7 @@ impl RPCProcessor {
         });
 
         if debug_target_enabled!("dht") {
-            log_dht!(debug "{}", debug_string);
+            veilid_log!(self debug "{}", debug_string);
         }
 
         let waitable_reply = network_result_try!(
@@ -140,13 +140,13 @@ impl RPCProcessor {
                 dest,
             );
 
-            log_dht!(debug "{}", debug_string_answer);
+            veilid_log!(self debug "{}", debug_string_answer);
 
             let peer_ids: Vec<String> = peers
                 .iter()
                 .filter_map(|p| p.node_ids().get(key.kind).map(|k| k.to_string()))
                 .collect();
-            log_dht!(debug "Peers: {:#?}", peer_ids);
+            veilid_log!(self debug "Peers: {:#?}", peer_ids);
         }
 
         // Validate peers returned are, in fact, closer to the key than the node we sent this to
@@ -244,7 +244,7 @@ impl RPCProcessor {
             msg.header.direct_sender_node_id()
         );
 
-        log_rpc!(debug "{}", debug_string);
+        veilid_log!(self debug "{}", debug_string);
 
         // If there are less than 'set_value_count' peers that are closer, then store here too
         let set_value_count = self
@@ -296,7 +296,7 @@ impl RPCProcessor {
                 msg.header.direct_sender_node_id()
             );
 
-            log_dht!(debug "{}", debug_string_answer);
+            veilid_log!(self debug "{}", debug_string_answer);
         }
 
         // Make SetValue answer

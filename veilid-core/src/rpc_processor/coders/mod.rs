@@ -58,6 +58,8 @@ pub use typed_signature::*;
 
 use super::*;
 
+impl_veilid_log_facility!("rpc");
+
 #[derive(Debug, Clone)]
 #[allow(clippy::enum_variant_names)]
 pub enum QuestionContext {

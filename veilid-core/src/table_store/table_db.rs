@@ -10,6 +10,8 @@ cfg_if! {
     }
 }
 
+impl_veilid_log_facility!("tstore");
+
 struct CryptInfo {
     typed_key: TypedSharedSecret,
 }
@@ -27,7 +29,6 @@ pub struct TableDBUnlockedInner {
     encrypt_info: Option<CryptInfo>,
     decrypt_info: Option<CryptInfo>,
 }
-impl_veilid_component_registry_accessor!(TableDBUnlockedInner);
 
 impl fmt::Debug for TableDBUnlockedInner {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -37,7 +38,7 @@ impl fmt::Debug for TableDBUnlockedInner {
 
 impl Drop for TableDBUnlockedInner {
     fn drop(&mut self) {
-        let table_store = self.table_store();
+        let table_store = self.registry.table_store();
         table_store.on_table_db_drop(self.table.clone());
     }
 }
@@ -48,6 +49,11 @@ pub struct TableDB {
     unlocked_inner: Arc<TableDBUnlockedInner>,
 }
 
+impl VeilidComponentRegistryAccessor for TableDB {
+    fn registry(&self) -> VeilidComponentRegistry {
+        self.unlocked_inner.registry.clone()
+    }
+}
 impl TableDB {
     pub(super) fn new(
         table: String,
@@ -69,8 +75,8 @@ impl TableDB {
                 opened_column_count
             },
             unlocked_inner: Arc::new(TableDBUnlockedInner {
-                table,
                 registry,
+                table,
                 database,
                 encrypt_info,
                 decrypt_info,
@@ -98,10 +104,6 @@ impl TableDB {
 
     pub(super) fn weak_unlocked_inner(&self) -> Weak<TableDBUnlockedInner> {
         Arc::downgrade(&self.unlocked_inner)
-    }
-
-    pub(super) fn crypto(&self) -> VeilidComponentGuard<'_, Crypto> {
-        self.unlocked_inner.crypto()
     }
 
     /// Get the internal name of the table
@@ -326,6 +328,7 @@ impl TableDB {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct TableDBTransactionInner {
+    registry: VeilidComponentRegistry,
     dbt: Option<DBTransaction>,
 }
 
@@ -342,6 +345,15 @@ impl fmt::Debug for TableDBTransactionInner {
     }
 }
 
+impl Drop for TableDBTransactionInner {
+    fn drop(&mut self) {
+        if self.dbt.is_some() {
+            let registry = &self.registry;
+            veilid_log!(registry warn "Dropped transaction without commit or rollback");
+        }
+    }
+}
+
 /// A TableDB transaction
 /// Atomically commits a group of writes or deletes to the TableDB
 #[derive(Debug, Clone)]
@@ -352,9 +364,13 @@ pub struct TableDBTransaction {
 
 impl TableDBTransaction {
     fn new(db: TableDB, dbt: DBTransaction) -> Self {
+        let registry = db.registry();
         Self {
             db,
-            inner: Arc::new(Mutex::new(TableDBTransactionInner { dbt: Some(dbt) })),
+            inner: Arc::new(Mutex::new(TableDBTransactionInner {
+                registry,
+                dbt: Some(dbt),
+            })),
         }
     }
 
@@ -423,13 +439,5 @@ impl TableDBTransaction {
         let mut inner = self.inner.lock();
         inner.dbt.as_mut().unwrap().delete_owned(col, key);
         Ok(())
-    }
-}
-
-impl Drop for TableDBTransactionInner {
-    fn drop(&mut self) {
-        if self.dbt.is_some() {
-            warn!("Dropped transaction without commit or rollback");
-        }
     }
 }

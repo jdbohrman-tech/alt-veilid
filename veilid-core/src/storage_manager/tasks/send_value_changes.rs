@@ -2,6 +2,8 @@ use super::*;
 use futures_util::StreamExt;
 use stop_token::future::FutureExt;
 
+impl_veilid_log_facility!("stor");
+
 impl StorageManager {
     // Send value change notifications across the network
     #[instrument(level = "trace", target = "stor", skip_all, err)]
@@ -34,7 +36,7 @@ impl StorageManager {
             unord.push(
                 async move {
                     if let Err(e) = self.send_value_change(vc).await {
-                        log_stor!(debug "Failed to send value change: {}", e);
+                        veilid_log!(self debug "Failed to send value change: {}", e);
                     }
                 }
                 .in_current_span(),

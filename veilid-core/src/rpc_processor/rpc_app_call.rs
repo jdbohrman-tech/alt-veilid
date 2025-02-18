@@ -133,7 +133,7 @@ impl RPCProcessor {
         let (message_a, _latency) = match res {
             TimeoutOr::Timeout => {
                 // No message sent on timeout, but this isn't an error
-                log_rpc!(debug "App call timed out for id {}", op_id);
+                veilid_log!(self debug "App call timed out for id {}", op_id);
                 return Ok(NetworkResult::timeout());
             }
             TimeoutOr::Value(v) => v,

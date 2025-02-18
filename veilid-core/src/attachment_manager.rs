@@ -1,6 +1,8 @@
 use crate::{network_manager::StartupDisposition, *};
 use routing_table::RoutingTableHealth;
 
+impl_veilid_log_facility!("attach");
+
 #[derive(Debug, Clone)]
 pub struct AttachmentManagerStartupContext {
     pub startup_lock: Arc<StartupLock>,
@@ -216,7 +218,7 @@ impl AttachmentManager {
         guard.success();
 
         // Inform api clients that things have changed
-        log_net!(debug "sending network state update to api clients");
+        veilid_log!(self trace "sending network state update to api clients");
         network_manager.send_network_update();
 
         Ok(StartupDisposition::Success)
@@ -247,7 +249,7 @@ impl AttachmentManager {
         guard.success();
 
         // send update
-        log_net!(debug "sending network state update to api clients");
+        veilid_log!(self debug "sending network state update to api clients");
         network_manager.send_network_update();
     }
 
@@ -265,7 +267,7 @@ impl AttachmentManager {
 
     #[instrument(parent = None, level = "debug", skip_all)]
     async fn attachment_maintainer(&self) {
-        log_net!(debug "attachment starting");
+        veilid_log!(self debug "attachment starting");
         self.update_attaching_detaching_state(AttachmentState::Attaching);
 
         let network_manager = self.network_manager();
@@ -282,12 +284,12 @@ impl AttachmentManager {
                     restart = true;
                 }
                 Ok(StartupDisposition::BindRetry) => {
-                    info!("waiting for network to bind...");
+                    veilid_log!(self info "waiting for network to bind...");
                     restart = true;
                     restart_delay = 10;
                 }
                 Ok(StartupDisposition::Success) => {
-                    log_net!(debug "started maintaining peers");
+                    veilid_log!(self debug "started maintaining peers");
 
                     while self.inner.lock().maintain_peers {
                         // tick network manager
@@ -301,7 +303,7 @@ impl AttachmentManager {
 
                         // see if we need to restart the network
                         if network_manager.network_needs_restart() {
-                            info!("Restarting network");
+                            veilid_log!(self info "Restarting network");
                             restart = true;
                             break;
                         }
@@ -316,14 +318,14 @@ impl AttachmentManager {
                             .clamp(0, 1_000_000u64);
                         sleep((wait_duration / 1_000) as u32).await;
                     }
-                    log_net!(debug "stopped maintaining peers");
+                    veilid_log!(self debug "stopped maintaining peers");
 
                     if !restart {
                         self.update_attaching_detaching_state(AttachmentState::Detaching);
-                        log_net!(debug "attachment stopping");
+                        veilid_log!(self debug "attachment stopping");
                     }
 
-                    log_net!(debug "shutting down attachment");
+                    veilid_log!(self debug "shutting down attachment");
                     self.shutdown().await;
                 }
             }
@@ -332,7 +334,7 @@ impl AttachmentManager {
                 break;
             }
 
-            log_net!(debug "completely restarting attachment");
+            veilid_log!(self debug "completely restarting attachment");
 
             // chill out for a second first, give network stack time to settle out
             for _ in 0..restart_delay {
@@ -344,7 +346,7 @@ impl AttachmentManager {
         }
 
         self.update_attaching_detaching_state(AttachmentState::Detached);
-        log_net!(debug "attachment stopped");
+        veilid_log!(self debug "attachment stopped");
     }
 
     #[instrument(level = "debug", skip_all, err)]

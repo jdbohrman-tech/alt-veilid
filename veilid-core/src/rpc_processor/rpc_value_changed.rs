@@ -88,7 +88,7 @@ impl RPCProcessor {
                 msg.header.direct_sender_node_id(),
             );
 
-            log_dht!(debug "{}", debug_string_stmt);
+            veilid_log!(self debug "{}", debug_string_stmt);
         }
 
         // Save the subkey, creating a new record if necessary

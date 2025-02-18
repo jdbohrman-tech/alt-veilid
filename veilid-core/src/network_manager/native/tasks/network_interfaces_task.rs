@@ -33,7 +33,7 @@ impl Network {
         let new_network_state = match self.make_network_state().await {
             Ok(v) => v,
             Err(e) => {
-                log_net!(debug "Skipping network state update: {}", e);
+                veilid_log!(self debug "Skipping network state update: {}", e);
                 return Ok(false);
             }
         };

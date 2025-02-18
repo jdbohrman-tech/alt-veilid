@@ -1,6 +1,8 @@
 use super::*;
 use alloc::collections::btree_map::Entry;
 
+impl_veilid_log_facility!("net");
+
 const PUNISHMENT_DURATION_MIN: usize = 60;
 const MAX_PUNISHMENTS_BY_NODE_ID: usize = 65536;
 const DIAL_INFO_FAILURE_DURATION_MIN: usize = 10;
@@ -154,7 +156,7 @@ impl AddressFilter {
                 }
             }
             for key in dead_keys {
-                warn!("Forgiving: {}", key);
+                veilid_log!(self warn "Forgiving: {}", key);
                 inner.punishments_by_ip4.remove(&key);
             }
         }
@@ -170,7 +172,7 @@ impl AddressFilter {
                 }
             }
             for key in dead_keys {
-                warn!("Forgiving: {}", key);
+                veilid_log!(self warn "Forgiving: {}", key);
                 inner.punishments_by_ip6_prefix.remove(&key);
             }
         }
@@ -186,7 +188,7 @@ impl AddressFilter {
                 }
             }
             for key in dead_keys {
-                warn!("Forgiving: {}", key);
+                veilid_log!(self warn "Forgiving: {}", key);
                 inner.punishments_by_node_id.remove(&key);
                 // make the entry alive again if it's still here
                 if let Ok(Some(nr)) = self.routing_table().lookup_node_ref(key) {
@@ -206,7 +208,7 @@ impl AddressFilter {
                 }
             }
             for key in dead_keys {
-                log_net!(debug "DialInfo Permit: {}", key);
+                veilid_log!(self debug "DialInfo Permit: {}", key);
                 inner.dial_info_failures.remove(&key);
             }
         }
@@ -252,10 +254,10 @@ impl AddressFilter {
 
         let mut inner = self.inner.lock();
         if inner.dial_info_failures.len() >= MAX_DIAL_INFO_FAILURES {
-            warn!("DialInfo failure table full: {}", dial_info);
+            veilid_log!(self warn "DialInfo failure table full: {}", dial_info);
             return;
         }
-        log_net!(debug "DialInfo failure: {:?}", dial_info);
+        veilid_log!(self debug "DialInfo failure: {:?}", dial_info);
         inner
             .dial_info_failures
             .entry(dial_info)
@@ -274,7 +276,7 @@ impl AddressFilter {
     }
 
     pub fn punish_ip_addr(&self, addr: IpAddr, reason: PunishmentReason) {
-        warn!("Punished: {} for {:?}", addr, reason);
+        veilid_log!(self warn "Punished: {} for {:?}", addr, reason);
         let timestamp = Timestamp::now();
         let punishment = Punishment { reason, timestamp };
 
@@ -318,10 +320,10 @@ impl AddressFilter {
 
         let mut inner = self.inner.lock();
         if inner.punishments_by_node_id.len() >= MAX_PUNISHMENTS_BY_NODE_ID {
-            warn!("Punishment table full: {}", node_id);
+            veilid_log!(self warn "Punishment table full: {}", node_id);
             return;
         }
-        warn!("Punished: {} for {:?}", node_id, reason);
+        veilid_log!(self warn "Punished: {} for {:?}", node_id, reason);
         inner
             .punishments_by_node_id
             .entry(node_id)
@@ -361,7 +363,7 @@ impl AddressFilter {
                 let cnt = inner.conn_count_by_ip4.entry(v4).or_default();
                 assert!(*cnt <= self.max_connections_per_ip4);
                 if *cnt == self.max_connections_per_ip4 {
-                    warn!("Address filter count exceeded: {:?}", v4);
+                    veilid_log!(self warn "Address filter count exceeded: {:?}", v4);
                     return Err(AddressFilterError::CountExceeded);
                 }
                 // See if this ip block has connected too frequently
@@ -372,7 +374,7 @@ impl AddressFilter {
                 });
                 assert!(tstamps.len() <= self.max_connection_frequency_per_min);
                 if tstamps.len() == self.max_connection_frequency_per_min {
-                    warn!("Address filter rate exceeded: {:?}", v4);
+                    veilid_log!(self warn "Address filter rate exceeded: {:?}", v4);
                     return Err(AddressFilterError::RateExceeded);
                 }
 
@@ -385,14 +387,14 @@ impl AddressFilter {
                 let cnt = inner.conn_count_by_ip6_prefix.entry(v6).or_default();
                 assert!(*cnt <= self.max_connections_per_ip6_prefix);
                 if *cnt == self.max_connections_per_ip6_prefix {
-                    warn!("Address filter count exceeded: {:?}", v6);
+                    veilid_log!(self warn "Address filter count exceeded: {:?}", v6);
                     return Err(AddressFilterError::CountExceeded);
                 }
                 // See if this ip block has connected too frequently
                 let tstamps = inner.conn_timestamps_by_ip6_prefix.entry(v6).or_default();
                 assert!(tstamps.len() <= self.max_connection_frequency_per_min);
                 if tstamps.len() == self.max_connection_frequency_per_min {
-                    warn!("Address filter rate exceeded: {:?}", v6);
+                    veilid_log!(self warn "Address filter rate exceeded: {:?}", v6);
                     return Err(AddressFilterError::RateExceeded);
                 }
 

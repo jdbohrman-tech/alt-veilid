@@ -31,6 +31,8 @@ use record_data::*;
 
 use hashlink::LruCache;
 
+impl_veilid_log_facility!("stor");
+
 #[derive(Debug, Clone)]
 /// A dead record that is yet to be purged from disk and statistics
 struct DeadRecord<D>
@@ -50,6 +52,7 @@ pub(super) struct RecordStore<D>
 where
     D: fmt::Debug + Clone + Serialize + for<'d> Deserialize<'d>,
 {
+    registry: VeilidComponentRegistry,
     name: String,
     limits: RecordStoreLimits,
 
@@ -77,6 +80,15 @@ where
     changed_watched_values: HashSet<RecordTableKey>,
     /// A mutex to ensure we handle this concurrently
     purge_dead_records_mutex: Arc<AsyncMutex<()>>,
+}
+
+impl<D> VeilidComponentRegistryAccessor for RecordStore<D>
+where
+    D: fmt::Debug + Clone + Serialize + for<'d> Deserialize<'d>,
+{
+    fn registry(&self) -> VeilidComponentRegistry {
+        self.registry.clone()
+    }
 }
 
 impl<D> fmt::Debug for RecordStore<D>
@@ -144,6 +156,7 @@ where
         let subkey_table = table_store.open(&format!("{}_subkeys", name), 1).await?;
 
         let mut out = Self {
+            registry: table_store.registry(),
             name: name.to_owned(),
             limits,
             record_table,
@@ -152,11 +165,13 @@ where
             subkey_cache: LruCache::new(subkey_cache_size),
             inspect_cache: InspectCache::new(subkey_cache_size),
             subkey_cache_total_size: LimitedSize::new(
+                table_store.registry(),
                 "subkey_cache_total_size",
                 0,
                 limit_subkey_cache_total_size,
             ),
             total_storage_space: LimitedSize::new(
+                table_store.registry(),
                 "total_storage_space",
                 0,
                 limit_max_storage_space,
@@ -216,7 +231,7 @@ where
                 });
             }) {
                 // This shouldn't happen, but deduplicate anyway
-                log_stor!(warn "duplicate record in table: {:?}", ri.0);
+                veilid_log!(self warn "duplicate record in table: {:?}", ri.0);
                 dead_records.push(DeadRecord {
                     key: ri.0,
                     record: v,
@@ -267,7 +282,7 @@ where
             } else {
                 self.subkey_cache_total_size.rollback();
 
-                log_stor!(error "subkey cache should not be empty, has {} bytes unaccounted for",self.subkey_cache_total_size.get());
+                veilid_log!(self error "subkey cache should not be empty, has {} bytes unaccounted for",self.subkey_cache_total_size.get());
 
                 self.subkey_cache_total_size.set(0);
                 self.subkey_cache_total_size.commit().unwrap();
@@ -312,22 +327,22 @@ where
         for dr in dead_records {
             // Record should already be gone from index
             if self.record_index.contains_key(&dr.key) {
-                log_stor!(error "dead record found in index: {:?}", dr.key);
+                veilid_log!(self error "dead record found in index: {:?}", dr.key);
             }
 
             // Record should have no watches now
             if self.watched_records.contains_key(&dr.key) {
-                log_stor!(error "dead record found in watches: {:?}", dr.key);
+                veilid_log!(self error "dead record found in watches: {:?}", dr.key);
             }
 
             // Record should have no watch changes now
             if self.changed_watched_values.contains(&dr.key) {
-                log_stor!(error "dead record found in watch changes: {:?}", dr.key);
+                veilid_log!(self error "dead record found in watch changes: {:?}", dr.key);
             }
 
             // Delete record
             if let Err(e) = rt_xact.delete(0, &dr.key.bytes()) {
-                log_stor!(error "record could not be deleted: {}", e);
+                veilid_log!(self error "record could not be deleted: {}", e);
             }
 
             // Delete subkeys
@@ -340,7 +355,7 @@ where
                 };
                 let stkb = stk.bytes();
                 if let Err(e) = st_xact.delete(0, &stkb) {
-                    log_stor!(error "subkey could not be deleted: {}", e);
+                    veilid_log!(self error "subkey could not be deleted: {}", e);
                 }
 
                 // From cache
@@ -356,10 +371,10 @@ where
             }
         }
         if let Err(e) = rt_xact.commit().await {
-            log_stor!(error "failed to commit record table transaction: {}", e);
+            veilid_log!(self error "failed to commit record table transaction: {}", e);
         }
         if let Err(e) = st_xact.commit().await {
-            log_stor!(error "failed to commit subkey table transaction: {}", e);
+            veilid_log!(self error "failed to commit subkey table transaction: {}", e);
         }
     }
 
@@ -375,12 +390,12 @@ where
             // Get the changed record and save it to the table
             if let Some(r) = self.record_index.peek(&rtk) {
                 if let Err(e) = rt_xact.store_json(0, &rtk.bytes(), r) {
-                    log_stor!(error "failed to save record: {}", e);
+                    veilid_log!(self error "failed to save record: {}", e);
                 }
             }
         }
         if let Err(e) = rt_xact.commit().await {
-            log_stor!(error "failed to commit record table transaction: {}", e);
+            veilid_log!(self error "failed to commit record table transaction: {}", e);
         }
     }
 
@@ -422,7 +437,7 @@ where
             dead_records.push((k, v));
         }) {
             // Shouldn't happen but log it
-            log_stor!(warn "new duplicate record in table: {:?}", rtk);
+            veilid_log!(self warn "new duplicate record in table: {:?}", rtk);
             self.add_dead_record(rtk, v);
         }
         for dr in dead_records {
@@ -1206,22 +1221,22 @@ where
         for evci in evcis {
             // Get the first subkey data
             let Some(first_subkey) = evci.subkeys.first() else {
-                log_stor!(error "first subkey should exist for value change notification");
+                veilid_log!(self error "first subkey should exist for value change notification");
                 continue;
             };
             let get_result = match self.get_subkey(evci.key, first_subkey, false).await {
                 Ok(Some(skr)) => skr,
                 Ok(None) => {
-                    log_stor!(error "subkey should have data for value change notification");
+                    veilid_log!(self error "subkey should have data for value change notification");
                     continue;
                 }
                 Err(e) => {
-                    log_stor!(error "error getting subkey data for value change notification: {}", e);
+                    veilid_log!(self error "error getting subkey data for value change notification: {}", e);
                     continue;
                 }
             };
             let Some(value) = get_result.opt_value else {
-                log_stor!(error "first subkey should have had value for value change notification");
+                veilid_log!(self error "first subkey should have had value for value change notification");
                 continue;
             };
 

@@ -53,6 +53,7 @@ pub struct WebsocketNetworkConnection<T>
 where
     T: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
+    registry: VeilidComponentRegistry,
     flow: Flow,
     stream: CloneStream<WebSocketStream<T>>,
 }
@@ -62,7 +63,20 @@ where
     T: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", std::any::type_name::<Self>())
+        f.debug_struct("WebsocketNetworkConnection")
+            //.field("registry", &self.registry)
+            .field("flow", &self.flow)
+            //.field("stream", &self.stream)
+            .finish()
+    }
+}
+
+impl<T> VeilidComponentRegistryAccessor for WebsocketNetworkConnection<T>
+where
+    T: AsyncRead + AsyncWrite + Send + Unpin + 'static,
+{
+    fn registry(&self) -> VeilidComponentRegistry {
+        self.registry.clone()
     }
 }
 
@@ -70,8 +84,9 @@ impl<T> WebsocketNetworkConnection<T>
 where
     T: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
-    pub fn new(flow: Flow, stream: WebSocketStream<T>) -> Self {
+    pub fn new(registry: VeilidComponentRegistry, flow: Flow, stream: WebSocketStream<T>) -> Self {
         Self {
+            registry,
             flow,
             stream: CloneStream::new(stream),
         }
@@ -184,10 +199,15 @@ pub struct WebsocketProtocolHandler
 where
     Self: ProtocolAcceptHandler,
 {
+    registry: VeilidComponentRegistry,
     arc: Arc<WebsocketProtocolHandlerArc>,
 }
+
+impl_veilid_component_registry_accessor!(WebsocketProtocolHandler);
+
 impl WebsocketProtocolHandler {
-    pub fn new(config: VeilidConfig, tls: bool) -> Self {
+    pub fn new(registry: VeilidComponentRegistry, tls: bool) -> Self {
+        let config = registry.config();
         let c = config.get();
         let path = if tls {
             format!("GET /{}", c.network.protocol.wss.path.trim_end_matches('/'))
@@ -201,6 +221,7 @@ impl WebsocketProtocolHandler {
         };
 
         Self {
+            registry,
             arc: Arc::new(WebsocketProtocolHandlerArc {
                 tls,
                 request_path: path.as_bytes().to_vec(),
@@ -216,7 +237,7 @@ impl WebsocketProtocolHandler {
         socket_addr: SocketAddr,
         local_addr: SocketAddr,
     ) -> io::Result<Option<ProtocolNetworkConnection>> {
-        log_net!("WS: on_accept_async: enter");
+        veilid_log!(self trace "WS: on_accept_async: enter");
         let request_path_len = self.arc.request_path.len() + 2;
 
         let mut peek_buf = [0u8; MAX_WS_BEFORE_BODY];
@@ -266,7 +287,7 @@ impl WebsocketProtocolHandler {
         let ws_stream = match accept_hdr_async(ps, self.clone()).await {
             Ok(v) => v,
             Err(e) => {
-                log_net!(debug "failed websockets handshake: {}", e);
+                veilid_log!(self debug "failed websockets handshake: {}", e);
                 return Ok(None);
             }
         };
@@ -282,11 +303,12 @@ impl WebsocketProtocolHandler {
             PeerAddress::new(SocketAddress::from_socket_addr(socket_addr), protocol_type);
 
         let conn = ProtocolNetworkConnection::WsAccepted(WebsocketNetworkConnection::new(
+            self.registry(),
             Flow::new(peer_addr, SocketAddress::from_socket_addr(local_addr)),
             ws_stream,
         ));
 
-        log_net!(
+        veilid_log!(self trace
             "Connection accepted from: {} ({})",
             socket_addr,
             if self.arc.tls { "WSS" } else { "WS" }
@@ -297,6 +319,7 @@ impl WebsocketProtocolHandler {
 
     #[instrument(level = "trace", target = "protocol", ret, err)]
     pub async fn connect(
+        registry: VeilidComponentRegistry,
         local_address: Option<SocketAddr>,
         dial_info: &DialInfo,
         timeout_ms: u32,
@@ -337,7 +360,7 @@ impl WebsocketProtocolHandler {
             dial_info.peer_address(),
             SocketAddress::from_socket_addr(actual_local_addr),
         );
-        log_net!("{}::connect: {:?}", scheme, flow);
+        veilid_log!(registry trace "{}::connect: {:?}", scheme, flow);
 
         // Negotiate TLS if this is WSS
         if tls {
@@ -351,14 +374,14 @@ impl WebsocketProtocolHandler {
                 .map_err(to_io_error_other)?;
 
             Ok(NetworkResult::Value(ProtocolNetworkConnection::Wss(
-                WebsocketNetworkConnection::new(flow, ws_stream),
+                WebsocketNetworkConnection::new(registry, flow, ws_stream),
             )))
         } else {
             let (ws_stream, _response) = client_async(request, tcp_stream)
                 .await
                 .map_err(to_io_error_other)?;
             Ok(NetworkResult::Value(ProtocolNetworkConnection::Ws(
-                WebsocketNetworkConnection::new(flow, ws_stream),
+                WebsocketNetworkConnection::new(registry, flow, ws_stream),
             )))
         }
     }

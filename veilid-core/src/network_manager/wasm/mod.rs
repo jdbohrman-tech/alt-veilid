@@ -6,6 +6,8 @@ use crate::routing_table::*;
 pub use protocol::*;
 use std::io;
 
+impl_veilid_log_facility!("net");
+
 /////////////////////////////////////////////////////////////////
 
 cfg_if! {
@@ -158,7 +160,9 @@ impl Network {
                 }
                 ProtocolType::WS | ProtocolType::WSS => {
                     let pnc = network_result_try!(ws::WebsocketProtocolHandler::connect(
-                        &dial_info, timeout_ms
+                        self.registry(),
+                        &dial_info,
+                        timeout_ms
                     )
                     .await
                     .wrap_err("connect failure")?);
@@ -215,9 +219,13 @@ impl Network {
                         ProtocolType::UDP => unreachable!(),
                         ProtocolType::TCP => unreachable!(),
                         ProtocolType::WS | ProtocolType::WSS => {
-                            ws::WebsocketProtocolHandler::connect(&dial_info, connect_timeout_ms)
-                                .await
-                                .wrap_err("connect failure")?
+                            ws::WebsocketProtocolHandler::connect(
+                                self.registry(),
+                                &dial_info,
+                                connect_timeout_ms,
+                            )
+                            .await
+                            .wrap_err("connect failure")?
                         }
                     });
 
@@ -351,7 +359,7 @@ impl Network {
     /////////////////////////////////////////////////////////////////
 
     pub async fn startup_internal(&self) -> EyreResult<StartupDisposition> {
-        log_net!(debug "starting network");
+        veilid_log!(self debug "starting network");
         // get protocol config
         let protocol_config = {
             let config = self.config();
@@ -418,7 +426,7 @@ impl Network {
 
         match self.startup_internal().await {
             Ok(StartupDisposition::Success) => {
-                info!("network started");
+                veilid_log!(self info "network started");
                 guard.success();
                 Ok(StartupDisposition::Success)
             }
@@ -448,9 +456,9 @@ impl Network {
 
     #[instrument(level = "debug", skip_all)]
     pub async fn shutdown(&self) {
-        log_net!(debug "starting low level network shutdown");
+        veilid_log!(self debug "starting low level network shutdown");
         let Ok(guard) = self.startup_lock.shutdown().await else {
-            log_net!(debug "low level network is already shut down");
+            veilid_log!(self debug "low level network is already shut down");
             return;
         };
 
@@ -465,7 +473,7 @@ impl Network {
         *self.inner.lock() = Self::new_inner();
 
         guard.success();
-        log_net!(debug "finished low level network shutdown");
+        veilid_log!(self debug "finished low level network shutdown");
     }
 
     pub fn get_preferred_local_address(&self, _dial_info: &DialInfo) -> Option<SocketAddr> {
@@ -485,7 +493,7 @@ impl Network {
     #[expect(dead_code)]
     pub fn needs_update_network_class(&self) -> bool {
         let Ok(_guard) = self.startup_lock.enter() else {
-            log_net!(debug "ignoring due to not started up");
+            veilid_log!(self debug "ignoring due to not started up");
             return false;
         };
 
@@ -494,7 +502,7 @@ impl Network {
 
     pub fn trigger_update_network_class(&self, _routing_domain: RoutingDomain) {
         let Ok(_guard) = self.startup_lock.enter() else {
-            log_net!(debug "ignoring due to not started up");
+            veilid_log!(self debug "ignoring due to not started up");
             return;
         };
     }
@@ -502,7 +510,7 @@ impl Network {
     #[instrument(level = "trace", target = "net", name = "Network::tick", skip_all, err)]
     pub async fn tick(&self) -> EyreResult<()> {
         let Ok(_guard) = self.startup_lock.enter() else {
-            log_net!(debug "ignoring due to not started up");
+            veilid_log!(self debug "ignoring due to not started up");
             return Ok(());
         };
 

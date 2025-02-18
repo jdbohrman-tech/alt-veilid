@@ -219,6 +219,7 @@ pub fn initialize_veilid_core(platform_config: String) {
         let filter = veilid_core::VeilidLayerFilter::new(
             platform_config.logging.performance.level,
             &platform_config.logging.performance.ignore_log_targets,
+            None,
         );
         let layer = WASMLayer::new(
             WASMLayerConfigBuilder::new()
@@ -240,6 +241,7 @@ pub fn initialize_veilid_core(platform_config: String) {
         let filter = veilid_core::VeilidLayerFilter::new(
             platform_config.logging.api.level,
             &platform_config.logging.api.ignore_log_targets,
+            None,
         );
         let layer = veilid_core::ApiTracingLayer::init().with_filter(filter.clone());
         filters.insert("api", filter);

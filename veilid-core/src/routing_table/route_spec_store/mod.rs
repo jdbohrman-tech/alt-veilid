@@ -17,6 +17,8 @@ use route_spec_store_content::*;
 pub(crate) use route_spec_store_cache::CompiledRoute;
 pub use route_stats::*;
 
+impl_veilid_log_facility!("rtab");
+
 /// The size of the remote private route cache
 const REMOTE_PRIVATE_ROUTE_CACHE_SIZE: usize = 1024;
 /// Remote private route cache entries expire in 5 minutes if they haven't been used
@@ -54,10 +56,10 @@ impl RouteSpecStore {
         let c = config.get();
 
         Self {
-            registry,
+            registry: registry.clone(),
             inner: Mutex::new(RouteSpecStoreInner {
-                content: RouteSpecStoreContent::new(),
-                cache: Default::default(),
+                content: RouteSpecStoreContent::default(),
+                cache: RouteSpecStoreCache::new(registry.clone()),
             }),
             max_route_hop_count: c.network.rpc.max_route_hop_count.into(),
             default_route_hop_count: c.network.rpc.default_route_hop_count.into(),
@@ -67,8 +69,8 @@ impl RouteSpecStore {
     #[instrument(level = "trace", target = "route", skip_all)]
     pub fn reset(&self) {
         *self.inner.lock() = RouteSpecStoreInner {
-            content: RouteSpecStoreContent::new(),
-            cache: Default::default(),
+            content: RouteSpecStoreContent::default(),
+            cache: RouteSpecStoreCache::new(self.registry()),
         };
     }
 
@@ -83,7 +85,7 @@ impl RouteSpecStore {
 
             let mut inner = RouteSpecStoreInner {
                 content,
-                cache: Default::default(),
+                cache: RouteSpecStoreCache::new(self.registry()),
             };
 
             // Rebuild the routespecstore cache
@@ -145,7 +147,7 @@ impl RouteSpecStore {
         {
             let inner = &mut *self.inner.lock();
             inner.content = Default::default();
-            inner.cache = Default::default();
+            inner.cache = RouteSpecStoreCache::new(self.registry());
         }
         self.save().await.map_err(VeilidAPIError::internal)
     }
@@ -293,7 +295,7 @@ impl RouteSpecStore {
                             // Since denylist is used, consider nodes with unknown countries to be automatically
                             // excluded as well
                             if geolocation_info.country_code().is_none() {
-                                log_rtab!(
+                                veilid_log!(self
                                     debug "allocate_route_inner: skipping node {} from unknown country",
                                     e.best_node_id()
                                 );
@@ -305,7 +307,7 @@ impl RouteSpecStore {
                                 .iter()
                                 .any(Option::is_none)
                             {
-                                log_rtab!(
+                                veilid_log!(self
                                     debug "allocate_route_inner: skipping node {} using relay from unknown country",
                                     e.best_node_id()
                                 );
@@ -316,7 +318,7 @@ impl RouteSpecStore {
                             // Safe to unwrap here, checked above
                             if country_code_denylist.contains(&geolocation_info.country_code().unwrap())
                             {
-                                log_rtab!(
+                                veilid_log!(self
                                     debug "allocate_route_inner: skipping node {} from excluded country {}",
                                     e.best_node_id(),
                                     geolocation_info.country_code().unwrap()
@@ -333,7 +335,7 @@ impl RouteSpecStore {
                                 .map(Option::unwrap)
                                 .any(|cc| country_code_denylist.contains(&cc))
                             {
-                                log_rtab!(
+                                veilid_log!(self
                                     debug "allocate_route_inner: skipping node {} using relay from excluded country {:?}",
                                     e.best_node_id(),
                                     geolocation_info
@@ -713,27 +715,27 @@ impl RouteSpecStore {
         let inner = &*self.inner.lock();
         let crypto = self.crypto();
         let Some(vcrypto) = crypto.get(public_key.kind) else {
-            log_rpc!(debug "can't handle route with public key: {:?}", public_key);
+            veilid_log!(self debug "can't handle route with public key: {:?}", public_key);
             return None;
         };
 
         let Some(rsid) = inner.content.get_id_by_key(&public_key.value) else {
-            log_rpc!(debug "route id does not exist: {:?}", public_key.value);
+            veilid_log!(self debug "route id does not exist: {:?}", public_key.value);
             return None;
         };
         let Some(rssd) = inner.content.get_detail(&rsid) else {
-            log_rpc!(debug "route detail does not exist: {:?}", rsid);
+            veilid_log!(self debug "route detail does not exist: {:?}", rsid);
             return None;
         };
         let Some(rsd) = rssd.get_route_by_key(&public_key.value) else {
-            log_rpc!(debug "route set {:?} does not have key: {:?}", rsid, public_key.value);
+            veilid_log!(self debug "route set {:?} does not have key: {:?}", rsid, public_key.value);
             return None;
         };
 
         // Ensure we have the right number of signatures
         if signatures.len() != rsd.hops.len() - 1 {
             // Wrong number of signatures
-            log_rpc!(debug "wrong number of signatures ({} should be {}) for routed operation on private route {}", signatures.len(), rsd.hops.len() - 1, public_key);
+            veilid_log!(self debug "wrong number of signatures ({} should be {}) for routed operation on private route {}", signatures.len(), rsd.hops.len() - 1, public_key);
             return None;
         }
         // Validate signatures to ensure the route was handled by the nodes and not messed with
@@ -743,7 +745,7 @@ impl RouteSpecStore {
             if hop_n == signatures.len() {
                 // Verify the node we received the routed operation from is the last hop in our route
                 if *hop_public_key != last_hop_id {
-                    log_rpc!(debug "received routed operation from the wrong hop ({} should be {}) on private route {}", hop_public_key.encode(), last_hop_id.encode(), public_key);
+                    veilid_log!(self debug "received routed operation from the wrong hop ({} should be {}) on private route {}", hop_public_key.encode(), last_hop_id.encode(), public_key);
                     return None;
                 }
             } else {
@@ -751,11 +753,11 @@ impl RouteSpecStore {
                 match vcrypto.verify(hop_public_key, data, &signatures[hop_n]) {
                     Ok(true) => {}
                     Ok(false) => {
-                        log_rpc!(debug "invalid signature for hop {} at {} on private route {}", hop_n, hop_public_key, public_key);
+                        veilid_log!(self debug "invalid signature for hop {} at {} on private route {}", hop_n, hop_public_key, public_key);
                         return None;
                     }
                     Err(e) => {
-                        log_rpc!(debug "errir verifying signature for hop {} at {} on private route {}: {}", hop_n, hop_public_key, public_key, e);
+                        veilid_log!(self debug "errir verifying signature for hop {} at {} on private route {}: {}", hop_n, hop_public_key, public_key, e);
                         return None;
                     }
                 }
@@ -1129,7 +1131,7 @@ impl RouteSpecStore {
                 );
 
                 // Return the compiled safety route
-                //info!("compile_safety_route profile (stub): {} us", (get_timestamp() - profile_start_ts));
+                //veilid_log!(self info "compile_safety_route profile (stub): {} us", (get_timestamp() - profile_start_ts));
                 return Ok(CompiledRoute {
                     safety_route: SafetyRoute::new_stub(
                         routing_table.node_id(crypto_kind),
@@ -1204,7 +1206,7 @@ impl RouteSpecStore {
                     first_hop,
                 };
                 // Return compiled route
-                //info!("compile_safety_route profile (cached): {} us", (get_timestamp() - profile_start_ts));
+                //veilid_log!(self info "compile_safety_route profile (cached): {} us", (get_timestamp() - profile_start_ts));
                 return Ok(compiled_route);
             }
         }
@@ -1323,7 +1325,7 @@ impl RouteSpecStore {
         };
 
         // Return compiled route
-        //info!("compile_safety_route profile (uncached): {} us", (get_timestamp() - profile_start_ts));
+        //veilid_log!(self info "compile_safety_route profile (uncached): {} us", (get_timestamp() - profile_start_ts));
         Ok(compiled_route)
     }
 
@@ -1767,7 +1769,7 @@ impl RouteSpecStore {
     /// Clear caches when local our local node info changes
     #[instrument(level = "trace", target = "route", skip(self))]
     pub fn reset_cache(&self) {
-        log_rtab!(debug "resetting route cache");
+        veilid_log!(self debug "resetting route cache");
 
         let inner = &mut *self.inner.lock();
 

@@ -5,7 +5,7 @@ use core::fmt::Write;
 use tracing_subscriber::*;
 
 struct ApiTracingLayerInner {
-    update_callbacks: HashMap<(String, String), UpdateCallback>,
+    update_callbacks: HashMap<String, UpdateCallback>,
 }
 
 /// API Tracing layer for 'tracing' subscribers
@@ -42,23 +42,26 @@ impl ApiTracingLayer {
 
     #[instrument(level = "debug", skip(update_callback))]
     pub(crate) async fn add_callback(
-        program_name: String,
-        namespace: String,
+        log_key: String,
         update_callback: UpdateCallback,
     ) -> VeilidAPIResult<()> {
         let mut inner = API_LOGGER_INNER.lock();
         if inner.is_none() {
             *inner = Some(Self::new_inner());
         }
-        let key = (program_name, namespace);
-        if inner.as_ref().unwrap().update_callbacks.contains_key(&key) {
+        if inner
+            .as_ref()
+            .unwrap()
+            .update_callbacks
+            .contains_key(&log_key)
+        {
             apibail_already_initialized!();
         }
         inner
             .as_mut()
             .unwrap()
             .update_callbacks
-            .insert(key, update_callback);
+            .insert(log_key, update_callback);
 
         API_LOGGER_ENABLED.store(true, Ordering::Release);
 
@@ -66,12 +69,7 @@ impl ApiTracingLayer {
     }
 
     #[instrument(level = "debug")]
-    pub(crate) async fn remove_callback(
-        program_name: String,
-        namespace: String,
-    ) -> VeilidAPIResult<()> {
-        let key = (program_name, namespace);
-
+    pub(crate) async fn remove_callback(log_key: String) -> VeilidAPIResult<()> {
         let mut inner = API_LOGGER_INNER.lock();
         if inner.is_none() {
             apibail_not_initialized!();
@@ -80,7 +78,7 @@ impl ApiTracingLayer {
             .as_mut()
             .unwrap()
             .update_callbacks
-            .remove(&key)
+            .remove(&log_key)
             .is_none()
         {
             apibail_not_initialized!();
@@ -93,7 +91,16 @@ impl ApiTracingLayer {
         Ok(())
     }
 
-    fn emit_log(&self, meta: &'static Metadata<'static>, message: String) {
+    fn emit_log(&self, meta: &'static Metadata<'static>, log_key: &str, message: &str) {
+        let opt_update_cb = if let Some(inner) = &mut *API_LOGGER_INNER.lock() {
+            inner.update_callbacks.get(log_key).cloned()
+        } else {
+            None
+        };
+        let Some(update_cb) = opt_update_cb else {
+            return;
+        };
+
         let level = *meta.level();
         let target = meta.target();
         let log_level = VeilidLogLevel::from_tracing_level(level);
@@ -116,7 +123,7 @@ impl ApiTracingLayer {
                             if target.is_empty() {
                                 "".to_owned()
                             } else {
-                                format!("[{}]", target)
+                                format!("[{}] ", target)
                             },
                             simplify_file(file),
                             ln
@@ -126,7 +133,7 @@ impl ApiTracingLayer {
                 .unwrap_or_default(),
         };
 
-        let message = format!("{}{}", origin, message).trim().to_owned();
+        let message = format!("{} {}", origin, message).trim().to_owned();
 
         let backtrace = if log_level <= VeilidLogLevel::Error {
             let bt = backtrace::Backtrace::new();
@@ -141,11 +148,7 @@ impl ApiTracingLayer {
             backtrace,
         }));
 
-        if let Some(inner) = &mut *API_LOGGER_INNER.lock() {
-            for cb in inner.update_callbacks.values() {
-                (cb)(log_update.clone());
-            }
-        }
+        (update_cb)(log_update.clone());
     }
 }
 
@@ -185,13 +188,13 @@ impl<S: Subscriber + for<'a> registry::LookupSpan<'a>> Layer<S> for ApiTracingLa
             return;
         }
 
-        let mut new_debug_record = StringRecorder::new();
+        let mut new_debug_record = VeilidKeyedStringRecorder::new();
         attrs.record(&mut new_debug_record);
 
         if let Some(span_ref) = ctx.span(id) {
             span_ref
                 .extensions_mut()
-                .insert::<StringRecorder>(new_debug_record);
+                .insert::<VeilidKeyedStringRecorder>(new_debug_record);
             if crate::DURATION_LOG_FACILITIES.contains(&attrs.metadata().target()) {
                 span_ref
                     .extensions_mut()
@@ -213,9 +216,19 @@ impl<S: Subscriber + for<'a> registry::LookupSpan<'a>> Layer<S> for ApiTracingLa
                 span_duration.end = Timestamp::now();
                 let duration = span_duration.end.saturating_sub(span_duration.start);
                 let meta = span_ref.metadata();
+
+                let mut extensions = span_ref.extensions_mut();
+                let log_key =
+                    if let Some(span_ksr) = extensions.get_mut::<VeilidKeyedStringRecorder>() {
+                        span_ksr.log_key()
+                    } else {
+                        ""
+                    };
+
                 self.emit_log(
                     meta,
-                    format!(
+                    log_key,
+                    &format!(
                         " {}{}: duration={}",
                         span_ref
                             .parent()
@@ -240,7 +253,10 @@ impl<S: Subscriber + for<'a> registry::LookupSpan<'a>> Layer<S> for ApiTracingLa
             return;
         }
         if let Some(span_ref) = ctx.span(id) {
-            if let Some(debug_record) = span_ref.extensions_mut().get_mut::<StringRecorder>() {
+            if let Some(debug_record) = span_ref
+                .extensions_mut()
+                .get_mut::<VeilidKeyedStringRecorder>()
+            {
                 values.record(debug_record);
             }
         }
@@ -251,27 +267,38 @@ impl<S: Subscriber + for<'a> registry::LookupSpan<'a>> Layer<S> for ApiTracingLa
             // Optimization if api logger has no callbacks
             return;
         }
-        let mut recorder = StringRecorder::new();
+        let mut recorder = VeilidKeyedStringRecorder::new();
         event.record(&mut recorder);
         let meta = event.metadata();
-        self.emit_log(meta, recorder.to_string());
+        self.emit_log(meta, recorder.log_key(), recorder.display());
     }
 }
 
-struct StringRecorder {
+struct VeilidKeyedStringRecorder {
+    log_key: String,
     display: String,
-    //is_following_args: bool,
 }
-impl StringRecorder {
+impl VeilidKeyedStringRecorder {
     fn new() -> Self {
-        StringRecorder {
+        VeilidKeyedStringRecorder {
+            log_key: String::new(),
             display: String::new(),
-            //      is_following_args: false,
         }
     }
+    fn display(&self) -> &str {
+        &self.display
+    }
+    fn log_key(&self) -> &str {
+        &self.log_key
+    }
 }
 
-impl tracing::field::Visit for StringRecorder {
+impl tracing::field::Visit for VeilidKeyedStringRecorder {
+    fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
+        if field.name() == VEILID_LOG_KEY_FIELD {
+            self.log_key = value.to_owned();
+        }
+    }
     fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn core::fmt::Debug) {
         if field.name() == "message" {
             if !self.display.is_empty() {
@@ -283,21 +310,5 @@ impl tracing::field::Visit for StringRecorder {
             write!(self.display, " ").unwrap();
             write!(self.display, "{} = {:?};", field.name(), value).unwrap();
         }
-    }
-}
-
-impl core::fmt::Display for StringRecorder {
-    fn fmt(&self, mut f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        if !self.display.is_empty() {
-            write!(&mut f, " {}", self.display)
-        } else {
-            Ok(())
-        }
-    }
-}
-
-impl core::default::Default for StringRecorder {
-    fn default() -> Self {
-        StringRecorder::new()
     }
 }

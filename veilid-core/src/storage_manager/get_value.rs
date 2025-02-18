@@ -1,5 +1,7 @@
 use super::*;
 
+impl_veilid_log_facility!("stor");
+
 /// The context of the outbound_get_value operation
 struct OutboundGetValueContext {
     /// The latest value of the subkey, may be the value passed in
@@ -119,12 +121,12 @@ impl StorageManager {
                     // Keep the value if we got one and it is newer and it passes schema validation
                     let Some(value) = gva.answer.value else {
                         // Return peers if we have some
-                        log_network_result!(debug "GetValue returned no value, fanout call returned peers {}", gva.answer.peers.len());
+                        veilid_log!(registry debug target:"network_result", "GetValue returned no value, fanout call returned peers {}", gva.answer.peers.len());
 
                         return Ok(NetworkResult::value(FanoutCallOutput{peer_info_list: gva.answer.peers}))
                     };
 
-                    log_dht!(debug "GetValue got value back: len={} seq={}", value.value_data().data().len(), value.value_data().seq());
+                    veilid_log!(registry debug "GetValue got value back: len={} seq={}", value.value_data().data().len(), value.value_data().seq());
 
                     // Ensure we have a schema and descriptor
                     let (Some(descriptor), Some(schema)) = (&ctx.descriptor, &ctx.schema)
@@ -184,7 +186,7 @@ impl StorageManager {
                         ctx.send_partial_update = true;
                     }
                     // Return peers if we have some
-                    log_network_result!(debug "GetValue fanout call returned peers {}", gva.answer.peers.len());
+                    veilid_log!(registry debug target:"network_result", "GetValue fanout call returned peers {}", gva.answer.peers.len());
 
                     Ok(NetworkResult::value(FanoutCallOutput{peer_info_list: gva.answer.peers}))
                 }.instrument(tracing::trace_span!("outbound_get_value fanout routine"))
@@ -195,6 +197,7 @@ impl StorageManager {
         let check_done = {
             let context = context.clone();
             let out_tx = out_tx.clone();
+            let registry = self.registry();
             move |_closest_nodes: &[NodeRef]| {
                 let mut ctx = context.lock();
 
@@ -214,7 +217,7 @@ impl StorageManager {
                             opt_descriptor: ctx.descriptor.clone(),
                         },
                     })) {
-                        log_dht!(debug "Sending partial GetValue result failed: {}", e);
+                        veilid_log!(registry debug "Sending partial GetValue result failed: {}", e);
                     }
                 }
 
@@ -257,9 +260,9 @@ impl StorageManager {
                         // Failed
                         TimeoutOr::Value(Err(e)) => {
                             // If we finished with an error, return that
-                            log_dht!(debug "GetValue fanout error: {}", e);
+                            veilid_log!(registry debug "GetValue fanout error: {}", e);
                             if let Err(e) = out_tx.send(Err(e.into())) {
-                                log_dht!(debug "Sending GetValue fanout error failed: {}", e);
+                                veilid_log!(registry debug "Sending GetValue fanout error failed: {}", e);
                             }
                             return;
                         }
@@ -270,7 +273,7 @@ impl StorageManager {
                         kind,
                         value_nodes: ctx.value_nodes.clone(),
                     };
-                    log_dht!(debug "GetValue Fanout: {:?}", fanout_result);
+                    veilid_log!(registry debug "GetValue Fanout: {:?}", fanout_result);
 
                     if let Err(e) = out_tx.send(Ok(OutboundGetValueResult {
                         fanout_result,
@@ -279,7 +282,7 @@ impl StorageManager {
                             opt_descriptor: ctx.descriptor.clone(),
                         },
                     })) {
-                        log_dht!(debug "Sending GetValue result failed: {}", e);
+                        veilid_log!(registry debug "Sending GetValue result failed: {}", e);
                     }
                 }
                 .instrument(tracing::trace_span!("outbound_get_value result")),
@@ -309,7 +312,7 @@ impl StorageManager {
                         let result = match result {
                             Ok(v) => v,
                             Err(e) => {
-                                log_rtab!(debug "Deferred fanout error: {}", e);
+                                veilid_log!(this debug "Deferred fanout error: {}", e);
                                 return false;
                             }
                         };
@@ -320,7 +323,7 @@ impl StorageManager {
                                 return is_partial;
                             }
                             Err(e) => {
-                                log_rtab!(debug "Deferred fanout error: {}", e);
+                                veilid_log!(this debug "Deferred fanout error: {}", e);
                                 return false;
                             }
                         };

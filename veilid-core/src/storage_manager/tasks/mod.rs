@@ -9,7 +9,7 @@ use super::*;
 impl StorageManager {
     pub(super) fn setup_tasks(&self) {
         // Set flush records tick task
-        log_stor!(debug "starting flush record stores task");
+        veilid_log!(self debug "starting flush record stores task");
         impl_setup_task!(
             self,
             Self,
@@ -18,7 +18,7 @@ impl StorageManager {
         );
 
         // Set offline subkey writes tick task
-        log_stor!(debug "starting offline subkey writes task");
+        veilid_log!(self debug "starting offline subkey writes task");
         impl_setup_task!(
             self,
             Self,
@@ -27,7 +27,7 @@ impl StorageManager {
         );
 
         // Set send value changes tick task
-        log_stor!(debug "starting send value changes task");
+        veilid_log!(self debug "starting send value changes task");
         impl_setup_task!(
             self,
             Self,
@@ -36,7 +36,7 @@ impl StorageManager {
         );
 
         // Set check active watches tick task
-        log_stor!(debug "starting check active watches task");
+        veilid_log!(self debug "starting check active watches task");
         impl_setup_task!(
             self,
             Self,
@@ -45,7 +45,7 @@ impl StorageManager {
         );
 
         // Set check watched records tick task
-        log_stor!(debug "starting checked watched records task");
+        veilid_log!(self debug "starting checked watched records task");
         impl_setup_task!(
             self,
             Self,
@@ -80,25 +80,25 @@ impl StorageManager {
 
     #[instrument(level = "trace", target = "stor", skip_all)]
     pub(super) async fn cancel_tasks(&self) {
-        log_stor!(debug "stopping check watched records task");
+        veilid_log!(self debug "stopping check watched records task");
         if let Err(e) = self.check_watched_records_task.stop().await {
-            warn!("check_watched_records_task not stopped: {}", e);
+            veilid_log!(self warn "check_watched_records_task not stopped: {}", e);
         }
-        log_stor!(debug "stopping check active watches task");
+        veilid_log!(self debug "stopping check active watches task");
         if let Err(e) = self.check_active_watches_task.stop().await {
-            warn!("check_active_watches_task not stopped: {}", e);
+            veilid_log!(self warn "check_active_watches_task not stopped: {}", e);
         }
-        log_stor!(debug "stopping send value changes task");
+        veilid_log!(self debug "stopping send value changes task");
         if let Err(e) = self.send_value_changes_task.stop().await {
-            warn!("send_value_changes_task not stopped: {}", e);
+            veilid_log!(self warn "send_value_changes_task not stopped: {}", e);
         }
-        log_stor!(debug "stopping flush record stores task");
+        veilid_log!(self debug "stopping flush record stores task");
         if let Err(e) = self.flush_record_stores_task.stop().await {
-            warn!("flush_record_stores_task not stopped: {}", e);
+            veilid_log!(self warn "flush_record_stores_task not stopped: {}", e);
         }
-        log_stor!(debug "stopping offline subkey writes task");
+        veilid_log!(self debug "stopping offline subkey writes task");
         if let Err(e) = self.offline_subkey_writes_task.stop().await {
-            warn!("offline_subkey_writes_task not stopped: {}", e);
+            veilid_log!(self warn "offline_subkey_writes_task not stopped: {}", e);
         }
     }
 }

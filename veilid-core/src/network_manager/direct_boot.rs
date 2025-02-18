@@ -39,7 +39,7 @@ impl NetworkManager {
         // Send boot magic to requested peer address
         let data = BOOT_MAGIC.to_vec();
 
-        let out_data: Vec<u8> = network_result_value_or_log!(self
+        let out_data: Vec<u8> = network_result_value_or_log!(self self
             .net()
             .send_recv_data_unbound_to_dial_info(dial_info, data, timeout_ms)
             .await? => [ format!(": dial_info={}, data.len={}", dial_info, data.len()) ]

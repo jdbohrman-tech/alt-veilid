@@ -386,10 +386,6 @@ impl NetworkInterfaces {
 
             // See if our best addresses have changed
             if old_stable_addresses != inner.interface_address_cache {
-                debug!(
-                    "Network interface addresses changed: \nFrom: {:?}\n  To: {:?}\n",
-                    old_stable_addresses, inner.interface_address_cache
-                );
                 return Ok(true);
             }
         }

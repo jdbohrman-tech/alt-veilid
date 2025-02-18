@@ -199,7 +199,8 @@ far (self): {}
                     d_far,
                     d_near.cmp(&d_far)
                 );
-                warn!("{}", warning);
+                let crypto = vcrypto.crypto();
+                veilid_log!(crypto warn "{}", warning);
                 closer = false;
                 break;
             }

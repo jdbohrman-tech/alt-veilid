@@ -11,19 +11,30 @@ struct WebsocketNetworkConnectionInner {
 
 #[derive(Clone)]
 pub struct WebsocketNetworkConnection {
+    registry: VeilidComponentRegistry,
     flow: Flow,
     inner: Arc<WebsocketNetworkConnectionInner>,
 }
 
 impl fmt::Debug for WebsocketNetworkConnection {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", core::any::type_name::<Self>())
+        f.debug_struct("WebsocketNetworkConnection")
+            .field("flow", &self.flow)
+            .finish()
     }
 }
 
+impl_veilid_component_registry_accessor!(WebsocketNetworkConnection);
+
 impl WebsocketNetworkConnection {
-    pub fn new(flow: Flow, ws_meta: WsMeta, ws_stream: WsStream) -> Self {
+    pub fn new(
+        registry: VeilidComponentRegistry,
+        flow: Flow,
+        ws_meta: WsMeta,
+        ws_stream: WsStream,
+    ) -> Self {
         Self {
+            registry,
             flow,
             inner: Arc::new(WebsocketNetworkConnectionInner {
                 ws_meta,
@@ -44,7 +55,7 @@ impl WebsocketNetworkConnection {
         #[allow(unused_variables)]
         let x = self.inner.ws_meta.close().await.map_err(ws_err_to_io_error);
         #[cfg(feature = "verbose-tracing")]
-        log_net!(debug "close result: {:?}", x);
+        veilid_log!(self debug "close result: {:?}", x);
         Ok(NetworkResult::value(()))
     }
 
@@ -101,6 +112,7 @@ pub(in crate::network_manager) struct WebsocketProtocolHandler {}
 impl WebsocketProtocolHandler {
     #[instrument(level = "trace", target = "protocol", ret, err)]
     pub async fn connect(
+        registry: VeilidComponentRegistry,
         dial_info: &DialInfo,
         timeout_ms: u32,
     ) -> io::Result<NetworkResult<ProtocolNetworkConnection>> {
@@ -129,6 +141,7 @@ impl WebsocketProtocolHandler {
 
         // Make our flow
         let wnc = WebsocketNetworkConnection::new(
+            registry,
             Flow::new_no_local(dial_info.peer_address()),
             wsmeta,
             wsio,

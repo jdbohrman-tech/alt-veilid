@@ -238,7 +238,7 @@ pub extern "C" fn initialize_veilid_core(platform_config: FfiStr) {
         cfg_if! {
             if #[cfg(target_os = "android")] {
                 let filter =
-                    veilid_core::VeilidLayerFilter::new(platform_config.logging.terminal.level, &platform_config.logging.terminal.ignore_log_targets);
+                    veilid_core::VeilidLayerFilter::new(platform_config.logging.terminal.level, &platform_config.logging.terminal.ignore_log_targets, None);
                 let layer = paranoid_android::layer("veilid-flutter")
                     .with_ansi(false)
                     .with_filter(filter.clone());
@@ -246,7 +246,7 @@ pub extern "C" fn initialize_veilid_core(platform_config: FfiStr) {
                 layers.push(layer.boxed());
             } else if #[cfg(target_os = "ios")] {
                 let filter =
-                    veilid_core::VeilidLayerFilter::new(platform_config.logging.terminal.level, &platform_config.logging.terminal.ignore_log_targets);
+                    veilid_core::VeilidLayerFilter::new(platform_config.logging.terminal.level, &platform_config.logging.terminal.ignore_log_targets, None);
                 let layer = tracing_subscriber::fmt::Layer::new()
                     .compact()
                     .with_ansi(false)
@@ -256,7 +256,7 @@ pub extern "C" fn initialize_veilid_core(platform_config: FfiStr) {
                 layers.push(layer.boxed());
             } else {
                 let filter =
-                    veilid_core::VeilidLayerFilter::new(platform_config.logging.terminal.level, &platform_config.logging.terminal.ignore_log_targets);
+                    veilid_core::VeilidLayerFilter::new(platform_config.logging.terminal.level, &platform_config.logging.terminal.ignore_log_targets, None);
                 let layer = tracing_subscriber::fmt::Layer::new()
                     .compact()
                     .with_writer(std::io::stdout)
@@ -309,6 +309,7 @@ pub extern "C" fn initialize_veilid_core(platform_config: FfiStr) {
         let filter = veilid_core::VeilidLayerFilter::new(
             platform_config.logging.otlp.level,
             &platform_config.logging.otlp.ignore_log_targets,
+            None,
         );
         let layer = tracing_opentelemetry::layer()
             .with_tracer(tracer)
@@ -325,6 +326,7 @@ pub extern "C" fn initialize_veilid_core(platform_config: FfiStr) {
                 .iter()
                 .map(|&x| x.to_string())
                 .collect::<Vec<_>>(),
+            None,
         );
         let (flame_layer, guard) =
             FlameLayer::with_file(&platform_config.logging.flame.path).unwrap();
@@ -347,6 +349,7 @@ pub extern "C" fn initialize_veilid_core(platform_config: FfiStr) {
         let filter = veilid_core::VeilidLayerFilter::new(
             platform_config.logging.api.level,
             &platform_config.logging.api.ignore_log_targets,
+            None,
         );
         let layer = veilid_core::ApiTracingLayer::init().with_filter(filter.clone());
         filters.insert("api", filter);

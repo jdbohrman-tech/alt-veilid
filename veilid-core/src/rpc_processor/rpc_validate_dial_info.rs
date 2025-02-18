@@ -40,7 +40,7 @@ impl RPCProcessor {
 
         // Send the validate_dial_info request
         // This can only be sent directly, as relays can not validate dial info
-        network_result_value_or_log!(self.statement(Destination::direct(peer.default_filtered()), statement)
+        network_result_value_or_log!(self self.statement(Destination::direct(peer.default_filtered()), statement)
             .await? => [ format!(": peer={} statement={:?}", peer, statement) ] {
                 return Ok(false);
             }
@@ -61,15 +61,15 @@ impl RPCProcessor {
                     ReceiptEvent::ReturnedPrivate { private_route: _ }
                     | ReceiptEvent::ReturnedInBand { inbound_noderef: _ }
                     | ReceiptEvent::ReturnedSafety => {
-                        log_net!(debug "validate_dial_info receipt should be returned out-of-band");
+                        veilid_log!(self debug "validate_dial_info receipt should be returned out-of-band");
                         Ok(false)
                     }
                     ReceiptEvent::ReturnedOutOfBand => {
-                        log_net!(debug "validate_dial_info receipt returned");
+                        veilid_log!(self debug "validate_dial_info receipt returned");
                         Ok(true)
                     }
                     ReceiptEvent::Expired => {
-                        log_net!(debug "validate_dial_info receipt expired");
+                        veilid_log!(self debug "validate_dial_info receipt expired");
                         Ok(false)
                     }
                     ReceiptEvent::Cancelled => {
@@ -187,7 +187,7 @@ impl RPCProcessor {
 
                 // Send the validate_dial_info request
                 // This can only be sent directly, as relays can not validate dial info
-                network_result_value_or_log!(self.statement(Destination::direct(peer.default_filtered()), statement)
+                network_result_value_or_log!(self self.statement(Destination::direct(peer.default_filtered()), statement)
                     .await? => [ format!(": peer={} statement={:?}", peer, statement) ] {
                         continue;
                     }

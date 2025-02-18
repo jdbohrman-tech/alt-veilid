@@ -1,6 +1,6 @@
-use std::marker::PhantomData;
-
 use super::*;
+
+impl_veilid_log_facility!("registry");
 
 pub trait AsAnyArcSendSync {
     fn as_any_arc_send_sync(self: Arc<Self>) -> Arc<dyn core::any::Any + Send + Sync>;
@@ -15,6 +15,7 @@ impl<T: Send + Sync + 'static> AsAnyArcSendSync for T {
 pub trait VeilidComponent:
     AsAnyArcSendSync + VeilidComponentRegistryAccessor + core::fmt::Debug
 {
+    fn name(&self) -> &'static str;
     fn init(&self) -> SendPinBoxFutureLifetime<'_, EyreResult<()>>;
     fn post_init(&self) -> SendPinBoxFutureLifetime<'_, EyreResult<()>>;
     fn pre_terminate(&self) -> SendPinBoxFutureLifetime<'_, ()>;
@@ -32,6 +33,15 @@ pub trait VeilidComponentRegistryAccessor {
     }
     fn event_bus(&self) -> EventBus {
         self.registry().event_bus.clone()
+    }
+    fn namespace(&self) -> &'static str {
+        self.registry().namespace()
+    }
+    fn program_name(&self) -> &'static str {
+        self.registry().program_name()
+    }
+    fn log_key(&self) -> &'static str {
+        self.registry().log_key()
     }
 }
 
@@ -62,12 +72,20 @@ struct VeilidComponentRegistryInner {
 pub struct VeilidComponentRegistry {
     inner: Arc<Mutex<VeilidComponentRegistryInner>>,
     config: VeilidConfig,
+    namespace: &'static str,
+    program_name: &'static str,
+    log_key: &'static str,
     event_bus: EventBus,
     init_lock: Arc<AsyncMutex<bool>>,
 }
 
 impl VeilidComponentRegistry {
     pub fn new(config: VeilidConfig) -> Self {
+        let (namespace, program_name) =
+            config.with(|c| (c.namespace.to_static_str(), c.program_name.to_static_str()));
+
+        let log_key = VeilidLayerFilter::make_veilid_log_key(program_name, namespace);
+
         Self {
             inner: Arc::new(Mutex::new(VeilidComponentRegistryInner {
                 type_map: HashMap::new(),
@@ -75,6 +93,9 @@ impl VeilidComponentRegistry {
                 mock: false,
             })),
             config,
+            namespace,
+            program_name,
+            log_key,
             event_bus: EventBus::new(),
             init_lock: Arc::new(AsyncMutex::new(false)),
         }
@@ -83,6 +104,18 @@ impl VeilidComponentRegistry {
     pub fn enable_mock(&self) {
         let mut inner = self.inner.lock();
         inner.mock = true;
+    }
+
+    pub fn namespace(&self) -> &'static str {
+        self.namespace
+    }
+
+    pub fn program_name(&self) -> &'static str {
+        self.program_name
+    }
+
+    pub fn log_key(&self) -> &'static str {
+        self.log_key
     }
 
     pub fn register<
@@ -216,6 +249,14 @@ impl VeilidComponentRegistry {
     }
     async fn terminate_inner(&self, initialized: Vec<Arc<dyn VeilidComponent + Send + Sync>>) {
         for component in initialized.iter().rev() {
+            let refs = Arc::strong_count(component);
+            if refs > 2 {
+                veilid_log!(self warn
+                    "Terminating component '{}' while still referenced ({} extra references)",
+                    component.name(),
+                    refs - 2
+                );
+            }
             component.terminate().await;
         }
     }
@@ -243,7 +284,7 @@ impl VeilidComponentRegistry {
             .unwrap();
         Some(VeilidComponentGuard {
             component,
-            _phantom: PhantomData {},
+            _phantom: core::marker::PhantomData {},
         })
     }
 }
@@ -275,6 +316,10 @@ macro_rules! impl_veilid_component {
         impl_veilid_component_registry_accessor!($component_name);
 
         impl VeilidComponent for $component_name {
+            fn name(&self) -> &'static str {
+                stringify!($component_name)
+            }
+
             fn init(&self) -> SendPinBoxFutureLifetime<'_, EyreResult<()>> {
                 Box::pin(async { self.init_async().await })
             }

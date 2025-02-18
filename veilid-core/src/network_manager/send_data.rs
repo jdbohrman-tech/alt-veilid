@@ -56,7 +56,7 @@ impl NetworkManager {
                 };
 
                 #[cfg(feature = "verbose-tracing")]
-                log_net!(debug
+                veilid_log!(self debug
                     "ContactMethod: {:?} for {:?}",
                     contact_method, destination_node_ref
                 );
@@ -96,7 +96,7 @@ impl NetworkManager {
                             let failure = REVERSE_CONNECT_FAILURE.fetch_add(1, Ordering::AcqRel) + 1;
                             let rate = (success as f64 * 100.0) / ((success + failure) as f64);
 
-                            log_network_result!(debug "Reverse connection failed ({:.2}% success) to {}, falling back to inbound relay via {}", rate, target_node_ref, relay_nr);
+                            veilid_log!(this debug target:"network_result", "Reverse connection failed ({:.2}% success) to {}, falling back to inbound relay via {}", rate, target_node_ref, relay_nr);
                             network_result_try!(this.try_possibly_relayed_contact_method(NodeContactMethod::InboundRelay(relay_nr), destination_node_ref, data).await?)
                         } else {
                             if let NetworkResult::Value(sdm) = &nres {
@@ -106,7 +106,7 @@ impl NetworkManager {
                                     let failure = REVERSE_CONNECT_FAILURE.load(Ordering::Acquire);
                                     let rate = (success as f64 * 100.0) / ((success + failure) as f64);
 
-                                    log_network_result!(debug "Reverse connection successful ({:.2}% success) to {} via {}", rate, target_node_ref, relay_nr);
+                                    veilid_log!(this debug target:"network_result", "Reverse connection successful ({:.2}% success) to {} via {}", rate, target_node_ref, relay_nr);
                                 }
                             }
                             network_result_try!(nres)
@@ -122,7 +122,7 @@ impl NetworkManager {
                             let failure = HOLE_PUNCH_FAILURE.fetch_add(1, Ordering::AcqRel) + 1;
                             let rate = (success as f64 * 100.0) / ((success + failure) as f64);
 
-                            log_network_result!(debug "Hole punch failed ({:.2}% success) to {} , falling back to inbound relay via {}", rate, target_node_ref , relay_nr);
+                            veilid_log!(this debug target:"network_result", "Hole punch failed ({:.2}% success) to {} , falling back to inbound relay via {}", rate, target_node_ref , relay_nr);
                             network_result_try!(this.try_possibly_relayed_contact_method(NodeContactMethod::InboundRelay(relay_nr), destination_node_ref, data).await?)
                         } else {
                             if let NetworkResult::Value(sdm) = &nres {
@@ -131,7 +131,7 @@ impl NetworkManager {
                                     let failure = HOLE_PUNCH_FAILURE.load(Ordering::Acquire);
                                     let rate = (success as f64 * 100.0) / ((success + failure) as f64);
 
-                                    log_network_result!(debug "Hole punch successful ({:.2}% success) to {} via {}", rate, target_node_ref, relay_nr);
+                                    veilid_log!(this debug target:"network_result", "Hole punch successful ({:.2}% success) to {} via {}", rate, target_node_ref, relay_nr);
                                 }
                             }
                             network_result_try!(nres)
@@ -272,7 +272,7 @@ impl NetworkManager {
         } else {
             // No last connection
             #[cfg(feature = "verbose-tracing")]
-            log_net!(debug
+            veilid_log!(self debug
                 "No last flow in reverse connect for {:?}",
                 target_node_ref
             );
@@ -321,7 +321,7 @@ impl NetworkManager {
         } else {
             // No last connection
             #[cfg(feature = "verbose-tracing")]
-            log_net!(debug
+            veilid_log!(self debug
                 "No last flow in hole punch for {:?}",
                 target_node_ref
             );
@@ -354,7 +354,7 @@ impl NetworkManager {
         // First try to send data to the last flow we've seen this peer on
         let data = if let Some(flow) = node_ref.last_flow() {
             #[cfg(feature = "verbose-tracing")]
-            log_net!(debug
+            veilid_log!(self debug
                 "ExistingConnection: {:?} for {:?}",
                 flow, node_ref
             );
@@ -417,7 +417,7 @@ impl NetworkManager {
         let routing_domain = match target_node_ref.best_routing_domain() {
             Some(rd) => rd,
             None => {
-                log_net!("no routing domain for node {:?}", target_node_ref);
+                veilid_log!(self trace "no routing domain for node {:?}", target_node_ref);
                 return Ok(NodeContactMethod::Unreachable);
             }
         };
@@ -429,7 +429,7 @@ impl NetworkManager {
 
         // Peer B is the target node, get the whole peer info now
         let Some(peer_b) = target_node_ref.get_peer_info(routing_domain) else {
-            log_net!("no node info for node {:?}", target_node_ref);
+            veilid_log!(self trace "no node info for node {:?}", target_node_ref);
             return Ok(NodeContactMethod::Unreachable);
         };
 
@@ -507,7 +507,7 @@ impl NetworkManager {
         // or other firewalling issues and may perform better with TCP.
         // let unreliable = target_node_ref.peer_stats().rpc_stats.failed_to_send > 2 || target_node_ref.peer_stats().rpc_stats.recent_lost_answers > 2;
         // if unreliable && sequencing < Sequencing::PreferOrdered {
-        //     log_net!(debug "Node contact failing over to Ordered for {}", target_node_ref.to_string().cyan());
+        //     veilid_log!(self debug "Node contact failing over to Ordered for {}", target_node_ref.to_string().cyan());
         //     sequencing = Sequencing::PreferOrdered;
         // }
 

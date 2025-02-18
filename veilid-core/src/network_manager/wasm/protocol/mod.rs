@@ -13,6 +13,7 @@ pub(in crate::network_manager) enum ProtocolNetworkConnection {
 
 impl ProtocolNetworkConnection {
     pub async fn connect(
+        registry: VeilidComponentRegistry,
         _local_address: Option<SocketAddr>,
         dial_info: &DialInfo,
         timeout_ms: u32,
@@ -29,7 +30,7 @@ impl ProtocolNetworkConnection {
                 panic!("TCP dial info is not supported on WASM targets");
             }
             ProtocolType::WS | ProtocolType::WSS => {
-                ws::WebsocketProtocolHandler::connect(dial_info, timeout_ms).await
+                ws::WebsocketProtocolHandler::connect(registry, dial_info, timeout_ms).await
             }
         }
     }

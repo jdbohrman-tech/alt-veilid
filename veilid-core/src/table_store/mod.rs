@@ -16,6 +16,8 @@ use native::*;
 
 use keyvaluedb::*;
 
+impl_veilid_log_facility!("tstore");
+
 const ALL_TABLE_NAMES: &[u8] = b"all_table_names";
 
 /// Description of column
@@ -116,7 +118,7 @@ impl TableStore {
     }
     pub(crate) fn new(registry: VeilidComponentRegistry) -> Self {
         let inner = Self::new_inner();
-        let table_store_driver = TableStoreDriver::new(registry.config());
+        let table_store_driver = TableStoreDriver::new(registry.clone());
 
         Self {
             registry,
@@ -318,7 +320,7 @@ impl TableStore {
     ) -> EyreResult<Vec<u8>> {
         // Check if we are to protect the key
         if device_encryption_key_password.is_empty() {
-            log_tstore!(debug "no dek password");
+            veilid_log!(self debug "no dek password");
             // Return the unprotected key bytes
             let mut out = Vec::with_capacity(4 + SHARED_SECRET_LENGTH);
             out.extend_from_slice(&dek.kind.0);
@@ -357,7 +359,7 @@ impl TableStore {
             .load_user_secret("device_encryption_key")
             .await?;
         let Some(dek_bytes) = dek_bytes else {
-            log_tstore!(debug "no device encryption key");
+            veilid_log!(self debug "no device encryption key");
             return Ok(None);
         };
 
@@ -383,7 +385,7 @@ impl TableStore {
                 .protected_store()
                 .remove_user_secret("device_encryption_key")
                 .await?;
-            log_tstore!(debug "removed device encryption key. existed: {}", existed);
+            veilid_log!(self debug "removed device encryption key. existed: {}", existed);
             return Ok(());
         };
 
@@ -395,7 +397,7 @@ impl TableStore {
         let device_encryption_key_password =
             if let Some(new_device_encryption_key_password) = new_device_encryption_key_password {
                 // Change password
-                log_tstore!(debug "changing dek password");
+                veilid_log!(self debug "changing dek password");
                 self.config()
                     .try_with_mut(|c| {
                         c.protected_store
@@ -406,7 +408,7 @@ impl TableStore {
                     .unwrap()
             } else {
                 // Get device encryption key protection password if we have it
-                log_tstore!(debug "saving with existing dek password");
+                veilid_log!(self debug "saving with existing dek password");
                 self.config()
                     .with(|c| c.protected_store.device_encryption_key_password.clone())
             };
@@ -423,7 +425,7 @@ impl TableStore {
             .protected_store()
             .save_user_secret("device_encryption_key", &dek_bytes)
             .await?;
-        log_tstore!(debug "saving device encryption key. existed: {}", existed);
+        veilid_log!(self debug "saving device encryption key. existed: {}", existed);
         Ok(())
     }
 
@@ -482,7 +484,7 @@ impl TableStore {
                 },
                 Ok(None) => {
                     // No table names yet, that's okay
-                    log_tstore!("__veilid_all_tables is empty");
+                    veilid_log!(self trace "__veilid_all_tables is empty");
                 }
                 Err(e) => {
                     error!("could not get __veilid_all_tables: {}", e);
@@ -537,7 +539,7 @@ impl TableStore {
 
     #[instrument(level = "trace", target = "tstore", skip_all)]
     pub(crate) fn on_table_db_drop(&self, table: String) {
-        log_rtab!("dropping table db: {}", table);
+        veilid_log!(self trace "dropping table db: {}", table);
         let mut inner = self.inner.lock();
         if inner.opened.remove(&table).is_none() {
             unreachable!("should have removed an item");
@@ -667,7 +669,7 @@ impl TableStore {
         let deleted = self.table_store_driver.delete(&table_name).await?;
         if !deleted {
             // Table missing? Just remove name
-            warn!(
+            veilid_log!(self warn
                 "table existed in name table but not in storage: {} : {}",
                 name, table_name
             );
@@ -746,7 +748,7 @@ impl TableStore {
                 apibail_not_initialized!();
             }
         }
-        log_tstore!(debug "TableStore::rename {} -> {}", old_name, new_name);
+        veilid_log!(self debug "TableStore::rename {} -> {}", old_name, new_name);
         self.name_rename(old_name, new_name).await?;
         self.flush().await;
         Ok(())

@@ -3,6 +3,8 @@ use super::*;
 use futures_util::stream::{FuturesUnordered, StreamExt};
 use stop_token::future::FutureExt as StopFutureExt;
 
+impl_veilid_log_facility!("rtab");
+
 pub const BOOTSTRAP_TXT_VERSION_0: u8 = 0;
 pub const MIN_BOOTSTRAP_PEERS: usize = 4;
 
@@ -95,7 +97,7 @@ impl RoutingTable {
             let dial_infos = match DialInfo::try_vec_from_short(rec, hostname_str) {
                 Ok(dis) => dis,
                 Err(e) => {
-                    warn!("Couldn't resolve bootstrap node dial info {}: {}", rec, e);
+                    veilid_log!(self warn "Couldn't resolve bootstrap node dial info {}: {}", rec, e);
                     continue;
                 }
             };
@@ -128,7 +130,7 @@ impl RoutingTable {
             let records = match intf::txt_lookup(&bh).await {
                 Ok(v) => v,
                 Err(e) => {
-                    warn!(
+                    veilid_log!(self warn
                         "Network may be down. No bootstrap resolution for '{}': {}",
                         bh, e
                     );
@@ -162,7 +164,7 @@ impl RoutingTable {
                     // look up bootstrap node txt records
                     let bsnirecords = match intf::txt_lookup(&bsname).await {
                         Err(e) => {
-                            warn!(
+                            veilid_log!(self warn
                                 "Network may be down. Bootstrap node txt lookup failed for {}: {}",
                                 bsname, e
                             );
@@ -184,7 +186,7 @@ impl RoutingTable {
                         let txt_version: u8 = match records[0].parse::<u8>() {
                             Ok(v) => v,
                             Err(e) => {
-                                log_rtab!(warn
+                                veilid_log!(self warn
                                 "invalid txt_version specified in bootstrap node txt record: {}",
                                 e
                             );
@@ -195,7 +197,7 @@ impl RoutingTable {
                             BOOTSTRAP_TXT_VERSION_0 => {
                                 match self.process_bootstrap_records_v0(records).await {
                                     Err(e) => {
-                                        log_rtab!(error
+                                        veilid_log!(self error
                                             "couldn't process v0 bootstrap records from {}: {}",
                                             bsname, e
                                         );
@@ -209,7 +211,7 @@ impl RoutingTable {
                                 }
                             }
                             _ => {
-                                log_rtab!(warn "unsupported bootstrap txt record version");
+                                veilid_log!(self warn "unsupported bootstrap txt record version");
                                 continue;
                             }
                         };
@@ -260,7 +262,7 @@ impl RoutingTable {
         pi: Arc<PeerInfo>,
         unord: &FuturesUnordered<SendPinBoxFuture<()>>,
     ) {
-        log_rtab!(
+        veilid_log!(self trace
             "--- bootstrapping {} with {:?}",
             pi.node_ids(),
             pi.signed_node_info().node_info().dial_info_detail_list()
@@ -271,7 +273,7 @@ impl RoutingTable {
         let nr = match self.register_node_with_peer_info(pi, true) {
             Ok(nr) => nr,
             Err(e) => {
-                log_rtab!(error "failed to register bootstrap peer info: {}", e);
+                veilid_log!(self error "failed to register bootstrap peer info: {}", e);
                 return;
             }
         };
@@ -291,14 +293,14 @@ impl RoutingTable {
                     {
                         Ok(NodeContactMethod::Direct(v)) => v,
                         Ok(v) => {
-                            log_rtab!(debug "invalid contact method for bootstrap, ignoring peer: {:?}", v);
+                            veilid_log!(nr debug "invalid contact method for bootstrap, ignoring peer: {:?}", v);
                             // let _ =
                             //     network_manager
                             //     .get_node_contact_method(nr.clone());
                             return;
                         }
                         Err(e) => {
-                            log_rtab!(warn "unable to bootstrap: {}", e);
+                            veilid_log!(nr warn "unable to bootstrap: {}", e);
                             return;
                         }
                     };
@@ -309,13 +311,13 @@ impl RoutingTable {
 
                     // Ensure we got the signed peer info
                     if !nr.signed_node_info_has_valid_signature(routing_domain) {
-                        log_rtab!(warn "bootstrap server is not responding");
-                        log_rtab!(debug "bootstrap server is not responding for dialinfo: {}", bsdi);
+                        veilid_log!(nr warn "bootstrap server is not responding");
+                        veilid_log!(nr debug "bootstrap server is not responding for dialinfo: {}", bsdi);
 
                         // Try a different dialinfo next time
                         network_manager.address_filter().set_dial_info_failed(bsdi);
                     } else {
-                        info!("bootstrap of {} successful via {}", crypto_kind, nr);
+                        veilid_log!(nr info "bootstrap of {} successful via {}", crypto_kind, nr);
 
                         // otherwise this bootstrap is valid, lets ask it to find ourselves now
                         routing_table.reverse_find_node(crypto_kind, nr, true, vec![]).await
@@ -332,12 +334,12 @@ impl RoutingTable {
         peers: Vec<Arc<PeerInfo>>,
         stop_token: StopToken,
     ) -> EyreResult<()> {
-        log_rtab!(debug "  bootstrap peers: {:?}", &peers);
+        veilid_log!(self debug "  bootstrap peers: {:?}", &peers);
 
         // Get crypto kinds to bootstrap
         let crypto_kinds = self.get_bootstrap_crypto_kinds();
 
-        log_rtab!(debug "  bootstrap crypto kinds: {:?}", &crypto_kinds);
+        veilid_log!(self debug "  bootstrap crypto kinds: {:?}", &crypto_kinds);
 
         // Run all bootstrap operations concurrently
         let mut unord = FuturesUnordered::<SendPinBoxFuture<()>>::new();
@@ -381,7 +383,7 @@ impl RoutingTable {
             return Ok(());
         }
 
-        log_rtab!(debug "--- bootstrap_task");
+        veilid_log!(self debug "--- bootstrap_task");
 
         // See if we are specifying a direct dialinfo for bootstrap, if so use the direct mechanism
         let mut bootstrap_dialinfos = Vec::<DialInfo>::new();
@@ -400,7 +402,7 @@ impl RoutingTable {
 
             let mut peer_map = HashMap::<TypedKeyGroup, Arc<PeerInfo>>::new();
             for bootstrap_di in bootstrap_dialinfos {
-                log_rtab!(debug "direct bootstrap with: {}", bootstrap_di);
+                veilid_log!(self debug "direct bootstrap with: {}", bootstrap_di);
                 let peers = network_manager.boot_request(bootstrap_di).await?;
                 for peer in peers {
                     if !peer_map.contains_key(peer.node_ids()) {

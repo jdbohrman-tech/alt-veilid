@@ -4,6 +4,8 @@ mod node_ref_lock;
 mod node_ref_lock_mut;
 mod traits;
 
+impl_veilid_log_facility!("rtab");
+
 use super::*;
 
 pub(crate) use filtered_node_ref::*;

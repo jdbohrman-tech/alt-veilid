@@ -33,6 +33,8 @@ use hashlink::linked_hash_map::Entry;
 use hashlink::LruCache;
 use std::marker::PhantomData;
 
+impl_veilid_log_facility!("crypto");
+
 cfg_if! {
     if #[cfg(all(feature = "enable-crypto-none", feature = "enable-crypto-vld0"))] {
         /// Crypto kinds in order of preference, best cryptosystem is the first one, worst is the last one
@@ -183,7 +185,7 @@ impl Crypto {
             let crypto = registry.crypto();
             async move {
                 if let Err(e) = crypto.flush().await {
-                    warn!("flush failed: {}", e);
+                    veilid_log!(crypto warn "flush failed: {}", e);
                 }
             }
         });
@@ -208,10 +210,10 @@ impl Crypto {
         if let Some(f) = flush_future {
             f.await;
         }
-        log_crypto!("starting termination flush");
+        veilid_log!(self trace "starting termination flush");
         match self.flush().await {
             Ok(_) => {
-                log_crypto!("finished termination flush");
+                veilid_log!(self trace "finished termination flush");
             }
             Err(e) => {
                 error!("failed termination flush: {}", e);
@@ -364,29 +366,29 @@ impl Crypto {
         let table_key_node_id_secret = format!("node_id_secret_{}", ck);
 
         if node_id.is_none() {
-            log_crypto!(debug "pulling {} from storage", table_key_node_id);
+            veilid_log!(self debug "pulling {} from storage", table_key_node_id);
             if let Ok(Some(stored_node_id)) = config_table
                 .load_json::<TypedKey>(0, table_key_node_id.as_bytes())
                 .await
             {
-                log_crypto!(debug "{} found in storage", table_key_node_id);
+                veilid_log!(self debug "{} found in storage", table_key_node_id);
                 node_id = Some(stored_node_id);
             } else {
-                log_crypto!(debug "{} not found in storage", table_key_node_id);
+                veilid_log!(self debug "{} not found in storage", table_key_node_id);
             }
         }
 
         // See if node id secret was previously stored in the protected store
         if node_id_secret.is_none() {
-            log_crypto!(debug "pulling {} from storage", table_key_node_id_secret);
+            veilid_log!(self debug "pulling {} from storage", table_key_node_id_secret);
             if let Ok(Some(stored_node_id_secret)) = config_table
                 .load_json::<TypedSecret>(0, table_key_node_id_secret.as_bytes())
                 .await
             {
-                log_crypto!(debug "{} found in storage", table_key_node_id_secret);
+                veilid_log!(self debug "{} found in storage", table_key_node_id_secret);
                 node_id_secret = Some(stored_node_id_secret);
             } else {
-                log_crypto!(debug "{} not found in storage", table_key_node_id_secret);
+                veilid_log!(self debug "{} not found in storage", table_key_node_id_secret);
             }
         }
 
@@ -406,11 +408,11 @@ impl Crypto {
                 (node_id, node_id_secret)
             } else {
                 // If we still don't have a valid node id, generate one
-                log_crypto!(debug "generating new node_id_{}", ck);
+                veilid_log!(self debug "generating new node_id_{}", ck);
                 let kp = vcrypto.generate_keypair().await;
                 (TypedKey::new(ck, kp.key), TypedSecret::new(ck, kp.secret))
             };
-        info!("Node Id: {}", node_id);
+        veilid_log!(self info  "Node Id: {}", node_id);
 
         // Save the node id / secret in storage
         config_table

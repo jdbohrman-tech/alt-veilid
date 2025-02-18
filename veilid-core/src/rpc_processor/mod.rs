@@ -63,6 +63,8 @@ use network_manager::*;
 use routing_table::*;
 use storage_manager::*;
 
+impl_veilid_log_facility!("rpc");
+
 /////////////////////////////////////////////////////////////////////
 
 #[derive(Debug)]
@@ -203,7 +205,7 @@ impl RPCProcessor {
 
     #[instrument(level = "debug", skip_all, err)]
     pub async fn startup(&self) -> EyreResult<()> {
-        log_rpc!(debug "starting rpc processor startup");
+        veilid_log!(self debug "starting rpc processor startup");
 
         let guard = self.startup_context.startup_lock.startup()?;
         {
@@ -214,7 +216,7 @@ impl RPCProcessor {
             inner.stop_source = Some(StopSource::new());
 
             // spin up N workers
-            log_rpc!("Spinning up {} RPC workers", self.concurrency);
+            veilid_log!(self trace "Spinning up {} RPC workers", self.concurrency);
             for task_n in 0..self.concurrency {
                 let registry = self.registry();
                 let receiver = channel.1.clone();
@@ -228,14 +230,14 @@ impl RPCProcessor {
         }
         guard.success();
 
-        log_rpc!(debug "finished rpc processor startup");
+        veilid_log!(self debug "finished rpc processor startup");
 
         Ok(())
     }
 
     #[instrument(level = "debug", skip_all)]
     pub async fn shutdown(&self) {
-        log_rpc!(debug "starting rpc processor shutdown");
+        veilid_log!(self debug "starting rpc processor shutdown");
         let guard = self
             .startup_context
             .startup_lock
@@ -254,18 +256,18 @@ impl RPCProcessor {
             // drop the stop
             drop(inner.stop_source.take());
         }
-        log_rpc!(debug "stopping {} rpc worker tasks", unord.len());
+        veilid_log!(self debug "stopping {} rpc worker tasks", unord.len());
 
         // Wait for them to complete
         while unord.next().await.is_some() {}
 
-        log_rpc!(debug "resetting rpc processor state");
+        veilid_log!(self debug "resetting rpc processor state");
 
         // Release the rpc processor
         *self.inner.lock() = Self::new_inner();
 
         guard.success();
-        log_rpc!(debug "finished rpc processor shutdown");
+        veilid_log!(self debug "finished rpc processor shutdown");
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -316,7 +318,7 @@ impl RPCProcessor {
 
         // Sender PeerInfo was specified, update our routing table with it
         if !self.verify_node_info(routing_domain, peer_info.signed_node_info(), &[]) {
-            log_network_result!(debug "Dropping invalid PeerInfo in {:?} for id {}: {:?}", routing_domain, sender_node_id, peer_info);
+            veilid_log!(self debug target:"network_result", "Dropping invalid PeerInfo in {:?} for id {}: {:?}", routing_domain, sender_node_id, peer_info);
             // Don't punish for this because in the case of hairpin NAT
             // you can legally get LocalNetwork PeerInfo when you expect PublicInternet PeerInfo
             //
@@ -504,7 +506,7 @@ impl RPCProcessor {
             .await;
         match &out {
             Err(e) => {
-                log_rpc!(debug "RPC Lost (id={} {}): {}", id, debug_string, e);
+                veilid_log!(self debug "RPC Lost (id={} {}): {}", id, debug_string, e);
                 self.record_lost_answer(
                     waitable_reply.send_ts,
                     waitable_reply.node_ref.clone(),
@@ -514,7 +516,7 @@ impl RPCProcessor {
                 );
             }
             Ok(TimeoutOr::Timeout) => {
-                log_rpc!(debug "RPC Lost (id={} {}): Timeout", id, debug_string);
+                veilid_log!(self debug "RPC Lost (id={} {}): Timeout", id, debug_string);
                 self.record_lost_answer(
                     waitable_reply.send_ts,
                     waitable_reply.node_ref.clone(),
@@ -1017,7 +1019,7 @@ impl RPCProcessor {
             // If we sent to a private route without a safety route
             // We need to mark our own node info as having been seen so we can optimize sending it
             if let Err(e) = rss.mark_remote_private_route_seen_our_node_info(rpr_pubkey, recv_ts) {
-                log_rpc!(error "private route missing: {}", e);
+                veilid_log!(self error "private route missing: {}", e);
             }
 
             // We can't record local route latency if a remote private route was used because
@@ -1101,7 +1103,7 @@ impl RPCProcessor {
         let op_id = operation.op_id();
 
         // Log rpc send
-        debug!(target: "rpc_message", dir = "send", kind = "question", op_id = op_id.as_u64(), desc = operation.kind().desc(), ?dest);
+        veilid_log!(self debug target: "rpc_message", dir = "send", kind = "question", op_id = op_id.as_u64(), desc = operation.kind().desc(), ?dest);
 
         // Produce rendered operation
         let RenderedOperation {
@@ -1145,7 +1147,7 @@ impl RPCProcessor {
                 );
                 RPCError::network(e)
             })?;
-        let send_data_method = network_result_value_or_log!( res => [ format!(": node_ref={}, destination_node_ref={}, message.len={}", node_ref, destination_node_ref, message_len) ] {
+        let send_data_method = network_result_value_or_log!(self res => [ format!(": node_ref={}, destination_node_ref={}, message.len={}", node_ref, destination_node_ref, message_len) ] {
                 // If we couldn't send we're still cleaning up
                 self.record_send_failure(RPCKind::Question, send_ts, node_ref.unfiltered(), safety_route, remote_private_route);
                 network_result_raise!(res);
@@ -1193,7 +1195,7 @@ impl RPCProcessor {
         let operation = RPCOperation::new_statement(statement, spi);
 
         // Log rpc send
-        debug!(target: "rpc_message", dir = "send", kind = "statement", op_id = operation.op_id().as_u64(), desc = operation.kind().desc(), ?dest);
+        veilid_log!(self debug target: "rpc_message", dir = "send", kind = "statement", op_id = operation.op_id().as_u64(), desc = operation.kind().desc(), ?dest);
 
         // Produce rendered operation
         let RenderedOperation {
@@ -1230,7 +1232,7 @@ impl RPCProcessor {
                 );
                 RPCError::network(e)
             })?;
-        let _send_data_method = network_result_value_or_log!( res => [ format!(": node_ref={}, destination_node_ref={}, message.len={}", node_ref, destination_node_ref, message_len) ] {
+        let _send_data_method = network_result_value_or_log!(self res => [ format!(": node_ref={}, destination_node_ref={}, message.len={}", node_ref, destination_node_ref, message_len) ] {
                 // If we couldn't send we're still cleaning up
                 self.record_send_failure(RPCKind::Statement, send_ts, node_ref.unfiltered(), safety_route, remote_private_route);
                 network_result_raise!(res);
@@ -1263,7 +1265,7 @@ impl RPCProcessor {
         let operation = RPCOperation::new_answer(&request.operation, answer, spi);
 
         // Log rpc send
-        debug!(target: "rpc_message", dir = "send", kind = "answer", op_id = operation.op_id().as_u64(), desc = operation.kind().desc(), ?dest);
+        veilid_log!(self debug target: "rpc_message", dir = "send", kind = "answer", op_id = operation.op_id().as_u64(), desc = operation.kind().desc(), ?dest);
 
         // Produce rendered operation
         let RenderedOperation {
@@ -1300,7 +1302,7 @@ impl RPCProcessor {
                 );
                 RPCError::network(e)
             })?;
-        let _send_data_kind = network_result_value_or_log!( res => [ format!(": node_ref={}, destination_node_ref={}, message.len={}", node_ref, destination_node_ref, message_len) ] {
+        let _send_data_kind = network_result_value_or_log!(self res => [ format!(": node_ref={}, destination_node_ref={}, message.len={}", node_ref, destination_node_ref, message_len) ] {
                 // If we couldn't send we're still cleaning up
                 self.record_send_failure(RPCKind::Answer, send_ts, node_ref.unfiltered(), safety_route, remote_private_route);
                 network_result_raise!(res);
@@ -1390,7 +1392,7 @@ impl RPCProcessor {
                         match e {
                             // Invalid messages that should be punished
                             RPCError::Protocol(_) | RPCError::InvalidFormat(_) => {
-                                log_rpc!(debug "Invalid RPC Operation: {}", e);
+                                veilid_log!(self debug "Invalid RPC Operation: {}", e);
 
                                 // Punish nodes that send direct undecodable crap
                                 self.network_manager().address_filter().punish_node_id(
@@ -1400,11 +1402,11 @@ impl RPCProcessor {
                             }
                             // Ignored messages that should be dropped
                             RPCError::Ignore(_) | RPCError::Network(_) | RPCError::TryAgain(_) => {
-                                log_rpc!("Dropping RPC Operation: {}", e);
+                                veilid_log!(self trace "Dropping RPC Operation: {}", e);
                             }
                             // Internal errors that deserve louder logging
                             RPCError::Unimplemented(_) | RPCError::Internal(_) => {
-                                log_rpc!(error "Error decoding RPC operation: {}", e);
+                                veilid_log!(self error "Error decoding RPC operation: {}", e);
                             }
                         };
                         return Ok(NetworkResult::invalid_message(e));
@@ -1418,9 +1420,9 @@ impl RPCProcessor {
                 let sender_peer_info = operation.sender_peer_info();
                 let mut opt_sender_nr: Option<NodeRef> = network_result_try!(self
                 .process_sender_peer_info(routing_domain, sender_node_id, &sender_peer_info)? => {
-                    log_network_result!(debug "Sender PeerInfo: {:?}", sender_peer_info);
-                    log_network_result!(debug "From Operation: {:?}", operation.kind());
-                    log_network_result!(debug "With Detail: {:?}", detail);
+                    veilid_log!(self debug target:"network_result", "Sender PeerInfo: {:?}", sender_peer_info);
+                    veilid_log!(self debug target:"network_result", "From Operation: {:?}", operation.kind());
+                    veilid_log!(self debug target:"network_result", "With Detail: {:?}", detail);
                 });
                 // look up sender node, in case it's different than our peer due to relaying
                 if opt_sender_nr.is_none() {
@@ -1457,7 +1459,7 @@ impl RPCProcessor {
                     Ok(v) => v,
                     Err(e) => {
                         // Debug on error
-                        log_rpc!(debug "Dropping routed RPC: {}", e);
+                        veilid_log!(self debug "Dropping routed RPC: {}", e);
 
                         // XXX: Punish routes that send routed undecodable crap
                         // self.network_manager().address_filter().punish_route_id(xxx, PunishmentReason::FailedToDecodeRoutedMessage);
@@ -1484,7 +1486,7 @@ impl RPCProcessor {
                 }
 
                 // Log rpc receive
-                debug!(target: "rpc_message", dir = "recv", kind = "question", op_id = msg.operation.op_id().as_u64(), desc = msg.operation.kind().desc(), header = ?msg.header, operation = ?msg.operation.kind());
+                veilid_log!(self debug target: "rpc_message", dir = "recv", kind = "question", op_id = msg.operation.op_id().as_u64(), desc = msg.operation.kind().desc(), header = ?msg.header, operation = ?msg.operation.kind());
             }
             RPCOperationKind::Statement(_) => {
                 if let Some(sender_nr) = msg.opt_sender_nr.clone() {
@@ -1492,13 +1494,13 @@ impl RPCProcessor {
                 }
 
                 // Log rpc receive
-                debug!(target: "rpc_message", dir = "recv", kind = "statement", op_id = msg.operation.op_id().as_u64(), desc = msg.operation.kind().desc(), header = ?msg.header, operation = ?msg.operation.kind());
+                veilid_log!(self debug target: "rpc_message", dir = "recv", kind = "statement", op_id = msg.operation.op_id().as_u64(), desc = msg.operation.kind().desc(), header = ?msg.header, operation = ?msg.operation.kind());
             }
             RPCOperationKind::Answer(_) => {
                 // Answer stats are processed in wait_for_reply
 
                 // Log rpc receive
-                debug!(target: "rpc_message", dir = "recv", kind = "answer", op_id = msg.operation.op_id().as_u64(), desc = msg.operation.kind().desc(), header = ?msg.header, operation = ?msg.operation.kind());
+                veilid_log!(self debug target: "rpc_message", dir = "recv", kind = "answer", op_id = msg.operation.op_id().as_u64(), desc = msg.operation.kind().desc(), header = ?msg.header, operation = ?msg.operation.kind());
             }
         };
 
@@ -1538,16 +1540,16 @@ impl RPCProcessor {
                 if let Err(e) = self.waiting_rpc_table.complete_op_waiter(op_id, msg) {
                     match e {
                         RPCError::Unimplemented(_) | RPCError::Internal(_) => {
-                            log_rpc!(error "Could not complete rpc operation: id = {}: {}", op_id, e);
+                            veilid_log!(self error "Could not complete rpc operation: id = {}: {}", op_id, e);
                         }
                         RPCError::InvalidFormat(_)
                         | RPCError::Protocol(_)
                         | RPCError::Network(_)
                         | RPCError::TryAgain(_) => {
-                            log_rpc!(debug "Could not complete rpc operation: id = {}: {}", op_id, e);
+                            veilid_log!(self debug "Could not complete rpc operation: id = {}: {}", op_id, e);
                         }
                         RPCError::Ignore(_) => {
-                            log_rpc!(debug "Answer late: id = {}", op_id);
+                            veilid_log!(self debug "Answer late: id = {}", op_id);
                         }
                     };
                     // Don't throw an error here because it's okay if the original operation timed out
@@ -1568,12 +1570,12 @@ impl RPCProcessor {
             let rpc_message_span = tracing::trace_span!("rpc message");
             rpc_message_span.follows_from(prev_span);
 
-            network_result_value_or_log!(match self
+            network_result_value_or_log!(self match self
                 .process_rpc_message(msg).instrument(rpc_message_span)
                 .await
             {
                 Err(e) => {
-                    log_rpc!(error "couldn't process rpc message: {}", e);
+                    veilid_log!(self error "couldn't process rpc message: {}", e);
                     continue;
                 }
 

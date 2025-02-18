@@ -343,7 +343,7 @@ impl RoutingDomainDetailCommon {
                 match relay_sni {
                     SignedNodeInfo::Direct(d) => Some((relay_ids, d)),
                     SignedNodeInfo::Relayed(_) => {
-                        warn!("relay node should not have a relay itself! if this happens, a relay updated its signed node info and became a relay, which should cause the relay to be dropped");
+                        veilid_log!(rti warn "relay node should not have a relay itself! if this happens, a relay updated its signed node info and became a relay, which should cause the relay to be dropped");
                         None
                     }
                 }

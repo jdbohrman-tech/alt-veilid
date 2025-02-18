@@ -39,7 +39,7 @@ cfg_if::cfg_if! {
         }
 
         pub(crate) type NewProtocolAcceptHandler =
-            dyn Fn(VeilidConfig, bool) -> Box<dyn ProtocolAcceptHandler> + Send;
+            dyn Fn(VeilidComponentRegistry, bool) -> Box<dyn ProtocolAcceptHandler> + Send;
     }
 }
 ///////////////////////////////////////////////////////////
@@ -83,8 +83,9 @@ pub struct NetworkConnectionStats {
 }
 
 /// Represents a connection in the connection table for connection-oriented protocols
-#[derive(Debug)]
 pub(crate) struct NetworkConnection {
+    /// Registry accessor
+    registry: VeilidComponentRegistry,
     /// A unique id for this connection
     connection_id: NetworkConnectionId,
     /// The dial info used to make this connection if it was made with 'connect'
@@ -108,20 +109,45 @@ pub(crate) struct NetworkConnection {
     ref_count: usize,
 }
 
+impl_veilid_component_registry_accessor!(NetworkConnection);
+
+impl fmt::Debug for NetworkConnection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("NetworkConnection")
+            //.field("registry", &self.registry)
+            .field("connection_id", &self.connection_id)
+            .field("opt_dial_info", &self.opt_dial_info)
+            .field("flow", &self.flow)
+            .field("processor", &self.processor)
+            .field("established_time", &self.established_time)
+            .field("stats", &self.stats)
+            .field("sender", &self.sender)
+            .field("stop_source", &self.stop_source)
+            .field("protected_nr", &self.protected_nr)
+            .field("ref_count", &self.ref_count)
+            .finish()
+    }
+}
+
 impl Drop for NetworkConnection {
     fn drop(&mut self) {
         if self.ref_count != 0 && self.stop_source.is_some() {
-            log_net!(error "ref_count for network connection should be zero: {:?}", self);
+            veilid_log!(self error "ref_count for network connection should be zero: {:?}", self);
         }
     }
 }
 
 impl NetworkConnection {
-    pub(super) fn dummy(id: NetworkConnectionId, flow: Flow) -> Self {
+    pub(super) fn dummy(
+        registry: VeilidComponentRegistry,
+        id: NetworkConnectionId,
+        flow: Flow,
+    ) -> Self {
         // Create handle for sending (dummy is immediately disconnected)
         let (sender, _receiver) = flume::bounded(get_concurrency() as usize);
 
         Self {
+            registry,
             connection_id: id,
             opt_dial_info: None,
             flow,
@@ -162,6 +188,7 @@ impl NetworkConnection {
         let local_stop_token = stop_source.token();
 
         // Spawn connection processor and pass in protocol connection
+        let registry = connection_manager.registry();
         let processor = spawn(
             "connection processor",
             Self::process_connection(
@@ -178,6 +205,7 @@ impl NetworkConnection {
 
         // Return the connection
         Self {
+            registry,
             connection_id,
             opt_dial_info,
             flow,
@@ -302,12 +330,13 @@ impl NetworkConnection {
         stats: Arc<Mutex<NetworkConnectionStats>>,
     ) -> SendPinBoxFuture<()> {
         Box::pin(async move {
-            log_net!(
+            let registry = connection_manager.registry();
+
+            veilid_log!(registry trace
                 "Starting process_connection loop for id={}, {:?}", connection_id,
                 flow
             );
 
-            let registry = connection_manager.registry();
             let mut unord = FuturesUnordered::new();
             let mut need_receiver = true;
             let mut need_sender = true;
@@ -317,7 +346,7 @@ impl NetworkConnection {
             let new_timer = || {
                 sleep(connection_manager.connection_inactivity_timeout_ms()).then(|_| async {
                     // timeout
-                    log_net!("Connection timeout on {:?}", flow);
+                    veilid_log!(connection_manager trace "Connection timeout on {:?}", flow);
                     RecvLoopAction::Timeout
                 })
             };
@@ -344,7 +373,7 @@ impl NetworkConnection {
                                 .await
                                 {
                                     // Sending the packet along can fail, if so, this connection is dead
-                                    log_net!(debug e);
+                                    veilid_log!(connection_manager debug e);
                                     RecvLoopAction::Finish
                                 } else {
                                     RecvLoopAction::Send
@@ -352,7 +381,7 @@ impl NetworkConnection {
                             }
                             Err(e) => {
                                 // All senders gone, shouldn't happen since we store one alongside the join handle
-                                log_net!(warn e);
+                                veilid_log!(connection_manager warn e);
                                 RecvLoopAction::Finish
                             }
                         }
@@ -379,7 +408,7 @@ impl NetworkConnection {
 
                                     // Check for connection close
                                     if v.is_no_connection() {
-                                        log_net!("Connection closed from: {} ({})", peer_address.socket_addr(), peer_address.protocol_type());
+                                        veilid_log!(registry trace "Connection closed from: {} ({})", peer_address.socket_addr(), peer_address.protocol_type());
                                         return RecvLoopAction::Finish;
                                     }
 
@@ -390,7 +419,7 @@ impl NetworkConnection {
                                     }
 
                                     // Log other network results
-                                    let mut message = network_result_value_or_log!(v => [ format!(": protocol_connection={:?}", protocol_connection) ] {
+                                    let mut message = network_result_value_or_log!(registry v => [ format!(": protocol_connection={:?}", protocol_connection) ] {
                                         return RecvLoopAction::Finish;
                                     });
 
@@ -399,7 +428,7 @@ impl NetworkConnection {
                                         .on_recv_envelope(message.as_mut_slice(), flow)
                                         .await
                                     {
-                                        log_net!(debug "failed to process received envelope: {}", e);
+                                        veilid_log!(registry debug "failed to process received envelope: {}", e);
                                         RecvLoopAction::Finish
                                     } else {
                                         // Touch the LRU for this connection
@@ -410,7 +439,7 @@ impl NetworkConnection {
                                 }
                                 Err(e) => {
                                     // Connection unable to receive, closed
-                                    log_net!(error "connection unable to receive: {}", e);
+                                    veilid_log!(registry error "connection unable to receive: {}", e);
                                     RecvLoopAction::Finish
                                 }
                             }
@@ -451,7 +480,7 @@ impl NetworkConnection {
                 }
             }
 
-            log_net!(
+            veilid_log!(registry trace
                 "Connection loop finished flow={:?}",
                 flow
             );
@@ -463,7 +492,7 @@ impl NetworkConnection {
 
             // Close the low level socket
             if let Err(e) = protocol_connection.close().await {
-                log_net!(debug "Protocol connection close error: {}", e);
+                veilid_log!(registry debug "Protocol connection close error: {}", e);
             }
         }.in_current_span())
     }

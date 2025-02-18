@@ -1,5 +1,7 @@
 use super::*;
 
+impl_veilid_log_facility!("rtab");
+
 impl RoutingTable {
     // Check if a relay is desired or not
     #[instrument(level = "trace", skip_all)]
@@ -64,13 +66,13 @@ impl RoutingTable {
                     state_reason,
                     BucketEntryStateReason::Dead(_) | BucketEntryStateReason::Punished(_)
                 ) {
-                    log_rtab!(debug "Relay node is now {:?}, dropping relay {}", state_reason, relay_node);
+                    veilid_log!(self debug "Relay node is now {:?}, dropping relay {}", state_reason, relay_node);
                     editor.set_relay_node(None);
                     false
                 }
                 // Relay node no longer can relay
                 else if relay_node.operate(|_rti, e| !relay_node_filter(e)) {
-                    log_rtab!(debug
+                    veilid_log!(self debug
                         "Relay node can no longer relay, dropping relay {}",
                         relay_node
                     );
@@ -79,7 +81,7 @@ impl RoutingTable {
                 }
                 // Relay node is no longer wanted
                 else if relay_desired.is_none() {
-                    log_rtab!(debug
+                    veilid_log!(self debug
                         "Relay node no longer desired, dropping relay {}",
                         relay_node
                     );
@@ -107,16 +109,16 @@ impl RoutingTable {
                     // Register new outbound relay
                     match self.register_node_with_peer_info(outbound_relay_peerinfo, false) {
                         Ok(nr) => {
-                            log_rtab!(debug "Outbound relay node selected: {}", nr);
+                            veilid_log!(self debug "Outbound relay node selected: {}", nr);
                             editor.set_relay_node(Some(nr.unfiltered()));
                             got_outbound_relay = true;
                         }
                         Err(e) => {
-                            log_rtab!(error "failed to register node with peer info: {}", e);
+                            veilid_log!(self error "failed to register node with peer info: {}", e);
                         }
                     }
                 } else {
-                    log_rtab!(debug "Outbound relay desired but not available");
+                    veilid_log!(self debug "Outbound relay desired but not available");
                 }
             }
             if !got_outbound_relay {
@@ -126,7 +128,7 @@ impl RoutingTable {
                     cur_ts,
                     relay_node_filter,
                 ) {
-                    log_rtab!(debug "Inbound relay node selected: {}", nr);
+                    veilid_log!(self debug "Inbound relay node selected: {}", nr);
                     editor.set_relay_node(Some(nr));
                 }
             }

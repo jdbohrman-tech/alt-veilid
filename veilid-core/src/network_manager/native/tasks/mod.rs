@@ -78,7 +78,7 @@ impl Network {
     #[instrument(level = "trace", target = "net", name = "Network::tick", skip_all, err)]
     pub async fn tick(&self) -> EyreResult<()> {
         let Ok(_guard) = self.startup_lock.enter() else {
-            log_net!(debug "ignoring due to not started up");
+            veilid_log!(self debug "ignoring due to not started up");
             return Ok(());
         };
 
@@ -112,17 +112,17 @@ impl Network {
     }
 
     pub async fn cancel_tasks(&self) {
-        log_net!(debug "stopping upnp task");
+        veilid_log!(self debug "stopping upnp task");
         if let Err(e) = self.upnp_task.stop().await {
-            warn!("upnp_task not stopped: {}", e);
+            veilid_log!(self warn "upnp_task not stopped: {}", e);
         }
-        log_net!(debug "stopping network interfaces task");
+        veilid_log!(self debug "stopping network interfaces task");
         if let Err(e) = self.network_interfaces_task.stop().await {
-            warn!("network_interfaces_task not stopped: {}", e);
+            veilid_log!(self warn "network_interfaces_task not stopped: {}", e);
         }
-        log_net!(debug "stopping update network class task");
+        veilid_log!(self debug "stopping update network class task");
         if let Err(e) = self.update_network_class_task.stop().await {
-            warn!("update_network_class_task not stopped: {}", e);
+            veilid_log!(self warn "update_network_class_task not stopped: {}", e);
         }
     }
 }

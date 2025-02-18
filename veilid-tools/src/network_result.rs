@@ -33,7 +33,9 @@ fn io_error_kind_from_error<T>(e: io::Error) -> io::Result<NetworkResult<T>> {
     }
     #[cfg(windows)]
     if let Some(os_err) = e.raw_os_error() {
-        if os_err == winapi::um::winsock2::WSAENETRESET {
+        if os_err == winapi::um::winsock2::WSAENETRESET
+            || os_err == winapi::um::winsock2::WSAENETUNREACH
+        {
             return Ok(NetworkResult::NoConnection(e));
         }
     }
@@ -278,47 +280,11 @@ macro_rules! network_result_try {
 }
 
 #[macro_export]
-macro_rules! log_network_result {
-    (error $text:expr) => {error!(
-        target: "network_result",
-        "{}",
-        $text,
-    )};
-    (error $fmt:literal, $($arg:expr),+) => {
-        error!(target: "network_result", $fmt, $($arg),+);
-    };
-    (warn $text:expr) => {warn!(
-        target: "network_result",
-        "{}",
-        $text,
-    )};
-    (warn $fmt:literal, $($arg:expr),+) => {
-        warn!(target:"network_result", $fmt, $($arg),+);
-    };
-    (debug $text:expr) => {debug!(
-        target: "network_result",
-        "{}",
-        $text,
-    )};
-    (debug $fmt:literal, $($arg:expr),+) => {
-        debug!(target:"network_result", $fmt, $($arg),+);
-    };
-    ($text:expr) => {trace!(
-        target: "network_result",
-        "{}",
-        $text,
-    )};
-    ($fmt:literal, $($arg:expr),+) => {
-        trace!(target:"network_result", $fmt, $($arg),+);
-    }
-}
-
-#[macro_export]
 macro_rules! network_result_value_or_log {
-    ($r:expr => $f:expr) => {
-        network_result_value_or_log!($r => [ "" ] $f )
+    ($self:ident $r:expr => $f:expr) => {
+        network_result_value_or_log!($self $r => [ "" ] $f )
     };
-    ($r:expr => [ $d:expr ] $f:expr) => { {
+    ($self:ident $r:expr => [ $d:expr ] $f:expr) => { {
         let __extra_message = if debug_target_enabled!("network_result") {
             $d.to_string()
         } else {
@@ -326,7 +292,7 @@ macro_rules! network_result_value_or_log {
         };
         match $r {
             NetworkResult::Timeout => {
-                log_network_result!(debug
+                veilid_log!($self debug
                     "{} at {}@{}:{} in {}{}",
                     "Timeout",
                     file!(),
@@ -338,7 +304,7 @@ macro_rules! network_result_value_or_log {
                 $f
             }
             NetworkResult::ServiceUnavailable(ref s) => {
-                log_network_result!(debug
+                veilid_log!($self debug
                     "{}({}) at {}@{}:{} in {}{}",
                     "ServiceUnavailable",
                     s,
@@ -351,7 +317,7 @@ macro_rules! network_result_value_or_log {
                 $f
             }
             NetworkResult::NoConnection(ref e) => {
-                log_network_result!(debug
+                veilid_log!($self debug
                     "{}({}) at {}@{}:{} in {}{}",
                     "No connection",
                     e.to_string(),
@@ -364,7 +330,7 @@ macro_rules! network_result_value_or_log {
                 $f
             }
             NetworkResult::AlreadyExists(ref e) => {
-                log_network_result!(debug
+                veilid_log!($self debug
                     "{}({}) at {}@{}:{} in {}{}",
                     "Already exists",
                     e.to_string(),
@@ -377,7 +343,7 @@ macro_rules! network_result_value_or_log {
                 $f
             }
             NetworkResult::InvalidMessage(ref s) => {
-                log_network_result!(debug
+                veilid_log!($self debug
                     "{}({}) at {}@{}:{} in {}{}",
                     "Invalid message",
                     s,

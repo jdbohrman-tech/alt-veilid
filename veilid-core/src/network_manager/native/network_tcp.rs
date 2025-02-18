@@ -116,7 +116,7 @@ impl Network {
         let peer_addr = match tcp_stream.peer_addr() {
             Ok(addr) => addr,
             Err(e) => {
-                log_net!(debug "failed to get peer address: {}", e);
+                veilid_log!(self debug "failed to get peer address: {}", e);
                 return;
             }
         };
@@ -132,26 +132,26 @@ impl Network {
         let local_addr = match tcp_stream.local_addr() {
             Ok(addr) => addr,
             Err(e) => {
-                log_net!(debug "failed to get local address: {}", e);
+                veilid_log!(self debug "failed to get local address: {}", e);
                 return;
             }
         };
 
         if let Err(e) = set_tcp_stream_linger(&tcp_stream, Some(core::time::Duration::from_secs(0)))
         {
-            log_net!(debug "Couldn't set TCP linger: {}", e);
+            veilid_log!(self debug "Couldn't set TCP linger: {}", e);
             return;
         }
 
         if let Err(e) = tcp_stream.set_nodelay(true) {
-            log_net!(debug "Couldn't set TCP nodelay: {}", e);
+            veilid_log!(self debug "Couldn't set TCP nodelay: {}", e);
             return;
         }
 
         let listener_state = listener_state.clone();
         let connection_manager = connection_manager.clone();
 
-        log_net!("TCP connection from: {}", peer_addr);
+        veilid_log!(self trace "TCP connection from: {}", peer_addr);
 
         // Create a stream we can peek on
         #[cfg(feature = "rt-tokio")]
@@ -171,7 +171,7 @@ impl Network {
         {
             // If we fail to get a packet within the connection initial timeout
             // then we punt this connection
-            log_net!("connection initial timeout from: {:?}", peer_addr);
+            veilid_log!(self trace "connection initial timeout from: {:?}", peer_addr);
             return;
         }
 
@@ -197,17 +197,17 @@ impl Network {
 
         let conn = match conn {
             Ok(Some(c)) => {
-                log_net!("protocol handler found for {:?}: {:?}", peer_addr, c);
+                veilid_log!(self trace "protocol handler found for {:?}: {:?}", peer_addr, c);
                 c
             }
             Ok(None) => {
                 // No protocol handlers matched? drop it.
-                log_net!(debug "no protocol handler for connection from {:?}", peer_addr);
+                veilid_log!(self debug "no protocol handler for connection from {:?}", peer_addr);
                 return;
             }
             Err(e) => {
                 // Failed to negotiate connection? drop it.
-                log_net!(debug "failed to negotiate connection from {:?}: {}", peer_addr, e);
+                veilid_log!(self debug "failed to negotiate connection from {:?}: {}", peer_addr, e);
                 return;
             }
         };
@@ -217,7 +217,7 @@ impl Network {
             .on_accepted_protocol_network_connection(conn)
             .await
         {
-            log_net!(error "failed to register new connection: {}", e);
+            veilid_log!(self error "failed to register new connection: {}", e);
         }
     }
 
@@ -237,7 +237,7 @@ impl Network {
             return Ok(false);
         };
 
-        log_net!(debug "spawn_socket_listener: binding successful to {}", addr);
+        veilid_log!(self debug "spawn_socket_listener: binding successful to {}", addr);
 
         // Create protocol handler records
         let listener_state = Arc::new(RwLock::new(ListenerState::new()));
@@ -275,10 +275,10 @@ impl Network {
                 .timeout_at(stop_token)
                 .await;
 
-            log_net!(debug "exited incoming loop for {}", addr);
+            veilid_log!(this debug "exited incoming loop for {}", addr);
             // Remove our listener state from this address if we're stopping
             this.inner.lock().listener_states.remove(&addr);
-            log_net!(debug "listener state removed for {}", addr);
+            veilid_log!(this debug "listener state removed for {}", addr);
         });
         ////////////////////////////////////////////////////////////
 
@@ -329,17 +329,11 @@ impl Network {
                         }
                         ls.write()
                             .tls_protocol_handlers
-                            .push(new_protocol_accept_handler(
-                                self.network_manager().config(),
-                                true,
-                            ));
+                            .push(new_protocol_accept_handler(self.registry(), true));
                     } else {
                         ls.write()
                             .protocol_accept_handlers
-                            .push(new_protocol_accept_handler(
-                                self.network_manager().config(),
-                                false,
-                            ));
+                            .push(new_protocol_accept_handler(self.registry(), false));
                     }
 
                     // Return interface dial infos we listen on
@@ -350,7 +344,7 @@ impl Network {
                         .or_default();
                     bapp.push(addr);
 
-                    log_net!(
+                    veilid_log!(self
                         debug
                         "set_preferred_local_address: {:?} {:?} -> {:?}",
                         protocol_type,
@@ -367,7 +361,7 @@ impl Network {
                 }
 
                 if !bind_set.search {
-                    log_net!(debug "unable to bind to tcp {}", addr);
+                    veilid_log!(self debug "unable to bind to tcp {}", addr);
                     return Ok(false);
                 }
 

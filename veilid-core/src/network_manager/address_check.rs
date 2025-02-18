@@ -2,6 +2,8 @@
 /// Used to determine if our address has changed and if we should re-publish new PeerInfo
 use super::*;
 
+impl_veilid_log_facility!("net");
+
 /// Number of 'existing dialinfo inconsistent' results in the cache during inbound-capable to trigger detection
 pub const ADDRESS_INCONSISTENCY_DETECTION_COUNT: usize = 5;
 
@@ -35,6 +37,7 @@ struct AddressCheckCacheKey(RoutingDomain, ProtocolType, AddressType);
 /// Address checker - keep track of how other nodes are seeing our node's address on a per-protocol basis
 /// Used to determine if our address has changed and if we should re-publish new PeerInfo
 pub struct AddressCheck {
+    registry: VeilidComponentRegistry,
     config: AddressCheckConfig,
     net: Network,
     published_peer_info: BTreeMap<RoutingDomain, Arc<PeerInfo>>,
@@ -61,9 +64,25 @@ impl fmt::Debug for AddressCheck {
     }
 }
 
+impl_veilid_component_registry_accessor!(AddressCheck);
+
 impl AddressCheck {
-    pub fn new(config: AddressCheckConfig, net: Network) -> Self {
+    pub fn new(net: Network) -> Self {
+        let registry = net.registry();
+
+        let (detect_address_changes, ip6_prefix_size) = registry.config().with(|c| {
+            (
+                c.network.detect_address_changes,
+                c.network.max_connections_per_ip6_prefix_size as usize,
+            )
+        });
+        let config = AddressCheckConfig {
+            detect_address_changes,
+            ip6_prefix_size,
+        };
+
         Self {
+            registry,
             config,
             net,
             published_peer_info: BTreeMap::new(),
@@ -158,7 +177,7 @@ impl AddressCheck {
             return;
         };
         if local.port() != pla.port() {
-            log_network_result!(debug "ignoring address report because local port did not match listener: {} != {}", local.port(), pla.port());
+            veilid_log!(self debug target:"network_result", "ignoring address report because local port did not match listener: {} != {}", local.port(), pla.port());
             return;
         }
 
@@ -208,7 +227,7 @@ impl AddressCheck {
         if needs_address_detection {
             if self.config.detect_address_changes {
                 // Reset the address check cache now so we can start detecting fresh
-                info!(
+                veilid_log!(self info
                     "{:?} address has changed, detecting dial info",
                     routing_domain
                 );
@@ -216,7 +235,7 @@ impl AddressCheck {
                 // Re-detect the public dialinfo
                 self.net.trigger_update_network_class(routing_domain);
             } else {
-                warn!(
+                veilid_log!(self warn
                     "{:?} address may have changed. Restarting the server may be required.",
                     routing_domain
                 );
@@ -257,11 +276,12 @@ impl AddressCheck {
 
         // If we have something that matches our current dial info at all, consider it a validation
         if new_matches_current {
+            let registry = self.registry();
             self.address_inconsistency_table
                 .entry(acckey)
                 .and_modify(|ait| {
                     if *ait != 0 {
-                        log_net!(debug "Resetting address inconsistency for {:?} due to match on flow {:?} from {}", acckey, flow, reporting_peer);
+                        veilid_log!(registry debug "Resetting address inconsistency for {:?} due to match on flow {:?} from {}", acckey, flow, reporting_peer);
                     }
                     *ait = 0;
                 })
@@ -282,7 +302,7 @@ impl AddressCheck {
                     *ait += 1;
                 })
                 .or_insert(1);
-            log_net!(debug "Adding address inconsistency ({}) for {:?} due to address {} on flow {:?} from {}", val, acckey, socket_address, flow, reporting_peer);
+            veilid_log!(self debug "Adding address inconsistency ({}) for {:?} due to address {} on flow {:?} from {}", val, acckey, socket_address, flow, reporting_peer);
             return val >= ADDRESS_INCONSISTENCY_DETECTION_COUNT;
         }
 
@@ -306,6 +326,7 @@ impl AddressCheck {
         }
 
         // Add the currently seen socket address into the consistency table
+        let registry = self.registry();
         let acckey =
             AddressCheckCacheKey(routing_domain, flow.protocol_type(), flow.address_type());
         let cache = self
@@ -325,7 +346,7 @@ impl AddressCheck {
         for (_k, v) in cache.iter() {
             let count = *consistencies.entry(*v).and_modify(|e| *e += 1).or_insert(1);
             if count >= ADDRESS_CONSISTENCY_DETECTION_COUNT {
-                log_net!(debug "Address consistency detected for {:?}: {}", acckey, v);
+                veilid_log!(registry debug "Address consistency detected for {:?}: {}", acckey, v);
                 return true;
             }
         }

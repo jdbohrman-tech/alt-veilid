@@ -31,6 +31,8 @@ use crate::rpc_processor::*;
 use bucket::*;
 use hashlink::LruCache;
 
+impl_veilid_log_facility!("rtab");
+
 //////////////////////////////////////////////////////////////////////////
 
 /// How many nodes in our routing table we require for a functional PublicInternet RoutingDomain
@@ -201,7 +203,7 @@ impl RoutingTable {
 
     /// Called to initialize the routing table after it is created
     async fn init_async(&self) -> EyreResult<()> {
-        log_rtab!(debug "starting routing table init");
+        veilid_log!(self debug "starting routing table init");
 
         // Set up routing buckets
         {
@@ -210,22 +212,22 @@ impl RoutingTable {
         }
 
         // Load bucket entries from table db if possible
-        log_rtab!(debug "loading routing table entries");
+        veilid_log!(self debug "loading routing table entries");
         if let Err(e) = self.load_buckets().await {
-            log_rtab!(debug "Error loading buckets from storage: {:#?}. Resetting.", e);
+            veilid_log!(self debug "Error loading buckets from storage: {:#?}. Resetting.", e);
             let mut inner = self.inner.write();
             inner.init_buckets();
         }
 
         // Set up routespecstore
-        log_rtab!(debug "starting route spec store init");
+        veilid_log!(self debug "starting route spec store init");
         if let Err(e) = self.route_spec_store().load().await {
-            log_rtab!(debug "Error loading route spec store: {:#?}. Resetting.", e);
+            veilid_log!(self debug "Error loading route spec store: {:#?}. Resetting.", e);
             self.route_spec_store().reset();
         };
-        log_rtab!(debug "finished route spec store init");
+        veilid_log!(self debug "finished route spec store init");
 
-        log_rtab!(debug "finished routing table init");
+        veilid_log!(self debug "finished routing table init");
         Ok(())
     }
 
@@ -239,7 +241,7 @@ impl RoutingTable {
 
     pub(crate) async fn shutdown(&self) {
         // Stop tasks
-        log_net!(debug "stopping routing table tasks");
+        veilid_log!(self debug "stopping routing table tasks");
         self.cancel_tasks().await;
     }
 
@@ -247,15 +249,15 @@ impl RoutingTable {
 
     /// Called to shut down the routing table
     async fn terminate_async(&self) {
-        log_rtab!(debug "starting routing table terminate");
+        veilid_log!(self debug "starting routing table terminate");
 
         // Load bucket entries from table db if possible
-        log_rtab!(debug "saving routing table entries");
+        veilid_log!(self debug "saving routing table entries");
         if let Err(e) = self.save_buckets().await {
             error!("failed to save routing table entries: {}", e);
         }
 
-        log_rtab!(debug "saving route spec store");
+        veilid_log!(self debug "saving route spec store");
         let rss = {
             let mut inner = self.inner.write();
             inner.route_spec_store.take()
@@ -265,12 +267,12 @@ impl RoutingTable {
                 error!("couldn't save route spec store: {}", e);
             }
         }
-        log_rtab!(debug "shutting down routing table");
+        veilid_log!(self debug "shutting down routing table");
 
         let mut inner = self.inner.write();
         *inner = RoutingTableInner::new(self.registry());
 
-        log_rtab!(debug "finished routing table terminate");
+        veilid_log!(self debug "finished routing table terminate");
     }
 
     ///////////////////////////////////////////////////////////////////
@@ -422,7 +424,7 @@ impl RoutingTable {
         };
         if !caches_valid {
             // Caches not valid, start over
-            log_rtab!(debug "cache validity key changed, emptying routing table");
+            veilid_log!(self debug "cache validity key changed, emptying routing table");
             drop(db);
             table_store.delete(ROUTING_TABLE).await?;
             let db = table_store.open(ROUTING_TABLE, 1).await?;
@@ -434,13 +436,13 @@ impl RoutingTable {
         let Some(serialized_bucket_map): Option<SerializedBucketMap> =
             db.load_json(0, SERIALIZED_BUCKET_MAP).await?
         else {
-            log_rtab!(debug "no bucket map in saved routing table");
+            veilid_log!(self debug "no bucket map in saved routing table");
             return Ok(());
         };
         let Some(all_entry_bytes): Option<SerializedBuckets> =
             db.load_json(0, ALL_ENTRY_BYTES).await?
         else {
-            log_rtab!(debug "no all_entry_bytes in saved routing table");
+            veilid_log!(self debug "no all_entry_bytes in saved routing table");
             return Ok(());
         };
 
@@ -480,11 +482,11 @@ impl RoutingTable {
         // Validate serialized bucket map
         for (k, v) in &serialized_bucket_map {
             if !VALID_CRYPTO_KINDS.contains(k) {
-                warn!("crypto kind is not valid, not loading routing table");
+                veilid_log!(inner warn "crypto kind is not valid, not loading routing table");
                 return Ok(());
             }
             if v.len() != PUBLIC_KEY_LENGTH * 8 {
-                warn!("bucket count is different, not loading routing table");
+                veilid_log!(inner warn "bucket count is different, not loading routing table");
                 return Ok(());
             }
         }
@@ -1014,7 +1016,7 @@ impl RoutingTable {
             match self.register_node_with_peer_info(p, false) {
                 Ok(nr) => out.push(nr.unfiltered()),
                 Err(e) => {
-                    log_rtab!(debug "failed to register node with peer info from find node answer: {}", e);
+                    veilid_log!(self debug "failed to register node with peer info from find node answer: {}", e);
                 }
             }
         }
@@ -1089,9 +1091,9 @@ impl RoutingTable {
         capabilities: Vec<Capability>,
     ) {
         // Ask node for nodes closest to our own node
-        let closest_nodes = network_result_value_or_log!(match self.find_nodes_close_to_self(crypto_kind, node_ref.clone(), capabilities.clone()).await {
+        let closest_nodes = network_result_value_or_log!(self match self.find_nodes_close_to_self(crypto_kind, node_ref.clone(), capabilities.clone()).await {
             Err(e) => {
-                log_rtab!(error
+                veilid_log!(self error
                     "find_self failed for {:?}: {:?}",
                     &node_ref, e
                 );
@@ -1105,9 +1107,9 @@ impl RoutingTable {
         // Ask each node near us to find us as well
         if wide {
             for closest_nr in closest_nodes {
-                network_result_value_or_log!(match self.find_nodes_close_to_self(crypto_kind, closest_nr.clone(), capabilities.clone()).await {
+                network_result_value_or_log!(self match self.find_nodes_close_to_self(crypto_kind, closest_nr.clone(), capabilities.clone()).await {
                     Err(e) => {
-                        log_rtab!(error
+                        veilid_log!(self error
                             "find_self failed for {:?}: {:?}",
                             &closest_nr, e
                         );

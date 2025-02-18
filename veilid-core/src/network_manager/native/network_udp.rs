@@ -14,16 +14,16 @@ impl Network {
                 task_count = 1;
             }
         }
-        log_net!("task_count: {}", task_count);
+        veilid_log!(self trace "task_count: {}", task_count);
         for task_n in 0..task_count {
-            log_net!("Spawning UDP listener task");
+            veilid_log!(self trace "Spawning UDP listener task");
 
             ////////////////////////////////////////////////////////////
             // Run thread task to process stream of messages
             let this = self.clone();
 
             let jh = spawn(&format!("UDP listener {}", task_n), async move {
-                log_net!("UDP listener task spawned");
+                veilid_log!(this trace "UDP listener task spawned");
 
                 // Collect all our protocol handlers into a vector
                 let protocol_handlers: Vec<RawUdpProtocolHandler> = this
@@ -39,7 +39,7 @@ impl Network {
                 let stop_token = {
                     let inner = this.inner.lock();
                     if inner.stop_source.is_none() {
-                        log_net!(debug "exiting UDP listener before it starts because we encountered an error");
+                        veilid_log!(this debug "exiting UDP listener before it starts because we encountered an error");
                         return;
                     }
                     inner.stop_source.as_ref().unwrap().token()
@@ -70,7 +70,7 @@ impl Network {
                                         .on_recv_envelope(&mut data[..size], flow)
                                         .await
                                     {
-                                        log_net!(debug "failed to process received udp envelope: {}", e);
+                                        veilid_log!(network_manager debug "failed to process received udp envelope: {}", e);
                                     }
                                 }
                                 Ok(Err(_)) => {
@@ -96,7 +96,7 @@ impl Network {
                     }
                 }
 
-                log_net!("UDP listener task stopped");
+                veilid_log!(this trace "UDP listener task stopped");
             }.instrument(trace_span!(parent: None, "UDP Listener")));
             ////////////////////////////////////////////////////////////
 
@@ -109,7 +109,7 @@ impl Network {
 
     #[instrument(level = "trace", skip_all)]
     async fn create_udp_protocol_handler(&self, addr: SocketAddr) -> EyreResult<bool> {
-        log_net!(debug "create_udp_protocol_handler on {:?}", &addr);
+        veilid_log!(self debug "create_udp_protocol_handler on {:?}", &addr);
 
         // Create a single-address-family UDP socket with default options bound to an address
         let Some(udp_socket) = bind_async_udp_socket(addr)? else {
@@ -158,7 +158,7 @@ impl Network {
                             .or_default();
                         bapp.push(addr);
 
-                        log_net!(
+                        veilid_log!(self
                             debug
                             "set_preferred_local_address: {:?} {:?} -> {:?}",
                             ProtocolType::UDP,
@@ -178,7 +178,7 @@ impl Network {
                     }
                 }
                 if !bind_set.search {
-                    log_net!(debug "unable to bind to udp {}", addr);
+                    veilid_log!(self debug "unable to bind to udp {}", addr);
                     return Ok(false);
                 }
 

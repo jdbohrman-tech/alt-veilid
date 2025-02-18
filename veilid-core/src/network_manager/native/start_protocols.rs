@@ -139,7 +139,7 @@ impl Network {
 
     #[instrument(level = "trace", skip_all)]
     pub(super) async fn bind_udp_protocol_handlers(&self) -> EyreResult<StartupDisposition> {
-        log_net!("UDP: binding protocol handlers");
+        veilid_log!(self trace "UDP: binding protocol handlers");
         let (listen_address, public_address, detect_address_changes) = self.config().with(|c| {
             (
                 c.network.protocol.udp.listen_address.clone(),
@@ -155,12 +155,12 @@ impl Network {
 
         // Now create udp inbound sockets for whatever interfaces we're listening on
         if bind_set.search {
-            info!(
+            veilid_log!(self info
                 "UDP: searching for free port starting with {} on {:?}",
                 bind_set.port, bind_set.addrs
             );
         } else {
-            info!(
+            veilid_log!(self info
                 "UDP: binding protocol handlers at port {} on {:?}",
                 bind_set.port, bind_set.addrs
             );
@@ -189,7 +189,7 @@ impl Network {
         editor_public_internet: &mut RoutingDomainEditorPublicInternet<'_>,
         editor_local_network: &mut RoutingDomainEditorLocalNetwork<'_>,
     ) -> EyreResult<()> {
-        log_net!("UDP: registering dial info");
+        veilid_log!(self trace "UDP: registering dial info");
 
         let (public_address, detect_address_changes) = self.config().with(|c| {
             (
@@ -260,7 +260,7 @@ impl Network {
 
     #[instrument(level = "trace", skip_all)]
     pub(super) async fn start_ws_listeners(&self) -> EyreResult<StartupDisposition> {
-        log_net!("WS: binding protocol handlers");
+        veilid_log!(self trace "WS: binding protocol handlers");
         let (listen_address, url, detect_address_changes) = self.config().with(|c| {
             (
                 c.network.protocol.ws.listen_address.clone(),
@@ -275,12 +275,12 @@ impl Network {
             .await?;
 
         if bind_set.search {
-            info!(
+            veilid_log!(self info
                 "WS: searching for free port starting with {} on {:?}",
                 bind_set.port, bind_set.addrs
             );
         } else {
-            info!(
+            veilid_log!(self info
                 "WS: binding protocol handlers at port {} on {:?}",
                 bind_set.port, bind_set.addrs
             );
@@ -290,7 +290,7 @@ impl Network {
                 bind_set,
                 false,
                 ProtocolType::WS,
-                Box::new(|c, t| Box::new(WebsocketProtocolHandler::new(c, t))),
+                Box::new(|r, t| Box::new(WebsocketProtocolHandler::new(r, t))),
             )
             .await?
         {
@@ -313,7 +313,7 @@ impl Network {
         editor_public_internet: &mut RoutingDomainEditorPublicInternet<'_>,
         editor_local_network: &mut RoutingDomainEditorLocalNetwork<'_>,
     ) -> EyreResult<()> {
-        log_net!("WS: registering dial info");
+        veilid_log!(self trace "WS: registering dial info");
         let (url, path, detect_address_changes) = self.config().with(|c| {
             (
                 c.network.protocol.ws.url.clone(),
@@ -403,7 +403,7 @@ impl Network {
 
     #[instrument(level = "trace", skip_all)]
     pub(super) async fn start_wss_listeners(&self) -> EyreResult<StartupDisposition> {
-        log_net!("WSS: binding protocol handlers");
+        veilid_log!(self trace "WSS: binding protocol handlers");
 
         let (listen_address, url, detect_address_changes) = self.config().with(|c| {
             (
@@ -419,12 +419,12 @@ impl Network {
             .await?;
 
         if bind_set.search {
-            info!(
+            veilid_log!(self info
                 "WSS: searching for free port starting with {} on {:?}",
                 bind_set.port, bind_set.addrs
             );
         } else {
-            info!(
+            veilid_log!(self info
                 "WSS: binding protocol handlers at port {} on {:?}",
                 bind_set.port, bind_set.addrs
             );
@@ -435,7 +435,7 @@ impl Network {
                 bind_set,
                 true,
                 ProtocolType::WSS,
-                Box::new(|c, t| Box::new(WebsocketProtocolHandler::new(c, t))),
+                Box::new(|r, t| Box::new(WebsocketProtocolHandler::new(r, t))),
             )
             .await?
         {
@@ -458,7 +458,7 @@ impl Network {
         editor_public_internet: &mut RoutingDomainEditorPublicInternet<'_>,
         editor_local_network: &mut RoutingDomainEditorLocalNetwork<'_>,
     ) -> EyreResult<()> {
-        log_net!("WSS: registering dialinfo");
+        veilid_log!(self trace "WSS: registering dialinfo");
 
         let (url, _detect_address_changes) = self.config().with(|c| {
             (
@@ -512,7 +512,7 @@ impl Network {
 
     #[instrument(level = "trace", skip_all)]
     pub(super) async fn start_tcp_listeners(&self) -> EyreResult<StartupDisposition> {
-        log_net!("TCP: binding protocol handlers");
+        veilid_log!(self trace "TCP: binding protocol handlers");
 
         let (listen_address, public_address, detect_address_changes) = self.config().with(|c| {
             (
@@ -528,12 +528,12 @@ impl Network {
             .await?;
 
         if bind_set.search {
-            info!(
+            veilid_log!(self info
                 "TCP: searching for free port starting with {} on {:?}",
                 bind_set.port, bind_set.addrs
             );
         } else {
-            info!(
+            veilid_log!(self info
                 "TCP: binding protocol handlers at port {} on {:?}",
                 bind_set.port, bind_set.addrs
             );
@@ -566,7 +566,7 @@ impl Network {
         editor_public_internet: &mut RoutingDomainEditorPublicInternet<'_>,
         editor_local_network: &mut RoutingDomainEditorLocalNetwork<'_>,
     ) -> EyreResult<()> {
-        log_net!("TCP: registering dialinfo");
+        veilid_log!(self trace "TCP: registering dialinfo");
 
         let (public_address, detect_address_changes) = self.config().with(|c| {
             (

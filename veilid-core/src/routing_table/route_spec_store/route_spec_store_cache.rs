@@ -1,4 +1,5 @@
 use super::*;
+impl_veilid_log_facility!("rtab");
 
 // Compiled route key for caching
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -22,6 +23,8 @@ pub struct CompiledRoute {
 /// Ephemeral data used to help the RouteSpecStore operate efficiently
 #[derive(Debug)]
 pub struct RouteSpecStoreCache {
+    /// Registry accessor
+    registry: VeilidComponentRegistry,
     /// How many times nodes have been used
     used_nodes: HashMap<PublicKey, usize>,
     /// How many times nodes have been used at the terminal point of a route
@@ -40,7 +43,23 @@ pub struct RouteSpecStoreCache {
     dead_remote_routes: Vec<RouteId>,
 }
 
+impl_veilid_component_registry_accessor!(RouteSpecStoreCache);
+
 impl RouteSpecStoreCache {
+    pub fn new(registry: VeilidComponentRegistry) -> Self {
+        Self {
+            registry,
+            used_nodes: Default::default(),
+            used_end_nodes: Default::default(),
+            hop_cache: Default::default(),
+            remote_private_route_set_cache: LruCache::new(REMOTE_PRIVATE_ROUTE_CACHE_SIZE),
+            remote_private_routes_by_key: HashMap::new(),
+            compiled_route_cache: LruCache::new(COMPILED_ROUTE_CACHE_SIZE),
+            dead_routes: Default::default(),
+            dead_remote_routes: Default::default(),
+        }
+    }
+
     /// add an allocated route set to our cache via its cache key
     pub fn add_to_cache(&mut self, rti: &RoutingTableInner, rssd: &RouteSetSpecDetail) {
         let cache_key = rssd.make_cache_key(rti);
@@ -309,7 +328,7 @@ impl RouteSpecStoreCache {
         };
 
         if let Some(v) = self.compiled_route_cache.insert(key, safety_route) {
-            log_rtab!(error "route cache already contained key: sr_pubkey={:?}, pr_pubkey={:?}", v.public_key, pr_pubkey);
+            veilid_log!(self error "route cache already contained key: sr_pubkey={:?}, pr_pubkey={:?}", v.public_key, pr_pubkey);
         }
     }
 
@@ -369,21 +388,6 @@ impl RouteSpecStoreCache {
     pub fn roll_answers(&mut self, cur_ts: Timestamp) {
         for (_k, v) in self.remote_private_route_set_cache.iter_mut() {
             v.get_stats_mut().roll_answers(cur_ts);
-        }
-    }
-}
-
-impl Default for RouteSpecStoreCache {
-    fn default() -> Self {
-        Self {
-            used_nodes: Default::default(),
-            used_end_nodes: Default::default(),
-            hop_cache: Default::default(),
-            remote_private_route_set_cache: LruCache::new(REMOTE_PRIVATE_ROUTE_CACHE_SIZE),
-            remote_private_routes_by_key: HashMap::new(),
-            compiled_route_cache: LruCache::new(COMPILED_ROUTE_CACHE_SIZE),
-            dead_routes: Default::default(),
-            dead_remote_routes: Default::default(),
         }
     }
 }

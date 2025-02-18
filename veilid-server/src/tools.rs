@@ -2,6 +2,10 @@ pub use cfg_if::*;
 pub use color_eyre::eyre::{bail, eyre, Result as EyreResult, WrapErr};
 pub use core::future::Future;
 pub use parking_lot::*;
+pub use std::collections::{HashMap, HashSet};
+pub use std::ffi::OsString;
+pub use std::path::Path;
+pub use std::str::FromStr;
 pub use tracing::*;
 
 cfg_if! {

@@ -22,6 +22,7 @@ use tracing_flame::FlameLayer;
 use tracing_perfetto::PerfettoLayer;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::*;
+use veilid_core::VEILID_LOG_KEY_FIELD;
 
 struct VeilidLogsInner {
     _file_guard: Option<non_blocking::WorkerGuard>,
@@ -33,6 +34,20 @@ struct VeilidLogsInner {
 #[derive(Clone)]
 pub struct VeilidLogs {
     inner: Arc<Mutex<VeilidLogsInner>>,
+}
+
+fn make_primary_log_key_filter(
+    subnode_index: u16,
+    empty_namespace_enabled: bool,
+) -> veilid_core::VeilidLayerLogKeyFilter {
+    let namespace = subnode_namespace(subnode_index);
+    let log_key = veilid_core::VeilidLayerFilter::make_veilid_log_key(PROGRAM_NAME, &namespace);
+    Arc::new(move |ns| {
+        if ns.is_empty() {
+            return empty_namespace_enabled;
+        }
+        ns == log_key
+    })
 }
 
 impl VeilidLogs {
@@ -49,11 +64,15 @@ impl VeilidLogs {
         // XXX:
         //layers.push(tracing_error::ErrorLayer::default().boxed());
 
+        let mut fields_to_strip = HashSet::<&'static str>::new();
+        fields_to_strip.insert(VEILID_LOG_KEY_FIELD);
+
         #[cfg(feature = "rt-tokio")]
         if settingsr.logging.console.enabled {
             let filter = veilid_core::VeilidLayerFilter::new_no_default(
                 veilid_core::VeilidConfigLogLevel::Trace,
                 &[],
+                None,
             );
 
             let layer = ConsoleLayer::builder()
@@ -81,13 +100,19 @@ impl VeilidLogs {
             let filter = veilid_core::VeilidLayerFilter::new(
                 convert_loglevel(settingsr.logging.terminal.level),
                 &settingsr.logging.terminal.ignore_log_targets,
+                Some(make_primary_log_key_filter(
+                    settingsr.testing.subnode_index,
+                    true,
+                )),
             );
             let layer = fmt::Layer::new()
                 .compact()
+                .map_fmt_fields(|f| veilid_core::FmtStripFields::new(f, fields_to_strip.clone()))
                 .with_timer(timer)
                 .with_ansi(true)
                 .with_writer(std::io::stdout)
                 .with_filter(filter.clone());
+
             filters.insert("terminal", filter);
             layers.push(layer.boxed());
         }
@@ -103,6 +128,7 @@ impl VeilidLogs {
                     .iter()
                     .map(|&x| x.to_string())
                     .collect::<Vec<_>>(),
+                None,
             );
             let (flame_layer, guard) = FlameLayer::with_file(&settingsr.logging.flame.path)?;
             flame_guard = Some(guard);
@@ -126,6 +152,7 @@ impl VeilidLogs {
                     .iter()
                     .map(|&x| x.to_string())
                     .collect::<Vec<_>>(),
+                None,
             );
             let perfetto_layer = PerfettoLayer::new(std::sync::Mutex::new(std::fs::File::create(
                 &settingsr.logging.perfetto.path,
@@ -182,6 +209,7 @@ impl VeilidLogs {
             let filter = veilid_core::VeilidLayerFilter::new(
                 convert_loglevel(settingsr.logging.otlp.level),
                 &settingsr.logging.otlp.ignore_log_targets,
+                None,
             );
             let layer = tracing_opentelemetry::layer()
                 .with_tracer(tracer)
@@ -218,6 +246,10 @@ impl VeilidLogs {
             let filter = veilid_core::VeilidLayerFilter::new(
                 convert_loglevel(settingsr.logging.file.level),
                 &settingsr.logging.file.ignore_log_targets,
+                Some(make_primary_log_key_filter(
+                    settingsr.testing.subnode_index,
+                    true,
+                )),
             );
             let layer = fmt::Layer::new()
                 .compact()
@@ -233,6 +265,7 @@ impl VeilidLogs {
             let filter = veilid_core::VeilidLayerFilter::new(
                 convert_loglevel(settingsr.logging.api.level),
                 &settingsr.logging.api.ignore_log_targets,
+                None,
             );
             let layer = veilid_core::ApiTracingLayer::init().with_filter(filter.clone());
             filters.insert("api", filter);
@@ -246,6 +279,10 @@ impl VeilidLogs {
                     let filter = veilid_core::VeilidLayerFilter::new(
                         convert_loglevel(settingsr.logging.system.level),
                         &settingsr.logging.system.ignore_log_targets,
+                        Some(make_primary_log_key_filter(
+                            settingsr.testing.subnode_index,
+                            true,
+                        )),
                     );
                     let layer = tracing_journald::layer().wrap_err("failed to set up journald logging")?
                         .with_filter(filter.clone());

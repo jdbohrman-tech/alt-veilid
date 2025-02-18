@@ -2,6 +2,8 @@ use super::*;
 use futures_util::*;
 use stop_token::future::FutureExt as _;
 
+impl_veilid_log_facility!("stor");
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct OfflineSubkeyWrite {
     pub safety_selection: SafetySelection,
@@ -50,20 +52,20 @@ impl StorageManager {
             Self::handle_get_local_value_inner(&mut inner, key, subkey, true).await
         };
         let Ok(get_result) = get_result else {
-            log_stor!(debug "Offline subkey write had no subkey result: {}:{}", key, subkey);
+            veilid_log!(self debug "Offline subkey write had no subkey result: {}:{}", key, subkey);
             // drop this one
             return Ok(OfflineSubkeyWriteResult::Dropped);
         };
         let Some(value) = get_result.opt_value else {
-            log_stor!(debug "Offline subkey write had no subkey value: {}:{}", key, subkey);
+            veilid_log!(self debug "Offline subkey write had no subkey value: {}:{}", key, subkey);
             // drop this one
             return Ok(OfflineSubkeyWriteResult::Dropped);
         };
         let Some(descriptor) = get_result.opt_descriptor else {
-            log_stor!(debug "Offline subkey write had no descriptor: {}:{}", key, subkey);
+            veilid_log!(self debug "Offline subkey write had no descriptor: {}:{}", key, subkey);
             return Ok(OfflineSubkeyWriteResult::Dropped);
         };
-        log_stor!(debug "Offline subkey write: {}:{} len={}", key, subkey, value.value_data().data().len());
+        veilid_log!(self debug "Offline subkey write: {}:{} len={}", key, subkey, value.value_data().data().len());
         let osvres = self
             .outbound_set_value(key, subkey, safety_selection, value.clone(), descriptor)
             .await;
@@ -96,16 +98,16 @@ impl StorageManager {
                             return Ok(OfflineSubkeyWriteResult::Finished(result));
                         }
                         Err(e) => {
-                            log_stor!(debug "failed to get offline subkey write result: {}:{} {}", key, subkey, e);
+                            veilid_log!(self debug "failed to get offline subkey write result: {}:{} {}", key, subkey, e);
                             return Ok(OfflineSubkeyWriteResult::Cancelled);
                         }
                     }
                 }
-                log_stor!(debug "writing offline subkey did not complete {}:{}", key, subkey);
+                veilid_log!(self debug "writing offline subkey did not complete {}:{}", key, subkey);
                 return Ok(OfflineSubkeyWriteResult::Cancelled);
             }
             Err(e) => {
-                log_stor!(debug "failed to write offline subkey: {}:{} {}", key, subkey, e);
+                veilid_log!(self debug "failed to write offline subkey: {}:{} {}", key, subkey, e);
                 return Ok(OfflineSubkeyWriteResult::Cancelled);
             }
         }
@@ -187,7 +189,7 @@ impl StorageManager {
         let mut inner = self.inner.lock().await;
 
         // Debug print the result
-        log_stor!(debug "Offline write result: {:?}", result);
+        veilid_log!(self debug "Offline write result: {:?}", result);
 
         // Get the offline subkey write record
         match inner.offline_subkey_writes.entry(result.key) {
@@ -206,12 +208,12 @@ impl StorageManager {
                     osw.subkeys.is_empty()
                 };
                 if finished {
-                    log_stor!(debug "Offline write finished key {}", result.key);
+                    veilid_log!(self debug "Offline write finished key {}", result.key);
                     o.remove();
                 }
             }
             std::collections::hash_map::Entry::Vacant(_) => {
-                warn!("offline write work items should always be on offline_subkey_writes entries that exist: ignoring key {}", result.key)
+                veilid_log!(self warn "offline write work items should always be on offline_subkey_writes entries that exist: ignoring key {}", result.key);
             }
         }
 

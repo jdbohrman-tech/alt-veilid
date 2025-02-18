@@ -173,7 +173,7 @@ impl Destination {
                 if opt_routing_domain.is_none() {
                     // No routing domain for target, no node info
                     // Only a stale connection or no connection exists
-                    log_rpc!(debug "No routing domain for node: node={}", node);
+                    veilid_log!(node warn "No routing domain for node: node={}", node);
                 };
                 (Some(node.unfiltered()), None, opt_routing_domain)
             }
@@ -206,7 +206,7 @@ impl Destination {
                 }
                 if opt_routing_domain.is_none() {
                     // In the case of an unexpected relay, log it and don't pass any sender peer info into an unexpected relay
-                    log_rpc!(debug "Unexpected relay used for node: relay={}, node={}", relay, node);
+                    veilid_log!(node warn "No routing domain for relay: relay={}, node={}", relay, node);
                 };
 
                 (

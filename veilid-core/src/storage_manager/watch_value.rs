@@ -1,5 +1,7 @@
 use super::*;
 
+impl_veilid_log_facility!("stor");
+
 /// The context of the outbound_watch_value operation
 struct OutboundWatchValueContext {
     /// A successful watch
@@ -55,7 +57,7 @@ impl StorageManager {
         )?;
 
         if wva.answer.accepted {
-            log_dht!(debug "WatchValue canceled: id={} expiration_ts={} ({})", wva.answer.watch_id, display_ts(wva.answer.expiration_ts.as_u64()), watch_node);
+            veilid_log!(self debug "WatchValue canceled: id={} expiration_ts={} ({})", wva.answer.watch_id, display_ts(wva.answer.expiration_ts.as_u64()), watch_node);
             Ok(Some(OutboundWatchValueResult {
                 expiration_ts: wva.answer.expiration_ts,
                 watch_id: wva.answer.watch_id,
@@ -63,7 +65,7 @@ impl StorageManager {
                 opt_value_changed_route: wva.reply_private_route,
             }))
         } else {
-            log_dht!(debug "WatchValue not canceled: id={} ({})", watch_id, watch_node);
+            veilid_log!(self debug "WatchValue not canceled: id={} ({})", watch_id, watch_node);
             Ok(None)
         }
     }
@@ -113,9 +115,9 @@ impl StorageManager {
 
         if wva.answer.accepted {
             if watch_id != wva.answer.watch_id {
-                log_dht!(debug "WatchValue changed: id={}->{} expiration_ts={} ({})", watch_id, wva.answer.watch_id, display_ts(wva.answer.expiration_ts.as_u64()), watch_node);
+                veilid_log!(self debug "WatchValue changed: id={}->{} expiration_ts={} ({})", watch_id, wva.answer.watch_id, display_ts(wva.answer.expiration_ts.as_u64()), watch_node);
             } else {
-                log_dht!(debug "WatchValue renewed: id={} expiration_ts={} ({})", watch_id, display_ts(wva.answer.expiration_ts.as_u64()), watch_node);
+                veilid_log!(self debug "WatchValue renewed: id={} expiration_ts={} ({})", watch_id, display_ts(wva.answer.expiration_ts.as_u64()), watch_node);
             }
 
             Ok(Some(OutboundWatchValueResult {
@@ -125,7 +127,7 @@ impl StorageManager {
                 opt_value_changed_route: wva.reply_private_route,
             }))
         } else {
-            log_dht!(debug "WatchValue change failed: id={} ({})", wva.answer.watch_id, watch_node);
+            veilid_log!(self debug "WatchValue change failed: id={} ({})", wva.answer.watch_id, watch_node);
             Ok(None)
         }
     }
@@ -259,7 +261,7 @@ impl StorageManager {
                         let mut done = false;
                         if wva.answer.expiration_ts.as_u64() > 0 {
                             // If the expiration time is greater than zero this watch is active
-                            log_dht!(debug "Watch created: id={} expiration_ts={} ({})", wva.answer.watch_id, display_ts(wva.answer.expiration_ts.as_u64()), next_node);
+                            veilid_log!(registry debug "Watch created: id={} expiration_ts={} ({})", wva.answer.watch_id, display_ts(wva.answer.expiration_ts.as_u64()), next_node);
                             done = true;
                         } else {
                             // If the returned expiration time is zero, this watch was cancelled or rejected
@@ -277,7 +279,7 @@ impl StorageManager {
                     }
 
                     // Return peers if we have some
-                    log_network_result!(debug "WatchValue fanout call returned peers {} ({})", wva.answer.peers.len(), next_node);
+                    veilid_log!(registry debug target:"network_result", "WatchValue fanout call returned peers {} ({})", wva.answer.peers.len(), next_node);
 
                     Ok(NetworkResult::value(FanoutCallOutput{peer_info_list: wva.answer.peers}))
                 }.instrument(tracing::trace_span!("outbound_watch_value call routine"))
@@ -316,9 +318,9 @@ impl StorageManager {
                 // Return the best answer we've got
                 let ctx = context.lock();
                 if ctx.opt_watch_value_result.is_some() {
-                    log_dht!(debug "WatchValue Fanout Timeout Success");
+                    veilid_log!(self debug "WatchValue Fanout Timeout Success");
                 } else {
-                    log_dht!(debug "WatchValue Fanout Timeout Failure");
+                    veilid_log!(self debug "WatchValue Fanout Timeout Failure");
                 }
                 Ok(ctx.opt_watch_value_result.clone())
             }
@@ -327,9 +329,9 @@ impl StorageManager {
                 // Return the best answer we've got
                 let ctx = context.lock();
                 if ctx.opt_watch_value_result.is_some() {
-                    log_dht!(debug "WatchValue Fanout Success");
+                    veilid_log!(self debug "WatchValue Fanout Success");
                 } else {
-                    log_dht!(debug "WatchValue Fanout Failure");
+                    veilid_log!(self debug "WatchValue Fanout Failure");
                 }
                 Ok(ctx.opt_watch_value_result.clone())
             }
@@ -338,16 +340,16 @@ impl StorageManager {
                 // Return the best answer we've got
                 let ctx = context.lock();
                 if ctx.opt_watch_value_result.is_some() {
-                    log_dht!(debug "WatchValue Fanout Exhausted Success");
+                    veilid_log!(self debug "WatchValue Fanout Exhausted Success");
                 } else {
-                    log_dht!(debug "WatchValue Fanout Exhausted Failure");
+                    veilid_log!(self debug "WatchValue Fanout Exhausted Failure");
                 }
                 Ok(ctx.opt_watch_value_result.clone())
             }
             // Failed
             TimeoutOr::Value(Err(e)) => {
                 // If we finished with an error, return that
-                log_dht!(debug "WatchValue Fanout Error: {}", e);
+                veilid_log!(self debug "WatchValue Fanout Error: {}", e);
                 Err(e.into())
             }
         }
@@ -436,16 +438,16 @@ impl StorageManager {
 
             if count > active_watch.count {
                 // If count is greater than our requested count then this is invalid, cancel the watch
-                log_stor!(debug "watch count went backward: {}: {}/{}", key, count, active_watch.count);
+                veilid_log!(self debug "watch count went backward: {}: {}/{}", key, count, active_watch.count);
                 // Force count to zero
                 count = 0;
                 opened_record.clear_active_watch();
             } else if count == 0 {
                 // If count is zero, we're done, cancel the watch and the app can renew it if it wants
-                log_stor!(debug "watch count finished: {}", key);
+                veilid_log!(self debug "watch count finished: {}", key);
                 opened_record.clear_active_watch();
             } else {
-                log_stor!(debug
+                veilid_log!(self debug
                     "watch count decremented: {}: {}/{}",
                     key,
                     count,

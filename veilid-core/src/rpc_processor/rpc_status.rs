@@ -140,7 +140,7 @@ impl RPCProcessor {
                             flow: send_data_method.unique_flow.flow,
                             reporting_peer: target.unfiltered(),
                         }) {
-                            log_rpc!(debug "Failed to post event: {}", e);
+                            veilid_log!(self debug "Failed to post event: {}", e);
                         }
                     }
                 }

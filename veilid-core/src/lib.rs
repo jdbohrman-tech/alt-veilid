@@ -63,8 +63,9 @@ pub(crate) use self::component::*;
 pub(crate) use self::core_context::RegisteredComponents;
 pub use self::core_context::{api_startup, api_startup_config, api_startup_json, UpdateCallback};
 pub use self::logging::{
-    ApiTracingLayer, VeilidLayerFilter, DEFAULT_LOG_FACILITIES_ENABLED_LIST,
-    DEFAULT_LOG_FACILITIES_IGNORE_LIST, DURATION_LOG_FACILITIES, FLAME_LOG_FACILITIES_IGNORE_LIST,
+    ApiTracingLayer, FmtStripFields, VeilidLayerFilter, VeilidLayerLogKeyFilter,
+    DEFAULT_LOG_FACILITIES_ENABLED_LIST, DEFAULT_LOG_FACILITIES_IGNORE_LIST,
+    DURATION_LOG_FACILITIES, FLAME_LOG_FACILITIES_IGNORE_LIST, VEILID_LOG_KEY_FIELD,
 };
 pub use self::veilid_api::*;
 pub use self::veilid_config::*;

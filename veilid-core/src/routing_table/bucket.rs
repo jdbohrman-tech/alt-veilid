@@ -1,12 +1,16 @@
 use super::*;
 use core::sync::atomic::Ordering;
 
+impl_veilid_log_facility!("rtab");
+
 /// Routing Table Bucket
 /// Stores map of public keys to entries, which may be in multiple routing tables per crypto kind
 /// Keeps entries at a particular 'dht distance' from this cryptokind's node id
 /// Helps to keep managed lists at particular distances so we can evict nodes by priority
 /// where the priority comes from liveness and age of the entry (older is better)
 pub struct Bucket {
+    /// Component registryo accessor
+    registry: VeilidComponentRegistry,
     /// Map of keys to entries for this bucket
     entries: BTreeMap<PublicKey, Arc<BucketEntry>>,
     /// The crypto kind in use for the public keys in this bucket
@@ -26,9 +30,12 @@ struct SerializedBucketData {
     entries: Vec<SerializedBucketEntryData>,
 }
 
+impl_veilid_component_registry_accessor!(Bucket);
+
 impl Bucket {
-    pub fn new(kind: CryptoKind) -> Self {
+    pub fn new(registry: VeilidComponentRegistry, kind: CryptoKind) -> Self {
         Self {
+            registry,
             entries: BTreeMap::new(),
             kind,
         }
@@ -73,7 +80,7 @@ impl Bucket {
 
     /// Create a new entry with a node_id of this crypto kind and return it
     pub(super) fn add_new_entry(&mut self, node_id_key: PublicKey) -> Arc<BucketEntry> {
-        log_rtab!("Node added: {}:{}", self.kind, node_id_key);
+        veilid_log!(self trace "Node added: {}:{}", self.kind, node_id_key);
 
         // Add new entry
         let entry = Arc::new(BucketEntry::new(TypedKey::new(self.kind, node_id_key)));
@@ -85,7 +92,7 @@ impl Bucket {
 
     /// Add an existing entry with a new node_id for this crypto kind
     pub(super) fn add_existing_entry(&mut self, node_id_key: PublicKey, entry: Arc<BucketEntry>) {
-        log_rtab!("Existing node added: {}:{}", self.kind, node_id_key);
+        veilid_log!(self trace "Existing node added: {}:{}", self.kind, node_id_key);
 
         // Add existing entry
         self.entries.insert(node_id_key, entry);
@@ -93,7 +100,7 @@ impl Bucket {
 
     /// Remove an entry with a node_id for this crypto kind from the bucket
     pub(super) fn remove_entry(&mut self, node_id_key: &PublicKey) {
-        log_rtab!("Node removed: {}:{}", self.kind, node_id_key);
+        veilid_log!(self trace "Node removed: {}:{}", self.kind, node_id_key);
 
         // Remove the entry
         self.entries.remove(node_id_key);

@@ -1,5 +1,7 @@
 use super::*;
 
+impl_veilid_log_facility!("net");
+
 #[derive(Clone)]
 pub struct RawUdpProtocolHandler {
     registry: VeilidComponentRegistry,
@@ -22,7 +24,7 @@ impl RawUdpProtocolHandler {
     pub async fn recv_message(&self, data: &mut [u8]) -> io::Result<(usize, Flow)> {
         let (message_len, flow) = loop {
             // Get a packet
-            let (size, remote_addr) = network_result_value_or_log!(self.socket.recv_from(data).await.into_network_result()? => continue);
+            let (size, remote_addr) = network_result_value_or_log!(self self.socket.recv_from(data).await.into_network_result()? => continue);
 
             // Check to see if it is punished
             if self
@@ -43,7 +45,7 @@ impl RawUdpProtocolHandler {
                     continue;
                 }
                 nres => {
-                    log_network_result!(debug
+                    veilid_log!(self debug target:"network_result",
                         "UDP::recv_message insert_frame failed: {:?} <= size={} remote_addr={}",
                         nres,
                         size,
@@ -55,7 +57,7 @@ impl RawUdpProtocolHandler {
 
             // Check length of reassembled message (same for all protocols)
             if message.len() > MAX_MESSAGE_SIZE {
-                log_net!(debug "{}({}) at {}@{}:{}", "Invalid message", "received too large UDP message", file!(), line!(), column!());
+                veilid_log!(self debug "{}({}) at {}@{}:{}", "Invalid message", "received too large UDP message", file!(), line!(), column!());
                 continue;
             }
 
@@ -133,7 +135,7 @@ impl RawUdpProtocolHandler {
             SocketAddress::from_socket_addr(local_socket_addr),
         );
 
-        log_net!("udp::send_message: {:?}", flow);
+        veilid_log!(self trace "udp::send_message: {:?}", flow);
 
         #[cfg(feature = "verbose-tracing")]
         tracing::Span::current().record("ret.flow", format!("{:?}", flow).as_str());
@@ -190,7 +192,7 @@ impl RawUdpProtocolHandler {
             SocketAddress::from_socket_addr(local_socket_addr),
         );
 
-        log_net!("udp::send_hole_punch: {:?}", flow);
+        veilid_log!(self trace "udp::send_hole_punch: {:?}", flow);
 
         #[cfg(feature = "verbose-tracing")]
         tracing::Span::current().record("ret.flow", format!("{:?}", flow).as_str());

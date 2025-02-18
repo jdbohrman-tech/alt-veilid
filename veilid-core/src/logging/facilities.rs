@@ -68,9 +68,17 @@ pub static DEFAULT_LOG_FACILITIES_ENABLED_LIST: &[&str] = &[
     "pstore",
     "tstore",
     "crypto",
+    "veilid_debug",
 ];
 
 pub static DURATION_LOG_FACILITIES: &[&str] = &["veilid_api"];
+
+#[macro_export]
+macro_rules! impl_veilid_log_facility {
+    ($facility:literal) => {
+        const __VEILID_LOG_FACILITY: &'static str = $facility;
+    };
+}
 
 #[macro_export]
 macro_rules! fn_string {
@@ -80,353 +88,204 @@ macro_rules! fn_string {
 }
 
 #[macro_export]
-macro_rules! log_net {
-    (error $text:expr) => {error!(
-        target: "net",
+macro_rules! veilid_log {
+    // ERROR //////////////////////////////////////////////////////////////////////////
+    // veilid_log!(self error "message")
+    ($self_expr:ident error $text:expr) => {error!(
+        target: self::__VEILID_LOG_FACILITY,
+        __VEILID_LOG_KEY = $self_expr.log_key(),
         "{}",
         $text,
     )};
-    (error $fmt:literal, $($arg:expr),+) => {
-        error!(target:"net", $fmt, $($arg),+);
+    // veilid_log!(self error target: "facility", "message")
+    ($self_expr:ident error target: $target:expr, $text:expr) => {error!(
+        target: $target,
+        __VEILID_LOG_KEY = $self_expr.log_key(),
+        "{}",
+        $text,
+    )};
+    // veilid_log!(self error "data: {}", data)
+    ($self_expr:ident error $fmt:literal, $($arg:expr),+) => {error!(
+        target: self::__VEILID_LOG_FACILITY,
+        __VEILID_LOG_KEY = $self_expr.log_key(),
+        $fmt, $($arg),+);
     };
-    (warn $text:expr) => {warn!(
-        target: "net",
-        "{}",
-        $text,
-    )};
-    (warn $fmt:literal, $($arg:expr),+) => {
-        warn!(target:"net", $fmt, $($arg),+);
+    // veilid_log!(self error target: "facility", "data: {}", data)
+    ($self_expr:ident error target: $target:expr, $fmt:literal, $($arg:expr),+) => {error!(
+        target: $target,
+        __VEILID_LOG_KEY = $self_expr.log_key(),
+        $fmt, $($arg),+);
     };
-    (debug $text:expr) => {debug!(
-        target: "net",
-        "{}",
-        $text,
+    // veilid_log!(self error field=value, ?other_field)
+    ($self_expr:ident error $($k:ident).+ = $($fields:tt)*) => {error!(
+        target: self::__VEILID_LOG_FACILITY,
+        __VEILID_LOG_KEY = $self_expr.log_key(),
+        $($k).+ = $($fields)*
     )};
-    (debug $fmt:literal, $($arg:expr),+) => {
-        debug!(target:"net", $fmt, $($arg),+);
-    };
-    ($text:expr) => {trace!(
-        target: "net",
-        "{}",
-        $text,
+    // veilid_log!(self error target: "facility", field=value, ?other_field)
+    ($self_expr:ident error target: $target:expr, $($k:ident).+ = $($fields:tt)*) => {error!(
+        target: $target,
+        __VEILID_LOG_KEY = $self_expr.log_key(),
+        $($k).+ = $($fields)*
     )};
-    ($fmt:literal, $($arg:expr),+) => {
-        trace!(target:"net", $fmt, $($arg),+);
-    }
-}
 
-#[macro_export]
-macro_rules! log_client_api {
-    (error $text:expr) => {error!(
-        target: "client_api",
+    // WARN //////////////////////////////////////////////////////////////////////////
+    // veilid_log!(self warn "message")
+    ($self_expr:ident warn $text:expr) => {warn!(
+        target: self::__VEILID_LOG_FACILITY,
+        __VEILID_LOG_KEY = $self_expr.log_key(),
         "{}",
         $text,
     )};
-    (error $fmt:literal, $($arg:expr),+) => {
-        error!(target:"client_api", $fmt, $($arg),+);
+    // veilid_log!(self warn target: "facility", "message")
+    ($self_expr:ident warn target: $target:expr, $text:expr) => {warn!(
+        target: $target,
+        __VEILID_LOG_KEY = $self_expr.log_key(),
+        "{}",
+        $text,
+    )};
+    // veilid_log!(self warn "data: {}", data)
+    ($self_expr:ident warn $fmt:literal, $($arg:expr),+) => {warn!(
+        target: self::__VEILID_LOG_FACILITY,
+        __VEILID_LOG_KEY = $self_expr.log_key(),
+        $fmt, $($arg),+);
     };
-    (warn $text:expr) => {warn!(
-        target: "client_api",
-        "{}",
-        $text,
-    )};
-    (warn $fmt:literal, $($arg:expr),+) => {
-        warn!(target:"client_api", $fmt, $($arg),+);
+    // veilid_log!(self warn target: "facility", "data: {}", data)
+    ($self_expr:ident warn target: $target:expr, $fmt:literal, $($arg:expr),+) => {warn!(
+        target: $target,
+        __VEILID_LOG_KEY = $self_expr.log_key(),
+        $fmt, $($arg),+);
     };
-    (debug $text:expr) => {debug!(
-        target: "client_api",
-        "{}",
-        $text,
+    // veilid_log!(self warn field=value, ?other_field)
+    ($self_expr:ident warn $($k:ident).+ = $($fields:tt)*) => {warn!(
+        target: self::__VEILID_LOG_FACILITY,
+        __VEILID_LOG_KEY = $self_expr.log_key(),
+        $($k).+ = $($fields)*
     )};
-    (debug $fmt:literal, $($arg:expr),+) => {
-        debug!(target:"client_api", $fmt, $($arg),+);
-    };
-    ($text:expr) => {trace!(
-        target: "client_api",
-        "{}",
-        $text,
+    // veilid_log!(self warn target: "facility", field=value, ?other_field)
+    ($self_expr:ident warn target: $target:expr, $($k:ident).+ = $($fields:tt)*) => {warn!(
+        target: $target,
+        __VEILID_LOG_KEY = $self_expr.log_key(),
+        $($k).+ = $($fields)*
     )};
-    ($fmt:literal, $($arg:expr),+) => {
-        trace!(target:"client_api", $fmt, $($arg),+);
-    }
-}
 
-#[macro_export]
-macro_rules! log_rpc {
-    (error $text:expr) => { error!(
-        target: "rpc",
+    // INFO //////////////////////////////////////////////////////////////////////////
+    // veilid_log!(self info "message")
+    ($self_expr:ident info $text:expr) => {info!(
+        target: self::__VEILID_LOG_FACILITY,
+        __VEILID_LOG_KEY = $self_expr.log_key(),
         "{}",
         $text,
     )};
-    (error $fmt:literal, $($arg:expr),+) => {
-        error!(target:"rpc", $fmt, $($arg),+);
+    // veilid_log!(self info target: "facility", "message")
+    ($self_expr:ident info target: $target:expr, $text:expr) => {info!(
+        target: $target,
+        __VEILID_LOG_KEY = $self_expr.log_key(),
+        "{}",
+        $text,
+    )};
+    // veilid_log!(self info "data: {}", data)
+    ($self_expr:ident info $fmt:literal, $($arg:expr),+) => {info!(
+        target: self::__VEILID_LOG_FACILITY,
+        __VEILID_LOG_KEY = $self_expr.log_key(),
+        $fmt, $($arg),+);
     };
-    (warn $text:expr) => { warn!(
-        target: "rpc",
-        "{}",
-        $text,
-    )};
-    (warn $fmt:literal, $($arg:expr),+) => {
-        warn!(target:"rpc", $fmt, $($arg),+);
+    // veilid_log!(self info target: "facility", "data: {}", data)
+    ($self_expr:ident info target: $target:expr, $fmt:literal, $($arg:expr),+) => {info!(
+        target: $target,
+        __VEILID_LOG_KEY = $self_expr.log_key(),
+        $fmt, $($arg),+);
     };
-    (debug $text:expr) => { debug!(
-        target: "rpc",
-        "{}",
-        $text,
+    // veilid_log!(self info field=value, ?other_field)
+    ($self_expr:ident info $($k:ident).+ = $($fields:tt)*) => {info!(
+        target: self::__VEILID_LOG_FACILITY,
+        __VEILID_LOG_KEY = $self_expr.log_key(),
+        $($k).+ = $($fields)*
     )};
-    (debug $fmt:literal, $($arg:expr),+) => {
-        debug!(target:"rpc", $fmt, $($arg),+);
-    };
-    ($text:expr) => {trace!(
-        target: "rpc",
-        "{}",
-        $text,
+    // veilid_log!(self info target: "facility", field=value, ?other_field)
+    ($self_expr:ident info target: $target:expr, $($k:ident).+ = $($fields:tt)*) => {info!(
+        target: $target,
+        __VEILID_LOG_KEY = $self_expr.log_key(),
+        $($k).+ = $($fields)*
     )};
-    ($fmt:literal, $($arg:expr),+) => {
-        trace!(target:"rpc", $fmt, $($arg),+);
-    }
-}
 
-#[macro_export]
-macro_rules! log_dht {
-    (error $text:expr) => { error!(
-        target: "dht",
+    // DEBUG //////////////////////////////////////////////////////////////////////////
+    // veilid_log!(self debug "message")
+    ($self_expr:ident debug $text:expr) => {debug!(
+        target: self::__VEILID_LOG_FACILITY,
+        __VEILID_LOG_KEY = $self_expr.log_key(),
         "{}",
         $text,
     )};
-    (error $fmt:literal, $($arg:expr),+) => {
-        error!(target:"dht", $fmt, $($arg),+);
+    // veilid_log!(self debug target: "facility", "message")
+    ($self_expr:ident debug target: $target:expr, $text:expr) => {debug!(
+        target: $target,
+        __VEILID_LOG_KEY = $self_expr.log_key(),
+        "{}",
+        $text,
+    )};
+    // veilid_log!(self debug "data: {}", data)
+    ($self_expr:ident debug $fmt:literal, $($arg:expr),+) => {debug!(
+        target: self::__VEILID_LOG_FACILITY,
+        __VEILID_LOG_KEY = $self_expr.log_key(),
+        $fmt, $($arg),+);
     };
-    (warn $text:expr) => { warn!(
-        target: "dht",
-        "{}",
-        $text,
-    )};
-    (warn $fmt:literal, $($arg:expr),+) => {
-        warn!(target:"dht", $fmt, $($arg),+);
+    // veilid_log!(self debug target: "facility", "data: {}", data)
+    ($self_expr:ident debug target: $target:expr, $fmt:literal, $($arg:expr),+) => {debug!(
+        target: $target,
+        __VEILID_LOG_KEY = $self_expr.log_key(),
+        $fmt, $($arg),+);
     };
-    (debug $text:expr) => { debug!(
-        target: "dht",
-        "{}",
-        $text,
+    // veilid_log!(self debug field=value, ?other_field)
+    ($self_expr:ident debug $($k:ident).+ = $($fields:tt)*) => {debug!(
+        target: self::__VEILID_LOG_FACILITY,
+        __VEILID_LOG_KEY = $self_expr.log_key(),
+        $($k).+ = $($fields)*
     )};
-    (debug $fmt:literal, $($arg:expr),+) => {
-        debug!(target:"dht", $fmt, $($arg),+);
-    };
-    ($text:expr) => {trace!(
-        target: "dht",
-        "{}",
-        $text,
+    // veilid_log!(self debug target: "facility", field=value, ?other_field)
+    ($self_expr:ident debug target: $target:expr, $($k:ident).+ = $($fields:tt)*) => {debug!(
+        target: $target,
+        __VEILID_LOG_KEY = $self_expr.log_key(),
+        $($k).+ = $($fields)*
     )};
-    ($fmt:literal, $($arg:expr),+) => {
-        trace!(target:"dht", $fmt, $($arg),+);
-    }
-}
 
-#[macro_export]
-macro_rules! log_rtab {
-    (error $text:expr) => { error!(
-        target: "rtab",
+    // TRACE //////////////////////////////////////////////////////////////////////////
+    // veilid_log!(self trace "message")
+    ($self_expr:ident trace $text:expr) => {trace!(
+        target: self::__VEILID_LOG_FACILITY,
+        __VEILID_LOG_KEY = $self_expr.log_key(),
         "{}",
         $text,
     )};
-    (error $fmt:literal, $($arg:expr),+) => {
-        error!(target:"rtab", $fmt, $($arg),+);
+    // veilid_log!(self trace target: "facility", "message")
+    ($self_expr:ident trace target: $target:expr, $text:expr) => {trace!(
+        target: $target,
+        __VEILID_LOG_KEY = $self_expr.log_key(),
+        "{}",
+        $text,
+    )};
+    // veilid_log!(self trace "data: {}", data)
+    ($self_expr:ident trace $fmt:literal, $($arg:expr),+) => {trace!(
+        target: self::__VEILID_LOG_FACILITY,
+        __VEILID_LOG_KEY = $self_expr.log_key(),
+        $fmt, $($arg),+);
     };
-    (warn $text:expr) => { warn!(
-        target: "rtab",
-        "{}",
-        $text,
-    )};
-    (warn $fmt:literal, $($arg:expr),+) => {
-        warn!(target:"rtab", $fmt, $($arg),+);
+    // veilid_log!(self trace target: "facility", "data: {}", data)
+    ($self_expr:ident trace target: $target:expr, $fmt:literal, $($arg:expr),+) => {trace!(
+        target: $target,
+        __VEILID_LOG_KEY = $self_expr.log_key(),
+        $fmt, $($arg),+);
     };
-    (debug $text:expr) => { debug!(
-        target: "rtab",
-        "{}",
-        $text,
+    // veilid_log!(self trace field=value, ?other_field)
+    ($self_expr:ident trace $($k:ident).+ = $($fields:tt)*) => {trace!(
+        target: self::__VEILID_LOG_FACILITY,
+        __VEILID_LOG_KEY = $self_expr.log_key(),
+        $($k).+ = $($fields)*
     )};
-    (debug $fmt:literal, $($arg:expr),+) => {
-        debug!(target:"rtab", $fmt, $($arg),+);
-    };
-    ($text:expr) => {trace!(
-        target: "rtab",
-        "{}",
-        $text,
+    // veilid_log!(self trace target: "facility", field=value, ?other_field)
+    ($self_expr:ident trace target: $target:expr, $($k:ident).+ = $($fields:tt)*) => {trace!(
+        target: $target,
+        __VEILID_LOG_KEY = $self_expr.log_key(),
+        $($k).+ = $($fields)*
     )};
-    ($fmt:literal, $($arg:expr),+) => {
-        trace!(target:"rtab", $fmt, $($arg),+);
-    }
-}
-
-#[macro_export]
-macro_rules! log_stor {
-    (error $text:expr) => { error!(
-        target: "stor",
-        "{}",
-        $text,
-    )};
-    (error $fmt:literal, $($arg:expr),+) => {
-        error!(target:"stor", $fmt, $($arg),+);
-    };
-    (warn $text:expr) => { warn!(
-        target: "stor",
-        "{}",
-        $text,
-    )};
-    (warn $fmt:literal, $($arg:expr),+) => {
-        warn!(target:"stor", $fmt, $($arg),+);
-    };
-    (debug $text:expr) => { debug!(
-        target: "stor",
-        "{}",
-        $text,
-    )};
-    (debug $fmt:literal, $($arg:expr),+) => {
-        debug!(target:"stor", $fmt, $($arg),+);
-    };
-    ($text:expr) => {trace!(
-        target: "stor",
-        "{}",
-        $text,
-    )};
-    ($fmt:literal, $($arg:expr),+) => {
-        trace!(target:"stor", $fmt, $($arg),+);
-    }
-}
-
-#[macro_export]
-macro_rules! log_pstore {
-    (error $text:expr) => { error!(
-        target: "pstore",
-        "{}",
-        $text,
-    )};
-    (error $fmt:literal, $($arg:expr),+) => {
-        error!(target:"pstore", $fmt, $($arg),+);
-    };
-    (warn $text:expr) => { warn!(
-        target: "pstore",
-        "{}",
-        $text,
-    )};
-    (warn $fmt:literal, $($arg:expr),+) => {
-        warn!(target:"pstore", $fmt, $($arg),+);
-    };
-    (debug $text:expr) => { debug!(
-        target: "pstore",
-        "{}",
-        $text,
-    )};
-    (debug $fmt:literal, $($arg:expr),+) => {
-        debug!(target:"pstore", $fmt, $($arg),+);
-    };
-    ($text:expr) => {trace!(
-        target: "pstore",
-        "{}",
-        $text,
-    )};
-    ($fmt:literal, $($arg:expr),+) => {
-        trace!(target:"pstore", $fmt, $($arg),+);
-    }
-}
-
-#[macro_export]
-macro_rules! log_tstore {
-    (error $text:expr) => { error!(
-        target: "tstore",
-        "{}",
-        $text,
-    )};
-    (error $fmt:literal, $($arg:expr),+) => {
-        error!(target:"tstore", $fmt, $($arg),+);
-    };
-    (warn $text:expr) => { warn!(
-        target: "tstore",
-        "{}",
-        $text,
-    )};
-    (warn $fmt:literal, $($arg:expr),+) => {
-        warn!(target:"tstore", $fmt, $($arg),+);
-    };
-    (debug $text:expr) => { debug!(
-        target: "tstore",
-        "{}",
-        $text,
-    )};
-    (debug $fmt:literal, $($arg:expr),+) => {
-        debug!(target:"tstore", $fmt, $($arg),+);
-    };
-    ($text:expr) => {trace!(
-        target: "tstore",
-        "{}",
-        $text,
-    )};
-    ($fmt:literal, $($arg:expr),+) => {
-        trace!(target:"tstore", $fmt, $($arg),+);
-    }
-}
-
-#[macro_export]
-macro_rules! log_crypto {
-    (error $text:expr) => { error!(
-        target: "crypto",
-        "{}",
-        $text,
-    )};
-    (error $fmt:literal, $($arg:expr),+) => {
-        error!(target:"crypto", $fmt, $($arg),+);
-    };
-    (warn $text:expr) => { warn!(
-        target: "crypto",
-        "{}",
-        $text,
-    )};
-    (warn $fmt:literal, $($arg:expr),+) => {
-        warn!(target:"crypto", $fmt, $($arg),+);
-    };
-    (debug $text:expr) => { debug!(
-        target: "crypto",
-        "{}",
-        $text,
-    )};
-    (debug $fmt:literal, $($arg:expr),+) => {
-        debug!(target:"crypto", $fmt, $($arg),+);
-    };
-    ($text:expr) => {trace!(
-        target: "crypto",
-        "{}",
-        $text,
-    )};
-    ($fmt:literal, $($arg:expr),+) => {
-        trace!(target:"crypto", $fmt, $($arg),+);
-    }
-}
-
-#[macro_export]
-macro_rules! log_rpc_message {
-    (error $text:expr) => { error!(
-        target: "rpc_message",
-        "{}",
-        $text,
-    )};
-    (error $fmt:literal, $($arg:expr),+) => {
-        error!(target:"crypto", $fmt, $($arg),+);
-    };
-    (warn $text:expr) => { warn!(
-        target: "rpc_message",
-        "{}",
-        $text,
-    )};
-    (warn $fmt:literal, $($arg:expr),+) => {
-        warn!(target:"crypto", $fmt, $($arg),+);
-    };
-    ($text:expr) => {trace!(
-        target: "rpc_message",
-        "{}",
-        $text,
-    )};
-    ($fmt:literal, $($arg:expr),+) => {
-        trace!(target:"rpc_message", $fmt, $($arg),+);
-    }
 }
