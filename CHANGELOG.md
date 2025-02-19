@@ -27,12 +27,14 @@ veilid-tools:
   - IAC-style configuration system for repeatable virtualized network generation
 
 veilid-flutter:
+- (kimmy.zip) Merged !343 - Fixes for Windows Flutter build
 - Android NDK version requirement is now 27.0.12077973
 - Android Gradle version is now 8.10.2, with a minimum of 8.8.0
 - Android Java version is now 17
 - rust-android-gradle upgraded to 0.9.6
 - Kotlin version is now 1.9.25
 - API added for create_dht_record with 'owner'
+  - Breaking change: https://gitlab.com/veilid/veilid/-/merge_requests/353
 
 veilid-cli:
 - You can now switch between subnodes easily with the 'connect <N>' command where N is the subnode id
@@ -43,11 +45,13 @@ veilid-server:
 - Turn off detect_address_changes and upnp by default
 
 veilid-wasm:
+- (bgrift) Merged !352 - WASM supports owner on createDhtRecord, also added the getDhtRecordKey function
+  - Breaking change: https://gitlab.com/veilid/veilid/-/merge_requests/352
 - Fixes for heavy sync crypto code, optimizations in debug mode, wasm tests went from 731 seconds to 112 seconds
-- API added for create_dht_record with 'owner'
 
 veilid-python:
 - API added for create_dht_record with 'owner'
+  - Breaking change: https://gitlab.com/veilid/veilid/-/merge_requests/353
 - api_connector() now attempts IPC connection to veilid-server before trying port 5959 tcp
 - dependencies corrected for pypi package
 
