@@ -61,6 +61,7 @@ CICD:
   - Rust to 1.81
   - Python to 3.12
   - Earthly to 0.8.15
+  - Fixed broken RPM packaging
 
 general:
 - Fix rust-version into workspace cargo.toml

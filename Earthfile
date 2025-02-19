@@ -311,6 +311,9 @@ package-linux-arm64-rpm:
     ### RPMBUILD .RPM FILES
     #################################
     RUN mkdir -p /veilid/target
+    RUN mkdir -p /veilid/veilid-cli /veilid/veilid-server
+    COPY --keep-ts veilid-cli/Cargo.toml /veilid/veilid-cli
+    COPY --keep-ts veilid-server/Cargo.toml /veilid/veilid-server
     COPY --keep-ts --dir package /veilid
     COPY --keep-ts +build-linux-arm64/aarch64-unknown-linux-gnu /veilid/target/aarch64-unknown-linux-gnu
     RUN mkdir -p /rpm-work-dir/veilid-server
