@@ -55,10 +55,16 @@ veilid-python:
 - api_connector() now attempts IPC connection to veilid-server before trying port 5959 tcp
 - dependencies corrected for pypi package
 
+CICD:
+- Updated build machines
+  - OS Updates
+  - Rust to 1.81
+  - Python to 3.12
+  - Earthly to 0.8.15
+
 general:
 - Fix rust-version into workspace cargo.toml
 - Earthfile update to 0.8
-- Earthly updated to 0.8.15
 - Earthfile cache efficiency fixes
 
 **Changed in Veilid 0.4.1**
