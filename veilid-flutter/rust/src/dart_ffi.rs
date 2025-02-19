@@ -233,6 +233,9 @@ pub extern "C" fn initialize_veilid_core(platform_config: FfiStr) {
     let mut layers = Vec::new();
     let mut filters = (*FILTERS).lock();
 
+    let mut fields_to_strip = HashSet::<&'static str>::new();
+    fields_to_strip.insert(veilid_core::VEILID_LOG_KEY_FIELD);
+
     // Terminal logger
     if platform_config.logging.terminal.enabled {
         cfg_if! {
@@ -240,6 +243,7 @@ pub extern "C" fn initialize_veilid_core(platform_config: FfiStr) {
                 let filter =
                     veilid_core::VeilidLayerFilter::new(platform_config.logging.terminal.level, &platform_config.logging.terminal.ignore_log_targets, None);
                 let layer = paranoid_android::layer("veilid-flutter")
+                    .map_fmt_fields(|f| veilid_core::FmtStripFields::new(f, fields_to_strip.clone()))
                     .with_ansi(false)
                     .with_filter(filter.clone());
                 filters.insert("terminal", filter);
@@ -249,6 +253,7 @@ pub extern "C" fn initialize_veilid_core(platform_config: FfiStr) {
                     veilid_core::VeilidLayerFilter::new(platform_config.logging.terminal.level, &platform_config.logging.terminal.ignore_log_targets, None);
                 let layer = tracing_subscriber::fmt::Layer::new()
                     .compact()
+                    .map_fmt_fields(|f| veilid_core::FmtStripFields::new(f, fields_to_strip.clone()))
                     .with_ansi(false)
                     .with_writer(std::io::stdout)
                     .with_filter(filter.clone());
@@ -259,6 +264,7 @@ pub extern "C" fn initialize_veilid_core(platform_config: FfiStr) {
                     veilid_core::VeilidLayerFilter::new(platform_config.logging.terminal.level, &platform_config.logging.terminal.ignore_log_targets, None);
                 let layer = tracing_subscriber::fmt::Layer::new()
                     .compact()
+                    .map_fmt_fields(|f| veilid_core::FmtStripFields::new(f, fields_to_strip.clone()))
                     .with_writer(std::io::stdout)
                     .with_filter(filter.clone());
                 filters.insert("terminal", filter);
