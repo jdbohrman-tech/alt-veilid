@@ -4,9 +4,9 @@ if [ "$1" = "create" ] && [ "$2" = "amd64-deb" ]
 then
 	## Create amd64-deb build machine
 	echo "Creating amd64-deb build machine"
-	doctl compute droplet create build-server-amd64-deb-tmp --image 178721112 \
-		--size c2-8vcpu-16gb-intel --region nyc1 --enable-private-networking \
-		--ssh-keys 38852180,38632397,41187560 --tag-names build-machines,build-orchestration --wait
+	doctl compute droplet create build-server-amd64-deb-tmp --image 179066895 \
+		--size c2-16vcpu-32gb --region nyc1 --enable-private-networking \
+		--ssh-keys 38852180,38632397,41187560,45621126 --tag-names build-machines,build-orchestration --wait
 	echo "Done"
 
 elif [ "$1" = "create" ] && [ "$2" = "arm64-deb" ]
@@ -15,7 +15,7 @@ then
 	echo "Creating arm64-deb build machine"
 	doctl compute droplet create build-server-arm64-deb-tmp --image 178721107 \
 		--size c2-8vcpu-16gb-intel --region nyc1 --enable-private-networking \
-		--ssh-keys 38852180,38632397,41187560 --tag-names build-machines,build-orchestration --wait
+		--ssh-keys 38852180,38632397,41187560,45621126 --tag-names build-machines,build-orchestration --wait
 	echo "Done"
 
 elif [ "$1" = "create" ] && [ "$2" = "amd64-rpm" ]
@@ -24,7 +24,7 @@ then
 	echo "Creating amd64-rpm build machine"
 	doctl compute droplet create build-server-amd64-rpm-tmp --image 178721114 \
 		--size c2-8vcpu-16gb-intel --region nyc1 --enable-private-networking \
-		--ssh-keys 38852180,38632397,41187560 --tag-names build-machines,build-orchestration --wait
+		--ssh-keys 38852180,38632397,41187560,45621126 --tag-names build-machines,build-orchestration --wait
 	echo "Done"
 
 elif [ "$1" = "create" ] && [ "$2" = "arm64-rpm" ] ## This snapshot does not yet exist
@@ -33,7 +33,7 @@ then
 	echo "Creating arm64-rpm build machine"
 	doctl compute droplet create build-server-arm64-rpm-tmp --image 178721114 \
 		--size c2-8vcpu-16gb-intel --region nyc1 --enable-private-networking \
-		--ssh-keys 38852180,38632397,41187560 --tag-names build-machines,build-orchestration --wait
+		--ssh-keys 38852180,38632397,41187560,45621126 --tag-names build-machines,build-orchestration --wait
 	echo "Done"
 
 elif [ "$1" = "delete" ] && [ "$2" = "amd64-deb" ]
