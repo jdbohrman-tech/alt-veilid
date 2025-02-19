@@ -1,7 +1,7 @@
 [package]
 # --- Bumpversion match - do not reorder
 name = "veilid-cli"
-version = "0.4.1"
+version = "0.4.2"
 # ---
 description = "Client application for connecting to a Veilid headless node"
 resolver = "2"
@@ -60,7 +60,7 @@ flexi_logger = { version = "^0", features = ["use_chrono_for_offset"] }
 thiserror = "^1"
 crossbeam-channel = "^0"
 hex = "^0"
-veilid-tools = { version = "0.4.1", path = "../veilid-tools", default-features = false }
+veilid-tools = { version = "0.4.2", path = "../veilid-tools", default-features = false }
 
 json = "^0"
 stop-token = { version = "^0", default-features = false }
