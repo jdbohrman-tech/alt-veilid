@@ -1,3 +1,10 @@
+**Changed in Veilid 0.4.3**
+
+This release exists without changes to the Veilid codebase in order to test fixes to the CICD release pipeline.
+
+- CICD
+  - Fixed broken RPM packaging
+
 **Changed in Veilid 0.4.2**
 
 veilid-core:
@@ -61,8 +68,7 @@ CICD:
   - Rust to 1.81
   - Python to 3.12
   - Earthly to 0.8.15
-  - Fixed broken RPM packaging
-
+ 
 general:
 - Fix rust-version into workspace cargo.toml
 - Earthfile update to 0.8
