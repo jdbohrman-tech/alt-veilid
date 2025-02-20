@@ -439,9 +439,9 @@ dependencies = [
 
 [[package]]
 name = "async-std-resolver"
-version = "0.24.3"
+version = "0.24.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e944b69ddebbbf8c62e254e494f0f7dc51f9875bca6d7f22396a5320f255b7e9"
+checksum = "b766684a183c8a439f2ca24d6973cf8bfdc1353ae9c54b2b91e81d2630dd034e"
 dependencies = [
  "async-std",
  "async-trait",
@@ -1143,7 +1143,7 @@ checksum = "8cf9dc8d4ef88e27a8cb23e85cb116403dedd57f7971964dc4b18ccead548901"
 dependencies = [
  "pathdiff",
  "serde",
- "winnow 0.7.2",
+ "winnow 0.7.3",
  "yaml-rust2 0.9.0",
 ]
 
@@ -2453,9 +2453,9 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "hickory-proto"
-version = "0.24.3"
+version = "0.24.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2ad3d6d98c648ed628df039541a5577bee1a7c83e9e16fe3dbedeea4cdfeb971"
+checksum = "92652067c9ce6f66ce53cc38d1169daa36e6e7eb7dd3b63b5103bd9d97117248"
 dependencies = [
  "async-trait",
  "cfg-if 1.0.0",
@@ -2477,9 +2477,9 @@ dependencies = [
 
 [[package]]
 name = "hickory-resolver"
-version = "0.24.3"
+version = "0.24.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcf287bde7b776e85d7188e6e5db7cf410a2f9531fe82817eb87feed034c8d14"
+checksum = "cbb117a1ca520e111743ab2f6688eddee69db4e0ea242545a604dce8a66fd22e"
 dependencies = [
  "cfg-if 1.0.0",
  "futures-util",
@@ -3369,9 +3369,9 @@ dependencies = [
 
 [[package]]
 name = "native-tls"
-version = "0.2.13"
+version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0dab59f8e050d5df8e4dd87d9206fb6f65a483e20ac9fda365ade4fab353196c"
+checksum = "87de3442987e9dbec73158d5c715e7ad9072fda936bb03d19d7fa10e00520f0e"
 dependencies = [
  "libc",
  "log",
@@ -5823,7 +5823,7 @@ dependencies = [
  "serde",
  "serde_spanned",
  "toml_datetime",
- "winnow 0.7.2",
+ "winnow 0.7.3",
 ]
 
 [[package]]
@@ -6369,7 +6369,7 @@ dependencies = [
 
 [[package]]
 name = "veilid-cli"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "arboard",
  "async-std",
@@ -6410,7 +6410,7 @@ dependencies = [
 
 [[package]]
 name = "veilid-core"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "argon2",
  "async-std",
@@ -6514,7 +6514,7 @@ dependencies = [
 
 [[package]]
 name = "veilid-flutter"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "allo-isolate",
  "android_log-sys 0.3.1",
@@ -6572,7 +6572,7 @@ dependencies = [
 
 [[package]]
 name = "veilid-server"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "ansi_term",
  "async-std",
@@ -6627,7 +6627,7 @@ dependencies = [
 
 [[package]]
 name = "veilid-tools"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "android_logger 0.13.3",
  "async-io 1.13.0",
@@ -6703,7 +6703,7 @@ dependencies = [
 
 [[package]]
 name = "veilid-wasm"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "cfg-if 1.0.0",
  "console_error_panic_hook",
@@ -7058,13 +7058,13 @@ dependencies = [
 
 [[package]]
 name = "windows-service"
-version = "0.7.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d24d6bcc7f734a4091ecf8d7a64c5f7d7066f45585c1861eba06449909609c8a"
+checksum = "193cae8e647981c35bc947fdd57ba7928b1fa0d4a79305f6dd2dc55221ac35ac"
 dependencies = [
  "bitflags 2.8.0",
  "widestring",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -7292,9 +7292,9 @@ dependencies = [
 
 [[package]]
 name = "winnow"
-version = "0.7.2"
+version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59690dea168f2198d1a3b0cac23b8063efcd11012f10ae4698f284808c8ef603"
+checksum = "0e7f4ea97f6f78012141bcdb6a216b2609f0979ada50b20ca5b52dde2eac2bb1"
 dependencies = [
  "memchr",
 ]
