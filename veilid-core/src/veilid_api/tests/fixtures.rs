@@ -239,7 +239,7 @@ pub fn fix_veilidconfiginner() -> VeilidConfigInner {
             },
             #[cfg(feature = "geolocation")]
             privacy: VeilidConfigPrivacy {
-                country_code_denylist: vec![CountryCode([b'N', b'Z'])],
+                country_code_denylist: vec![CountryCode::from_str("NZ").unwrap()],
             },
             #[cfg(feature = "virtual-network")]
             virtual_network: VeilidConfigVirtualNetwork {
