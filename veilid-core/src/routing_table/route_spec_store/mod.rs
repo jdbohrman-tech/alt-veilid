@@ -235,6 +235,11 @@ impl RouteSpecStore {
             .relay_node(RoutingDomain::PublicInternet)
             .map(|nr| nr.locked(rti));
 
+        #[cfg(feature = "geolocation")]
+        let country_code_denylist = self
+            .config()
+            .with(|config| config.network.privacy.country_code_denylist.clone());
+
         // Get list of all nodes, and sort them for selection
         let cur_ts = Timestamp::now();
         let filter = Box::new(
@@ -277,78 +282,66 @@ impl RouteSpecStore {
 
                     // Exclude nodes from blacklisted countries
                     #[cfg(feature = "geolocation")]
-                    {
-                        let country_code_denylist = self
-                            .unlocked_inner
-                            .routing_table
-                            .config
-                            .get()
-                            .network
-                            .privacy
-                            .country_code_denylist
-                            .clone();
+                    if !country_code_denylist.is_empty() {
+                        let geolocation_info =
+                            sni.get_geolocation_info(RoutingDomain::PublicInternet);
 
-                        if !country_code_denylist.is_empty() {
-                            let geolocation_info =
-                                sni.get_geolocation_info(RoutingDomain::PublicInternet);
+                        // Since denylist is used, consider nodes with unknown countries to be automatically
+                        // excluded as well
+                        if geolocation_info.country_code().is_none() {
+                            veilid_log!(self
+                                debug "allocate_route_inner: skipping node {} from unknown country",
+                                e.best_node_id()
+                            );
+                            return false;
+                        }
+                        // Same thing applies to relays used by the node
+                        if geolocation_info
+                            .relay_country_codes()
+                            .iter()
+                            .any(Option::is_none)
+                        {
+                            veilid_log!(self
+                                debug "allocate_route_inner: skipping node {} using relay from unknown country",
+                                e.best_node_id()
+                            );
+                            return false;
+                        }
 
-                            // Since denylist is used, consider nodes with unknown countries to be automatically
-                            // excluded as well
-                            if geolocation_info.country_code().is_none() {
-                                veilid_log!(self
-                                    debug "allocate_route_inner: skipping node {} from unknown country",
-                                    e.best_node_id()
-                                );
-                                return false;
-                            }
-                            // Same thing applies to relays used by the node
-                            if geolocation_info
-                                .relay_country_codes()
-                                .iter()
-                                .any(Option::is_none)
-                            {
-                                veilid_log!(self
-                                    debug "allocate_route_inner: skipping node {} using relay from unknown country",
-                                    e.best_node_id()
-                                );
-                                return false;
-                            }
+                        // Ensure that node is not excluded
+                        // Safe to unwrap here, checked above
+                        if country_code_denylist.contains(&geolocation_info.country_code().unwrap())
+                        {
+                            veilid_log!(self
+                                debug "allocate_route_inner: skipping node {} from excluded country {}",
+                                e.best_node_id(),
+                                geolocation_info.country_code().unwrap()
+                            );
+                            return false;
+                        }
 
-                            // Ensure that node is not excluded
-                            // Safe to unwrap here, checked above
-                            if country_code_denylist.contains(&geolocation_info.country_code().unwrap())
-                            {
-                                veilid_log!(self
-                                    debug "allocate_route_inner: skipping node {} from excluded country {}",
-                                    e.best_node_id(),
-                                    geolocation_info.country_code().unwrap()
-                                );
-                                return false;
-                            }
-
-                            // Ensure that node relays are not excluded
-                            // Safe to unwrap here, checked above
-                            if geolocation_info
-                                .relay_country_codes()
-                                .iter()
-                                .cloned()
-                                .map(Option::unwrap)
-                                .any(|cc| country_code_denylist.contains(&cc))
-                            {
-                                veilid_log!(self
-                                    debug "allocate_route_inner: skipping node {} using relay from excluded country {:?}",
-                                    e.best_node_id(),
-                                    geolocation_info
-                                        .relay_country_codes()
-                                        .iter()
-                                        .cloned()
-                                        .map(Option::unwrap)
-                                        .filter(|cc| country_code_denylist.contains(&cc))
-                                        .next()
-                                        .unwrap()
-                                );
-                                return false;
-                            }
+                        // Ensure that node relays are not excluded
+                        // Safe to unwrap here, checked above
+                        if geolocation_info
+                            .relay_country_codes()
+                            .iter()
+                            .cloned()
+                            .map(Option::unwrap)
+                            .any(|cc| country_code_denylist.contains(&cc))
+                        {
+                            veilid_log!(self
+                                debug "allocate_route_inner: skipping node {} using relay from excluded country {:?}",
+                                e.best_node_id(),
+                                geolocation_info
+                                    .relay_country_codes()
+                                    .iter()
+                                    .cloned()
+                                    .map(Option::unwrap)
+                                    .filter(|cc| country_code_denylist.contains(&cc))
+                                    .next()
+                                    .unwrap()
+                            );
+                            return false;
                         }
                     }
 
