@@ -17,8 +17,8 @@ pub trait RoutingDomainEditorCommonTrait {
         capabilities: Vec<Capability>,
         confirmed: bool,
     ) -> &mut Self;
-    fn commit(&mut self, pause_tasks: bool) -> SendPinBoxFutureLifetime<'_, bool>;
-    fn shutdown(&mut self) -> SendPinBoxFutureLifetime<'_, ()>;
+    fn commit(&mut self, pause_tasks: bool) -> PinBoxFuture<'_, bool>;
+    fn shutdown(&mut self) -> PinBoxFuture<'_, ()>;
     fn publish(&mut self);
 }
 

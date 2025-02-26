@@ -45,6 +45,7 @@ pub struct Envelope {
 }
 
 impl Envelope {
+    #[must_use]
     pub fn new(
         version: EnvelopeVersion,
         crypto_kind: CryptoKind,
@@ -314,6 +315,7 @@ impl Envelope {
         Ok(data)
     }
 
+    #[must_use]
     pub fn get_version(&self) -> u8 {
         self.version
     }

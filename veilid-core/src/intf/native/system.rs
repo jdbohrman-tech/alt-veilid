@@ -1,5 +1,6 @@
 use super::*;
 
+#[expect(clippy::unused_async)]
 pub async fn get_outbound_relay_peer(
     _routing_domain: routing_table::RoutingDomain,
 ) -> Option<Arc<routing_table::PeerInfo>> {
@@ -22,6 +23,7 @@ cfg_if! {
             } else if #[cfg(feature="rt-tokio")] {
                 use hickory_resolver::{config, TokioAsyncResolver as AsyncResolver, system_conf::read_system_conf};
 
+                #[expect(clippy::unused_async)]
                 async fn resolver(
                     config: config::ResolverConfig,
                     options: config::ResolverOpts,
@@ -48,7 +50,7 @@ cfg_if! {
 cfg_if! {
     if #[cfg(not(target_os = "windows"))] {
 
-        async fn with_resolvers<R, F: FnOnce(Arc<Resolvers>) -> SendPinBoxFuture<R>>(closure: F) -> R {
+        async fn with_resolvers<R, F: FnOnce(Arc<Resolvers>) -> PinBoxFutureStatic<R>>(closure: F) -> R {
             let mut resolvers_lock = RESOLVERS.lock().await;
             if let Some(r) = &*resolvers_lock {
                 return closure(r.clone()).await;
@@ -232,6 +234,7 @@ pub async fn ptr_lookup(ip_addr: IpAddr) -> EyreResult<String> {
     }
 }
 
+#[must_use]
 pub fn env_variable_is_defined<S: AsRef<str>>(s: S) -> bool {
     match std::env::var(s.as_ref()) {
         Ok(v) => !v.is_empty(),

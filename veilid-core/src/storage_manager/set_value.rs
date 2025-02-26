@@ -82,11 +82,11 @@ impl StorageManager {
             let context = context.clone();
             let registry = self.registry();
 
-            move |next_node: NodeRef| {
+            Arc::new(move |next_node: NodeRef| {
                 let registry = registry.clone();
                 let context = context.clone();
                 let descriptor = descriptor.clone();
-                async move {
+                Box::pin(async move {
                     let rpc_processor = registry.rpc_processor();
 
                     let send_descriptor = true; // xxx check if next_node needs the descriptor or not, see issue #203
@@ -187,8 +187,8 @@ impl StorageManager {
                     ctx.send_partial_update = true;
 
                     Ok(NetworkResult::value(FanoutCallOutput{peer_info_list:sva.answer.peers}))
-                }.instrument(tracing::trace_span!("fanout call_routine"))
-            }
+                }.instrument(tracing::trace_span!("fanout call_routine"))) as PinBoxFuture<FanoutCallResult>
+            })
         };
 
         // Routine to call to check if we're done at each step
@@ -196,7 +196,7 @@ impl StorageManager {
             let context = context.clone();
             let out_tx = out_tx.clone();
             let registry = self.registry();
-            move |_closest_nodes: &[NodeRef]| {
+            Arc::new(move |_closest_nodes: &[NodeRef]| {
                 let mut ctx = context.lock();
 
                 // send partial update if desired
@@ -233,7 +233,7 @@ impl StorageManager {
                     return Some(());
                 }
                 None
-            }
+            })
         };
 
         // Call the fanout in a spawned task
@@ -308,7 +308,7 @@ impl StorageManager {
         self.process_deferred_results(
             res_rx,
             Box::new(
-                move |result: VeilidAPIResult<set_value::OutboundSetValueResult>| -> SendPinBoxFuture<bool> {
+                move |result: VeilidAPIResult<set_value::OutboundSetValueResult>| -> PinBoxFutureStatic<bool> {
                     let registry = registry.clone();
                     let last_value_data = last_value_data.clone();
                     Box::pin(async move {

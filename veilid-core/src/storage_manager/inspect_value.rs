@@ -120,12 +120,12 @@ impl StorageManager {
         let call_routine = {
             let context = context.clone();
             let registry = self.registry();
-            move |next_node: NodeRef| {
+            Arc::new(move |next_node: NodeRef| {
                 let context = context.clone();
                 let registry = registry.clone();
                 let opt_descriptor = local_inspect_result.opt_descriptor.clone();
                 let subkeys = subkeys.clone();
-                async move {
+                Box::pin(async move {
                     let rpc_processor = registry.rpc_processor();
 
                     let iva = network_result_try!(
@@ -159,7 +159,7 @@ impl StorageManager {
 
                     // Keep the value if we got one and it is newer and it passes schema validation
                     if !answer.seqs.is_empty() {
-                        veilid_log!(self debug "Got seqs back: len={}", answer.seqs.len());
+                        veilid_log!(registry debug "Got seqs back: len={}", answer.seqs.len());
                         let mut ctx = context.lock();
 
                         // Ensure we have a schema and descriptor etc
@@ -239,25 +239,29 @@ impl StorageManager {
                     veilid_log!(registry debug target:"network_result", "InspectValue fanout call returned peers {}", answer.peers.len());
 
                     Ok(NetworkResult::value(FanoutCallOutput { peer_info_list: answer.peers}))
-                }.instrument(tracing::trace_span!("outbound_inspect_value fanout call"))
-            }
+                }.instrument(tracing::trace_span!("outbound_inspect_value fanout call"))) as PinBoxFuture<FanoutCallResult>
+            })
         };
 
         // Routine to call to check if we're done at each step
-        let check_done = |_closest_nodes: &[NodeRef]| {
-            // If we have reached sufficient consensus on all subkeys, return done
-            let ctx = context.lock();
-            let mut has_consensus = true;
-            for cs in ctx.seqcounts.iter() {
-                if cs.value_nodes.len() < consensus_count {
-                    has_consensus = false;
-                    break;
+
+        let check_done = {
+            let context = context.clone();
+            Arc::new(move |_closest_nodes: &[NodeRef]| {
+                // If we have reached sufficient consensus on all subkeys, return done
+                let ctx = context.lock();
+                let mut has_consensus = true;
+                for cs in ctx.seqcounts.iter() {
+                    if cs.value_nodes.len() < consensus_count {
+                        has_consensus = false;
+                        break;
+                    }
                 }
-            }
-            if !ctx.seqcounts.is_empty() && ctx.opt_descriptor_info.is_some() && has_consensus {
-                return Some(());
-            }
-            None
+                if !ctx.seqcounts.is_empty() && ctx.opt_descriptor_info.is_some() && has_consensus {
+                    return Some(());
+                }
+                None
+            })
         };
 
         // Call the fanout

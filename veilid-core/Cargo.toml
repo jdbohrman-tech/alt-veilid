@@ -286,3 +286,6 @@ reqwest = { version = "0.11", features = ["blocking"], optional = true }
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ["-O", "--enable-mutable-globals"]
+
+[lints]
+workspace = true

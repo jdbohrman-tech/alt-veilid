@@ -34,12 +34,14 @@ pub enum IfAddr {
 }
 
 impl IfAddr {
+    #[must_use]
     pub fn ip(&self) -> IpAddr {
         match *self {
             IfAddr::V4(ref ifv4_addr) => IpAddr::V4(ifv4_addr.ip),
             IfAddr::V6(ref ifv6_addr) => IpAddr::V6(ifv6_addr.ip),
         }
     }
+    #[must_use]
     pub fn netmask(&self) -> IpAddr {
         match *self {
             IfAddr::V4(ref ifv4_addr) => IpAddr::V4(ifv4_addr.netmask),
@@ -207,20 +209,27 @@ impl PartialOrd for InterfaceAddress {
 }
 
 impl InterfaceAddress {
+    #[must_use]
     pub fn new(if_addr: IfAddr, flags: AddressFlags) -> Self {
         Self { if_addr, flags }
     }
 
+    #[must_use]
     pub fn if_addr(&self) -> &IfAddr {
         &self.if_addr
     }
 
+    #[must_use]
     pub fn is_temporary(&self) -> bool {
         self.flags.is_temporary
     }
+
+    #[must_use]
     pub fn is_dynamic(&self) -> bool {
         self.flags.is_dynamic
     }
+
+    #[must_use]
     pub fn is_preferred(&self) -> bool {
         self.flags.is_preferred
     }
@@ -257,6 +266,7 @@ impl fmt::Debug for NetworkInterface {
     }
 }
 impl NetworkInterface {
+    #[must_use]
     pub fn new(name: String, flags: InterfaceFlags) -> Self {
         Self {
             name,
@@ -264,25 +274,31 @@ impl NetworkInterface {
             addrs: Vec::new(),
         }
     }
+    #[must_use]
     pub fn name(&self) -> String {
         self.name.clone()
     }
+    #[must_use]
     pub fn is_loopback(&self) -> bool {
         self.flags.is_loopback
     }
 
+    #[must_use]
     pub fn is_point_to_point(&self) -> bool {
         self.flags.is_point_to_point
     }
 
+    #[must_use]
     pub fn is_running(&self) -> bool {
         self.flags.is_running
     }
 
+    #[must_use]
     pub fn has_default_route(&self) -> bool {
         self.flags.has_default_route
     }
 
+    #[must_use]
     pub fn primary_ipv4(&self) -> Option<InterfaceAddress> {
         let mut ipv4addrs: Vec<&InterfaceAddress> = self
             .addrs
@@ -293,6 +309,7 @@ impl NetworkInterface {
         ipv4addrs.last().cloned().cloned()
     }
 
+    #[must_use]
     pub fn primary_ipv6(&self) -> Option<InterfaceAddress> {
         let mut ipv6addrs: Vec<&InterfaceAddress> = self
             .addrs
@@ -341,6 +358,7 @@ impl Default for NetworkInterfaces {
 }
 
 impl NetworkInterfaces {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             inner: Arc::new(Mutex::new(NetworkInterfacesInner {
@@ -351,6 +369,7 @@ impl NetworkInterfaces {
         }
     }
 
+    #[must_use]
     pub fn is_valid(&self) -> bool {
         let inner = self.inner.lock();
         inner.valid
@@ -399,6 +418,7 @@ impl NetworkInterfaces {
         f(&inner.interfaces)
     }
 
+    #[must_use]
     pub fn stable_addresses(&self) -> Vec<IpAddr> {
         let inner = self.inner.lock();
         inner.interface_address_cache.clone()

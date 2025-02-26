@@ -83,6 +83,7 @@ pub struct StartupLock {
 }
 
 impl StartupLock {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             startup_state: Arc::new(AsyncRwLock::new(false)),

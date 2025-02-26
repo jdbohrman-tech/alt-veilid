@@ -16,6 +16,7 @@ pub type EntryCounts = BTreeMap<(RoutingDomain, CryptoKind), usize>;
 //////////////////////////////////////////////////////////////////////////
 
 /// RoutingTable rwlock-internal data
+#[must_use]
 pub struct RoutingTableInner {
     /// Convenience accessor for the global component registry
     pub(super) registry: VeilidComponentRegistry,

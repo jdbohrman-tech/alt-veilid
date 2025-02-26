@@ -34,12 +34,14 @@ impl<T: Unpin> Default for EventualValue<T> {
 }
 
 impl<T: Unpin> EventualValue<T> {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             inner: Arc::new(Mutex::new(EventualBaseInner::new())),
         }
     }
 
+    #[must_use]
     pub fn instance(&self) -> EventualValueFuture<T> {
         EventualValueFuture {
             id: None,
@@ -51,6 +53,7 @@ impl<T: Unpin> EventualValue<T> {
         self.resolve_to_value(value)
     }
 
+    #[must_use]
     pub fn take_value(&self) -> Option<T> {
         let mut inner = self.inner.lock();
         inner.resolved_value_mut().take()

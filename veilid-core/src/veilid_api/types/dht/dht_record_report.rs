@@ -7,6 +7,7 @@ use super::*;
     derive(Tsify),
     tsify(from_wasm_abi, into_wasm_abi)
 )]
+#[must_use]
 pub struct DHTRecordReport {
     /// The actual subkey range within the schema being reported on
     /// This may be a subset of the requested range if it exceeds the schema limits
@@ -42,9 +43,11 @@ impl DHTRecordReport {
     pub fn offline_subkeys(&self) -> &ValueSubkeyRangeSet {
         &self.offline_subkeys
     }
+    #[must_use]
     pub fn local_seqs(&self) -> &[ValueSeqNum] {
         &self.local_seqs
     }
+    #[must_use]
     pub fn network_seqs(&self) -> &[ValueSeqNum] {
         &self.network_seqs
     }

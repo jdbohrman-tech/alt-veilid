@@ -29,6 +29,7 @@ pub struct VeilidClient {}
 // this is just a namespace/class of static functions.
 #[wasm_bindgen(js_class = veilidClient)]
 impl VeilidClient {
+    #[allow(clippy::unused_async)]
     pub async fn initializeCore(platformConfig: VeilidWASMConfig) {
         if INITIALIZED.swap(true, Ordering::AcqRel) {
             return;
@@ -181,6 +182,7 @@ impl VeilidClient {
     }
 
     /// Get the current timestamp, in string format
+    #[must_use]
     pub fn now() -> String {
         veilid_core::Timestamp::now().as_u64().to_string()
     }
@@ -193,6 +195,7 @@ impl VeilidClient {
     }
 
     /// Return the cargo package version of veilid-core, in object format.
+    #[must_use]
     pub fn version() -> VeilidVersion {
         let (major, minor, patch) = veilid_core::veilid_version();
         super::VeilidVersion {
@@ -203,11 +206,13 @@ impl VeilidClient {
     }
 
     /// Return the cargo package version of veilid-core, in string format.
+    #[must_use]
     pub fn versionString() -> String {
         veilid_core::veilid_version_string()
     }
 
     /// Return the default veilid configuration, in string format
+    #[must_use]
     pub fn defaultConfig() -> String {
         veilid_core::default_veilid_config()
     }

@@ -14,6 +14,7 @@ pub use smpl::*;
     derive(Tsify),
     tsify(from_wasm_abi)
 )]
+#[must_use]
 pub enum DHTSchema {
     DFLT(DHTSchemaDFLT),
     SMPL(DHTSchemaSMPL),
@@ -36,6 +37,7 @@ impl DHTSchema {
     }
 
     /// Build the data representation of the schema
+    #[must_use]
     pub fn compile(&self) -> Vec<u8> {
         match self {
             DHTSchema::DFLT(d) => d.compile(),
@@ -44,6 +46,7 @@ impl DHTSchema {
     }
 
     /// Get maximum subkey number for this schema
+    #[must_use]
     pub fn max_subkey(&self) -> ValueSubkey {
         match self {
             DHTSchema::DFLT(d) => d.max_subkey(),
@@ -52,6 +55,7 @@ impl DHTSchema {
     }
 
     /// Get the data size of this schema beyond the size of the structure itself
+    #[must_use]
     pub fn data_size(&self) -> usize {
         match self {
             DHTSchema::DFLT(d) => d.data_size(),
@@ -60,6 +64,7 @@ impl DHTSchema {
     }
 
     /// Check a subkey value data against the schema
+    #[must_use]
     pub fn check_subkey_value_data(
         &self,
         owner: &PublicKey,
@@ -73,6 +78,7 @@ impl DHTSchema {
     }
 
     /// Check if a key is a schema member
+    #[must_use]
     pub fn is_member(&self, key: &PublicKey) -> bool {
         match self {
             DHTSchema::DFLT(d) => d.is_member(key),

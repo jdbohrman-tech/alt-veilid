@@ -67,13 +67,14 @@ pub const VALID_ENVELOPE_VERSIONS: [EnvelopeVersion; 1] = [0u8];
 /// Number of envelope versions to keep on structures if many are present beyond the ones we consider valid
 pub const MAX_ENVELOPE_VERSIONS: usize = 3;
 /// Return the best envelope version we support
+#[must_use]
 pub fn best_envelope_version() -> EnvelopeVersion {
     VALID_ENVELOPE_VERSIONS[0]
 }
 
 struct CryptoInner {
     dh_cache: DHCache,
-    flush_future: Option<SendPinBoxFuture<()>>,
+    flush_future: Option<PinBoxFutureStatic<()>>,
 }
 
 impl fmt::Debug for CryptoInner {
@@ -88,6 +89,7 @@ impl fmt::Debug for CryptoInner {
 }
 
 /// Crypto factory implementation
+#[must_use]
 pub struct Crypto {
     registry: VeilidComponentRegistry,
     inner: Mutex<CryptoInner>,
@@ -221,6 +223,7 @@ impl Crypto {
         };
     }
 
+    #[expect(clippy::unused_async)]
     async fn terminate_async(&self) {
         // Nothing to terminate at this time
     }

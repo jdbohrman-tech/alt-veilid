@@ -88,7 +88,7 @@ impl Network {
         &self,
         stop_token: StopToken,
         _l: Timestamp,
-        _t: Timestamp,
+        cur_ts: Timestamp,
     ) -> EyreResult<bool> {
         // Figure out if we can optimize TCP/WS checking since they are often on the same port
         let (protocol_config, inbound_protocol_map) = {
@@ -153,8 +153,8 @@ impl Network {
                 port,
             };
             context_configs.insert(dcc);
-            let discovery_context = DiscoveryContext::new(self.registry(), dcc);
-            discovery_context.discover(&mut unord).await;
+            let discovery_context = DiscoveryContext::new(self.registry(), dcc, stop_token.clone());
+            unord.push(discovery_context.discover());
         }
 
         // Wait for all discovery futures to complete and apply discoverycontexts
@@ -174,34 +174,8 @@ impl Network {
                     // Add the external address kinds to the set we've seen
                     external_address_types |= dr.external_address_types;
 
-                    // Get best detection result for each discovery context config
-                    if let Some(cur_dr) = detection_results.get_mut(&dr.config) {
-                        let ddi = &mut cur_dr.ddi;
-                        // Upgrade existing dialinfo
-                        match ddi {
-                            DetectedDialInfo::SymmetricNAT => {
-                                // Whatever we got is better than or equal to symmetric
-                                *ddi = dr.ddi;
-                            }
-                            DetectedDialInfo::Detected(cur_did) => match dr.ddi {
-                                DetectedDialInfo::SymmetricNAT => {
-                                    // Nothing is worse than this
-                                }
-                                DetectedDialInfo::Detected(did) => {
-                                    // Pick the best dial info class we detected
-                                    // because some nodes could be degenerate and if any node can validate a
-                                    // better dial info class we should go with it and leave the
-                                    // degenerate nodes in the dust to fade into obscurity
-                                    if did.class < cur_did.class {
-                                        cur_did.class = did.class;
-                                    }
-                                }
-                            },
-                        }
-                        cur_dr.external_address_types |= dr.external_address_types;
-                    } else {
-                        detection_results.insert(dr.config, dr);
-                    }
+                    // Save best detection result for each discovery context config
+                    detection_results.insert(dr.config, dr);
                 }
                 Ok(Some(None)) => {
                     // Found no dial info for this protocol/address combination
@@ -223,9 +197,11 @@ impl Network {
             self.update_with_detection_result(&mut editor, &inbound_protocol_map, dr);
         }
 
+        let end_ts = Timestamp::now();
+
         // If we got no external address types, try again
         if external_address_types.is_empty() {
-            veilid_log!(self debug "Network class discovery failed, trying again, got no external address types");
+            veilid_log!(self debug "Network class discovery failed in {}, trying again, got no external address types", end_ts - cur_ts);
             return Ok(false);
         }
 
@@ -240,12 +216,12 @@ impl Network {
         }
 
         if !success {
-            veilid_log!(self debug "Network class discovery failed, trying again, needed {:?}", context_configs);
+            veilid_log!(self debug "Network class discovery failed in {}, trying again, needed {:?}", end_ts - cur_ts, context_configs);
             return Ok(false);
         }
 
         // All done
-        veilid_log!(self debug "Network class discovery finished with address_types {:?}", external_address_types);
+        veilid_log!(self debug "Network class discovery finished in {} with address_types {:?}", end_ts - cur_ts, external_address_types);
 
         // Set the address types we've seen and confirm the network class
         editor.setup_network(

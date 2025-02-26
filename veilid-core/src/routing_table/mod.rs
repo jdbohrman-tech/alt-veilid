@@ -60,6 +60,7 @@ const CACHE_VALIDITY_KEY: &[u8] = b"cache_validity_key";
 type LowLevelProtocolPorts = BTreeSet<(LowLevelProtocolType, AddressType, u16)>;
 type ProtocolToPortMapping = BTreeMap<(ProtocolType, AddressType), (LowLevelProtocolType, u16)>;
 #[derive(Clone, Debug)]
+#[must_use]
 pub struct LowLevelPortInfo {
     pub low_level_protocol_ports: LowLevelProtocolPorts,
     pub protocol_to_port: ProtocolToPortMapping,
@@ -71,6 +72,7 @@ type SerializedBuckets = Vec<Vec<u8>>;
 type SerializedBucketMap = BTreeMap<CryptoKind, SerializedBuckets>;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[must_use]
 pub struct RoutingTableHealth {
     /// Number of reliable (long-term responsive) entries in the routing table
     pub reliable_entry_count: usize,
@@ -89,10 +91,12 @@ pub struct RoutingTableHealth {
 pub type BucketIndex = (CryptoKind, usize);
 
 #[derive(Debug, Clone, Copy)]
+#[must_use]
 pub struct RecentPeersEntry {
     pub last_connection: Flow,
 }
 
+#[must_use]
 pub(crate) struct RoutingTable {
     registry: VeilidComponentRegistry,
     inner: RwLock<RoutingTableInner>,
@@ -231,10 +235,12 @@ impl RoutingTable {
         Ok(())
     }
 
+    #[expect(clippy::unused_async)]
     async fn post_init_async(&self) -> EyreResult<()> {
         Ok(())
     }
 
+    #[expect(clippy::unused_async)]
     pub(crate) async fn startup(&self) -> EyreResult<()> {
         Ok(())
     }
@@ -245,6 +251,7 @@ impl RoutingTable {
         self.cancel_tasks().await;
     }
 
+    #[expect(clippy::unused_async)]
     async fn pre_terminate_async(&self) {}
 
     /// Called to shut down the routing table
@@ -1091,7 +1098,7 @@ impl RoutingTable {
         capabilities: Vec<Capability>,
     ) {
         // Ask node for nodes closest to our own node
-        let closest_nodes = network_result_value_or_log!(self match self.find_nodes_close_to_self(crypto_kind, node_ref.clone(), capabilities.clone()).await {
+        let closest_nodes = network_result_value_or_log!(self match pin_future!(self.find_nodes_close_to_self(crypto_kind, node_ref.clone(), capabilities.clone())).await {
             Err(e) => {
                 veilid_log!(self error
                     "find_self failed for {:?}: {:?}",
@@ -1107,7 +1114,7 @@ impl RoutingTable {
         // Ask each node near us to find us as well
         if wide {
             for closest_nr in closest_nodes {
-                network_result_value_or_log!(self match self.find_nodes_close_to_self(crypto_kind, closest_nr.clone(), capabilities.clone()).await {
+                network_result_value_or_log!(self match pin_future!(self.find_nodes_close_to_self(crypto_kind, closest_nr.clone(), capabilities.clone())).await {
                     Err(e) => {
                         veilid_log!(self error
                             "find_self failed for {:?}: {:?}",

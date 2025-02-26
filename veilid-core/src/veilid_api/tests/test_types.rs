@@ -3,7 +3,7 @@ use crate::*;
 
 // aligned_u64
 
-pub async fn test_alignedu64() {
+pub fn test_alignedu64() {
     let orig = AlignedU64::new(0x0123456789abcdef);
     let copy = deserialize_json(&serialize_json(orig)).unwrap();
 
@@ -12,7 +12,7 @@ pub async fn test_alignedu64() {
 
 // app_messsage_call
 
-pub async fn test_veilidappmessage() {
+pub fn test_veilidappmessage() {
     let orig = VeilidAppMessage::new(
         Some(fix_typedkey()),
         Some(fix_cryptokey()),
@@ -23,7 +23,7 @@ pub async fn test_veilidappmessage() {
     assert_eq!(orig, copy);
 }
 
-pub async fn test_veilidappcall() {
+pub fn test_veilidappcall() {
     let orig = VeilidAppCall::new(
         Some(fix_typedkey()),
         Some(fix_cryptokey()),
@@ -37,7 +37,7 @@ pub async fn test_veilidappcall() {
 
 // fourcc
 
-pub async fn test_fourcc() {
+pub fn test_fourcc() {
     let orig = FourCC::from_str("D34D").unwrap();
     let copy = deserialize_json(&serialize_json(orig)).unwrap();
 
@@ -46,28 +46,28 @@ pub async fn test_fourcc() {
 
 // safety
 
-pub async fn test_sequencing() {
+pub fn test_sequencing() {
     let orig = Sequencing::PreferOrdered;
     let copy = deserialize_json(&serialize_json(orig)).unwrap();
 
     assert_eq!(orig, copy);
 }
 
-pub async fn test_stability() {
+pub fn test_stability() {
     let orig = Stability::Reliable;
     let copy = deserialize_json(&serialize_json(orig)).unwrap();
 
     assert_eq!(orig, copy);
 }
 
-pub async fn test_safetyselection() {
+pub fn test_safetyselection() {
     let orig = SafetySelection::Unsafe(Sequencing::EnsureOrdered);
     let copy = deserialize_json(&serialize_json(orig)).unwrap();
 
     assert_eq!(orig, copy);
 }
 
-pub async fn test_safetyspec() {
+pub fn test_safetyspec() {
     let orig = SafetySpec {
         preferred_route: Some(fix_cryptokey()),
         hop_count: 23,
@@ -81,35 +81,35 @@ pub async fn test_safetyspec() {
 
 // stats
 
-pub async fn test_latencystats() {
+pub fn test_latencystats() {
     let orig = fix_latencystats();
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();
 
     assert_eq!(orig, copy);
 }
 
-pub async fn test_transferstats() {
+pub fn test_transferstats() {
     let orig = fix_transferstats();
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();
 
     assert_eq!(orig, copy);
 }
 
-pub async fn test_transferstatsdownup() {
+pub fn test_transferstatsdownup() {
     let orig = fix_transferstatsdownup();
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();
 
     assert_eq!(orig, copy);
 }
 
-pub async fn test_rpcstats() {
+pub fn test_rpcstats() {
     let orig = fix_rpcstats();
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();
 
     assert_eq!(orig, copy);
 }
 
-pub async fn test_peerstats() {
+pub fn test_peerstats() {
     let orig = fix_peerstats();
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();
 
@@ -119,7 +119,7 @@ pub async fn test_peerstats() {
 //  tunnel
 
 #[cfg(feature = "unstable-tunnels")]
-pub async fn test_tunnelmode() {
+pub fn test_tunnelmode() {
     let orig = TunnelMode::Raw;
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();
 
@@ -127,7 +127,7 @@ pub async fn test_tunnelmode() {
 }
 
 #[cfg(feature = "unstable-tunnels")]
-pub async fn test_tunnelerror() {
+pub fn test_tunnelerror() {
     let orig = TunnelError::NoCapacity;
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();
 
@@ -135,7 +135,7 @@ pub async fn test_tunnelerror() {
 }
 
 #[cfg(feature = "unstable-tunnels")]
-pub async fn test_tunnelendpoint() {
+pub fn test_tunnelendpoint() {
     let orig = TunnelEndpoint {
         mode: TunnelMode::Raw,
         description: "Here there be tygers.".to_string(),
@@ -146,7 +146,7 @@ pub async fn test_tunnelendpoint() {
 }
 
 #[cfg(feature = "unstable-tunnels")]
-pub async fn test_fulltunnel() {
+pub fn test_fulltunnel() {
     let orig = FullTunnel {
         id: AlignedU64::from(42),
         timeout: AlignedU64::from(3_000_000),
@@ -165,7 +165,7 @@ pub async fn test_fulltunnel() {
 }
 
 #[cfg(feature = "unstable-tunnels")]
-pub async fn test_partialtunnel() {
+pub fn test_partialtunnel() {
     let orig = PartialTunnel {
         id: AlignedU64::from(42),
         timeout: AlignedU64::from(3_000_000),
@@ -181,14 +181,14 @@ pub async fn test_partialtunnel() {
 
 // veilid_log
 
-pub async fn test_veilidloglevel() {
+pub fn test_veilidloglevel() {
     let orig = VeilidLogLevel::Info;
     let copy = deserialize_json(&serialize_json(orig)).unwrap();
 
     assert_eq!(orig, copy);
 }
 
-pub async fn test_veilidlog() {
+pub fn test_veilidlog() {
     let orig = VeilidLog {
         log_level: VeilidLogLevel::Debug,
         message: "A log! A log!".to_string(),
@@ -201,14 +201,14 @@ pub async fn test_veilidlog() {
 
 // veilid_state
 
-pub async fn test_attachmentstate() {
+pub fn test_attachmentstate() {
     let orig = AttachmentState::FullyAttached;
     let copy = deserialize_json(&serialize_json(orig)).unwrap();
 
     assert_eq!(orig, copy);
 }
 
-pub async fn test_veilidstateattachment() {
+pub fn test_veilidstateattachment() {
     let orig = VeilidStateAttachment {
         state: AttachmentState::OverAttached,
         public_internet_ready: true,
@@ -221,14 +221,14 @@ pub async fn test_veilidstateattachment() {
     assert_eq!(orig, copy);
 }
 
-pub async fn test_peertabledata() {
+pub fn test_peertabledata() {
     let orig = fix_peertabledata();
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();
 
     assert_eq!(orig, copy);
 }
 
-pub async fn test_veilidstatenetwork() {
+pub fn test_veilidstatenetwork() {
     let orig = VeilidStateNetwork {
         started: true,
         bps_down: ByteCount::from(14_400),
@@ -240,7 +240,7 @@ pub async fn test_veilidstatenetwork() {
     assert_eq!(orig, copy);
 }
 
-pub async fn test_veilidroutechange() {
+pub fn test_veilidroutechange() {
     let orig = VeilidRouteChange {
         dead_routes: vec![fix_cryptokey()],
         dead_remote_routes: vec![fix_cryptokey()],
@@ -250,7 +250,7 @@ pub async fn test_veilidroutechange() {
     assert_eq!(orig, copy);
 }
 
-pub async fn test_veilidstateconfig() {
+pub fn test_veilidstateconfig() {
     let orig = VeilidStateConfig {
         config: fix_veilidconfiginner(),
     };
@@ -259,21 +259,21 @@ pub async fn test_veilidstateconfig() {
     assert_eq!(orig, copy);
 }
 
-pub async fn test_veilidvaluechange() {
+pub fn test_veilidvaluechange() {
     let orig = fix_veilidvaluechange();
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();
 
     assert_eq!(orig, copy);
 }
 
-pub async fn test_veilidupdate() {
+pub fn test_veilidupdate() {
     let orig = VeilidUpdate::ValueChange(Box::new(fix_veilidvaluechange()));
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();
 
     assert_eq!(orig, copy);
 }
 
-pub async fn test_veilidstate() {
+pub fn test_veilidstate() {
     let orig = VeilidState {
         attachment: Box::new(VeilidStateAttachment {
             state: AttachmentState::OverAttached,

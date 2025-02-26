@@ -8,12 +8,15 @@ pub struct IpAddrPort {
 }
 
 impl IpAddrPort {
+    #[must_use]
     pub fn new(addr: IpAddr, port: u16) -> Self {
         Self { addr, port }
     }
+    #[must_use]
     pub fn addr(&self) -> &IpAddr {
         &self.addr
     }
+    #[must_use]
     pub fn port(&self) -> u16 {
         self.port
     }
@@ -24,6 +27,7 @@ impl IpAddrPort {
         self.port = new_port;
     }
 
+    #[must_use]
     pub fn from_socket_addr(sa: &SocketAddr) -> Self {
         match sa {
             SocketAddr::V4(v) => Self {
@@ -36,6 +40,7 @@ impl IpAddrPort {
             },
         }
     }
+    #[must_use]
     pub fn to_socket_addr(&self) -> SocketAddr {
         match self.addr {
             IpAddr::V4(a) => SocketAddr::V4(SocketAddrV4::new(a, self.port)),

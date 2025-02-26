@@ -33,9 +33,11 @@ where
         + Hash
         + Encodable,
 {
+    #[must_use]
     pub fn new() -> Self {
         Self { items: Vec::new() }
     }
+    #[must_use]
     pub fn with_capacity(cap: usize) -> Self {
         Self {
             items: Vec::with_capacity(cap),
@@ -49,6 +51,7 @@ where
         out.sort_by(compare_crypto_kind);
         out
     }
+    #[must_use]
     pub fn keys(&self) -> Vec<K> {
         let mut out = Vec::new();
         for tk in &self.items {
@@ -56,6 +59,7 @@ where
         }
         out
     }
+    #[must_use]
     pub fn get(&self, kind: CryptoKind) -> Option<CryptoTyped<K>> {
         self.items.iter().find(|x| x.kind == kind).copied()
     }
@@ -93,15 +97,18 @@ where
         }
     }
     /// Return preferred typed key of our supported crypto kinds
+    #[must_use]
     pub fn best(&self) -> Option<CryptoTyped<K>> {
         self.items
             .first()
             .copied()
             .filter(|k| VALID_CRYPTO_KINDS.contains(&k.kind))
     }
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.items.is_empty()
     }
+    #[must_use]
     pub fn len(&self) -> usize {
         self.items.len()
     }

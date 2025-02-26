@@ -410,7 +410,7 @@ impl ProtocolAcceptHandler for WebsocketProtocolHandler {
         stream: AsyncPeekStream,
         peer_addr: SocketAddr,
         local_addr: SocketAddr,
-    ) -> SendPinBoxFuture<io::Result<Option<ProtocolNetworkConnection>>> {
+    ) -> PinBoxFutureStatic<io::Result<Option<ProtocolNetworkConnection>>> {
         Box::pin(self.clone().on_accept_async(stream, peer_addr, local_addr))
     }
 }

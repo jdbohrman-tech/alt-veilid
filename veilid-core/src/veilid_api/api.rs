@@ -35,6 +35,7 @@ impl Drop for VeilidAPIInner {
 /// * Create and import private routes.
 /// * Reply to `AppCall` RPCs.
 #[derive(Clone, Debug)]
+#[must_use]
 pub struct VeilidAPI {
     inner: Arc<Mutex<VeilidAPIInner>>,
 }
@@ -69,6 +70,7 @@ impl VeilidAPI {
     }
 
     /// Check to see if Veilid is already shut down.
+    #[must_use]
     pub fn is_shutdown(&self) -> bool {
         self.inner.lock().context.is_none()
     }
@@ -154,6 +156,7 @@ impl VeilidAPI {
     // Attach/Detach
 
     /// Get a full copy of the current state of Veilid.
+    #[expect(clippy::unused_async)]
     pub async fn get_state(&self) -> VeilidAPIResult<VeilidState> {
         let attachment_manager = self.core_context()?.attachment_manager();
         let network_manager = attachment_manager.network_manager();
@@ -177,7 +180,7 @@ impl VeilidAPI {
             "VeilidAPI::attach()");
 
         let attachment_manager = self.core_context()?.attachment_manager();
-        if !attachment_manager.attach().await {
+        if !Box::pin(attachment_manager.attach()).await {
             apibail_generic!("Already attached");
         }
         Ok(())
@@ -190,7 +193,7 @@ impl VeilidAPI {
             "VeilidAPI::detach()");
 
         let attachment_manager = self.core_context()?.attachment_manager();
-        if !attachment_manager.detach().await {
+        if !Box::pin(attachment_manager.detach()).await {
             apibail_generic!("Already detached");
         }
         Ok(())
@@ -253,11 +256,11 @@ impl VeilidAPI {
     /// imported by another Veilid node.
     //#[instrument(target = "veilid_api", level = "debug", skip(self), ret, err)]
     pub async fn new_private_route(&self) -> VeilidAPIResult<(RouteId, Vec<u8>)> {
-        self.new_custom_private_route(
+        Box::pin(self.new_custom_private_route(
             &VALID_CRYPTO_KINDS,
             Stability::Reliable,
             Sequencing::PreferOrdered,
-        )
+        ))
         .await
     }
 
@@ -303,7 +306,7 @@ impl VeilidAPI {
         let rss = routing_table.route_spec_store();
         let route_id =
             rss.allocate_route(crypto_kinds, &safety_spec, DirectionSet::all(), &[], false)?;
-        match rss.test_route(route_id).await? {
+        match Box::pin(rss.test_route(route_id)).await? {
             Some(true) => {
                 // route tested okay
             }

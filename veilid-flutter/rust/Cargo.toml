@@ -79,3 +79,6 @@ android_log-sys = { version = "0.3.1", optional = true }
 # Dependencies for iOS builds only
 [target.'cfg(target_os = "ios")'.dependencies]
 oslog = { version = "0.2.0", default-features = false, optional = true }
+
+[lints]
+workspace = true

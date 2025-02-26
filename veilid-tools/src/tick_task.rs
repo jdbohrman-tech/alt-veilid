@@ -4,7 +4,7 @@ use core::sync::atomic::{AtomicU64, Ordering};
 use once_cell::sync::OnceCell;
 
 type TickTaskRoutine<E> =
-    dyn Fn(StopToken, u64, u64) -> SendPinBoxFuture<Result<(), E>> + Send + Sync + 'static;
+    dyn Fn(StopToken, u64, u64) -> PinBoxFutureStatic<Result<(), E>> + Send + Sync + 'static;
 
 /// Runs a single-future background processing task, attempting to run it once every 'tick period' microseconds.
 /// If the prior tick is still running, it will allow it to finish, and do another tick when the timer comes around again.
@@ -20,6 +20,7 @@ pub struct TickTask<E: Send + 'static> {
 }
 
 impl<E: Send + 'static> TickTask<E> {
+    #[must_use]
     pub fn new_us(name: &str, tick_period_us: u64) -> Self {
         Self {
             name: name.to_string(),
@@ -31,6 +32,7 @@ impl<E: Send + 'static> TickTask<E> {
             running: Arc::new(AtomicBool::new(false)),
         }
     }
+    #[must_use]
     pub fn new_ms(name: &str, tick_period_ms: u32) -> Self {
         Self {
             name: name.to_string(),
@@ -42,6 +44,7 @@ impl<E: Send + 'static> TickTask<E> {
             running: Arc::new(AtomicBool::new(false)),
         }
     }
+    #[must_use]
     pub fn new(name: &str, tick_period_sec: u32) -> Self {
         Self {
             name: name.to_string(),
@@ -56,7 +59,10 @@ impl<E: Send + 'static> TickTask<E> {
 
     pub fn set_routine(
         &self,
-        routine: impl Fn(StopToken, u64, u64) -> SendPinBoxFuture<Result<(), E>> + Send + Sync + 'static,
+        routine: impl Fn(StopToken, u64, u64) -> PinBoxFutureStatic<Result<(), E>>
+            + Send
+            + Sync
+            + 'static,
     ) {
         self.routine.set(Box::new(routine)).map_err(drop).unwrap();
     }
@@ -78,17 +84,17 @@ impl<E: Send + 'static> TickTask<E> {
 
     pub async fn stop(&self) -> Result<(), E> {
         // drop the stop source if we have one
-        let opt_stop_source = &mut *self.stop_source.lock().await;
-        if opt_stop_source.is_none() {
-            // already stopped, just return
-            trace!(target: "veilid_tools", "tick task already stopped");
-            return Ok(());
+        {
+            let mut stop_source_guard = self.stop_source.lock().await;
+            if stop_source_guard.is_none() {
+                // already stopped, just return
+                return Ok(());
+            }
+            drop(stop_source_guard.take());
         }
-        drop(opt_stop_source.take());
 
         // wait for completion of the tick task
-        trace!(target: "veilid_tools", "stopping single future");
-        match self.single_future.join().await {
+        match pin_future!(self.single_future.join()).await {
             Ok(Some(Err(err))) => Err(err),
             _ => Ok(()),
         }
@@ -120,11 +126,9 @@ impl<E: Send + 'static> TickTask<E> {
 
     async fn internal_tick(&self, now: u64, last_timestamp_us: u64) -> Result<bool, E> {
         // Lock the stop source, tells us if we have ever started this future
-        let opt_stop_source_fut = self.stop_source.lock();
+        let mut stop_source_guard = self.stop_source.lock().await;
 
-        let opt_stop_source = &mut *opt_stop_source_fut.await;
-
-        if opt_stop_source.is_some() {
+        if stop_source_guard.is_some() {
             // See if the previous execution finished with an error
             match self.single_future.check().await {
                 Ok(Some(Err(e))) => {
@@ -172,7 +176,7 @@ impl<E: Send + 'static> TickTask<E> {
                 // Set new timer
                 self.last_timestamp_us.store(now, Ordering::Release);
                 // Save new stopper
-                *opt_stop_source = Some(stop_source);
+                *stop_source_guard = Some(stop_source);
                 Ok(true)
             }
             // All other conditions should not be reachable

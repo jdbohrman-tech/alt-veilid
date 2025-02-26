@@ -68,12 +68,13 @@ impl_veilid_log_facility!("rpc");
 /////////////////////////////////////////////////////////////////////
 
 #[derive(Debug)]
+#[must_use]
 struct WaitableReply {
     handle: OperationWaitHandle<Message, Option<QuestionContext>>,
     timeout_us: TimestampDuration,
     node_ref: NodeRef,
     send_ts: Timestamp,
-    send_data_method: SendDataMethod,
+    send_data_method: SendDataResult,
     safety_route: Option<PublicKey>,
     remote_private_route: Option<PublicKey>,
     reply_private_route: Option<PublicKey>,
@@ -83,6 +84,7 @@ struct WaitableReply {
 /////////////////////////////////////////////////////////////////////
 
 #[derive(Copy, Clone, Debug)]
+#[must_use]
 enum RPCKind {
     Question,
     Statement,
@@ -92,6 +94,7 @@ enum RPCKind {
 /////////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Clone)]
+#[must_use]
 pub struct RPCProcessorStartupContext {
     pub startup_lock: Arc<StartupLock>,
 }
@@ -111,6 +114,7 @@ impl Default for RPCProcessorStartupContext {
 /////////////////////////////////////////////////////////////////////
 
 #[derive(Debug)]
+#[must_use]
 struct RPCProcessorInner {
     send_channel: Option<flume::Sender<(Span, MessageEncoded)>>,
     stop_source: Option<StopSource>,
@@ -118,6 +122,7 @@ struct RPCProcessorInner {
 }
 
 #[derive(Debug)]
+#[must_use]
 pub(crate) struct RPCProcessor {
     registry: VeilidComponentRegistry,
     inner: Mutex<RPCProcessorInner>,
@@ -183,14 +188,17 @@ impl RPCProcessor {
     /////////////////////////////////////
     /// Initialization
 
+    #[expect(clippy::unused_async)]
     async fn init_async(&self) -> EyreResult<()> {
         Ok(())
     }
 
+    #[expect(clippy::unused_async)]
     async fn post_init_async(&self) -> EyreResult<()> {
         Ok(())
     }
 
+    #[expect(clippy::unused_async)]
     async fn pre_terminate_async(&self) {
         // Ensure things have shut down
         assert!(
@@ -199,6 +207,7 @@ impl RPCProcessor {
         );
     }
 
+    #[expect(clippy::unused_async)]
     async fn terminate_async(&self) {}
 
     //////////////////////////////////////////////////////////////////////
@@ -223,7 +232,7 @@ impl RPCProcessor {
                 let stop_token = inner.stop_source.as_ref().unwrap().token();
                 let jh = spawn(&format!("rpc worker {}", task_n), async move {
                     let this = registry.rpc_processor();
-                    this.rpc_worker(stop_token, receiver).await
+                    Box::pin(this.rpc_worker(stop_token, receiver)).await
                 });
                 inner.worker_join_handles.push(jh);
             }
@@ -368,9 +377,10 @@ impl RPCProcessor {
         }
 
         // Routine to call to generate fanout
-        let call_routine = |next_node: NodeRef| {
-            let registry = self.registry();
-            async move {
+        let registry = self.registry();
+        let call_routine = Arc::new(move |next_node: NodeRef| {
+            let registry = registry.clone();
+            Box::pin(async move {
                 let this = registry.rpc_processor();
                 let v = network_result_try!(
                     this.rpc_call_find_node(
@@ -384,11 +394,11 @@ impl RPCProcessor {
                 Ok(NetworkResult::value(FanoutCallOutput {
                     peer_info_list: v.answer,
                 }))
-            }
-        };
+            }) as PinBoxFuture<FanoutCallResult>
+        });
 
         // Routine to call to check if we're done at each step
-        let check_done = |_: &[NodeRef]| {
+        let check_done = Arc::new(move |_: &[NodeRef]| {
             let Ok(Some(nr)) = routing_table.lookup_node_ref(node_id) else {
                 return None;
             };
@@ -401,7 +411,7 @@ impl RPCProcessor {
             }
 
             None
-        };
+        });
 
         // Call the fanout
         let routing_table = self.routing_table();
@@ -421,13 +431,13 @@ impl RPCProcessor {
 
     /// Search the DHT for a specific node corresponding to a key unless we
     /// have that node in our routing table already, and return the node reference
-    /// Note: This routine can possibly be recursive, hence the SendPinBoxFuture async form
+    /// Note: This routine can possibly be recursive, hence the PinBoxFuture async form
     #[instrument(level = "trace", target = "rpc", skip_all)]
     pub fn resolve_node(
         &self,
         node_id: TypedKey,
         safety_selection: SafetySelection,
-    ) -> SendPinBoxFuture<Result<Option<NodeRef>, RPCError>> {
+    ) -> PinBoxFuture<Result<Option<NodeRef>, RPCError>> {
         let registry = self.registry();
         Box::pin(
             async move {
@@ -1165,11 +1175,12 @@ impl RPCProcessor {
         );
 
         // Ref the connection so it doesn't go away until we're done with the waitable reply
-        let opt_connection_ref_scope = send_data_method.unique_flow.connection_id.and_then(|id| {
-            self.network_manager()
-                .connection_manager()
-                .try_connection_ref_scope(id)
-        });
+        let opt_connection_ref_scope =
+            send_data_method.unique_flow().connection_id.and_then(|id| {
+                self.network_manager()
+                    .connection_manager()
+                    .try_connection_ref_scope(id)
+            });
 
         // Pass back waitable reply completion
         Ok(NetworkResult::value(WaitableReply {
@@ -1506,35 +1517,75 @@ impl RPCProcessor {
 
         // Process specific message kind
         match msg.operation.kind() {
-            RPCOperationKind::Question(q) => match q.detail() {
-                RPCQuestionDetail::StatusQ(_) => self.process_status_q(msg).await,
-                RPCQuestionDetail::FindNodeQ(_) => self.process_find_node_q(msg).await,
-                RPCQuestionDetail::AppCallQ(_) => self.process_app_call_q(msg).await,
-                RPCQuestionDetail::GetValueQ(_) => self.process_get_value_q(msg).await,
-                RPCQuestionDetail::SetValueQ(_) => self.process_set_value_q(msg).await,
-                RPCQuestionDetail::WatchValueQ(_) => self.process_watch_value_q(msg).await,
-                RPCQuestionDetail::InspectValueQ(_) => self.process_inspect_value_q(msg).await,
-                #[cfg(feature = "unstable-blockstore")]
-                RPCQuestionDetail::SupplyBlockQ(_) => self.process_supply_block_q(msg).await,
-                #[cfg(feature = "unstable-blockstore")]
-                RPCQuestionDetail::FindBlockQ(_) => self.process_find_block_q(msg).await,
-                #[cfg(feature = "unstable-tunnels")]
-                RPCQuestionDetail::StartTunnelQ(_) => self.process_start_tunnel_q(msg).await,
-                #[cfg(feature = "unstable-tunnels")]
-                RPCQuestionDetail::CompleteTunnelQ(_) => self.process_complete_tunnel_q(msg).await,
-                #[cfg(feature = "unstable-tunnels")]
-                RPCQuestionDetail::CancelTunnelQ(_) => self.process_cancel_tunnel_q(msg).await,
-            },
-            RPCOperationKind::Statement(s) => match s.detail() {
-                RPCStatementDetail::ValidateDialInfo(_) => {
-                    self.process_validate_dial_info(msg).await
-                }
-                RPCStatementDetail::Route(_) => self.process_route(msg).await,
-                RPCStatementDetail::ValueChanged(_) => self.process_value_changed(msg).await,
-                RPCStatementDetail::Signal(_) => self.process_signal(msg).await,
-                RPCStatementDetail::ReturnReceipt(_) => self.process_return_receipt(msg).await,
-                RPCStatementDetail::AppMessage(_) => self.process_app_message(msg).await,
-            },
+            RPCOperationKind::Question(q) => {
+                let res = match q.detail() {
+                    RPCQuestionDetail::StatusQ(_) => {
+                        pin_dyn_future_closure!(self.process_status_q(msg))
+                    }
+                    RPCQuestionDetail::FindNodeQ(_) => {
+                        pin_dyn_future_closure!(self.process_find_node_q(msg))
+                    }
+                    RPCQuestionDetail::AppCallQ(_) => {
+                        pin_dyn_future_closure!(self.process_app_call_q(msg))
+                    }
+                    RPCQuestionDetail::GetValueQ(_) => {
+                        pin_dyn_future_closure!(self.process_get_value_q(msg))
+                    }
+                    RPCQuestionDetail::SetValueQ(_) => {
+                        pin_dyn_future_closure!(self.process_set_value_q(msg))
+                    }
+                    RPCQuestionDetail::WatchValueQ(_) => {
+                        pin_dyn_future_closure!(self.process_watch_value_q(msg))
+                    }
+                    RPCQuestionDetail::InspectValueQ(_) => {
+                        pin_dyn_future_closure!(self.process_inspect_value_q(msg))
+                    }
+                    #[cfg(feature = "unstable-blockstore")]
+                    RPCQuestionDetail::SupplyBlockQ(_) => {
+                        pin_dyn_future_closure!(self.process_supply_block_q(msg))
+                    }
+                    #[cfg(feature = "unstable-blockstore")]
+                    RPCQuestionDetail::FindBlockQ(_) => {
+                        pin_dyn_future_closure!(self.process_find_block_q(msg))
+                    }
+                    #[cfg(feature = "unstable-tunnels")]
+                    RPCQuestionDetail::StartTunnelQ(_) => {
+                        pin_dyn_future_closure!(self.process_start_tunnel_q(msg))
+                    }
+                    #[cfg(feature = "unstable-tunnels")]
+                    RPCQuestionDetail::CompleteTunnelQ(_) => {
+                        pin_dyn_future_closure!(self.process_complete_tunnel_q(msg))
+                    }
+                    #[cfg(feature = "unstable-tunnels")]
+                    RPCQuestionDetail::CancelTunnelQ(_) => {
+                        pin_dyn_future_closure!(self.process_cancel_tunnel_q(msg))
+                    }
+                };
+                res.await
+            }
+            RPCOperationKind::Statement(s) => {
+                let res = match s.detail() {
+                    RPCStatementDetail::ValidateDialInfo(_) => {
+                        pin_dyn_future_closure!(self.process_validate_dial_info(msg))
+                    }
+                    RPCStatementDetail::Route(_) => {
+                        pin_dyn_future_closure!(self.process_route(msg))
+                    }
+                    RPCStatementDetail::ValueChanged(_) => {
+                        pin_dyn_future_closure!(self.process_value_changed(msg))
+                    }
+                    RPCStatementDetail::Signal(_) => {
+                        pin_dyn_future_closure!(self.process_signal(msg))
+                    }
+                    RPCStatementDetail::ReturnReceipt(_) => {
+                        pin_dyn_future_closure!(self.process_return_receipt(msg))
+                    }
+                    RPCStatementDetail::AppMessage(_) => {
+                        pin_dyn_future_closure!(self.process_app_message(msg))
+                    }
+                };
+                res.await
+            }
             RPCOperationKind::Answer(_) => {
                 let op_id = msg.operation.op_id();
                 if let Err(e) = self.waiting_rpc_table.complete_op_waiter(op_id, msg) {

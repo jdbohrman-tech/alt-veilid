@@ -8,11 +8,11 @@ cfg_if! {
     }
 }
 
-pub async fn test_log() {
+pub fn test_log() {
     info!("testing log");
 }
 
-pub async fn test_get_timestamp() {
+pub fn test_get_timestamp() {
     info!("testing get_timestamp");
     let t1 = get_timestamp();
     let t2 = get_timestamp();
@@ -32,7 +32,7 @@ pub async fn test_eventual() {
 
         let jh = spawn("task", async move {
             sleep(1000).await;
-            e1.resolve();
+            e1.resolve().await;
         });
 
         assert_eq!(i1.await, 1u32);
@@ -370,7 +370,7 @@ fn ip<S: AsRef<str>>(s: S) -> SplitUrlHost {
     SplitUrlHost::IpAddr(IpAddr::from_str(s.as_ref()).unwrap())
 }
 
-pub async fn test_split_url() {
+pub fn test_split_url() {
     info!("testing split_url");
 
     assert_split_url!("http://foo", "http", host("foo"));
@@ -458,7 +458,7 @@ pub async fn test_split_url() {
     assert_split_url_parse!("s://s");
 }
 
-pub async fn test_get_random_u64() {
+pub fn test_get_random_u64() {
     info!("testing random number generator for u64");
     let t1 = get_timestamp();
     let count = 10000;
@@ -473,7 +473,7 @@ pub async fn test_get_random_u64() {
     );
 }
 
-pub async fn test_get_random_u32() {
+pub fn test_get_random_u32() {
     info!("testing random number generator for u32");
     let t1 = get_timestamp();
     let count = 10000;
@@ -528,7 +528,7 @@ pub async fn test_must_join_single_future() {
     assert_eq!(sf.check().await, Ok(None));
 }
 
-pub async fn test_tools() {
+pub fn test_tools() {
     info!("testing retry_falloff_log");
     let mut last_us = 0u64;
     for x in 0..1024 {
@@ -541,12 +541,12 @@ pub async fn test_tools() {
 }
 
 pub async fn test_all() {
-    test_log().await;
-    test_get_timestamp().await;
-    test_tools().await;
-    test_split_url().await;
-    test_get_random_u64().await;
-    test_get_random_u32().await;
+    test_log();
+    test_get_timestamp();
+    test_tools();
+    test_split_url();
+    test_get_random_u64();
+    test_get_random_u32();
     test_sleep().await;
     #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     test_must_join_single_future().await;

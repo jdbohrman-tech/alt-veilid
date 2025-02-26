@@ -23,6 +23,7 @@ const ALL_TABLE_NAMES: &[u8] = b"all_table_names";
 /// Description of column
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
+#[must_use]
 pub struct ColumnInfo {
     pub key_count: AlignedU64,
 }
@@ -30,6 +31,7 @@ pub struct ColumnInfo {
 /// IO Stats for table
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
+#[must_use]
 pub struct IOStatsInfo {
     /// Number of transaction.
     pub transactions: AlignedU64,
@@ -54,6 +56,7 @@ pub struct IOStatsInfo {
 /// Description of table
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
+#[must_use]
 pub struct TableInfo {
     /// Internal table name
     pub table_name: String,
@@ -67,6 +70,7 @@ pub struct TableInfo {
     pub columns: Vec<ColumnInfo>,
 }
 
+#[must_use]
 struct TableStoreInner {
     opened: BTreeMap<String, Weak<TableDBUnlockedInner>>,
     encryption_key: Option<TypedSharedSecret>,
@@ -87,6 +91,7 @@ impl fmt::Debug for TableStoreInner {
 
 /// Veilid Table Storage.
 /// Database for storing key value pairs persistently and securely across runs.
+#[must_use]
 pub struct TableStore {
     registry: VeilidComponentRegistry,
     inner: Mutex<TableStoreInner>, // Sync mutex here because TableDB drops can happen at any time
@@ -160,7 +165,7 @@ impl TableStore {
         })
     }
 
-    async fn name_get_or_create(&self, table: &str) -> VeilidAPIResult<String> {
+    fn name_get_or_create(&self, table: &str) -> VeilidAPIResult<String> {
         let name = self.namespaced_name(table)?;
 
         let mut inner = self.inner.lock();
@@ -356,8 +361,7 @@ impl TableStore {
     async fn load_device_encryption_key(&self) -> EyreResult<Option<TypedSharedSecret>> {
         let dek_bytes: Option<Vec<u8>> = self
             .protected_store()
-            .load_user_secret("device_encryption_key")
-            .await?;
+            .load_user_secret("device_encryption_key")?;
         let Some(dek_bytes) = dek_bytes else {
             veilid_log!(self debug "no device encryption key");
             return Ok(None);
@@ -383,8 +387,7 @@ impl TableStore {
             // Remove the device encryption key
             let existed = self
                 .protected_store()
-                .remove_user_secret("device_encryption_key")
-                .await?;
+                .remove_user_secret("device_encryption_key")?;
             veilid_log!(self debug "removed device encryption key. existed: {}", existed);
             return Ok(());
         };
@@ -423,8 +426,7 @@ impl TableStore {
         // Save the new device encryption key
         let existed = self
             .protected_store()
-            .save_user_secret("device_encryption_key", &dek_bytes)
-            .await?;
+            .save_user_secret("device_encryption_key", &dek_bytes)?;
         veilid_log!(self debug "saving device encryption key. existed: {}", existed);
         Ok(())
     }
@@ -560,7 +562,7 @@ impl TableStore {
             }
         }
 
-        let table_name = self.name_get_or_create(name).await?;
+        let table_name = self.name_get_or_create(name)?;
 
         // See if this table is already opened, if so the column count must be the same
         {

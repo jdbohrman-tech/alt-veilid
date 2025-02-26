@@ -34,12 +34,14 @@ impl<T: Unpin + Clone> Default for EventualValueClone<T> {
 }
 
 impl<T: Unpin + Clone> EventualValueClone<T> {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             inner: Arc::new(Mutex::new(EventualBaseInner::new())),
         }
     }
 
+    #[must_use]
     pub fn instance(&self) -> EventualValueCloneFuture<T>
     where
         T: Clone + Unpin,
@@ -54,6 +56,7 @@ impl<T: Unpin + Clone> EventualValueClone<T> {
         self.resolve_to_value(value)
     }
 
+    #[must_use]
     pub fn value(&self) -> Option<T> {
         let inner = self.inner.lock();
         inner.resolved_value_ref().clone()

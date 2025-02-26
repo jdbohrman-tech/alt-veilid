@@ -11,6 +11,7 @@ use range_set_blaze::*;
     tsify(from_wasm_abi, into_wasm_abi)
 )]
 #[serde(transparent)]
+#[must_use]
 pub struct ValueSubkeyRangeSet {
     #[serde(with = "serialize_range_set_blaze")]
     #[schemars(with = "Vec<(u32,u32)>")]
@@ -52,13 +53,16 @@ impl ValueSubkeyRangeSet {
         Self::new_with_data(&self.data | &other.data)
     }
 
+    #[must_use]
     pub fn data(&self) -> &RangeSetBlaze<ValueSubkey> {
         &self.data
     }
+    #[must_use]
     pub fn into_data(self) -> RangeSetBlaze<ValueSubkey> {
         self.data
     }
 
+    #[must_use]
     pub fn nth_subkey(&self, idx: usize) -> Option<ValueSubkey> {
         let mut idxleft = idx;
         for range in self.data.ranges() {
@@ -71,6 +75,7 @@ impl ValueSubkeyRangeSet {
         None
     }
 
+    #[must_use]
     pub fn idx_of_subkey(&self, subkey: ValueSubkey) -> Option<usize> {
         let mut idx = 0usize;
         for range in self.data.ranges() {

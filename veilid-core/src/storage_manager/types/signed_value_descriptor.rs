@@ -26,7 +26,7 @@ impl SignedValueDescriptor {
             );
         }
         // validate schema
-        DHTSchema::try_from(self.schema_data.as_slice())?;
+        let _ = DHTSchema::try_from(self.schema_data.as_slice())?;
         Ok(())
     }
 

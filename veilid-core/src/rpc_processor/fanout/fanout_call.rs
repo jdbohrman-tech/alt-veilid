@@ -64,7 +64,10 @@ pub struct FanoutCallOutput {
 }
 
 pub type FanoutCallResult = RPCNetworkResult<FanoutCallOutput>;
-pub type FanoutNodeInfoFilter = Arc<dyn Fn(&[TypedKey], &NodeInfo) -> bool + Send + Sync>;
+pub type FanoutNodeInfoFilter = Arc<dyn (Fn(&[TypedKey], &NodeInfo) -> bool) + Send + Sync>;
+pub type FanoutCheckDone<R> = Arc<dyn (Fn(&[NodeRef]) -> Option<R>) + Send + Sync>;
+pub type FanoutCallRoutine =
+    Arc<dyn (Fn(NodeRef) -> PinBoxFutureStatic<FanoutCallResult>) + Send + Sync>;
 
 pub fn empty_fanout_node_info_filter() -> FanoutNodeInfoFilter {
     Arc::new(|_, _| true)
@@ -91,12 +94,9 @@ pub fn capability_fanout_node_info_filter(caps: Vec<Capability>) -> FanoutNodeIn
 /// If the algorithm times out, a Timeout result is returned, however operations will still have been performed and a
 /// timeout is not necessarily indicative of an algorithmic 'failure', just that no definitive stopping condition was found
 /// in the given time
-pub(crate) struct FanoutCall<'a, R, F, C, D>
+pub(crate) struct FanoutCall<'a, R>
 where
     R: Unpin,
-    F: Future<Output = FanoutCallResult>,
-    C: Fn(NodeRef) -> F,
-    D: Fn(&[NodeRef]) -> Option<R>,
 {
     routing_table: &'a RoutingTable,
     node_id: TypedKey,
@@ -105,16 +105,13 @@ where
     fanout: usize,
     timeout_us: TimestampDuration,
     node_info_filter: FanoutNodeInfoFilter,
-    call_routine: C,
-    check_done: D,
+    call_routine: FanoutCallRoutine,
+    check_done: FanoutCheckDone<R>,
 }
 
-impl<'a, R, F, C, D> FanoutCall<'a, R, F, C, D>
+impl<'a, R> FanoutCall<'a, R>
 where
     R: Unpin,
-    F: Future<Output = FanoutCallResult>,
-    C: Fn(NodeRef) -> F,
-    D: Fn(&[NodeRef]) -> Option<R>,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -124,8 +121,8 @@ where
         fanout: usize,
         timeout_us: TimestampDuration,
         node_info_filter: FanoutNodeInfoFilter,
-        call_routine: C,
-        check_done: D,
+        call_routine: FanoutCallRoutine,
+        check_done: FanoutCheckDone<R>,
     ) -> Self {
         let context = Mutex::new(FanoutContext {
             fanout_queue: FanoutQueue::new(node_id.kind),
@@ -225,7 +222,7 @@ where
                 #[allow(unused_variables)]
                 Ok(x) => {
                     // Call failed, node will not be considered again
-                    event!(target: "fanout", Level::DEBUG, 
+                    event!(target: "fanout", Level::DEBUG,
                         "Fanout result {}: {:?}", &next_node, x);
                 }
                 Err(e) => {

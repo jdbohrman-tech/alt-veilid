@@ -541,19 +541,18 @@ async def test_dht_integration_writer_reader():
             for n in range(COUNT):
                 desc = await rc0.create_dht_record(schema)
                 records.append(desc)
+                print(f'  {n}: key={desc.key} owner={desc.owner_key_pair()}')
 
                 await rc0.set_dht_value(desc.key, ValueSubkey(0), TEST_DATA)
 
-                print(f'  {n}')
-            
             print('syncing records to the network')
             recleft = len(records)
-            for desc0 in records:
+            for desc in records:
                 while True:
-                    rr = await rc0.inspect_dht_record(desc0.key, [])
+                    rr = await rc0.inspect_dht_record(desc.key, [])
                     left = 0; [left := left + (x[1]-x[0]+1) for x in rr.offline_subkeys]
                     if left == 0:
-                        await rc0.close_dht_record(desc0.key)
+                        await rc0.close_dht_record(desc.key)
                         break
                     print(f'  {recleft} records {left} subkeys left')
                     time.sleep(0.1)
@@ -562,14 +561,15 @@ async def test_dht_integration_writer_reader():
             # read dht records on server 1
             print(f'reading {COUNT} records')
             n = 0
-            for desc0 in records:
-                desc1 = await rc1.open_dht_record(desc0.key)
+            for desc in records:
+                print(f'  {n}: key={desc.key} owner={desc.owner_key_pair()}')
+                n += 1
+
+                desc1 = await rc1.open_dht_record(desc.key)
                 vd1 = await rc1.get_dht_value(desc1.key, ValueSubkey(0))
                 assert vd1.data == TEST_DATA
                 await rc1.close_dht_record(desc1.key)
                 
-                print(f'  {n}')
-                n += 1
 
 
 @pytest.mark.skipif(os.getenv("STRESS") != "1", reason="stress test takes a long time")

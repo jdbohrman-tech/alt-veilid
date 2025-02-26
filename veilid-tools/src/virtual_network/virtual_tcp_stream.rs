@@ -15,9 +15,9 @@ pub struct VirtualTcpStream {
     socket_id: SocketId,
     local_address: SocketAddr,
     remote_address: SocketAddr,
-    current_recv_fut: Option<SendPinBoxFuture<Result<Vec<u8>, VirtualNetworkError>>>,
-    current_send_fut: Option<SendPinBoxFuture<Result<usize, VirtualNetworkError>>>,
-    current_tcp_shutdown_fut: Option<SendPinBoxFuture<Result<(), VirtualNetworkError>>>,
+    current_recv_fut: Option<PinBoxFuture<Result<Vec<u8>, VirtualNetworkError>>>,
+    current_send_fut: Option<PinBoxFuture<Result<usize, VirtualNetworkError>>>,
+    current_tcp_shutdown_fut: Option<PinBoxFuture<Result<(), VirtualNetworkError>>>,
 }
 
 impl fmt::Debug for VirtualTcpStream {

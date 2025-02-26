@@ -1,12 +1,6 @@
 use super::*;
 use stop_token::future::FutureExt as _;
 
-// global debugging statistics for hole punch success
-static HOLE_PUNCH_SUCCESS: AtomicUsize = AtomicUsize::new(0);
-static HOLE_PUNCH_FAILURE: AtomicUsize = AtomicUsize::new(0);
-static REVERSE_CONNECT_SUCCESS: AtomicUsize = AtomicUsize::new(0);
-static REVERSE_CONNECT_FAILURE: AtomicUsize = AtomicUsize::new(0);
-
 impl NetworkManager {
     /// Send raw data to a node
     ///
@@ -20,141 +14,227 @@ impl NetworkManager {
         &self,
         destination_node_ref: FilteredNodeRef,
         data: Vec<u8>,
-    ) -> EyreResult<NetworkResult<SendDataMethod>> {
+    ) -> EyreResult<NetworkResult<SendDataResult>> {
         // Get the best way to contact this node
-        let possibly_relayed_contact_method =
+        let mut opt_node_contact_method =
             self.get_node_contact_method(destination_node_ref.clone())?;
 
-        self.try_possibly_relayed_contact_method(
-            possibly_relayed_contact_method,
-            destination_node_ref,
-            data,
-        )
-        .await
+        // Retry loop
+        loop {
+            // Boxed because calling rpc_call_signal() is recursive to send_data()
+            let nres = pin_future_closure!(self.try_node_contact_method(
+                opt_node_contact_method.clone(),
+                destination_node_ref.clone(),
+                data.clone(),
+            ))
+            .await?;
+
+            match &nres {
+                NetworkResult::Timeout => {
+                    // Record contact method failure statistics
+                    self.inner
+                        .lock()
+                        .node_contact_method_cache
+                        .record_contact_method_failure(
+                            opt_node_contact_method.as_ref().map(|x| &x.ncm_kind),
+                        );
+
+                    // Timeouts may retry with a different method
+                    match opt_node_contact_method {
+                        Some(NodeContactMethod {
+                            ncm_key,
+                            ncm_kind:
+                                NodeContactMethodKind::SignalReverse(relay_nr, _target_node_ref),
+                        }) => {
+                            // Try again with a different method
+                            opt_node_contact_method = Some(NodeContactMethod {
+                                ncm_key,
+                                ncm_kind: NodeContactMethodKind::InboundRelay(relay_nr),
+                            });
+                            continue;
+                        }
+                        Some(NodeContactMethod {
+                            ncm_key,
+                            ncm_kind:
+                                NodeContactMethodKind::SignalHolePunch(relay_nr, _target_node_ref),
+                        }) => {
+                            // Try again with a different method
+                            opt_node_contact_method = Some(NodeContactMethod {
+                                ncm_key,
+                                ncm_kind: NodeContactMethodKind::InboundRelay(relay_nr),
+                            });
+                            continue;
+                        }
+                        _ => {
+                            // Don't retry any other contact methods, and don't cache a timeout
+                            break Ok(nres);
+                        }
+                    }
+                }
+                NetworkResult::ServiceUnavailable(_)
+                | NetworkResult::NoConnection(_)
+                | NetworkResult::AlreadyExists(_)
+                | NetworkResult::InvalidMessage(_) => {
+                    // Record contact method failure statistics
+                    self.inner
+                        .lock()
+                        .node_contact_method_cache
+                        .record_contact_method_failure(
+                            opt_node_contact_method.as_ref().map(|x| &x.ncm_kind),
+                        );
+
+                    // Other network results don't cache, just directly return the result
+                    break Ok(nres);
+                }
+                NetworkResult::Value(v) => {
+                    // Successful network result gets to cache the node contact method
+                    if let Some(ncm) = &v.opt_contact_method {
+                        // Cache the contact method
+                        self.cache_node_contact_method(ncm.clone());
+                    }
+                    if let Some(ncm) = &v.opt_relayed_contact_method {
+                        // Cache the relayed contact method
+                        self.cache_node_contact_method(ncm.clone());
+                    }
+
+                    // Record cache insertion as a success
+                    self.inner
+                        .lock()
+                        .node_contact_method_cache
+                        .record_contact_method_success(
+                            v.opt_contact_method.as_ref().map(|x| &x.ncm_kind),
+                        );
+                    // If relayed contact method was specified, then it wasn't unreachable
+                    // (must have been relay type or it wouldnt be here, and if this is None
+                    // then the contact method was not relayed)
+                    if v.opt_relayed_contact_method.is_some() {
+                        self.inner
+                            .lock()
+                            .node_contact_method_cache
+                            .record_contact_method_success(
+                                v.opt_relayed_contact_method.as_ref().map(|x| &x.ncm_kind),
+                            );
+                    }
+
+                    break Ok(nres);
+                }
+            }
+        }
     }
 
     #[instrument(level = "trace", target = "net", skip_all)]
-    pub fn try_possibly_relayed_contact_method(
+    async fn try_node_contact_method(
         &self,
-        possibly_relayed_contact_method: NodeContactMethod,
+        opt_node_contact_method: Option<NodeContactMethod>,
         destination_node_ref: FilteredNodeRef,
         data: Vec<u8>,
-    ) -> SendPinBoxFuture<EyreResult<NetworkResult<SendDataMethod>>> {
-        let registry = self.registry();
-        Box::pin(
-            async move {
-                let this = registry.network_manager();
+    ) -> EyreResult<NetworkResult<SendDataResult>> {
+        // If we need to relay, do it
+        let (opt_contact_method, target_node_ref, opt_relayed_contact_method) =
+            match opt_node_contact_method.clone().map(|x| x.ncm_kind) {
+                Some(NodeContactMethodKind::OutboundRelay(relay_nr))
+                | Some(NodeContactMethodKind::InboundRelay(relay_nr)) => {
+                    let opt_contact_method = self.get_node_contact_method(relay_nr.clone())?;
+                    (opt_contact_method, relay_nr, opt_node_contact_method)
+                }
+                _ => (opt_node_contact_method, destination_node_ref.clone(), None),
+            };
 
-                // If we need to relay, do it
-                let (contact_method, target_node_ref, opt_relayed_contact_method) = match possibly_relayed_contact_method.clone() {
-                    NodeContactMethod::OutboundRelay(relay_nr)
-                    | NodeContactMethod::InboundRelay(relay_nr) => {
-                        let cm = this.get_node_contact_method(relay_nr.clone())?;
-                        (cm, relay_nr, Some(possibly_relayed_contact_method))
-                    }
-                    cm => (cm, destination_node_ref.clone(), None),
-                };
+        #[cfg(feature = "verbose-tracing")]
+        veilid_log!(self debug
+            "ContactMethod: {:?} for {:?}",
+            opt_contact_method, destination_node_ref
+        );
 
-                #[cfg(feature = "verbose-tracing")]
-                veilid_log!(self debug
-                    "ContactMethod: {:?} for {:?}",
-                    contact_method, destination_node_ref
-                );
-
-                // Try the contact method
-                let mut send_data_method = match contact_method {
-                    NodeContactMethod::OutboundRelay(relay_nr) => {
-                        // Relay loop or multiple relays
-                        bail!(
+        // Try the contact method
+        let unique_flow = match &opt_contact_method {
+            None => {
+                // If a node is unreachable it may still have an existing inbound connection
+                // Try that, but don't cache anything
+                network_result_try!(
+                    pin_future_closure!(self.send_data_ncm_existing(target_node_ref, data)).await?
+                )
+            }
+            Some(NodeContactMethod {
+                ncm_key: _,
+                ncm_kind: NodeContactMethodKind::Existing,
+            }) => {
+                // The node must have an existing connection, for example connecting to your own
+                // relay is something that must always have a connection already
+                network_result_try!(
+                    pin_future_closure!(self.send_data_ncm_existing(target_node_ref, data)).await?
+                )
+            }
+            Some(NodeContactMethod {
+                ncm_key: _,
+                ncm_kind: NodeContactMethodKind::OutboundRelay(relay_nr),
+            }) => {
+                // Relay loop or multiple relays
+                bail!(
                             "Outbound relay loop or multiple relays detected: destination {} resolved to target {} via extraneous relay {}",
                             destination_node_ref,
                             target_node_ref,
                             relay_nr,
                         );
-                    }
-                    | NodeContactMethod::InboundRelay(relay_nr) => {
-                        // Relay loop or multiple relays
-                        bail!(
+            }
+            Some(NodeContactMethod {
+                ncm_key: _,
+                ncm_kind: NodeContactMethodKind::InboundRelay(relay_nr),
+            }) => {
+                // Relay loop or multiple relays
+                bail!(
                             "Inbound relay loop or multiple relays detected: destination {} resolved to target {} via extraneous relay {}",
                             destination_node_ref,
                             target_node_ref,
                             relay_nr,
                         );
-                    }
-                    NodeContactMethod::Direct(dial_info) => {
-                        network_result_try!(
-                            this.send_data_ncm_direct(target_node_ref, dial_info, data).await?
-                        )
-                    }
-                    NodeContactMethod::SignalReverse(relay_nr, target_node_ref) => {
-                        let nres =
-                            this.send_data_ncm_signal_reverse(relay_nr.clone(), target_node_ref.clone(), data.clone())
-                                .await?;
-                        if matches!(nres, NetworkResult::Timeout) {
-                            // Failed to reverse-connect, fallback to inbound relay
-                            let success = REVERSE_CONNECT_SUCCESS.load(Ordering::Acquire);
-                            let failure = REVERSE_CONNECT_FAILURE.fetch_add(1, Ordering::AcqRel) + 1;
-                            let rate = (success as f64 * 100.0) / ((success + failure) as f64);
-
-                            veilid_log!(this debug target:"network_result", "Reverse connection failed ({:.2}% success) to {}, falling back to inbound relay via {}", rate, target_node_ref, relay_nr);
-                            network_result_try!(this.try_possibly_relayed_contact_method(NodeContactMethod::InboundRelay(relay_nr), destination_node_ref, data).await?)
-                        } else {
-                            if let NetworkResult::Value(sdm) = &nres {
-                                if matches!(sdm.contact_method, NodeContactMethod::SignalReverse(_,_)) {
-
-                                    let success = REVERSE_CONNECT_SUCCESS.fetch_add(1, Ordering::AcqRel) + 1;
-                                    let failure = REVERSE_CONNECT_FAILURE.load(Ordering::Acquire);
-                                    let rate = (success as f64 * 100.0) / ((success + failure) as f64);
-
-                                    veilid_log!(this debug target:"network_result", "Reverse connection successful ({:.2}% success) to {} via {}", rate, target_node_ref, relay_nr);
-                                }
-                            }
-                            network_result_try!(nres)
-                        }
-                    }
-                    NodeContactMethod::SignalHolePunch(relay_nr, target_node_ref) => {
-                        let nres =
-                            this.send_data_ncm_signal_hole_punch(relay_nr.clone(), target_node_ref.clone(), data.clone())
-                                .await?;
-                        if matches!(nres, NetworkResult::Timeout) {
-                            // Failed to holepunch, fallback to inbound relay
-                            let success = HOLE_PUNCH_SUCCESS.load(Ordering::Acquire);
-                            let failure = HOLE_PUNCH_FAILURE.fetch_add(1, Ordering::AcqRel) + 1;
-                            let rate = (success as f64 * 100.0) / ((success + failure) as f64);
-
-                            veilid_log!(this debug target:"network_result", "Hole punch failed ({:.2}% success) to {} , falling back to inbound relay via {}", rate, target_node_ref , relay_nr);
-                            network_result_try!(this.try_possibly_relayed_contact_method(NodeContactMethod::InboundRelay(relay_nr), destination_node_ref, data).await?)
-                        } else {
-                            if let NetworkResult::Value(sdm) = &nres {
-                                if matches!(sdm.contact_method, NodeContactMethod::SignalHolePunch(_,_)) {
-                                    let success = HOLE_PUNCH_SUCCESS.fetch_add(1, Ordering::AcqRel) + 1;
-                                    let failure = HOLE_PUNCH_FAILURE.load(Ordering::Acquire);
-                                    let rate = (success as f64 * 100.0) / ((success + failure) as f64);
-
-                                    veilid_log!(this debug target:"network_result", "Hole punch successful ({:.2}% success) to {} via {}", rate, target_node_ref, relay_nr);
-                                }
-                            }
-                            network_result_try!(nres)
-                        }
-                    }
-                    NodeContactMethod::Existing => {
-                        network_result_try!(
-                            this.send_data_ncm_existing(target_node_ref, data).await?
-                        )
-                    }
-                    NodeContactMethod::Unreachable => {
-                        network_result_try!(
-                            this.send_data_ncm_unreachable(target_node_ref, data)
-                                .await?
-                        )
-                    }
-                };
-                send_data_method.opt_relayed_contact_method = opt_relayed_contact_method;
-
-                Ok(NetworkResult::value(send_data_method))
             }
-            .in_current_span()
-        )
+            Some(NodeContactMethod {
+                ncm_key: _,
+                ncm_kind: NodeContactMethodKind::Direct(dial_info),
+            }) => {
+                network_result_try!(
+                    pin_future_closure!(self.send_data_ncm_direct(
+                        target_node_ref,
+                        dial_info.clone(),
+                        data
+                    ))
+                    .await?
+                )
+            }
+            Some(NodeContactMethod {
+                ncm_key: _,
+                ncm_kind: NodeContactMethodKind::SignalReverse(relay_nr, target_node_ref),
+            }) => {
+                network_result_try!(
+                    pin_future_closure!(self.send_data_ncm_signal_reverse(
+                        relay_nr.clone(),
+                        target_node_ref.clone(),
+                        data.clone()
+                    ))
+                    .await?
+                )
+            }
+            Some(NodeContactMethod {
+                ncm_key: _,
+                ncm_kind: NodeContactMethodKind::SignalHolePunch(relay_nr, target_node_ref),
+            }) => {
+                network_result_try!(
+                    pin_future_closure!(self.send_data_ncm_signal_hole_punch(
+                        relay_nr.clone(),
+                        target_node_ref.clone(),
+                        data.clone()
+                    ))
+                    .await?
+                )
+            }
+        };
+
+        Ok(NetworkResult::value(SendDataResult {
+            opt_contact_method,
+            opt_relayed_contact_method,
+            unique_flow,
+        }))
     }
 
     /// Send data using NodeContactMethod::Existing
@@ -163,7 +243,7 @@ impl NetworkManager {
         &self,
         target_node_ref: FilteredNodeRef,
         data: Vec<u8>,
-    ) -> EyreResult<NetworkResult<SendDataMethod>> {
+    ) -> EyreResult<NetworkResult<UniqueFlow>> {
         // First try to send data to the last connection we've seen this peer on
         let Some(flow) = target_node_ref.last_flow() else {
             return Ok(NetworkResult::no_connection_other(format!(
@@ -172,7 +252,8 @@ impl NetworkManager {
             )));
         };
 
-        let unique_flow = match self.net().send_data_to_existing_flow(flow, data).await? {
+        let net = self.net();
+        let unique_flow = match pin_future!(net.send_data_to_existing_flow(flow, data)).await? {
             SendDataToExistingFlowResult::Sent(unique_flow) => unique_flow,
             SendDataToExistingFlowResult::NotSent(_) => {
                 return Ok(NetworkResult::no_connection_other(
@@ -184,46 +265,7 @@ impl NetworkManager {
         // Update timestamp for this last connection since we just sent to it
         self.set_last_flow(target_node_ref.unfiltered(), flow, Timestamp::now());
 
-        Ok(NetworkResult::value(SendDataMethod {
-            contact_method: NodeContactMethod::Existing,
-            opt_relayed_contact_method: None,
-            unique_flow,
-        }))
-    }
-
-    /// Send data using NodeContactMethod::Unreachable
-    #[instrument(level = "trace", target = "net", skip_all, err)]
-    async fn send_data_ncm_unreachable(
-        &self,
-        target_node_ref: FilteredNodeRef,
-        data: Vec<u8>,
-    ) -> EyreResult<NetworkResult<SendDataMethod>> {
-        // Try to send data to the last flow we've seen this peer on
-        let Some(flow) = target_node_ref.last_flow() else {
-            return Ok(NetworkResult::no_connection_other(format!(
-                "Node is not reachable and has no existing connection: {}",
-                target_node_ref
-            )));
-        };
-
-        let unique_flow = match self.net().send_data_to_existing_flow(flow, data).await? {
-            SendDataToExistingFlowResult::Sent(unique_flow) => unique_flow,
-            SendDataToExistingFlowResult::NotSent(_) => {
-                return Ok(NetworkResult::no_connection_other(format!(
-                    "failed to send to unreachable node over existing connection: {:?}",
-                    flow
-                )));
-            }
-        };
-
-        // Update timestamp for this last connection since we just sent to it
-        self.set_last_flow(target_node_ref.unfiltered(), flow, Timestamp::now());
-
-        Ok(NetworkResult::value(SendDataMethod {
-            contact_method: NodeContactMethod::Existing,
-            opt_relayed_contact_method: None,
-            unique_flow,
-        }))
+        Ok(NetworkResult::value(unique_flow))
     }
 
     /// Send data using NodeContactMethod::SignalReverse
@@ -233,7 +275,7 @@ impl NetworkManager {
         relay_nr: FilteredNodeRef,
         target_node_ref: FilteredNodeRef,
         data: Vec<u8>,
-    ) -> EyreResult<NetworkResult<SendDataMethod>> {
+    ) -> EyreResult<NetworkResult<UniqueFlow>> {
         // Make a noderef that meets the sequencing requirements
         // But is not protocol-specific, or address-family-specific
         // as a signalled node gets to choose its own dial info for the reverse connection.
@@ -252,16 +294,13 @@ impl NetworkManager {
 
         // First try to send data to the last flow we've seen this peer on
         let data = if let Some(flow) = seq_target_node_ref.last_flow() {
-            match self.net().send_data_to_existing_flow(flow, data).await? {
+            let net = self.net();
+            match pin_future!(net.send_data_to_existing_flow(flow, data)).await? {
                 SendDataToExistingFlowResult::Sent(unique_flow) => {
                     // Update timestamp for this last connection since we just sent to it
                     self.set_last_flow(target_node_ref.unfiltered(), flow, Timestamp::now());
 
-                    return Ok(NetworkResult::value(SendDataMethod {
-                        contact_method: NodeContactMethod::Existing,
-                        opt_relayed_contact_method: None,
-                        unique_flow,
-                    }));
+                    return Ok(NetworkResult::value(unique_flow));
                 }
                 SendDataToExistingFlowResult::NotSent(data) => {
                     // Couldn't send data to existing connection
@@ -281,14 +320,10 @@ impl NetworkManager {
         };
 
         let unique_flow = network_result_try!(
-            self.do_reverse_connect(relay_nr.clone(), target_node_ref.clone(), data)
+            pin_future!(self.do_reverse_connect(relay_nr.clone(), target_node_ref.clone(), data))
                 .await?
         );
-        Ok(NetworkResult::value(SendDataMethod {
-            contact_method: NodeContactMethod::SignalReverse(relay_nr, target_node_ref),
-            opt_relayed_contact_method: None,
-            unique_flow,
-        }))
+        Ok(NetworkResult::value(unique_flow))
     }
 
     /// Send data using NodeContactMethod::SignalHolePunch
@@ -298,19 +333,16 @@ impl NetworkManager {
         relay_nr: FilteredNodeRef,
         target_node_ref: FilteredNodeRef,
         data: Vec<u8>,
-    ) -> EyreResult<NetworkResult<SendDataMethod>> {
+    ) -> EyreResult<NetworkResult<UniqueFlow>> {
         // First try to send data to the last flow we've seen this peer on
         let data = if let Some(flow) = target_node_ref.last_flow() {
-            match self.net().send_data_to_existing_flow(flow, data).await? {
+            let net = self.net();
+            match pin_future!(net.send_data_to_existing_flow(flow, data)).await? {
                 SendDataToExistingFlowResult::Sent(unique_flow) => {
                     // Update timestamp for this last connection since we just sent to it
                     self.set_last_flow(target_node_ref.unfiltered(), flow, Timestamp::now());
 
-                    return Ok(NetworkResult::value(SendDataMethod {
-                        contact_method: NodeContactMethod::Existing,
-                        opt_relayed_contact_method: None,
-                        unique_flow,
-                    }));
+                    return Ok(NetworkResult::value(unique_flow));
                 }
                 SendDataToExistingFlowResult::NotSent(data) => {
                     // Couldn't send data to existing connection
@@ -330,14 +362,11 @@ impl NetworkManager {
         };
 
         let unique_flow = network_result_try!(
-            self.do_hole_punch(relay_nr.clone(), target_node_ref.clone(), data)
+            pin_future!(self.do_hole_punch(relay_nr.clone(), target_node_ref.clone(), data))
                 .await?
         );
-        Ok(NetworkResult::value(SendDataMethod {
-            contact_method: NodeContactMethod::SignalHolePunch(relay_nr, target_node_ref),
-            opt_relayed_contact_method: None,
-            unique_flow,
-        }))
+
+        Ok(NetworkResult::value(unique_flow))
     }
 
     /// Send data using NodeContactMethod::Direct
@@ -347,7 +376,7 @@ impl NetworkManager {
         node_ref: FilteredNodeRef,
         dial_info: DialInfo,
         data: Vec<u8>,
-    ) -> EyreResult<NetworkResult<SendDataMethod>> {
+    ) -> EyreResult<NetworkResult<UniqueFlow>> {
         // Since we have the best dial info already, we can find a connection to use by protocol type
         let node_ref = node_ref.filtered_clone(NodeRefFilter::from(dial_info.make_filter()));
 
@@ -359,16 +388,13 @@ impl NetworkManager {
                 flow, node_ref
             );
 
-            match self.net().send_data_to_existing_flow(flow, data).await? {
+            let net = self.net();
+            match pin_future!(net.send_data_to_existing_flow(flow, data)).await? {
                 SendDataToExistingFlowResult::Sent(unique_flow) => {
                     // Update timestamp for this last connection since we just sent to it
                     self.set_last_flow(node_ref.unfiltered(), flow, Timestamp::now());
 
-                    return Ok(NetworkResult::value(SendDataMethod {
-                        contact_method: NodeContactMethod::Existing,
-                        opt_relayed_contact_method: None,
-                        unique_flow,
-                    }));
+                    return Ok(NetworkResult::value(unique_flow));
                 }
                 SendDataToExistingFlowResult::NotSent(d) => {
                     // Connection couldn't send, kill it
@@ -381,27 +407,22 @@ impl NetworkManager {
         };
 
         // New direct connection was necessary for this dial info
+        let net = self.net();
         let unique_flow = network_result_try!(
-            self.net()
-                .send_data_to_dial_info(dial_info.clone(), data)
-                .await?
+            pin_future!(net.send_data_to_dial_info(dial_info.clone(), data)).await?
         );
 
         // If we connected to this node directly, save off the last connection so we can use it again
         self.set_last_flow(node_ref.unfiltered(), unique_flow.flow, Timestamp::now());
 
-        Ok(NetworkResult::value(SendDataMethod {
-            contact_method: NodeContactMethod::Direct(dial_info),
-            opt_relayed_contact_method: None,
-            unique_flow,
-        }))
+        Ok(NetworkResult::value(unique_flow))
     }
 
-    #[instrument(level = "trace", target = "net", skip_all, err)]
+    #[instrument(level = "trace", target = "net", skip(self), err)]
     pub fn get_node_contact_method(
         &self,
         target_node_ref: FilteredNodeRef,
-    ) -> EyreResult<NodeContactMethod> {
+    ) -> EyreResult<Option<NodeContactMethod>> {
         let routing_table = self.routing_table();
 
         // If a node is punished, then don't try to contact it
@@ -410,7 +431,7 @@ impl NetworkManager {
             .iter()
             .any(|nid| self.address_filter().is_node_id_punished(*nid))
         {
-            return Ok(NodeContactMethod::Unreachable);
+            return Ok(None);
         }
 
         // Figure out the best routing domain to get the contact method over
@@ -418,7 +439,7 @@ impl NetworkManager {
             Some(rd) => rd,
             None => {
                 veilid_log!(self trace "no routing domain for node {:?}", target_node_ref);
-                return Ok(NodeContactMethod::Unreachable);
+                return Ok(None);
             }
         };
 
@@ -430,7 +451,7 @@ impl NetworkManager {
         // Peer B is the target node, get the whole peer info now
         let Some(peer_b) = target_node_ref.get_peer_info(routing_domain) else {
             veilid_log!(self trace "no node info for node {:?}", target_node_ref);
-            return Ok(NodeContactMethod::Unreachable);
+            return Ok(None);
         };
 
         // Calculate the dial info failures map
@@ -458,42 +479,47 @@ impl NetworkManager {
             target_node_ref_sequencing: target_node_ref.sequencing(),
             dial_info_failures_map,
         };
-        if let Some(ncm) = self.inner.lock().node_contact_method_cache.get(&ncm_key) {
-            return Ok(ncm.clone());
+        if let Some(ncm_kind) = self.inner.lock().node_contact_method_cache.get(&ncm_key) {
+            return Ok(Some(NodeContactMethod { ncm_key, ncm_kind }));
         }
 
         // Calculate the node contact method
         let routing_table = self.routing_table();
-        let ncm = Self::get_node_contact_method_uncached(
+        let Some(ncm_kind) = Self::get_node_contact_method_kind(
             &routing_table,
             routing_domain,
             target_node_ref,
             peer_a,
             peer_b,
             &ncm_key,
-        )?;
+        )?
+        else {
+            return Ok(None);
+        };
 
+        Ok(Some(NodeContactMethod { ncm_key, ncm_kind }))
+    }
+
+    fn cache_node_contact_method(&self, ncm: NodeContactMethod) {
         // Cache this
         self.inner
             .lock()
             .node_contact_method_cache
-            .insert(ncm_key, ncm.clone());
-
-        Ok(ncm)
+            .insert(ncm.ncm_key, ncm.ncm_kind);
     }
 
     /// Figure out how to reach a node from our own node over the best routing domain and reference the nodes we want to access
     /// Uses NodeRefs to ensure nodes are referenced, this is not a part of 'RoutingTable' because RoutingTable is not
     /// allowed to use NodeRefs due to recursive locking
     #[instrument(level = "trace", target = "net", skip_all, err)]
-    fn get_node_contact_method_uncached(
+    fn get_node_contact_method_kind(
         routing_table: &RoutingTable,
         routing_domain: RoutingDomain,
         target_node_ref: FilteredNodeRef,
         peer_a: Arc<PeerInfo>,
         peer_b: Arc<PeerInfo>,
         ncm_key: &NodeContactMethodCacheKey,
-    ) -> EyreResult<NodeContactMethod> {
+    ) -> EyreResult<Option<NodeContactMethodKind>> {
         // Dial info filter comes from the target node ref but must be filtered by this node's outbound capabilities
         let dial_info_filter = target_node_ref.dial_info_filter().filtered(
             DialInfoFilter::all()
@@ -542,9 +568,9 @@ impl NetworkManager {
 
         // Translate the raw contact method to a referenced contact method
         let ncm = match cm {
-            ContactMethod::Unreachable => NodeContactMethod::Unreachable,
-            ContactMethod::Existing => NodeContactMethod::Existing,
-            ContactMethod::Direct(di) => NodeContactMethod::Direct(di),
+            ContactMethod::Unreachable => None,
+            ContactMethod::Existing => Some(NodeContactMethodKind::Existing),
+            ContactMethod::Direct(di) => Some(NodeContactMethodKind::Direct(di)),
             ContactMethod::SignalReverse(relay_key, target_key) => {
                 let mut relay_nr = routing_table
                     .lookup_and_filter_noderef(relay_key, routing_domain.into(), dial_info_filter)?
@@ -595,7 +621,10 @@ impl NetworkManager {
                 if tighten {
                     target_node_ref.set_sequencing(Sequencing::EnsureOrdered);
                 }
-                NodeContactMethod::SignalReverse(relay_nr, target_node_ref)
+                Some(NodeContactMethodKind::SignalReverse(
+                    relay_nr,
+                    target_node_ref,
+                ))
             }
             ContactMethod::SignalHolePunch(relay_key, target_key) => {
                 let mut relay_nr = routing_table
@@ -622,7 +651,10 @@ impl NetworkManager {
                         .with_protocol_type(ProtocolType::UDP),
                 );
 
-                NodeContactMethod::SignalHolePunch(relay_nr, udp_target_node_ref)
+                Some(NodeContactMethodKind::SignalHolePunch(
+                    relay_nr,
+                    udp_target_node_ref,
+                ))
             }
             ContactMethod::InboundRelay(relay_key) => {
                 let mut relay_nr = routing_table
@@ -635,7 +667,7 @@ impl NetworkManager {
                         )
                     })?;
                 relay_nr.set_sequencing(sequencing);
-                NodeContactMethod::InboundRelay(relay_nr)
+                Some(NodeContactMethodKind::InboundRelay(relay_nr))
             }
             ContactMethod::OutboundRelay(relay_key) => {
                 let mut relay_nr = routing_table
@@ -648,7 +680,7 @@ impl NetworkManager {
                         )
                     })?;
                 relay_nr.set_sequencing(sequencing);
-                NodeContactMethod::OutboundRelay(relay_nr)
+                Some(NodeContactMethodKind::OutboundRelay(relay_nr))
             }
         };
 
@@ -695,16 +727,15 @@ impl NetworkManager {
 
         // Issue the signal
         let rpc = self.rpc_processor();
-        network_result_try!(rpc
-            .rpc_call_signal(
-                Destination::relay(relay_nr.clone(), target_nr.unfiltered()),
-                SignalInfo::ReverseConnect {
-                    receipt,
-                    peer_info: published_peer_info
-                },
-            )
-            .await
-            .wrap_err("failed to send signal")?);
+        network_result_try!(pin_future!(rpc.rpc_call_signal(
+            Destination::relay(relay_nr.clone(), target_nr.unfiltered()),
+            SignalInfo::ReverseConnect {
+                receipt,
+                peer_info: published_peer_info
+            },
+        ))
+        .await
+        .wrap_err("failed to send signal")?);
 
         // Wait for the return receipt
         let inbound_nr = match eventual_value
@@ -747,7 +778,8 @@ impl NetworkManager {
 
         // And now use the existing connection to send over
         if let Some(flow) = inbound_nr.last_flow() {
-            match self.net().send_data_to_existing_flow(flow, data).await? {
+            let net = self.net();
+            match pin_future!(net.send_data_to_existing_flow(flow, data)).await? {
                 SendDataToExistingFlowResult::Sent(unique_flow) => {
                     Ok(NetworkResult::value(unique_flow))
                 }
@@ -817,9 +849,9 @@ impl NetworkManager {
         // Both sides will do this and then the receipt will get sent over the punched hole
         // Don't bother storing the returned flow as the 'last flow' because the other side of the hole
         // punch should come through and create a real 'last connection' for us if this succeeds
+        let net = self.net();
         network_result_try!(
-            self.net()
-                .send_data_to_dial_info(hole_punch_did.dial_info.clone(), Vec::new())
+            pin_future!(net.send_data_to_dial_info(hole_punch_did.dial_info.clone(), Vec::new()))
                 .await?
         );
 
@@ -828,22 +860,20 @@ impl NetworkManager {
 
         // Issue the signal
         let rpc = self.rpc_processor();
-        network_result_try!(rpc
-            .rpc_call_signal(
-                Destination::relay(relay_nr, target_nr.unfiltered()),
-                SignalInfo::HolePunch {
-                    receipt,
-                    peer_info: published_peer_info
-                },
-            )
-            .await
-            .wrap_err("failed to send signal")?);
+        network_result_try!(pin_future!(rpc.rpc_call_signal(
+            Destination::relay(relay_nr, target_nr.unfiltered()),
+            SignalInfo::HolePunch {
+                receipt,
+                peer_info: published_peer_info
+            },
+        ))
+        .await
+        .wrap_err("failed to send signal")?);
 
         // Another hole punch after the signal for UDP redundancy
+        let net = self.net();
         network_result_try!(
-            self.net()
-                .send_data_to_dial_info(hole_punch_did.dial_info, Vec::new())
-                .await?
+            pin_future!(net.send_data_to_dial_info(hole_punch_did.dial_info, Vec::new())).await?
         );
 
         // Wait for the return receipt

@@ -38,6 +38,7 @@ struct RouteSpecStoreInner {
 
 /// The routing table's storage for private/safety routes
 #[derive(Debug)]
+#[must_use]
 pub(crate) struct RouteSpecStore {
     registry: VeilidComponentRegistry,
     inner: Mutex<RouteSpecStoreInner>,

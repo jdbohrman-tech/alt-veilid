@@ -113,6 +113,7 @@ macro_rules! apibail_already_initialized {
     tsify(into_wasm_abi)
 )]
 #[serde(tag = "kind")]
+#[must_use]
 pub enum VeilidAPIError {
     #[error("Not initialized")]
     NotInitialized,

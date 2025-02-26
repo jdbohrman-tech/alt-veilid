@@ -2,6 +2,7 @@ use super::*;
 pub use keyvaluedb_web::*;
 
 #[derive(Clone)]
+#[must_use]
 pub(in crate::table_store) struct TableStoreDriver {
     registry: VeilidComponentRegistry,
 }

@@ -318,7 +318,7 @@ impl Network {
             .routing_table()
             .routing_domain_for_address(dial_info.address());
 
-        let network_result = fut.await?;
+        let network_result = pin_future_closure!(fut).await?;
         if matches!(network_result, NetworkResult::NoConnection(_)) {
             // Dial info failure
             self.network_manager()

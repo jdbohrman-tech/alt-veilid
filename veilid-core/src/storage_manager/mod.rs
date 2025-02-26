@@ -62,7 +62,7 @@ struct StorageManagerInner {
     /// Storage manager metadata that is persistent, including copy of offline subkey writes
     pub metadata_db: Option<TableDB>,
     /// Background processing task (not part of attachment manager tick tree so it happens when detached too)
-    pub tick_future: Option<SendPinBoxFuture<()>>,
+    pub tick_future: Option<PinBoxFutureStatic<()>>,
 }
 
 impl fmt::Debug for StorageManagerInner {
@@ -237,7 +237,7 @@ impl StorageManager {
         }
 
         // Start deferred results processors
-        self.deferred_result_processor.init().await;
+        self.deferred_result_processor.init();
 
         Ok(())
     }
@@ -966,9 +966,8 @@ impl StorageManager {
 
         // Update the watch. This just calls through to the above watch_values() function
         // This will update the active_watch so we don't need to do that in this routine.
-        let expiration_ts = self
-            .watch_values(key, subkeys, active_watch.expiration_ts, count)
-            .await?;
+        let expiration_ts =
+            pin_future!(self.watch_values(key, subkeys, active_watch.expiration_ts, count)).await?;
 
         // A zero expiration time returned from watch_value() means the watch is done
         // or no subkeys are left, and the watch is no longer active
@@ -1739,7 +1738,7 @@ impl StorageManager {
     pub(super) fn process_deferred_results<T: Send + 'static>(
         &self,
         receiver: flume::Receiver<T>,
-        handler: impl FnMut(T) -> SendPinBoxFuture<bool> + Send + 'static,
+        handler: impl FnMut(T) -> PinBoxFutureStatic<bool> + Send + 'static,
     ) -> bool {
         self.deferred_result_processor
             .add(receiver.into_stream(), handler)

@@ -115,18 +115,13 @@ impl RPCProcessor {
             } => {
                 if matches!(safety_selection, SafetySelection::Unsafe(_)) {
                     if let Some(sender_info) = sender_info {
-                        if send_data_method.opt_relayed_contact_method.is_none()
-                            && matches!(
-                                send_data_method.contact_method,
-                                NodeContactMethod::Direct(_)
-                            )
-                        {
+                        if send_data_method.is_direct() {
                             // Directly requested status that actually gets sent directly and not over a relay will tell us what our IP address appears as
                             // If this changes, we'd want to know about that to reset the networking stack
                             opt_previous_sender_info = target.report_sender_info(
                                 routing_domain,
-                                send_data_method.unique_flow.flow.protocol_type(),
-                                send_data_method.unique_flow.flow.address_type(),
+                                send_data_method.unique_flow().flow.protocol_type(),
+                                send_data_method.unique_flow().flow.address_type(),
                                 sender_info,
                             );
                         };
@@ -137,7 +132,7 @@ impl RPCProcessor {
                             routing_domain,
                             socket_address: sender_info.socket_address,
                             old_socket_address: opt_previous_sender_info.map(|s| s.socket_address),
-                            flow: send_data_method.unique_flow.flow,
+                            flow: send_data_method.unique_flow().flow,
                             reporting_peer: target.unfiltered(),
                         }) {
                             veilid_log!(self debug "Failed to post event: {}", e);

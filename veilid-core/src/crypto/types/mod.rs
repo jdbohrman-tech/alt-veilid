@@ -11,6 +11,7 @@ pub type CryptoKind = FourCC;
 
 /// Sort best crypto kinds first
 /// Better crypto kinds are 'less', ordered toward the front of a list
+#[must_use]
 pub fn compare_crypto_kind(a: &CryptoKind, b: &CryptoKind) -> cmp::Ordering {
     let a_idx = VALID_CRYPTO_KINDS.iter().position(|k| k == a);
     let b_idx = VALID_CRYPTO_KINDS.iter().position(|k| k == b);
@@ -32,6 +33,7 @@ pub fn compare_crypto_kind(a: &CryptoKind, b: &CryptoKind) -> cmp::Ordering {
 }
 
 /// Intersection of crypto kind vectors
+#[must_use]
 pub fn common_crypto_kinds(a: &[CryptoKind], b: &[CryptoKind]) -> Vec<CryptoKind> {
     let mut out = Vec::new();
     for ack in a {

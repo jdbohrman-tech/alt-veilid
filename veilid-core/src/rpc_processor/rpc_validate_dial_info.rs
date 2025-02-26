@@ -82,7 +82,7 @@ impl RPCProcessor {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
 
-    #[instrument(level = "trace", target = "rpc", skip(self, msg), fields(msg.operation.op_id), ret, err)]
+    //#[instrument(level = "trace", target = "rpc", skip(self, msg), fields(msg.operation.op_id), ret, err)]
     pub(super) async fn process_validate_dial_info(&self, msg: Message) -> RPCNetworkResult<()> {
         // Ensure this never came over a private route, safety route is okay though
         let detail = match msg.header.detail {
@@ -187,7 +187,7 @@ impl RPCProcessor {
 
                 // Send the validate_dial_info request
                 // This can only be sent directly, as relays can not validate dial info
-                network_result_value_or_log!(self self.statement(Destination::direct(peer.default_filtered()), statement)
+                network_result_value_or_log!(self pin_future_closure!(self.statement(Destination::direct(peer.default_filtered()), statement))
                     .await? => [ format!(": peer={} statement={:?}", peer, statement) ] {
                         continue;
                     }

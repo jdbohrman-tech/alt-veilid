@@ -280,7 +280,7 @@ impl PlatformSupportApple {
         }
     }
 
-    async fn refresh_default_route_interfaces(&mut self) {
+    fn refresh_default_route_interfaces(&mut self) {
         loop {
             let mut mib = [CTL_NET, PF_ROUTE, 0, 0, NET_RT_FLAGS, RTF_GATEWAY];
             let mut sa_tab: [*const sockaddr; RTAX_MAX as usize] =
@@ -429,11 +429,12 @@ impl PlatformSupportApple {
         })
     }
 
+    #[expect(clippy::unused_async)]
     pub async fn get_interfaces(
         &mut self,
         interfaces: &mut BTreeMap<String, NetworkInterface>,
     ) -> io::Result<()> {
-        self.refresh_default_route_interfaces().await;
+        self.refresh_default_route_interfaces();
 
         // Ask for all the addresses we have
         let ifaddrs = IfAddrs::new()?;

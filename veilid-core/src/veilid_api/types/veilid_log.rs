@@ -9,6 +9,7 @@ use super::*;
     derive(Tsify),
     tsify(namespace)
 )]
+#[must_use]
 pub enum VeilidLogLevel {
     Error = 1,
     Warn = 2,
@@ -36,6 +37,7 @@ impl VeilidLogLevel {
             log::Level::Trace => VeilidLogLevel::Trace,
         }
     }
+    #[must_use]
     pub fn to_tracing_level(&self) -> tracing::Level {
         match self {
             Self::Error => tracing::Level::ERROR,
@@ -45,6 +47,7 @@ impl VeilidLogLevel {
             Self::Trace => tracing::Level::TRACE,
         }
     }
+    #[must_use]
     pub fn to_log_level(&self) -> log::Level {
         match self {
             Self::Error => log::Level::Error,

@@ -208,7 +208,7 @@ impl ClientApi {
     }
 
     // Process control messages for the server
-    async fn process_control(self, args: Vec<String>) -> VeilidAPIResult<String> {
+    fn process_control(self, args: Vec<String>) -> VeilidAPIResult<String> {
         if args.is_empty() {
             apibail_generic!("no control request specified");
         }
@@ -293,7 +293,7 @@ impl ClientApi {
             json_api::Response {
                 id: request.id,
                 op: json_api::ResponseOp::Control {
-                    result: json_api::to_json_api_result(self.process_control(args).await),
+                    result: json_api::to_json_api_result(self.process_control(args)),
                 },
             }
         } else {
@@ -541,7 +541,7 @@ impl ClientApi {
 
     #[instrument(level = "trace", skip(self))]
     pub fn run(&self, ipc_path: Option<PathBuf>, tcp_bind_addrs: Vec<SocketAddr>) {
-        let mut bind_futures: Vec<SendPinBoxFuture<()>> = Vec::new();
+        let mut bind_futures: Vec<PinBoxFutureStatic<()>> = Vec::new();
 
         // Local IPC
         if let Some(ipc_path) = ipc_path {

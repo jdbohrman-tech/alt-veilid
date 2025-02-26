@@ -2,6 +2,7 @@ use super::*;
 
 //use js_sys::*;
 
+#[expect(clippy::unused_async)]
 pub async fn get_outbound_relay_peer(
     _routing_domain: routing_table::RoutingDomain,
 ) -> Option<Arc<routing_table::PeerInfo>> {
@@ -34,14 +35,17 @@ pub async fn get_outbound_relay_peer(
 //     }
 // }
 
+#[expect(clippy::unused_async)]
 pub async fn txt_lookup<S: AsRef<str>>(_host: S) -> EyreResult<Vec<String>> {
     bail!("wasm does not support txt lookup")
 }
 
+#[expect(clippy::unused_async)]
 pub async fn ptr_lookup(_ip_addr: IpAddr) -> EyreResult<String> {
     bail!("wasm does not support ptr lookup")
 }
 
+#[must_use]
 pub fn env_variable_is_defined<S: AsRef<str>>(_s: S) -> bool {
     false
 }

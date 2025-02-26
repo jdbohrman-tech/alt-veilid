@@ -84,11 +84,11 @@ impl StorageManager {
         let call_routine = {
             let context = context.clone();
             let registry = self.registry();
-            move |next_node: NodeRef| {
+            Arc::new(move |next_node: NodeRef| {
                 let context = context.clone();
                 let registry = registry.clone();
                 let last_descriptor = last_get_result.opt_descriptor.clone();
-                async move {
+                Box::pin(async move {
                     let rpc_processor = registry.rpc_processor();
                     let gva = network_result_try!(
                         rpc_processor
@@ -189,8 +189,8 @@ impl StorageManager {
                     veilid_log!(registry debug target:"network_result", "GetValue fanout call returned peers {}", gva.answer.peers.len());
 
                     Ok(NetworkResult::value(FanoutCallOutput{peer_info_list: gva.answer.peers}))
-                }.instrument(tracing::trace_span!("outbound_get_value fanout routine"))
-            }
+                }.instrument(tracing::trace_span!("outbound_get_value fanout routine"))) as PinBoxFuture<FanoutCallResult>
+            })
         };
 
         // Routine to call to check if we're done at each step
@@ -198,7 +198,7 @@ impl StorageManager {
             let context = context.clone();
             let out_tx = out_tx.clone();
             let registry = self.registry();
-            move |_closest_nodes: &[NodeRef]| {
+            Arc::new(move |_closest_nodes: &[NodeRef]| {
                 let mut ctx = context.lock();
 
                 // send partial update if desired
@@ -229,7 +229,7 @@ impl StorageManager {
                     return Some(());
                 }
                 None
-            }
+            })
         };
 
         // Call the fanout in a spawned task
@@ -305,7 +305,7 @@ impl StorageManager {
         self.process_deferred_results(
             res_rx,
             Box::new(
-                move |result: VeilidAPIResult<get_value::OutboundGetValueResult>| -> SendPinBoxFuture<bool> {
+                move |result: VeilidAPIResult<get_value::OutboundGetValueResult>| -> PinBoxFutureStatic<bool> {
                     let registry=registry.clone();
                     Box::pin(async move {
                         let this = registry.storage_manager();

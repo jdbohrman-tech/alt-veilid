@@ -516,5 +516,6 @@ impl Network {
 
         Ok(())
     }
+    #[expect(clippy::unused_async)]
     pub async fn cancel_tasks(&self) {}
 }

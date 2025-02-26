@@ -38,7 +38,7 @@ pub trait ReceiptCallback: Send + 'static {
         receipt: Receipt,
         returns_so_far: u32,
         expected_returns: u32,
-    ) -> SendPinBoxFuture<()>;
+    ) -> PinBoxFutureStatic<()>;
 }
 impl<F, T> ReceiptCallback for T
 where
@@ -51,7 +51,7 @@ where
         receipt: Receipt,
         returns_so_far: u32,
         expected_returns: u32,
-    ) -> SendPinBoxFuture<()> {
+    ) -> PinBoxFutureStatic<()> {
         Box::pin(self(event, receipt, returns_so_far, expected_returns))
     }
 }
@@ -184,17 +184,12 @@ impl ReceiptManager {
         }
     }
 
-    pub async fn startup(&self) -> EyreResult<()> {
+    pub fn startup(&self) -> EyreResult<()> {
         let guard = self.unlocked_inner.startup_lock.startup()?;
         veilid_log!(self debug "startup receipt manager");
 
-        // Retrieve config
-        {
-            // let config = self.core().config();
-            // let c = config.get();
-            let mut inner = self.inner.lock();
-            inner.stop_source = Some(StopSource::new());
-        }
+        let mut inner = self.inner.lock();
+        inner.stop_source = Some(StopSource::new());
 
         guard.success();
         Ok(())
@@ -204,7 +199,7 @@ impl ReceiptManager {
     fn perform_callback(
         evt: ReceiptEvent,
         record_mut: &mut ReceiptRecord,
-    ) -> Option<SendPinBoxFuture<()>> {
+    ) -> Option<PinBoxFutureStatic<()>> {
         match &mut record_mut.receipt_callback {
             ReceiptRecordCallbackType::Normal(callback) => Some(callback.call(
                 evt,

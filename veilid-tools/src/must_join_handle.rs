@@ -9,6 +9,7 @@ pub struct MustJoinHandle<T> {
 }
 
 impl<T> MustJoinHandle<T> {
+    #[must_use]
     pub fn new(join_handle: LowLevelJoinHandle<T>) -> Self {
         Self {
             join_handle: Some(join_handle),
@@ -34,6 +35,10 @@ impl<T> MustJoinHandle<T> {
     }
 
     #[allow(unused_mut)]
+    #[cfg_attr(
+        all(target_arch = "wasm32", target_os = "unknown"),
+        expect(clippy::unused_async)
+    )]
     pub async fn abort(mut self) {
         if !self.completed {
             cfg_if! {

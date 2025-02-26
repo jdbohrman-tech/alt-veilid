@@ -1,6 +1,7 @@
 use super::*;
 
 /// Guard to access a particular cryptosystem
+#[must_use]
 pub struct CryptoSystemGuard<'a> {
     crypto_system: Arc<dyn CryptoSystem + Send + Sync>,
     _phantom: core::marker::PhantomData<&'a (dyn CryptoSystem + Send + Sync)>,
@@ -27,6 +28,7 @@ impl<'a> core::ops::Deref for CryptoSystemGuard<'a> {
 }
 
 /// Async cryptosystem guard to help break up heavy blocking operations
+#[must_use]
 pub struct AsyncCryptoSystemGuard<'a> {
     guard: CryptoSystemGuard<'a>,
 }
@@ -42,6 +44,7 @@ impl<'a> AsyncCryptoSystemGuard<'a> {
     pub fn kind(&self) -> CryptoKind {
         self.guard.kind()
     }
+    #[must_use]
     pub fn crypto(&self) -> VeilidComponentGuard<'_, Crypto> {
         self.guard.crypto()
     }
@@ -59,6 +62,7 @@ impl<'a> AsyncCryptoSystemGuard<'a> {
     pub async fn random_bytes(&self, len: u32) -> Vec<u8> {
         yielding(|| self.guard.random_bytes(len)).await
     }
+    #[must_use]
     pub fn default_salt_length(&self) -> u32 {
         self.guard.default_salt_length()
     }
@@ -160,6 +164,7 @@ impl<'a> AsyncCryptoSystemGuard<'a> {
     }
 
     // AEAD Encrypt/Decrypt
+    #[must_use]
     pub fn aead_overhead(&self) -> usize {
         self.guard.aead_overhead()
     }

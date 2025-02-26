@@ -7,6 +7,7 @@ use super::*;
     derive(Tsify),
     tsify(from_wasm_abi, into_wasm_abi)
 )]
+#[must_use]
 pub struct DHTRecordDescriptor {
     /// DHT Key = Hash(ownerKeyKind) of: [ ownerKeyValue, schema ]
     #[schemars(with = "String")]
@@ -46,6 +47,7 @@ impl DHTRecordDescriptor {
         &self.owner
     }
 
+    #[must_use]
     pub fn owner_secret(&self) -> Option<&SecretKey> {
         self.owner_secret.as_ref()
     }

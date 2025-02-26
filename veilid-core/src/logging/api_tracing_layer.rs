@@ -20,6 +20,7 @@ struct ApiTracingLayerInner {
 /// with many copies of Veilid running.
 
 #[derive(Clone)]
+#[must_use]
 pub struct ApiTracingLayer {}
 
 static API_LOGGER_INNER: Mutex<Option<ApiTracingLayerInner>> = Mutex::new(None);

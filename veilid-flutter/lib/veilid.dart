@@ -30,17 +30,6 @@ export 'veilid_table_db.dart';
 //////////////////////////////////////
 /// JSON Encode Helper
 
-Object? veilidApiToEncodable(Object? value) {
-  if (value == null) {
-    return value;
-  }
-  switch (value.runtimeType) {
-    // case KeyPair:
-    //   return (value as KeyPair).json;
-  }
-  throw UnsupportedError('Cannot convert to JSON: $value');
-}
-
 List<T> Function(dynamic) jsonListConstructor<T>(
         T Function(dynamic) jsonConstructor) =>
     (dynamic j) => (j as List<dynamic>).map(jsonConstructor).toList();

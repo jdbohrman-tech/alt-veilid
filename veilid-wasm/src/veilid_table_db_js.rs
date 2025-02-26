@@ -13,6 +13,7 @@ impl VeilidTableDB {
     /// If the column count is greater than an existing TableDB's column count,
     /// the database will be upgraded to add the missing columns.
     #[wasm_bindgen(constructor)]
+    #[must_use]
     pub fn new(tableName: String, columnCount: u32) -> Self {
         Self {
             inner_table_db: None,
@@ -139,6 +140,7 @@ impl VeilidTableDBTransaction {
     /// Use `.createTransaction()` on an instance of `VeilidTableDB` instead.
     /// @deprecated
     #[wasm_bindgen(constructor)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             inner_transaction: None,

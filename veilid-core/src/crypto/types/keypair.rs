@@ -6,6 +6,7 @@ use super::*;
     derive(Tsify),
     tsify(from_wasm_abi, into_wasm_abi)
 )]
+#[must_use]
 pub struct KeyPair {
     pub key: PublicKey,
     pub secret: SecretKey,

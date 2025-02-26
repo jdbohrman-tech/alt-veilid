@@ -42,9 +42,15 @@ cfg_if! {
         //     let _ = tokio::task::spawn_local(f);
         // }
         //pub use tokio::time::sleep;
-        //pub use tokio::time::timeout;
+        //pub use tokio::time::timeout
         pub fn block_on<F: Future<Output = T>, T>(f: F) -> T {
-            let rt = tokio::runtime::Runtime::new().unwrap();
+            //let rt = tokio::runtime::Runtime::new().unwrap();
+            let rt = tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .thread_stack_size(2048*1024)
+                .build()
+                .unwrap();
+
             let local = tokio::task::LocalSet::new();
             local.block_on(&rt, f)
         }

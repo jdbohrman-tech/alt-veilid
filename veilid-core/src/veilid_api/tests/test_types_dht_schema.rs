@@ -3,7 +3,7 @@ use crate::*;
 
 // dlft
 
-pub async fn test_dhtschemadflt() {
+pub fn test_dhtschemadflt() {
     let orig = DHTSchemaDFLT::new(9);
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();
 
@@ -12,7 +12,7 @@ pub async fn test_dhtschemadflt() {
 
 // mod
 
-pub async fn test_dhtschema() {
+pub fn test_dhtschema() {
     let orig = DHTSchema::SMPL(
         DHTSchemaSMPL::new(
             91,
@@ -36,7 +36,7 @@ pub async fn test_dhtschema() {
 
 // smpl
 
-pub async fn test_dhtschemasmplmember() {
+pub fn test_dhtschemasmplmember() {
     let orig = DHTSchemaSMPLMember {
         m_key: fix_cryptokey(),
         m_cnt: 7,
@@ -46,7 +46,7 @@ pub async fn test_dhtschemasmplmember() {
     assert_eq!(orig, copy);
 }
 
-pub async fn test_dhtschemasmpl() {
+pub fn test_dhtschemasmpl() {
     let orig = DHTSchemaSMPL::new(
         91,
         vec![

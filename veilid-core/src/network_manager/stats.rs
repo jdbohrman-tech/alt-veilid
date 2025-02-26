@@ -69,10 +69,26 @@ impl NetworkManager {
             .add_down(bytes);
     }
 
-    #[expect(dead_code)]
     pub fn get_stats(&self) -> NetworkManagerStats {
         let inner = self.inner.lock();
         inner.stats.clone()
+    }
+
+    pub fn debug(&self) -> String {
+        let stats = self.get_stats();
+
+        let mut out = String::new();
+        out += "Network Manager\n";
+        out += "---------------\n";
+        let mut out = format!(
+            "Transfer stats:\n{}\n",
+            indent_all_string(&stats.self_stats.transfer_stats)
+        );
+        out += "Node Contact Method Cache\n";
+        out += "-------------------------\n";
+        out += &self.inner.lock().node_contact_method_cache.debug();
+
+        out
     }
 
     pub fn get_veilid_state(&self) -> Box<VeilidStateNetwork> {

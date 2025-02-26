@@ -14,7 +14,7 @@ const ACTIVE_WATCH_KEEPALIVE_PING_INTERVAL_SECS: u32 = 10;
 /// Ping queue processing depth per validator
 const MAX_PARALLEL_PINGS: usize = 8;
 
-type PingValidatorFuture = SendPinBoxFuture<Result<(), RPCError>>;
+type PingValidatorFuture = PinBoxFutureStatic<Result<(), RPCError>>;
 
 impl RoutingTable {
     // Task routine for PublicInternet status pings
@@ -258,7 +258,7 @@ impl RoutingTable {
             futurequeue.push_back(
                 async move {
                     #[cfg(feature = "verbose-tracing")]
-                    veilid_log!(self debug "--> PublicInternet Validator ping to {:?}", nr);
+                    veilid_log!(nr debug "--> PublicInternet Validator ping to {:?}", nr);
                     let rpc_processor = nr.rpc_processor();
                     let _ = rpc_processor
                         .rpc_call_status(Destination::direct(nr))
@@ -291,7 +291,7 @@ impl RoutingTable {
             futurequeue.push_back(
                 async move {
                     #[cfg(feature = "verbose-tracing")]
-                    veilid_log!(self debug "--> LocalNetwork Validator ping to {:?}", nr);
+                    veilid_log!(nr debug "--> LocalNetwork Validator ping to {:?}", nr);
                     let rpc_processor = nr.rpc_processor();
                     let _ = rpc_processor
                         .rpc_call_status(Destination::direct(nr))

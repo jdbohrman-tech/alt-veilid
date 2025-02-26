@@ -6,18 +6,16 @@ pub async fn test_startup_shutdown() {
     let bus = EventBus::new();
 
     // Normal case
-    bus.startup().await.expect("should startup");
+    bus.startup().expect("should startup");
     bus.shutdown().await;
 
     // Startup fail case
-    bus.startup().await.expect("should startup");
-    bus.startup()
-        .await
-        .expect_err("should not startup a second time");
+    bus.startup().expect("should startup");
+    bus.startup().expect_err("should not startup a second time");
     bus.shutdown().await;
 
     // Multiple shutdown case
-    bus.startup().await.expect("should startup");
+    bus.startup().expect("should startup");
     bus.shutdown().await;
     bus.shutdown().await;
 }
@@ -38,7 +36,7 @@ pub async fn test_post() {
 
     bus.post("test").expect_err("should fail");
 
-    bus.startup().await.expect("should startup");
+    bus.startup().expect("should startup");
     bus.post("test").expect("should post");
     bus.post(Evt1 { field1: 0 }).expect("should post");
     bus.post(Evt2 {
@@ -62,7 +60,7 @@ pub async fn test_subscribe() {
     });
 
     // Startup keeps existing subscriptions
-    bus.startup().await.expect("should startup");
+    bus.startup().expect("should startup");
 
     // Okay to subscribe at any time
     bus.subscribe(|evt: Arc<Evt2>| {
@@ -97,7 +95,7 @@ pub async fn test_post_subscribe() {
     bus.post(Evt1 { field1: 0 }).expect_err("should fail");
 
     // Startup keeps existing subscriptions
-    bus.startup().await.expect("should startup");
+    bus.startup().expect("should startup");
 
     bus.post("test").expect("should post");
     bus.post(Evt1 { field1: 0 }).expect("should post");
@@ -143,7 +141,7 @@ pub async fn test_post_subscribe() {
     bus.post(Evt1 { field1: 0 }).expect_err("should fail");
 
     // Startup keeps existing subscriptions
-    bus.startup().await.expect("should startup");
+    bus.startup().expect("should startup");
 
     // Succeeds but has no subscriptions
     bus.post(Evt1 { field1: 0 }).expect("should post");

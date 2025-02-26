@@ -4,6 +4,7 @@ cfg_if! {
     if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
         use js_sys::Date;
 
+        #[must_use]
         pub fn get_timestamp() -> u64 {
             if is_browser() {
                 (Date::now() * 1000.0f64) as u64
@@ -12,6 +13,7 @@ cfg_if! {
             }
         }
 
+        #[must_use]
         pub fn display_ts(ts: u64) -> String {
             if is_browser() {
                 let now = Date::new_0();
@@ -59,6 +61,7 @@ cfg_if! {
         use std::time::{SystemTime, UNIX_EPOCH};
         use chrono::{Datelike, Timelike};
 
+        #[must_use]
         pub fn get_timestamp() -> u64 {
             match SystemTime::now().duration_since(UNIX_EPOCH) {
                 Ok(n) => n.as_micros() as u64,
@@ -66,6 +69,7 @@ cfg_if! {
             }
         }
 
+        #[must_use]
         pub fn display_ts(ts: u64) -> String {
             let now = chrono::DateTime::<chrono::Utc>::from(SystemTime::now());
             let date = chrono::DateTime::<chrono::Utc>::from(UNIX_EPOCH + Duration::from_micros(ts));
@@ -110,6 +114,7 @@ const MIN: u64 = 1_000_000u64 * 60;
 const SEC: u64 = 1_000_000u64;
 const MSEC: u64 = 1_000u64;
 
+#[must_use]
 pub fn display_duration(dur: u64) -> String {
     let days = dur / DAY;
     let dur = dur % DAY;
@@ -143,6 +148,7 @@ pub fn display_duration(dur: u64) -> String {
     )
 }
 
+#[must_use]
 pub fn parse_duration(s: &str) -> Option<u64> {
     let mut dur_total: u64 = 0;
     let mut dur: u64 = 0;

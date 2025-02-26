@@ -17,6 +17,7 @@ pub enum Ipv6MulticastScope {
     Global,
 }
 
+#[must_use]
 pub fn ipaddr_is_unspecified(addr: &IpAddr) -> bool {
     match addr {
         IpAddr::V4(ip) => ipv4addr_is_unspecified(ip),
@@ -24,6 +25,7 @@ pub fn ipaddr_is_unspecified(addr: &IpAddr) -> bool {
     }
 }
 
+#[must_use]
 pub fn ipaddr_is_loopback(addr: &IpAddr) -> bool {
     match addr {
         IpAddr::V4(ip) => ipv4addr_is_loopback(ip),
@@ -31,6 +33,7 @@ pub fn ipaddr_is_loopback(addr: &IpAddr) -> bool {
     }
 }
 
+#[must_use]
 pub fn ipaddr_is_global(addr: &IpAddr) -> bool {
     match addr {
         IpAddr::V4(ip) => ipv4addr_is_global(ip),
@@ -38,6 +41,7 @@ pub fn ipaddr_is_global(addr: &IpAddr) -> bool {
     }
 }
 
+#[must_use]
 pub fn ipaddr_is_multicast(addr: &IpAddr) -> bool {
     match addr {
         IpAddr::V4(ip) => ipv4addr_is_multicast(ip),
@@ -45,6 +49,7 @@ pub fn ipaddr_is_multicast(addr: &IpAddr) -> bool {
     }
 }
 
+#[must_use]
 pub fn ipaddr_is_documentation(addr: &IpAddr) -> bool {
     match addr {
         IpAddr::V4(ip) => ipv4addr_is_documentation(ip),
@@ -52,14 +57,17 @@ pub fn ipaddr_is_documentation(addr: &IpAddr) -> bool {
     }
 }
 
+#[must_use]
 pub fn ipv4addr_is_unspecified(addr: &Ipv4Addr) -> bool {
     addr.octets() == [0u8, 0u8, 0u8, 0u8]
 }
 
+#[must_use]
 pub fn ipv4addr_is_loopback(addr: &Ipv4Addr) -> bool {
     addr.octets()[0] == 127
 }
 
+#[must_use]
 pub fn ipv4addr_is_private(addr: &Ipv4Addr) -> bool {
     match addr.octets() {
         [10, ..] => true,
@@ -69,10 +77,12 @@ pub fn ipv4addr_is_private(addr: &Ipv4Addr) -> bool {
     }
 }
 
+#[must_use]
 pub fn ipv4addr_is_link_local(addr: &Ipv4Addr) -> bool {
     matches!(addr.octets(), [169, 254, ..])
 }
 
+#[must_use]
 pub fn ipv4addr_is_global(addr: &Ipv4Addr) -> bool {
     // check if this address is 192.0.0.9 or 192.0.0.10. These addresses are the only two
     // globally routable addresses in the 192.0.0.0/24 range.
@@ -92,30 +102,37 @@ pub fn ipv4addr_is_global(addr: &Ipv4Addr) -> bool {
         && addr.octets()[0] != 0
 }
 
+#[must_use]
 pub fn ipv4addr_is_shared(addr: &Ipv4Addr) -> bool {
     addr.octets()[0] == 100 && (addr.octets()[1] & 0b1100_0000 == 0b0100_0000)
 }
 
+#[must_use]
 pub fn ipv4addr_is_ietf_protocol_assignment(addr: &Ipv4Addr) -> bool {
     addr.octets()[0] == 192 && addr.octets()[1] == 0 && addr.octets()[2] == 0
 }
 
+#[must_use]
 pub fn ipv4addr_is_benchmarking(addr: &Ipv4Addr) -> bool {
     addr.octets()[0] == 198 && (addr.octets()[1] & 0xfe) == 18
 }
 
+#[must_use]
 pub fn ipv4addr_is_reserved(addr: &Ipv4Addr) -> bool {
     addr.octets()[0] & 240 == 240 && !addr.is_broadcast()
 }
 
+#[must_use]
 pub fn ipv4addr_is_multicast(addr: &Ipv4Addr) -> bool {
     addr.octets()[0] >= 224 && addr.octets()[0] <= 239
 }
 
+#[must_use]
 pub fn ipv4addr_is_broadcast(addr: &Ipv4Addr) -> bool {
     addr.octets() == [255u8, 255u8, 255u8, 255u8]
 }
 
+#[must_use]
 pub fn ipv4addr_is_documentation(addr: &Ipv4Addr) -> bool {
     matches!(
         addr.octets(),
@@ -123,14 +140,17 @@ pub fn ipv4addr_is_documentation(addr: &Ipv4Addr) -> bool {
     )
 }
 
+#[must_use]
 pub fn ipv6addr_is_unspecified(addr: &Ipv6Addr) -> bool {
     addr.segments() == [0, 0, 0, 0, 0, 0, 0, 0]
 }
 
+#[must_use]
 pub fn ipv6addr_is_loopback(addr: &Ipv6Addr) -> bool {
     addr.segments() == [0, 0, 0, 0, 0, 0, 0, 1]
 }
 
+#[must_use]
 pub fn ipv6addr_is_global(addr: &Ipv6Addr) -> bool {
     match ipv6addr_multicast_scope(addr) {
         Some(Ipv6MulticastScope::Global) => true,
@@ -139,10 +159,12 @@ pub fn ipv6addr_is_global(addr: &Ipv6Addr) -> bool {
     }
 }
 
+#[must_use]
 pub fn ipv6addr_is_unique_local(addr: &Ipv6Addr) -> bool {
     (addr.segments()[0] & 0xfe00) == 0xfc00
 }
 
+#[must_use]
 pub fn ipv6addr_is_unicast_link_local_strict(addr: &Ipv6Addr) -> bool {
     addr.segments()[0] == 0xfe80
         && addr.segments()[1] == 0
@@ -150,18 +172,22 @@ pub fn ipv6addr_is_unicast_link_local_strict(addr: &Ipv6Addr) -> bool {
         && addr.segments()[3] == 0
 }
 
+#[must_use]
 pub fn ipv6addr_is_unicast_link_local(addr: &Ipv6Addr) -> bool {
     (addr.segments()[0] & 0xffc0) == 0xfe80
 }
 
+#[must_use]
 pub fn ipv6addr_is_unicast_site_local(addr: &Ipv6Addr) -> bool {
     (addr.segments()[0] & 0xffc0) == 0xfec0
 }
 
+#[must_use]
 pub fn ipv6addr_is_documentation(addr: &Ipv6Addr) -> bool {
     (addr.segments()[0] == 0x2001) && (addr.segments()[1] == 0xdb8)
 }
 
+#[must_use]
 pub fn ipv6addr_is_unicast_global(addr: &Ipv6Addr) -> bool {
     !ipv6addr_is_multicast(addr)
         && !ipv6addr_is_loopback(addr)
@@ -171,6 +197,7 @@ pub fn ipv6addr_is_unicast_global(addr: &Ipv6Addr) -> bool {
         && !ipv6addr_is_documentation(addr)
 }
 
+#[must_use]
 pub fn ipv6addr_multicast_scope(addr: &Ipv6Addr) -> Option<Ipv6MulticastScope> {
     if ipv6addr_is_multicast(addr) {
         match addr.segments()[0] & 0x000f {
@@ -188,6 +215,7 @@ pub fn ipv6addr_multicast_scope(addr: &Ipv6Addr) -> Option<Ipv6MulticastScope> {
     }
 }
 
+#[must_use]
 pub fn ipv6addr_is_multicast(addr: &Ipv6Addr) -> bool {
     (addr.segments()[0] & 0xff00) == 0xff00
 }
@@ -196,6 +224,7 @@ pub fn ipv6addr_is_multicast(addr: &Ipv6Addr) -> bool {
 // to the host part of the ip address
 // ipv4 addresses are treated as single hosts
 // ipv6 addresses are treated as prefix allocated blocks
+#[must_use]
 pub fn ip_to_ipblock(ip6_prefix_size: usize, addr: IpAddr) -> IpAddr {
     match addr {
         IpAddr::V4(_) => addr,
@@ -216,6 +245,7 @@ pub fn ip_to_ipblock(ip6_prefix_size: usize, addr: IpAddr) -> IpAddr {
     }
 }
 
+#[must_use]
 pub fn ipaddr_apply_netmask(addr: IpAddr, netmask: IpAddr) -> IpAddr {
     match addr {
         IpAddr::V4(v4) => {
@@ -257,6 +287,7 @@ pub fn ipaddr_apply_netmask(addr: IpAddr, netmask: IpAddr) -> IpAddr {
     }
 }
 
+#[must_use]
 pub fn ipaddr_in_network(addr: IpAddr, netaddr: IpAddr, netmask: IpAddr) -> bool {
     if addr.is_ipv4() && !netaddr.is_ipv4() {
         return false;

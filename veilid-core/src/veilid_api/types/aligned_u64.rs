@@ -24,6 +24,7 @@ macro_rules! aligned_u64_type {
         #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
         #[repr(C, align(8))]
         #[serde(transparent)]
+        #[must_use]
         pub struct $name(
             #[serde(with = "as_human_string")]
             #[schemars(with = "String")]
@@ -49,6 +50,7 @@ macro_rules! aligned_u64_type {
             pub const fn new(v: u64) -> Self {
                 Self(v)
             }
+            #[must_use]
             pub fn as_u64(self) -> u64 {
                 self.0
             }

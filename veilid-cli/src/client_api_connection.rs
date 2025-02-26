@@ -51,7 +51,7 @@ impl ClientApiConnection {
         inner.reply_channels.clear();
     }
 
-    async fn process_veilid_state<'a>(&self, state: &json::JsonValue) {
+    fn process_veilid_state(&self, state: &json::JsonValue) {
         let comproc = self.inner.lock().comproc.clone();
         comproc.update_attachment(&state["attachment"]);
         comproc.update_network_status(&state["network"]);
@@ -77,7 +77,7 @@ impl ClientApiConnection {
         }
     }
 
-    async fn process_veilid_update(&self, update: json::JsonValue) {
+    fn process_veilid_update(&self, update: json::JsonValue) {
         let comproc = self.inner.lock().comproc.clone();
         let Some(kind) = update["kind"].as_str() else {
             comproc.log_message(Level::Error, &format!("missing update kind: {}", update));
@@ -164,7 +164,7 @@ impl ClientApiConnection {
                 };
 
                 if j["type"] == "Update" {
-                    this.process_veilid_update(j).await;
+                    this.process_veilid_update(j);
                 } else if j["type"] == "Response" {
                     this.process_response(j).await;
                 }
@@ -198,7 +198,7 @@ impl ClientApiConnection {
                 error!("failed to get state: {}", resp["error"]);
                 return;
             }
-            capi.process_veilid_state(&resp["value"]).await;
+            capi.process_veilid_state(&resp["value"]);
         });
 
         // Send and receive until we're done or a stop is requested
@@ -420,7 +420,7 @@ impl ClientApiConnection {
     }
 
     // End Client API connection
-    pub async fn disconnect(&self) {
+    pub fn disconnect(&self) {
         trace!("ClientApiConnection::disconnect");
         let mut inner = self.inner.lock();
         if inner.disconnector.is_some() {

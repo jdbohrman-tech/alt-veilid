@@ -9,6 +9,7 @@ use super::*;
     derive(Tsify),
     tsify(from_wasm_abi, into_wasm_abi, namespace)
 )]
+#[must_use]
 pub enum Sequencing {
     NoPreference = 0,
     PreferOrdered = 1,
@@ -31,6 +32,7 @@ impl Default for Sequencing {
     derive(Tsify),
     tsify(from_wasm_abi, into_wasm_abi, namespace)
 )]
+#[must_use]
 pub enum Stability {
     LowLatency = 0,
     Reliable = 1,
@@ -52,7 +54,7 @@ impl Default for Stability {
     derive(Tsify),
     tsify(from_wasm_abi, into_wasm_abi, namespace)
 )]
-
+#[must_use]
 pub enum SafetySelection {
     /// Don't use a safety route, only specify the sequencing preference.
     Unsafe(Sequencing),
@@ -80,6 +82,7 @@ impl Default for SafetySelection {
     Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema,
 )]
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
+#[must_use]
 pub struct SafetySpec {
     /// Preferred safety route set id if it still exists.
     #[schemars(with = "Option<String>")]

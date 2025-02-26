@@ -33,7 +33,7 @@ impl BootstrapRecord {
 
 impl RoutingTable {
     /// Process bootstrap version 0
-    async fn process_bootstrap_records_v0(
+    fn process_bootstrap_records_v0(
         &self,
         records: Vec<String>,
     ) -> EyreResult<Option<BootstrapRecord>> {
@@ -195,7 +195,7 @@ impl RoutingTable {
                         };
                         let bootstrap_record = match txt_version {
                             BOOTSTRAP_TXT_VERSION_0 => {
-                                match self.process_bootstrap_records_v0(records).await {
+                                match self.process_bootstrap_records_v0(records) {
                                     Err(e) => {
                                         veilid_log!(self error
                                             "couldn't process v0 bootstrap records from {}: {}",
@@ -260,7 +260,7 @@ impl RoutingTable {
         &self,
         crypto_kinds: Vec<CryptoKind>,
         pi: Arc<PeerInfo>,
-        unord: &FuturesUnordered<SendPinBoxFuture<()>>,
+        unord: &FuturesUnordered<PinBoxFutureStatic<()>>,
     ) {
         veilid_log!(self trace
             "--- bootstrapping {} with {:?}",
@@ -291,7 +291,7 @@ impl RoutingTable {
                     let bsdi = match network_manager
                         .get_node_contact_method(nr.default_filtered())
                     {
-                        Ok(NodeContactMethod::Direct(v)) => v,
+                        Ok(Some(ncm)) if ncm.is_direct() => ncm.direct_dial_info().unwrap(),
                         Ok(v) => {
                             veilid_log!(nr debug "invalid contact method for bootstrap, ignoring peer: {:?}", v);
                             // let _ =
@@ -342,7 +342,7 @@ impl RoutingTable {
         veilid_log!(self debug "  bootstrap crypto kinds: {:?}", &crypto_kinds);
 
         // Run all bootstrap operations concurrently
-        let mut unord = FuturesUnordered::<SendPinBoxFuture<()>>::new();
+        let mut unord = FuturesUnordered::<PinBoxFutureStatic<()>>::new();
         for peer in peers {
             self.bootstrap_with_peer(crypto_kinds.clone(), peer, &unord);
         }
@@ -367,7 +367,7 @@ impl RoutingTable {
         crypto_kinds
     }
 
-    #[instrument(level = "trace", skip(self), err)]
+    #[instrument(level = "trace", skip_all, err)]
     pub async fn bootstrap_task_routine(
         &self,
         stop_token: StopToken,
@@ -403,7 +403,7 @@ impl RoutingTable {
             let mut peer_map = HashMap::<TypedKeyGroup, Arc<PeerInfo>>::new();
             for bootstrap_di in bootstrap_dialinfos {
                 veilid_log!(self debug "direct bootstrap with: {}", bootstrap_di);
-                let peers = network_manager.boot_request(bootstrap_di).await?;
+                let peers = pin_future!(network_manager.boot_request(bootstrap_di)).await?;
                 for peer in peers {
                     if !peer_map.contains_key(peer.node_ids()) {
                         peer_map.insert(peer.node_ids().clone(), peer);
@@ -413,10 +413,10 @@ impl RoutingTable {
             peer_map.into_values().collect()
         } else {
             // If not direct, resolve bootstrap servers and recurse their TXT entries
-            let bsrecs = match self
+            let bsrecs = match pin_future!(self
                 .resolve_bootstrap(bootstrap)
-                .timeout_at(stop_token.clone())
-                .await
+                .timeout_at(stop_token.clone()))
+            .await
             {
                 Ok(v) => v?,
                 Err(_) => {

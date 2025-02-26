@@ -7,6 +7,7 @@ use tracing_subscriber::{
     },
 };
 
+#[must_use]
 pub struct FmtStripFields {
     /// The inner formatter that will be used to format fields
     fmt: DefaultFields,

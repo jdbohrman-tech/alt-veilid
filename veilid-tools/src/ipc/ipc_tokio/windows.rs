@@ -116,7 +116,7 @@ impl FuturesAsyncWrite for IpcStream {
 
 pub struct IpcIncoming<'a> {
     listener: IpcListener,
-    unord: FuturesUnordered<SendPinBoxFuture<io::Result<IpcStream>>>,
+    unord: FuturesUnordered<PinBoxFuture<io::Result<IpcStream>>>,
     phantom: std::marker::PhantomData<&'a ()>,
 }
 
@@ -149,6 +149,7 @@ pub struct IpcListener {
 
 impl IpcListener {
     /// Creates a new `IpcListener` bound to the specified path.
+    #[expect(clippy::unused_async)]
     pub async fn bind<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         let path = path.as_ref().to_path_buf();
         let server = ServerOptions::new()
@@ -161,7 +162,8 @@ impl IpcListener {
     }
 
     /// Accepts a new incoming connection to this listener.
-    pub fn accept(&self) -> SendPinBoxFuture<io::Result<IpcStream>> {
+    #[must_use]
+    pub fn accept(&self) -> PinBoxFuture<io::Result<IpcStream>> {
         if self.path.is_none() {
             return Box::pin(std::future::ready(Err(io::Error::from(
                 io::ErrorKind::NotConnected,

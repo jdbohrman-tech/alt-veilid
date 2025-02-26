@@ -57,7 +57,7 @@ pub async fn test_routingtable_buckets_round_trip() {
     mock_registry::terminate(copy_registry).await;
 }
 
-pub async fn test_round_trip_peerinfo() {
+pub fn test_round_trip_peerinfo() {
     let mut tks = TypedKeyGroup::new();
     tks.add(TypedKey::new(
         CRYPTO_KIND_VLD0,
@@ -93,5 +93,5 @@ pub async fn test_round_trip_peerinfo() {
 
 pub async fn test_all() {
     test_routingtable_buckets_round_trip().await;
-    test_round_trip_peerinfo().await;
+    test_round_trip_peerinfo();
 }

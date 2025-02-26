@@ -300,6 +300,7 @@ impl SplitUrl {
         }
     }
 
+    #[must_use]
     pub fn host_port(&self, default_port: u16) -> String {
         format!("{}:{}", self.host, self.port.unwrap_or(default_port))
     }

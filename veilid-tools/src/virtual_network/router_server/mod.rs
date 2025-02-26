@@ -36,14 +36,14 @@ pub const DEFAULT_VIRTUAL_ROUTER_PORT_TCP: u16 = 5149u16;
 pub const DEFAULT_VIRTUAL_ROUTER_PORT_WS: u16 = 5148u16;
 
 enum RunLoopEvent {
-    AddClient(SendPinBoxFuture<RunLoopEvent>),
+    AddClient(PinBoxFuture<RunLoopEvent>),
     Done,
 }
 
 #[derive(Debug)]
 struct RouterServerUnlockedInner {
-    new_client_sender: flume::Sender<SendPinBoxFuture<RunLoopEvent>>,
-    new_client_receiver: flume::Receiver<SendPinBoxFuture<RunLoopEvent>>,
+    new_client_sender: flume::Sender<PinBoxFuture<RunLoopEvent>>,
+    new_client_receiver: flume::Receiver<PinBoxFuture<RunLoopEvent>>,
     server_processor: ServerProcessor,
     global_state_manager: GlobalStateManager,
 }
@@ -257,7 +257,7 @@ impl RouterServer {
 
     /// Run the router server until a stop is requested
     pub async fn run(&self, stop_token: StopToken) -> RouterServerResult<()> {
-        let mut unord = FuturesUnordered::<SendPinBoxFuture<RunLoopEvent>>::new();
+        let mut unord = FuturesUnordered::<PinBoxFuture<RunLoopEvent>>::new();
 
         let mut need_new_client_fut = true;
 
