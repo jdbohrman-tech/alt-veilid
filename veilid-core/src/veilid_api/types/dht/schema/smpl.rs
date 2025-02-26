@@ -8,6 +8,7 @@ use crate::storage_manager::{MAX_RECORD_DATA_SIZE, MAX_SUBKEY_SIZE};
     derive(Tsify),
     tsify(from_wasm_abi)
 )]
+#[must_use]
 pub struct DHTSchemaSMPLMember {
     /// Member key
     #[schemars(with = "String")]
@@ -23,6 +24,7 @@ pub struct DHTSchemaSMPLMember {
     derive(Tsify),
     tsify(from_wasm_abi)
 )]
+#[must_use]
 pub struct DHTSchemaSMPL {
     /// Owner subkey count
     o_cnt: u16,
@@ -58,6 +60,7 @@ impl DHTSchemaSMPL {
     }
 
     /// Get the owner subkey count
+    #[must_use]
     pub fn o_cnt(&self) -> u16 {
         self.o_cnt
     }
@@ -68,6 +71,7 @@ impl DHTSchemaSMPL {
     }
 
     /// Build the data representation of the schema
+    #[must_use]
     pub fn compile(&self) -> Vec<u8> {
         let mut out = Vec::<u8>::with_capacity(
             Self::FIXED_SIZE + (self.members.len() * (PUBLIC_KEY_LENGTH + 2)),
@@ -87,6 +91,7 @@ impl DHTSchemaSMPL {
     }
 
     /// Get the maximum subkey this schema allocates
+    #[must_use]
     pub fn max_subkey(&self) -> ValueSubkey {
         let subkey_count = self
             .members
@@ -96,11 +101,13 @@ impl DHTSchemaSMPL {
     }
 
     /// Get the data size of this schema beyond the size of the structure itself
+    #[must_use]
     pub fn data_size(&self) -> usize {
         self.members.len() * mem::size_of::<DHTSchemaSMPLMember>()
     }
 
     /// Check a subkey value data against the schema
+    #[must_use]
     pub fn check_subkey_value_data(
         &self,
         owner: &PublicKey,
@@ -156,6 +163,7 @@ impl DHTSchemaSMPL {
     }
 
     /// Check if a key is a schema member
+    #[must_use]
     pub fn is_member(&self, key: &PublicKey) -> bool {
         for m in &self.members {
             if m.m_key == *key {

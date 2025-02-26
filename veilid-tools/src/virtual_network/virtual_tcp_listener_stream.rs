@@ -11,7 +11,7 @@ use std::io;
 /// [`Stream`]: trait@futures_util::stream::Stream
 pub struct VirtualTcpListenerStream {
     inner: VirtualTcpListener,
-    current_accept_fut: Option<SendPinBoxFuture<VirtualNetworkResult<(SocketId, SocketAddr)>>>,
+    current_accept_fut: Option<PinBoxFuture<VirtualNetworkResult<(SocketId, SocketAddr)>>>,
 }
 
 impl fmt::Debug for VirtualTcpListenerStream {

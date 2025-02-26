@@ -7,6 +7,7 @@ use super::*;
     derive(Tsify),
     tsify(namespace, from_wasm_abi, into_wasm_abi)
 )]
+#[must_use]
 pub enum AttachmentState {
     Detached = 0,
     Attaching = 1,
@@ -18,9 +19,11 @@ pub enum AttachmentState {
     Detaching = 7,
 }
 impl AttachmentState {
+    #[must_use]
     pub fn is_detached(&self) -> bool {
         matches!(self, Self::Detached)
     }
+    #[must_use]
     pub fn is_attached(&self) -> bool {
         matches!(
             self,
@@ -78,6 +81,7 @@ impl TryFrom<&str> for AttachmentState {
 /// Describe the attachment state of the Veilid node
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
+#[must_use]
 pub struct VeilidStateAttachment {
     /// The overall quality of the routing table if attached, or the current state the attachment state machine.
     pub state: AttachmentState,
@@ -95,6 +99,7 @@ pub struct VeilidStateAttachment {
 /// Describe a recently accessed peer
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
+#[must_use]
 pub struct PeerTableData {
     /// The node ids used by this peer
     #[schemars(with = "Vec<String>")]
@@ -112,6 +117,7 @@ pub struct PeerTableData {
 /// Describe the current network state of the Veilid node
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
+#[must_use]
 pub struct VeilidStateNetwork {
     /// If the network has been started or not.
     pub started: bool,
@@ -127,6 +133,7 @@ pub struct VeilidStateNetwork {
 /// Describe a private route change that has happened
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
+#[must_use]
 pub struct VeilidRouteChange {
     /// If a private route that was allocated has died, it is listed here.
     #[schemars(with = "Vec<String>")]
@@ -142,6 +149,7 @@ pub struct VeilidRouteChange {
 /// itself during runtime.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
+#[must_use]
 pub struct VeilidStateConfig {
     /// If the Veilid node configuration has changed the full new config will be here.
     pub config: VeilidConfigInner,
@@ -150,6 +158,7 @@ pub struct VeilidStateConfig {
 /// Describe when DHT records have subkey values changed
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
+#[must_use]
 pub struct VeilidValueChange {
     /// The DHT Record key that changed
     #[schemars(with = "String")]
@@ -176,6 +185,7 @@ pub struct VeilidValueChange {
     tsify(into_wasm_abi)
 )]
 #[serde(tag = "kind")]
+#[must_use]
 pub enum VeilidUpdate {
     Log(Box<VeilidLog>),
     AppMessage(Box<VeilidAppMessage>),
@@ -196,6 +206,7 @@ from_impl_to_jsvalue!(VeilidUpdate);
     derive(Tsify),
     tsify(into_wasm_abi)
 )]
+#[must_use]
 pub struct VeilidState {
     pub attachment: Box<VeilidStateAttachment>,
     pub network: Box<VeilidStateNetwork>,

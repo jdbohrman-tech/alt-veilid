@@ -157,12 +157,7 @@ impl RouteSpecStoreCache {
     }
 
     /// add remote private route to caches
-    /// returns a remote private route set id
-    fn add_remote_private_route(
-        &mut self,
-        id: RouteId,
-        rprinfo: RemotePrivateRouteInfo,
-    ) -> RouteId {
+    fn add_remote_private_route(&mut self, id: RouteId, rprinfo: RemotePrivateRouteInfo) {
         // also store in id by key table
         for private_route in rprinfo.get_private_routes() {
             self.remote_private_routes_by_key
@@ -182,15 +177,14 @@ impl RouteSpecStoreCache {
             // If anything LRUs out, remove from the by-key table
             // Follow the same logic as 'remove_remote_private_route' here
             for dead_private_route in dead_rpri.get_private_routes() {
-                self.remote_private_routes_by_key
+                let _ = self
+                    .remote_private_routes_by_key
                     .remove(&dead_private_route.public_key.value)
                     .unwrap();
                 self.invalidate_compiled_route_cache(&dead_private_route.public_key.value);
             }
             self.dead_remote_routes.push(dead_id);
         }
-
-        id
     }
 
     /// iterate all of the remote private routes we have in the cache
@@ -311,7 +305,8 @@ impl RouteSpecStoreCache {
             return false;
         };
         for private_route in rprinfo.get_private_routes() {
-            self.remote_private_routes_by_key
+            let _ = self
+                .remote_private_routes_by_key
                 .remove(&private_route.public_key.value)
                 .unwrap();
             self.invalidate_compiled_route_cache(&private_route.public_key.value);

@@ -455,13 +455,16 @@ impl ConnectionTable {
         let conn = inner.conn_by_id[protocol_index].remove(&id).unwrap();
         // id_by_flow
         let flow = conn.flow();
-        inner.id_by_flow.remove(&flow).unwrap();
+        let _ = inner
+            .id_by_flow
+            .remove(&flow)
+            .expect("must have removed something here");
         // ids_by_remote
         let remote = flow.remote();
         let ids = inner.ids_by_remote.get_mut(&remote).unwrap();
         for (n, elem) in ids.iter().enumerate() {
             if *elem == id {
-                ids.remove(n);
+                let _ = ids.remove(n);
                 if ids.is_empty() {
                     inner.ids_by_remote.remove(&remote).unwrap();
                 }

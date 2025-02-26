@@ -1,7 +1,7 @@
 use super::*;
 
 // Keep member order appropriate for sorting < preference
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+#[derive(Debug, Ord, PartialOrd, Hash, Serialize, Deserialize, EnumSetType)]
 pub(crate) enum DialInfoClass {
     Direct = 0, // D = Directly reachable with public IP and no firewall, with statically configured port
     Mapped = 1, // M = Directly reachable with via portmap behind any NAT or firewalled with dynamically negotiated port
@@ -33,3 +33,6 @@ impl DialInfoClass {
         )
     }
 }
+
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), expect(dead_code))]
+pub(crate) type DialInfoClassSet = EnumSet<DialInfoClass>;

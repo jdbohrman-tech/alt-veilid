@@ -1,9 +1,6 @@
-// wasm-bindgen and clippy don't play well together yet
-#![deny(clippy::all)]
-#![allow(clippy::comparison_chain, clippy::upper_case_acronyms)]
-#![deny(unused_must_use)]
 #![cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 #![no_std]
+#![recursion_limit = "256"]
 
 /// Veilid WASM Bindings for Flutter/Dart, as well as Native Javascript
 /// The Flutter/Dart bindings are in this lib.rs directly
@@ -82,6 +79,7 @@ pub fn unmarshall(b64: String) -> APIResult<Vec<u8>> {
         })
 }
 
+#[must_use]
 pub fn marshall(data: &[u8]) -> String {
     data_encoding::BASE64URL_NOPAD.encode(data)
 }
@@ -381,6 +379,7 @@ pub fn routing_context() -> Promise {
 }
 
 #[wasm_bindgen()]
+#[must_use]
 pub fn release_routing_context(id: u32) -> i32 {
     let mut rc = (*ROUTING_CONTEXTS).borrow_mut();
     if rc.remove(&id).is_none() {
@@ -390,6 +389,7 @@ pub fn release_routing_context(id: u32) -> i32 {
 }
 
 #[wasm_bindgen()]
+#[must_use]
 pub fn routing_context_with_default_safety(id: u32) -> u32 {
     let routing_context = {
         let rc = (*ROUTING_CONTEXTS).borrow();
@@ -405,6 +405,7 @@ pub fn routing_context_with_default_safety(id: u32) -> u32 {
 }
 
 #[wasm_bindgen()]
+#[must_use]
 pub fn routing_context_with_safety(id: u32, safety_selection: String) -> u32 {
     let safety_selection: veilid_core::SafetySelection =
         veilid_core::deserialize_json(&safety_selection).unwrap();
@@ -423,6 +424,7 @@ pub fn routing_context_with_safety(id: u32, safety_selection: String) -> u32 {
 }
 
 #[wasm_bindgen()]
+#[must_use]
 pub fn routing_context_with_sequencing(id: u32, sequencing: String) -> u32 {
     let sequencing: veilid_core::Sequencing = veilid_core::deserialize_json(&sequencing).unwrap();
 
@@ -778,6 +780,7 @@ pub fn open_table_db(name: String, column_count: u32) -> Promise {
 }
 
 #[wasm_bindgen()]
+#[must_use]
 pub fn release_table_db(id: u32) -> i32 {
     let mut tdbs = (*TABLE_DBS).borrow_mut();
     if tdbs.remove(&id).is_none() {
@@ -800,6 +803,7 @@ pub fn delete_table_db(name: String) -> Promise {
 }
 
 #[wasm_bindgen()]
+#[must_use]
 pub fn table_db_get_column_count(id: u32) -> u32 {
     let table_dbs = (*TABLE_DBS).borrow();
     let Some(table_db) = table_dbs.get(&id) else {
@@ -846,6 +850,7 @@ fn add_table_db_transaction(tdbt: veilid_core::TableDBTransaction) -> u32 {
 }
 
 #[wasm_bindgen()]
+#[must_use]
 pub fn table_db_transact(id: u32) -> u32 {
     let table_dbs = (*TABLE_DBS).borrow();
     let Some(table_db) = table_dbs.get(&id) else {
@@ -856,6 +861,7 @@ pub fn table_db_transact(id: u32) -> u32 {
 }
 
 #[wasm_bindgen()]
+#[must_use]
 pub fn release_table_db_transaction(id: u32) -> i32 {
     let mut tdbts = (*TABLE_DB_TRANSACTIONS).borrow_mut();
     if tdbts.remove(&id).is_none() {
@@ -973,6 +979,7 @@ pub fn table_db_delete(id: u32, col: u32, key: String) -> Promise {
 }
 
 #[wasm_bindgen()]
+#[must_use]
 pub fn valid_crypto_kinds() -> String {
     veilid_core::serialize_json(
         veilid_core::VALID_CRYPTO_KINDS
@@ -983,6 +990,7 @@ pub fn valid_crypto_kinds() -> String {
 }
 
 #[wasm_bindgen()]
+#[must_use]
 pub fn best_crypto_kind() -> u32 {
     veilid_core::best_crypto_kind().into()
 }
@@ -1586,6 +1594,7 @@ pub fn crypto_crypt_no_auth(
 }
 
 #[wasm_bindgen()]
+#[must_use]
 pub fn now() -> String {
     veilid_core::Timestamp::now().as_u64().to_string()
 }
@@ -1600,6 +1609,7 @@ pub fn debug(command: String) -> Promise {
 }
 
 #[wasm_bindgen()]
+#[must_use]
 pub fn veilid_version_string() -> String {
     veilid_core::veilid_version_string()
 }
@@ -1614,6 +1624,7 @@ pub struct VeilidVersion {
 }
 
 #[wasm_bindgen()]
+#[must_use]
 pub fn veilid_version() -> JsValue {
     let (major, minor, patch) = veilid_core::veilid_version();
     let vv = VeilidVersion {
@@ -1625,6 +1636,7 @@ pub fn veilid_version() -> JsValue {
 }
 
 #[wasm_bindgen()]
+#[must_use]
 pub fn default_veilid_config() -> String {
     veilid_core::default_veilid_config()
 }

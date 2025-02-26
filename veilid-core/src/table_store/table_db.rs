@@ -12,6 +12,7 @@ cfg_if! {
 
 impl_veilid_log_facility!("tstore");
 
+#[must_use]
 struct CryptInfo {
     typed_key: TypedSharedSecret,
 }
@@ -21,6 +22,7 @@ impl CryptInfo {
     }
 }
 
+#[must_use]
 pub struct TableDBUnlockedInner {
     registry: VeilidComponentRegistry,
     table: String,
@@ -44,6 +46,7 @@ impl Drop for TableDBUnlockedInner {
 }
 
 #[derive(Debug, Clone)]
+#[must_use]
 pub struct TableDB {
     opened_column_count: u32,
     unlocked_inner: Arc<TableDBUnlockedInner>,
@@ -107,6 +110,7 @@ impl TableDB {
     }
 
     /// Get the internal name of the table
+    #[must_use]
     pub fn table_name(&self) -> String {
         self.unlocked_inner.table.clone()
     }

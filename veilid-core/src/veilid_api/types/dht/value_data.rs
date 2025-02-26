@@ -7,6 +7,7 @@ use veilid_api::VeilidAPIResult;
     derive(Tsify),
     tsify(into_wasm_abi)
 )]
+#[must_use]
 pub struct ValueData {
     /// An increasing sequence number to time-order the DHT record changes
     seq: ValueSeqNum,
@@ -54,6 +55,7 @@ impl ValueData {
         Ok(Self { seq, data, writer })
     }
 
+    #[must_use]
     pub fn seq(&self) -> ValueSeqNum {
         self.seq
     }
@@ -62,14 +64,17 @@ impl ValueData {
         &self.writer
     }
 
+    #[must_use]
     pub fn data(&self) -> &[u8] {
         &self.data
     }
 
+    #[must_use]
     pub fn data_size(&self) -> usize {
         self.data.len()
     }
 
+    #[must_use]
     pub fn total_size(&self) -> usize {
         mem::size_of::<Self>() + self.data.len()
     }

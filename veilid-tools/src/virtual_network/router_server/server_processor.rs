@@ -57,7 +57,7 @@ impl ServerProcessor {
         }
     }
 
-    pub fn run_loop_process_commands(&self) -> SendPinBoxFuture<RunLoopEvent> {
+    pub fn run_loop_process_commands(&self) -> PinBoxFuture<RunLoopEvent> {
         let receiver_stream = self.unlocked_inner.receiver.clone().into_stream();
         let this = self.clone();
         Box::pin(async move {

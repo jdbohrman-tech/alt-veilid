@@ -99,18 +99,17 @@ impl StorageManager {
             opt_watcher.unwrap_or_else(|| self.anonymous_watch_keys.get(key.kind).unwrap().value);
 
         let wva = VeilidAPIError::from_network_result(
-            self.rpc_processor()
-                .rpc_call_watch_value(
-                    Destination::direct(watch_node.routing_domain_filtered(routing_domain))
-                        .with_safety(safety_selection),
-                    key,
-                    subkeys,
-                    expiration,
-                    count,
-                    watcher,
-                    Some(watch_id),
-                )
-                .await?,
+            pin_future!(self.rpc_processor().rpc_call_watch_value(
+                Destination::direct(watch_node.routing_domain_filtered(routing_domain))
+                    .with_safety(safety_selection),
+                key,
+                subkeys,
+                expiration,
+                count,
+                watcher,
+                Some(watch_id),
+            ))
+            .await?,
         )?;
 
         if wva.answer.accepted {
@@ -233,13 +232,13 @@ impl StorageManager {
         let call_routine = {
             let context = context.clone();
             let registry = self.registry();
-            move |next_node: NodeRef| {
+            Arc::new(move |next_node: NodeRef| {
                 let context = context.clone();
                 let registry = registry.clone();
 
                 let subkeys = subkeys.clone();
 
-                async move {
+                Box::pin(async move {
                     let rpc_processor = registry.rpc_processor();
                     let wva = network_result_try!(
                         rpc_processor
@@ -282,18 +281,21 @@ impl StorageManager {
                     veilid_log!(registry debug target:"network_result", "WatchValue fanout call returned peers {} ({})", wva.answer.peers.len(), next_node);
 
                     Ok(NetworkResult::value(FanoutCallOutput{peer_info_list: wva.answer.peers}))
-                }.instrument(tracing::trace_span!("outbound_watch_value call routine"))
-            }
+                }.instrument(tracing::trace_span!("outbound_watch_value call routine"))) as PinBoxFuture<FanoutCallResult>
+            })
         };
 
         // Routine to call to check if we're done at each step
-        let check_done = |_closest_nodes: &[NodeRef]| {
-            // If a watch has succeeded, return done
-            let ctx = context.lock();
-            if ctx.opt_watch_value_result.is_some() {
-                return Some(());
-            }
-            None
+        let check_done = {
+            let context = context.clone();
+            Arc::new(move |_closest_nodes: &[NodeRef]| {
+                // If a watch has succeeded, return done
+                let ctx = context.lock();
+                if ctx.opt_watch_value_result.is_some() {
+                    return Some(());
+                }
+                None
+            })
         };
 
         // Call the fanout

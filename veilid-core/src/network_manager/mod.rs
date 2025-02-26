@@ -12,6 +12,7 @@ mod connection_manager;
 mod connection_table;
 mod direct_boot;
 mod network_connection;
+mod node_contact_method_cache;
 mod receipt_manager;
 mod send_data;
 mod stats;
@@ -25,6 +26,7 @@ pub mod tests;
 
 pub use connection_manager::*;
 pub use network_connection::*;
+pub(crate) use node_contact_method_cache::*;
 pub use receipt_manager::*;
 pub use stats::*;
 pub(crate) use types::*;
@@ -55,7 +57,6 @@ pub const MAX_MESSAGE_SIZE: usize = MAX_ENVELOPE_SIZE;
 pub const IPADDR_TABLE_SIZE: usize = 1024;
 pub const IPADDR_MAX_INACTIVE_DURATION_US: TimestampDuration =
     TimestampDuration::new(300_000_000u64); // 5 minutes
-pub const NODE_CONTACT_METHOD_CACHE_SIZE: usize = 1024;
 pub const ADDRESS_FILTER_TASK_INTERVAL_SECS: u32 = 60;
 pub const BOOT_MAGIC: &[u8; 4] = b"BOOT";
 pub const HOLE_PUNCH_DELAY_MS: u32 = 100;
@@ -75,20 +76,32 @@ struct ClientAllowlistEntry {
 }
 
 #[derive(Clone, Debug)]
-pub struct SendDataMethod {
+pub struct SendDataResult {
     /// How the data was sent, possibly to a relay
-    pub contact_method: NodeContactMethod,
-    /// Pre-relayed contact method
-    pub opt_relayed_contact_method: Option<NodeContactMethod>,
+    opt_contact_method: Option<NodeContactMethod>,
+    /// Original contact method for the destination if it was relayed
+    opt_relayed_contact_method: Option<NodeContactMethod>,
     /// The specific flow used to send the data
-    pub unique_flow: UniqueFlow,
+    unique_flow: UniqueFlow,
+}
+
+impl SendDataResult {
+    pub fn is_direct(&self) -> bool {
+        self.opt_relayed_contact_method.is_none()
+            && matches!(
+                &self.opt_contact_method,
+                Some(ncm) if ncm.is_direct()
+            )
+    }
+
+    pub fn unique_flow(&self) -> UniqueFlow {
+        self.unique_flow
+    }
 }
 
 /// Mechanism required to contact another node
 #[derive(Clone, Debug)]
-pub enum NodeContactMethod {
-    /// Node is not reachable by any means
-    Unreachable,
+pub enum NodeContactMethodKind {
     /// Connection should have already existed
     Existing,
     /// Contact the node directly
@@ -102,14 +115,29 @@ pub enum NodeContactMethod {
     /// Must use outbound relay to reach the node
     OutboundRelay(FilteredNodeRef),
 }
-#[derive(Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Hash)]
-struct NodeContactMethodCacheKey {
-    node_ids: TypedKeyGroup,
-    own_node_info_ts: Timestamp,
-    target_node_info_ts: Timestamp,
-    target_node_ref_filter: NodeRefFilter,
-    target_node_ref_sequencing: Sequencing,
-    dial_info_failures_map: BTreeMap<DialInfo, Timestamp>,
+
+#[derive(Clone, Debug)]
+pub struct NodeContactMethod {
+    ncm_key: NodeContactMethodCacheKey,
+    ncm_kind: NodeContactMethodKind,
+}
+
+impl NodeContactMethod {
+    pub fn is_direct(&self) -> bool {
+        matches!(self.ncm_kind, NodeContactMethodKind::Direct(_))
+    }
+    pub fn direct_dial_info(&self) -> Option<DialInfo> {
+        match &self.ncm_kind {
+            NodeContactMethodKind::Direct(v) => Some(v.clone()),
+            _ => None,
+        }
+    }
+    // pub fn kind(&self) -> &NodeContactMethodKind {
+    //     &self.ncm_kind
+    // }
+    // pub fn into_kind(self) -> NodeContactMethodKind {
+    //     self.ncm_kind
+    // }
 }
 
 enum SendDataToExistingFlowResult {
@@ -146,7 +174,7 @@ impl Default for NetworkManagerStartupContext {
 struct NetworkManagerInner {
     stats: NetworkManagerStats,
     client_allowlist: LruCache<TypedKey, ClientAllowlistEntry>,
-    node_contact_method_cache: LruCache<NodeContactMethodCacheKey, NodeContactMethod>,
+    node_contact_method_cache: NodeContactMethodCache,
     address_check: Option<AddressCheck>,
     peer_info_change_subscription: Option<EventBusSubscription>,
     socket_address_change_subscription: Option<EventBusSubscription>,
@@ -181,9 +209,6 @@ impl fmt::Debug for NetworkManager {
             //.field("registry", &self.registry)
             .field("inner", &self.inner)
             .field("address_filter", &self.address_filter)
-            // .field("components", &self.components)
-            // .field("rolling_transfers_task", &self.rolling_transfers_task)
-            // .field("address_filter_task", &self.address_filter_task)
             .field("network_key", &self.network_key)
             .field("startup_context", &self.startup_context)
             .finish()
@@ -195,7 +220,7 @@ impl NetworkManager {
         NetworkManagerInner {
             stats: NetworkManagerStats::default(),
             client_allowlist: LruCache::new_unbounded(),
-            node_contact_method_cache: LruCache::new(NODE_CONTACT_METHOD_CACHE_SIZE),
+            node_contact_method_cache: NodeContactMethodCache::new(),
             address_check: None,
             peer_info_change_subscription: None,
             socket_address_change_subscription: None,
@@ -300,10 +325,12 @@ impl NetworkManager {
         Ok(())
     }
 
+    #[expect(clippy::unused_async)]
     async fn post_init_async(&self) -> EyreResult<()> {
         Ok(())
     }
 
+    #[expect(clippy::unused_async)]
     async fn pre_terminate_async(&self) {}
 
     #[instrument(level = "debug", skip_all)]
@@ -347,7 +374,7 @@ impl NetworkManager {
         }
 
         // Start network components
-        connection_manager.startup().await?;
+        connection_manager.startup()?;
         match net.startup().await? {
             StartupDisposition::Success => {}
             StartupDisposition::BindRetry => {
@@ -355,7 +382,7 @@ impl NetworkManager {
             }
         }
 
-        receipt_manager.startup().await?;
+        receipt_manager.startup()?;
 
         veilid_log!(self trace "NetworkManager::internal_startup end");
 
@@ -823,7 +850,7 @@ impl NetworkManager {
         node_ref: FilteredNodeRef,
         destination_node_ref: Option<NodeRef>,
         body: B,
-    ) -> EyreResult<NetworkResult<SendDataMethod>> {
+    ) -> EyreResult<NetworkResult<SendDataResult>> {
         let Ok(_guard) = self.startup_context.startup_lock.enter() else {
             return Ok(NetworkResult::no_connection_other("network is not started"));
         };
@@ -890,7 +917,7 @@ impl NetworkManager {
     // Called when a packet potentially containing an RPC envelope is received by a low-level
     // network protocol handler. Processes the envelope, authenticates and decrypts the RPC message
     // and passes it to the RPC handler
-    #[instrument(level = "trace", target = "net", skip_all)]
+    //#[instrument(level = "trace", target = "net", skip_all)]
     async fn on_recv_envelope(&self, data: &mut [u8], flow: Flow) -> EyreResult<bool> {
         let Ok(_guard) = self.startup_context.startup_lock.enter() else {
             return Ok(false);
@@ -931,13 +958,13 @@ impl NetworkManager {
 
         // Is this a direct bootstrap request instead of an envelope?
         if data[0..4] == *BOOT_MAGIC {
-            network_result_value_or_log!(self self.handle_boot_request(flow).await? => [ format!(": flow={:?}", flow) ] {});
+            network_result_value_or_log!(self pin_future!(self.handle_boot_request(flow)).await? => [ format!(": flow={:?}", flow) ] {});
             return Ok(true);
         }
 
         // Is this an out-of-band receipt instead of an envelope?
         if data[0..3] == *RECEIPT_MAGIC {
-            network_result_value_or_log!(self self.handle_out_of_band_receipt(data).await => [ format!(": data.len={}", data.len()) ] {});
+            network_result_value_or_log!(self pin_future!(self.handle_out_of_band_receipt(data)).await => [ format!(": data.len={}", data.len()) ] {});
             return Ok(true);
         }
 
@@ -1071,18 +1098,9 @@ impl NetworkManager {
 
                 // Relay the packet to the desired destination
                 veilid_log!(self trace "relaying {} bytes to {}", data.len(), relay_nr);
-
-                network_result_value_or_log!(self match self.send_data(relay_nr, data.to_vec())
-                    .await {
-                        Ok(v) => v,
-                        Err(e) => {
-                            veilid_log!(self debug "failed to forward envelope: {}" ,e);
-                            return Ok(false);
-                        }
-                    } => [ format!(": relay_nr={}, data.len={}", relay_nr, data.len()) ] {
-                        return Ok(false);
-                    }
-                );
+                if let Err(e) = pin_future!(self.send_data(relay_nr, data.to_vec())).await {
+                    veilid_log!(self debug "failed to relay envelope: {}" ,e);
+                }
             }
             // Inform caller that we dealt with the envelope, but did not process it locally
             return Ok(false);

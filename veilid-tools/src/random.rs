@@ -29,11 +29,13 @@ pub fn random_bytes(dest: &mut [u8]) {
     rng.fill_bytes(dest);
 }
 
+#[must_use]
 pub fn get_random_u32() -> u32 {
     let mut rng = rand::thread_rng();
     rng.next_u32()
 }
 
+#[must_use]
 pub fn get_random_u64() -> u64 {
     let mut rng = rand::thread_rng();
     rng.next_u64()

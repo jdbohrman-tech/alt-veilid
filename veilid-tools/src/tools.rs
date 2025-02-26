@@ -121,7 +121,7 @@ macro_rules! asyncrwlock_try_write_arc {
 
 pub fn system_boxed<'a, Out>(
     future: impl Future<Output = Out> + Send + 'a,
-) -> SendPinBoxFutureLifetime<'a, Out> {
+) -> PinBoxFuture<'a, Out> {
     Box::pin(future)
 }
 
@@ -129,6 +129,7 @@ pub fn system_boxed<'a, Out>(
 
 cfg_if! {
     if #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))] {
+        #[must_use]
         pub fn get_concurrency() -> u32 {
             std::thread::available_parallelism()
                 .map(|x| x.get())
@@ -156,6 +157,7 @@ pub fn split_port(name: &str) -> Result<(String, Option<u16>), String> {
     }
 }
 
+#[must_use]
 pub fn prepend_slash(s: String) -> String {
     if s.starts_with('/') {
         return s;
@@ -165,14 +167,17 @@ pub fn prepend_slash(s: String) -> String {
     out
 }
 
+#[must_use]
 pub fn timestamp_to_secs(ts: u64) -> f64 {
     ts as f64 / 1000000.0f64
 }
 
+#[must_use]
 pub fn secs_to_timestamp(secs: f64) -> u64 {
     (secs * 1000000.0f64) as u64
 }
 
+#[must_use]
 pub fn ms_to_us(ms: u32) -> u64 {
     (ms as u64) * 1000u64
 }
@@ -182,6 +187,7 @@ pub fn us_to_ms(us: u64) -> Result<u32, String> {
 }
 
 // Calculate retry attempt with logarhythmic falloff
+#[must_use]
 pub fn retry_falloff_log(
     last_us: u64,
     cur_us: u64,
@@ -264,6 +270,7 @@ where
     }
 }
 
+#[must_use]
 pub fn compatible_unspecified_socket_addr(socket_addr: &SocketAddr) -> SocketAddr {
     match socket_addr {
         SocketAddr::V4(_) => SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0),
@@ -290,6 +297,7 @@ cfg_if! {
     }
 }
 
+#[must_use]
 pub fn available_unspecified_addresses() -> Vec<IpAddr> {
     if is_ipv6_supported() {
         vec![
@@ -455,6 +463,7 @@ struct AlignToEight([u8; 8]);
 
 /// # Safety
 /// Ensure you immediately initialize this vector as it could contain sensitive data
+#[must_use]
 pub unsafe fn aligned_8_u8_vec_uninit(n_bytes: usize) -> Vec<u8> {
     let n_units = (n_bytes + mem::size_of::<AlignToEight>() - 1) / mem::size_of::<AlignToEight>();
     let mut aligned: Vec<AlignToEight> = Vec::with_capacity(n_units);
@@ -471,6 +480,7 @@ pub unsafe fn aligned_8_u8_vec_uninit(n_bytes: usize) -> Vec<u8> {
 
 /// # Safety
 /// Ensure you immediately initialize this vector as it could contain sensitive data
+#[must_use]
 pub unsafe fn unaligned_u8_vec_uninit(n_bytes: usize) -> Vec<u8> {
     let mut unaligned: Vec<u8> = Vec::with_capacity(n_bytes);
     let ptr = unaligned.as_mut_ptr();
@@ -479,6 +489,7 @@ pub unsafe fn unaligned_u8_vec_uninit(n_bytes: usize) -> Vec<u8> {
     Vec::from_raw_parts(ptr, n_bytes, n_bytes)
 }
 
+#[must_use]
 pub fn debug_backtrace() -> String {
     let bt = backtrace::Backtrace::new();
     format!("{:?}", bt)
@@ -490,6 +501,7 @@ pub fn debug_print_backtrace() {
     }
 }
 
+#[must_use]
 pub fn is_debug_backtrace_enabled() -> bool {
     cfg_if! {
         if #[cfg(debug_assertions)] {

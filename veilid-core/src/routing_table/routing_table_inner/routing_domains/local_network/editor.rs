@@ -105,7 +105,7 @@ impl<'a> RoutingDomainEditorCommonTrait for RoutingDomainEditorLocalNetwork<'a> 
     }
 
     #[instrument(level = "debug", skip(self))]
-    fn commit(&mut self, pause_tasks: bool) -> SendPinBoxFutureLifetime<'_, bool> {
+    fn commit(&mut self, pause_tasks: bool) -> PinBoxFuture<'_, bool> {
         Box::pin(async move {
             // No locking if we have nothing to do
             if self.changes.is_empty() {
@@ -254,7 +254,7 @@ impl<'a> RoutingDomainEditorCommonTrait for RoutingDomainEditorLocalNetwork<'a> 
     }
 
     #[instrument(level = "debug", skip(self))]
-    fn shutdown(&mut self) -> SendPinBoxFutureLifetime<'_, ()> {
+    fn shutdown(&mut self) -> PinBoxFuture<'_, ()> {
         Box::pin(async move {
             self.clear_dial_info_details(None, None)
                 .set_relay_node(None)

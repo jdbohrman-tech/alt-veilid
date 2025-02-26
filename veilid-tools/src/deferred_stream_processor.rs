@@ -9,7 +9,7 @@ use super::*;
 
 #[derive(Debug)]
 struct DeferredStreamProcessorInner {
-    opt_deferred_stream_channel: Option<flume::Sender<SendPinBoxFuture<()>>>,
+    opt_deferred_stream_channel: Option<flume::Sender<PinBoxFutureStatic<()>>>,
     opt_stopper: Option<StopSource>,
     opt_join_handle: Option<MustJoinHandle<()>>,
 }
@@ -23,6 +23,7 @@ pub struct DeferredStreamProcessor {
 
 impl DeferredStreamProcessor {
     /// Create a new DeferredStreamProcessor
+    #[must_use]
     pub fn new() -> Self {
         Self {
             inner: Mutex::new(DeferredStreamProcessorInner {
@@ -34,13 +35,13 @@ impl DeferredStreamProcessor {
     }
 
     /// Initialize the processor before use
-    pub async fn init(&self) {
+    pub fn init(&self) {
         let stopper = StopSource::new();
         let stop_token = stopper.token();
 
         let mut inner = self.inner.lock();
         inner.opt_stopper = Some(stopper);
-        let (dsc_tx, dsc_rx) = flume::unbounded::<SendPinBoxFuture<()>>();
+        let (dsc_tx, dsc_rx) = flume::unbounded::<PinBoxFutureStatic<()>>();
         inner.opt_deferred_stream_channel = Some(dsc_tx);
         inner.opt_join_handle = Some(spawn(
             "deferred stream processor",
@@ -61,8 +62,8 @@ impl DeferredStreamProcessor {
         }
     }
 
-    async fn processor(stop_token: StopToken, dsc_rx: flume::Receiver<SendPinBoxFuture<()>>) {
-        let mut unord = FuturesUnordered::<SendPinBoxFuture<()>>::new();
+    async fn processor(stop_token: StopToken, dsc_rx: flume::Receiver<PinBoxFutureStatic<()>>) {
+        let mut unord = FuturesUnordered::<PinBoxFutureStatic<()>>::new();
 
         // Ensure the unord never finishes
         unord.push(Box::pin(std::future::pending()));
@@ -115,7 +116,7 @@ impl DeferredStreamProcessor {
     pub fn add<T: Send + 'static, S: futures_util::Stream<Item = T> + Unpin + Send + 'static>(
         &self,
         mut receiver: S,
-        mut handler: impl FnMut(T) -> SendPinBoxFuture<bool> + Send + 'static,
+        mut handler: impl FnMut(T) -> PinBoxFutureStatic<bool> + Send + 'static,
     ) -> bool {
         let (st, dsc_tx) = {
             let inner = self.inner.lock();

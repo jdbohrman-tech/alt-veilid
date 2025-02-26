@@ -17,6 +17,7 @@ pub(crate) struct DebugCache {
     pub opened_record_contexts: Lazy<LinkedHashMap<TypedKey, RoutingContext>>,
 }
 
+#[must_use]
 pub fn format_opt_ts(ts: Option<TimestampDuration>) -> String {
     let Some(ts) = ts else {
         return "---".to_owned();
@@ -30,6 +31,7 @@ pub fn format_opt_ts(ts: Option<TimestampDuration>) -> String {
     }
 }
 
+#[must_use]
 pub fn format_opt_bps(bps: Option<ByteCount>) -> String {
     let Some(bps) = bps else {
         return "---".to_owned();
@@ -288,7 +290,7 @@ fn get_dht_key(
 fn resolve_node_ref(
     registry: VeilidComponentRegistry,
     safety_selection: SafetySelection,
-) -> impl FnOnce(&str) -> SendPinBoxFuture<Option<NodeRef>> {
+) -> impl FnOnce(&str) -> PinBoxFutureStatic<Option<NodeRef>> {
     move |text| {
         let text = text.to_owned();
         Box::pin(async move {
@@ -318,7 +320,7 @@ fn resolve_node_ref(
 fn resolve_filtered_node_ref(
     registry: VeilidComponentRegistry,
     safety_selection: SafetySelection,
-) -> impl FnOnce(&str) -> SendPinBoxFuture<Option<FilteredNodeRef>> {
+) -> impl FnOnce(&str) -> PinBoxFutureStatic<Option<FilteredNodeRef>> {
     move |text| {
         let text = text.to_owned();
         Box::pin(async move {
@@ -503,7 +505,7 @@ fn get_debug_argument<T, G: FnOnce(&str) -> Option<T>>(
     Ok(val)
 }
 
-async fn async_get_debug_argument<T, G: FnOnce(&str) -> SendPinBoxFuture<Option<T>>>(
+async fn async_get_debug_argument<T, G: FnOnce(&str) -> PinBoxFutureStatic<Option<T>>>(
     value: &str,
     context: &str,
     argument: &str,
@@ -532,7 +534,7 @@ fn get_debug_argument_at<T, G: FnOnce(&str) -> Option<T>>(
     Ok(val)
 }
 
-async fn async_get_debug_argument_at<T, G: FnOnce(&str) -> SendPinBoxFuture<Option<T>>>(
+async fn async_get_debug_argument_at<T, G: FnOnce(&str) -> PinBoxFutureStatic<Option<T>>>(
     debug_args: &[String],
     pos: usize,
     context: &str,
@@ -549,6 +551,7 @@ async fn async_get_debug_argument_at<T, G: FnOnce(&str) -> SendPinBoxFuture<Opti
     Ok(val)
 }
 
+#[must_use]
 pub fn print_data(data: &[u8], truncate_len: Option<usize>) -> String {
     // check if message body is ascii printable
     let mut printable = true;
@@ -588,7 +591,7 @@ pub fn print_data(data: &[u8], truncate_len: Option<usize>) -> String {
 }
 
 impl VeilidAPI {
-    async fn debug_buckets(&self, args: String) -> VeilidAPIResult<String> {
+    fn debug_buckets(&self, args: String) -> VeilidAPIResult<String> {
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
         let mut min_state = BucketEntryState::Unreliable;
         if args.len() == 1 {
@@ -604,12 +607,12 @@ impl VeilidAPI {
         Ok(routing_table.debug_info_buckets(min_state))
     }
 
-    async fn debug_dialinfo(&self, _args: String) -> VeilidAPIResult<String> {
+    fn debug_dialinfo(&self, _args: String) -> VeilidAPIResult<String> {
         // Dump routing table dialinfo
         let routing_table = self.core_context()?.routing_table();
         Ok(routing_table.debug_info_dialinfo())
     }
-    async fn debug_peerinfo(&self, args: String) -> VeilidAPIResult<String> {
+    fn debug_peerinfo(&self, args: String) -> VeilidAPIResult<String> {
         // Dump routing table peerinfo
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
         let routing_table = self.core_context()?.routing_table();
@@ -647,7 +650,7 @@ impl VeilidAPI {
         Ok(routing_table.debug_info_txtrecord().await)
     }
 
-    async fn debug_keypair(&self, args: String) -> VeilidAPIResult<String> {
+    fn debug_keypair(&self, args: String) -> VeilidAPIResult<String> {
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
         let crypto = self.crypto()?;
 
@@ -665,7 +668,7 @@ impl VeilidAPI {
         Ok(out)
     }
 
-    async fn debug_entries(&self, args: String) -> VeilidAPIResult<String> {
+    fn debug_entries(&self, args: String) -> VeilidAPIResult<String> {
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
 
         let mut min_state = BucketEntryState::Unreliable;
@@ -695,7 +698,7 @@ impl VeilidAPI {
         })
     }
 
-    async fn debug_entry(&self, args: String) -> VeilidAPIResult<String> {
+    fn debug_entry(&self, args: String) -> VeilidAPIResult<String> {
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
         let registry = self.core_context()?.registry();
 
@@ -782,7 +785,7 @@ impl VeilidAPI {
         // Dump connection table
         let connman =
             if let Some(connection_manager) = registry.network_manager().opt_connection_manager() {
-                connection_manager.debug_print().await
+                connection_manager.debug_print()
             } else {
                 "Connection manager unavailable when detached".to_owned()
             };
@@ -790,7 +793,7 @@ impl VeilidAPI {
         Ok(format!("{}\n{}\n{}\n", nodeinfo, peertable, connman))
     }
 
-    async fn debug_nodeid(&self, _args: String) -> VeilidAPIResult<String> {
+    fn debug_nodeid(&self, _args: String) -> VeilidAPIResult<String> {
         // Dump routing table entry
         let registry = self.core_context()?.registry();
         let nodeid = registry.routing_table().debug_info_nodeid();
@@ -833,15 +836,15 @@ impl VeilidAPI {
         Ok("Config value set".to_owned())
     }
 
-    async fn debug_restart(&self, args: String) -> VeilidAPIResult<String> {
+    async fn debug_network(&self, args: String) -> VeilidAPIResult<String> {
         let args = args.trim_start();
         if args.is_empty() {
-            apibail_missing_argument!("debug_restart", "arg_0");
+            apibail_missing_argument!("debug_network", "arg_0");
         }
         let (arg, _rest) = args.split_once(' ').unwrap_or((args, ""));
         // let rest = rest.trim_start().to_owned();
 
-        if arg == "network" {
+        if arg == "restart" {
             // Must be attached
             if matches!(
                 self.get_state().await?.attachment.state,
@@ -854,6 +857,11 @@ impl VeilidAPI {
             registry.network_manager().restart_network();
 
             Ok("Network restarted".to_owned())
+        } else if arg == "stats" {
+            let registry = self.core_context()?.registry();
+            let debug_stats = registry.network_manager().debug();
+
+            Ok(debug_stats)
         } else {
             apibail_invalid_argument!("debug_restart", "arg_1", arg);
         }
@@ -888,7 +896,6 @@ impl VeilidAPI {
                 if let Some(connection_manager) = &opt_connection_manager {
                     connection_manager
                         .startup()
-                        .await
                         .map_err(VeilidAPIError::internal)?;
                 }
                 Ok("Connections purged".to_owned())
@@ -942,7 +949,7 @@ impl VeilidAPI {
         Ok("Detached".to_owned())
     }
 
-    async fn debug_contact(&self, args: String) -> VeilidAPIResult<String> {
+    fn debug_contact(&self, args: String) -> VeilidAPIResult<String> {
         let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
 
         let registry = self.core_context()?.registry();
@@ -1153,7 +1160,7 @@ impl VeilidAPI {
         Ok(format!("Replied with {} bytes", data_len))
     }
 
-    async fn debug_route_allocate(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+    fn debug_route_allocate(&self, args: Vec<String>) -> VeilidAPIResult<String> {
         // [ord|*ord] [rel] [<count>] [in|out] [avoid_node_id]
 
         let registry = self.core_context()?.registry();
@@ -1212,7 +1219,7 @@ impl VeilidAPI {
 
         Ok(out)
     }
-    async fn debug_route_release(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+    fn debug_route_release(&self, args: Vec<String>) -> VeilidAPIResult<String> {
         // <route id>
         let registry = self.core_context()?.registry();
         let routing_table = registry.routing_table();
@@ -1233,7 +1240,7 @@ impl VeilidAPI {
                 self.with_debug_cache(|dc| {
                     for (n, ir) in dc.imported_routes.iter().enumerate() {
                         if *ir == route_id {
-                            dc.imported_routes.remove(n);
+                            let _ = dc.imported_routes.remove(n);
                             break;
                         }
                     }
@@ -1245,7 +1252,7 @@ impl VeilidAPI {
 
         Ok(out)
     }
-    async fn debug_route_publish(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+    fn debug_route_publish(&self, args: Vec<String>) -> VeilidAPIResult<String> {
         // <route id> [full]
         let registry = self.core_context()?.registry();
         let routing_table = registry.routing_table();
@@ -1297,7 +1304,7 @@ impl VeilidAPI {
 
         Ok(out)
     }
-    async fn debug_route_unpublish(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+    fn debug_route_unpublish(&self, args: Vec<String>) -> VeilidAPIResult<String> {
         // <route id>
         let registry = self.core_context()?.registry();
         let routing_table = registry.routing_table();
@@ -1319,7 +1326,7 @@ impl VeilidAPI {
         };
         Ok(out)
     }
-    async fn debug_route_print(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+    fn debug_route_print(&self, args: Vec<String>) -> VeilidAPIResult<String> {
         // <route id>
         let registry = self.core_context()?.registry();
         let routing_table = registry.routing_table();
@@ -1338,7 +1345,7 @@ impl VeilidAPI {
             None => Ok("Route does not exist".to_owned()),
         }
     }
-    async fn debug_route_list(&self, _args: Vec<String>) -> VeilidAPIResult<String> {
+    fn debug_route_list(&self, _args: Vec<String>) -> VeilidAPIResult<String> {
         //
         let registry = self.core_context()?.registry();
         let routing_table = registry.routing_table();
@@ -1361,7 +1368,7 @@ impl VeilidAPI {
 
         Ok(out)
     }
-    async fn debug_route_import(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+    fn debug_route_import(&self, args: Vec<String>) -> VeilidAPIResult<String> {
         // <blob>
         let registry = self.core_context()?.registry();
         let routing_table = registry.routing_table();
@@ -1420,19 +1427,19 @@ impl VeilidAPI {
         let command = get_debug_argument_at(&args, 0, "debug_route", "command", get_string)?;
 
         if command == "allocate" {
-            self.debug_route_allocate(args).await
+            self.debug_route_allocate(args)
         } else if command == "release" {
-            self.debug_route_release(args).await
+            self.debug_route_release(args)
         } else if command == "publish" {
-            self.debug_route_publish(args).await
+            self.debug_route_publish(args)
         } else if command == "unpublish" {
-            self.debug_route_unpublish(args).await
+            self.debug_route_unpublish(args)
         } else if command == "print" {
-            self.debug_route_print(args).await
+            self.debug_route_print(args)
         } else if command == "list" {
-            self.debug_route_list(args).await
+            self.debug_route_list(args)
         } else if command == "import" {
-            self.debug_route_import(args).await
+            self.debug_route_import(args)
         } else if command == "test" {
             self.debug_route_test(args).await
         } else {
@@ -1953,7 +1960,7 @@ impl VeilidAPI {
         }
     }
 
-    async fn debug_table_list(&self, _args: Vec<String>) -> VeilidAPIResult<String> {
+    fn debug_table_list(&self, _args: Vec<String>) -> VeilidAPIResult<String> {
         //
         let table_store = self.table_store()?;
         let table_names = table_store.list_all();
@@ -2012,7 +2019,7 @@ impl VeilidAPI {
         let command = get_debug_argument_at(&args, 0, "debug_table", "command", get_string)?;
 
         if command == "list" {
-            self.debug_table_list(args).await
+            self.debug_table_list(args)
         } else if command == "info" {
             self.debug_table_info(args).await
         } else {
@@ -2020,7 +2027,7 @@ impl VeilidAPI {
         }
     }
 
-    async fn debug_punish_list(&self, _args: Vec<String>) -> VeilidAPIResult<String> {
+    fn debug_punish_list(&self, _args: Vec<String>) -> VeilidAPIResult<String> {
         //
         let registry = self.core_context()?.registry();
         let network_manager = registry.network_manager();
@@ -2030,7 +2037,7 @@ impl VeilidAPI {
         Ok(out)
     }
 
-    async fn debug_punish_clear(&self, _args: Vec<String>) -> VeilidAPIResult<String> {
+    fn debug_punish_clear(&self, _args: Vec<String>) -> VeilidAPIResult<String> {
         //
         let registry = self.core_context()?.registry();
         let network_manager = registry.network_manager();
@@ -2041,23 +2048,23 @@ impl VeilidAPI {
         Ok("Address Filter punishments cleared\n".to_owned())
     }
 
-    async fn debug_punish(&self, args: String) -> VeilidAPIResult<String> {
+    fn debug_punish(&self, args: String) -> VeilidAPIResult<String> {
         let args: Vec<String> =
             shell_words::split(&args).map_err(|e| VeilidAPIError::parse_error(e, args))?;
 
         let command = get_debug_argument_at(&args, 0, "debug_punish", "command", get_string)?;
 
         if command == "list" {
-            self.debug_punish_list(args).await
+            self.debug_punish_list(args)
         } else if command == "clear" {
-            self.debug_punish_clear(args).await
+            self.debug_punish_clear(args)
         } else {
             Ok(">>> Unknown command\n".to_owned())
         }
     }
 
     /// Get the help text for 'internal debug' commands.
-    pub async fn debug_help(&self, _args: String) -> VeilidAPIResult<String> {
+    pub fn debug_help(&self, _args: String) -> VeilidAPIResult<String> {
         Ok(r#"Node Information:
     nodeid  - display a node's id(s)
     nodeinfo - display detailed information about this node
@@ -2089,9 +2096,12 @@ Utilities:
     txtrecord - Generate a TXT record for making this node into a bootstrap node capable of DNS bootstrap
     keypair [cryptokind] - Generate and display a random public/private keypair
     purge <buckets|connections|routes> - Throw away the node's routing table, connections, or routes
+
+Network:
     attach - Attach the node to the network if it is detached
     detach - Detach the node from the network if it is attached
-    restart network - Restart the low level network
+    network restart - Restart the low level network
+            stats - Print network manager statistics
 
 RPC Operations:
     ping <destination> - Send a 'Status' RPC question to a destination node and display the returned ping status
@@ -2177,67 +2187,70 @@ TableDB Operations:
             let args = args.trim_start();
             if args.is_empty() {
                 // No arguments runs help command
-                return self.debug_help("".to_owned()).await;
+                return self.debug_help("".to_owned());
             }
             let (arg, rest) = args.split_once(' ').unwrap_or((args, ""));
             let rest = rest.trim_start().to_owned();
 
             if arg == "help" {
-                self.debug_help(rest).await
+                self.debug_help(rest)
             } else if arg == "nodeid" {
-                self.debug_nodeid(rest).await
+                self.debug_nodeid(rest)
             } else if arg == "buckets" {
-                self.debug_buckets(rest).await
+                self.debug_buckets(rest)
             } else if arg == "dialinfo" {
-                self.debug_dialinfo(rest).await
+                self.debug_dialinfo(rest)
             } else if arg == "peerinfo" {
-                self.debug_peerinfo(rest).await
-            } else if arg == "txtrecord" {
-                self.debug_txtrecord(rest).await
-            } else if arg == "keypair" {
-                self.debug_keypair(rest).await
-            } else if arg == "entries" {
-                self.debug_entries(rest).await
-            } else if arg == "entry" {
-                self.debug_entry(rest).await
-            } else if arg == "relay" {
-                self.debug_relay(rest).await
-            } else if arg == "ping" {
-                self.debug_ping(rest).await
-            } else if arg == "appmessage" {
-                self.debug_app_message(rest).await
-            } else if arg == "appcall" {
-                self.debug_app_call(rest).await
-            } else if arg == "appreply" {
-                self.debug_app_reply(rest).await
-            } else if arg == "resolve" {
-                self.debug_resolve(rest).await
+                self.debug_peerinfo(rest)
             } else if arg == "contact" {
-                self.debug_contact(rest).await
-            } else if arg == "nodeinfo" {
-                self.debug_nodeinfo(rest).await
-            } else if arg == "purge" {
-                self.debug_purge(rest).await
-            } else if arg == "attach" {
-                self.debug_attach(rest).await
-            } else if arg == "detach" {
-                self.debug_detach(rest).await
-            } else if arg == "config" {
-                self.debug_config(rest).await
-            } else if arg == "restart" {
-                self.debug_restart(rest).await
-            } else if arg == "route" {
-                self.debug_route(rest).await
-            } else if arg == "record" {
-                self.debug_record(rest).await
+                self.debug_contact(rest)
+            } else if arg == "keypair" {
+                self.debug_keypair(rest)
+            } else if arg == "entries" {
+                self.debug_entries(rest)
+            } else if arg == "entry" {
+                self.debug_entry(rest)
             } else if arg == "punish" {
-                self.debug_punish(rest).await
-            } else if arg == "table" {
-                self.debug_table(rest).await
-            } else if arg == "uptime" {
-                self.debug_uptime(rest).await
+                self.debug_punish(rest)
             } else {
-                Err(VeilidAPIError::generic("Unknown debug command"))
+                let fut = if arg == "txtrecord" {
+                    pin_dyn_future!(self.debug_txtrecord(rest))
+                } else if arg == "relay" {
+                    pin_dyn_future!(self.debug_relay(rest))
+                } else if arg == "ping" {
+                    pin_dyn_future!(self.debug_ping(rest))
+                } else if arg == "appmessage" {
+                    pin_dyn_future!(self.debug_app_message(rest))
+                } else if arg == "appcall" {
+                    pin_dyn_future!(self.debug_app_call(rest))
+                } else if arg == "appreply" {
+                    pin_dyn_future!(self.debug_app_reply(rest))
+                } else if arg == "resolve" {
+                    pin_dyn_future!(self.debug_resolve(rest))
+                } else if arg == "nodeinfo" {
+                    pin_dyn_future!(self.debug_nodeinfo(rest))
+                } else if arg == "purge" {
+                    pin_dyn_future!(self.debug_purge(rest))
+                } else if arg == "attach" {
+                    pin_dyn_future!(self.debug_attach(rest))
+                } else if arg == "detach" {
+                    pin_dyn_future!(self.debug_detach(rest))
+                } else if arg == "config" {
+                    pin_dyn_future!(self.debug_config(rest))
+                } else if arg == "network" {
+                    pin_dyn_future!(self.debug_network(rest))
+                } else if arg == "route" {
+                    pin_dyn_future!(self.debug_route(rest))
+                } else if arg == "record" {
+                    pin_dyn_future!(self.debug_record(rest))
+                } else if arg == "table" {
+                    pin_dyn_future!(self.debug_table(rest))
+                } else if arg == "uptime" {
+                    pin_dyn_future!(self.debug_uptime(rest))
+                } else {
+                    return Err(VeilidAPIError::generic("Unknown debug command"));
+                };
+                fut.await
             }
         };
         res
@@ -2246,7 +2259,7 @@ TableDB Operations:
     fn get_destination(
         self,
         registry: VeilidComponentRegistry,
-    ) -> impl FnOnce(&str) -> SendPinBoxFuture<Option<Destination>> {
+    ) -> impl FnOnce(&str) -> PinBoxFutureStatic<Option<Destination>> {
         move |text| {
             let text = text.to_owned();
             Box::pin(async move {
@@ -2278,7 +2291,7 @@ TableDB Operations:
                             let prid = *dc.imported_routes.get(n)?;
                             let Some(private_route) = rss.best_remote_private_route(&prid) else {
                                 // Remove imported route
-                                dc.imported_routes.remove(n);
+                                let _ = dc.imported_routes.remove(n);
                                 veilid_log!(registry info "removed dead imported route {}", n);
                                 return None;
                             };

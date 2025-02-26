@@ -182,7 +182,7 @@ Core Debug Commands:
         let capi = self.capi();
         let ui = self.ui_sender();
         spawn_detached_local("cmd disconnect", async move {
-            capi.disconnect().await;
+            capi.disconnect();
             ui.send_callback(callback);
         });
         Ok(())
@@ -195,7 +195,7 @@ Core Debug Commands:
 
         let this = self.clone();
         spawn_detached_local("cmd connect", async move {
-            capi.disconnect().await;
+            capi.disconnect();
 
             if let Some(rest) = rest {
                 if let Ok(subnode_index) = u16::from_str(&rest) {
@@ -690,7 +690,7 @@ Core Debug Commands:
     ////////////////////////////////////////////
     pub fn start_connection(&self) {
         self.inner_mut().reconnect = true;
-        self.inner_mut().connection_waker.resolve();
+        drop(self.inner_mut().connection_waker.resolve());
     }
     // pub fn stop_connection(&self) {
     //     self.inner_mut().reconnect = false;
@@ -701,12 +701,12 @@ Core Debug Commands:
     // }
     pub fn cancel_reconnect(&self) {
         self.inner_mut().reconnect = false;
-        self.inner_mut().connection_waker.resolve();
+        drop(self.inner_mut().connection_waker.resolve());
     }
     pub fn quit(&self) {
         self.inner_mut().finished = true;
         self.inner_mut().reconnect = false;
-        self.inner_mut().connection_waker.resolve();
+        drop(self.inner_mut().connection_waker.resolve());
     }
 
     // called by ui

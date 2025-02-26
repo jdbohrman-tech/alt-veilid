@@ -4,6 +4,7 @@ use super::*;
 
 /// Valid destinations for a message sent over a routing context.
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Copy, PartialOrd, Ord)]
+#[must_use]
 pub enum Target {
     /// Node by its public key.
     NodeId(TypedKey),
@@ -25,6 +26,7 @@ pub struct RoutingContextUnlockedInner {
 /// To enable receiver privacy, you should send to a private route RouteId that you have imported, rather than directly to a NodeId.
 ///
 #[derive(Clone)]
+#[must_use]
 pub struct RoutingContext {
     /// Veilid API handle.
     api: VeilidAPI,
@@ -144,10 +146,12 @@ impl RoutingContext {
             "RoutingContext::get_destination(self: {:?}, target: {:?})", self, target);
 
         let rpc_processor = self.api.core_context()?.rpc_processor();
-        rpc_processor
-            .resolve_target_to_destination(target, self.unlocked_inner.safety_selection)
-            .await
-            .map_err(VeilidAPIError::invalid_target)
+        Box::pin(
+            rpc_processor
+                .resolve_target_to_destination(target, self.unlocked_inner.safety_selection),
+        )
+        .await
+        .map_err(VeilidAPIError::invalid_target)
     }
 
     ////////////////////////////////////////////////////////////////
@@ -172,7 +176,7 @@ impl RoutingContext {
         let dest = self.get_destination(target).await?;
 
         // Send app message
-        let answer = match rpc_processor.rpc_call_app_call(dest, message).await {
+        let answer = match Box::pin(rpc_processor.rpc_call_app_call(dest, message)).await {
             Ok(NetworkResult::Value(v)) => v,
             Ok(NetworkResult::Timeout) => apibail_timeout!(),
             Ok(NetworkResult::ServiceUnavailable(e)) => apibail_invalid_target!(e),
@@ -206,7 +210,7 @@ impl RoutingContext {
         let dest = self.get_destination(target).await?;
 
         // Send app message
-        match rpc_processor.rpc_call_app_message(dest, message).await {
+        match Box::pin(rpc_processor.rpc_call_app_message(dest, message)).await {
             Ok(NetworkResult::Value(())) => {}
             Ok(NetworkResult::Timeout) => apibail_timeout!(),
             Ok(NetworkResult::ServiceUnavailable(e)) => apibail_invalid_target!(e),
@@ -267,9 +271,13 @@ impl RoutingContext {
         Crypto::validate_crypto_kind(kind)?;
 
         let storage_manager = self.api.core_context()?.storage_manager();
-        storage_manager
-            .create_record(kind, schema, owner, self.unlocked_inner.safety_selection)
-            .await
+        Box::pin(storage_manager.create_record(
+            kind,
+            schema,
+            owner,
+            self.unlocked_inner.safety_selection,
+        ))
+        .await
     }
 
     /// Opens a DHT record at a specific key.
@@ -311,7 +319,7 @@ impl RoutingContext {
         Crypto::validate_crypto_kind(key.kind)?;
 
         let storage_manager = self.api.core_context()?.storage_manager();
-        storage_manager.close_record(key).await
+        Box::pin(storage_manager.close_record(key)).await
     }
 
     /// Deletes a DHT record at a specific key.
@@ -327,7 +335,7 @@ impl RoutingContext {
         Crypto::validate_crypto_kind(key.kind)?;
 
         let storage_manager = self.api.core_context()?.storage_manager();
-        storage_manager.delete_record(key).await
+        Box::pin(storage_manager.delete_record(key)).await
     }
 
     /// Gets the latest value of a subkey.
@@ -349,7 +357,7 @@ impl RoutingContext {
         Crypto::validate_crypto_kind(key.kind)?;
 
         let storage_manager = self.api.core_context()?.storage_manager();
-        storage_manager.get_value(key, subkey, force_refresh).await
+        Box::pin(storage_manager.get_value(key, subkey, force_refresh)).await
     }
 
     /// Pushes a changed subkey value to the network.
@@ -373,7 +381,7 @@ impl RoutingContext {
         Crypto::validate_crypto_kind(key.kind)?;
 
         let storage_manager = self.api.core_context()?.storage_manager();
-        storage_manager.set_value(key, subkey, data, writer).await
+        Box::pin(storage_manager.set_value(key, subkey, data, writer)).await
     }
 
     /// Add or update a watch to a DHT value that informs the user via an VeilidUpdate::ValueChange callback when the record has subkeys change.
@@ -410,9 +418,7 @@ impl RoutingContext {
         Crypto::validate_crypto_kind(key.kind)?;
 
         let storage_manager = self.api.core_context()?.storage_manager();
-        storage_manager
-            .watch_values(key, subkeys, expiration, count)
-            .await
+        Box::pin(storage_manager.watch_values(key, subkeys, expiration, count)).await
     }
 
     /// Cancels a watch early.
@@ -436,7 +442,7 @@ impl RoutingContext {
         Crypto::validate_crypto_kind(key.kind)?;
 
         let storage_manager = self.api.core_context()?.storage_manager();
-        storage_manager.cancel_watch_values(key, subkeys).await
+        Box::pin(storage_manager.cancel_watch_values(key, subkeys)).await
     }
 
     /// Inspects a DHT record for subkey state.
@@ -491,7 +497,7 @@ impl RoutingContext {
         Crypto::validate_crypto_kind(key.kind)?;
 
         let storage_manager = self.api.core_context()?.storage_manager();
-        storage_manager.inspect_record(key, subkeys, scope).await
+        Box::pin(storage_manager.inspect_record(key, subkeys, scope)).await
     }
 
     ///////////////////////////////////

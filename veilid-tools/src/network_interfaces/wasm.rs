@@ -8,6 +8,7 @@ impl PlatformSupportWasm {
         PlatformSupportWasm {}
     }
 
+    #[expect(clippy::unused_async)]
     pub async fn get_interfaces(
         &mut self,
         interfaces: &mut BTreeMap<String, NetworkInterface>,

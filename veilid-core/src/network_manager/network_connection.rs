@@ -17,7 +17,7 @@ cfg_if::cfg_if! {
                 stream: AsyncPeekStream,
                 peer_addr: SocketAddr,
                 local_addr: SocketAddr,
-            ) -> SendPinBoxFuture<io::Result<Option<ProtocolNetworkConnection>>>;
+            ) -> PinBoxFutureStatic<io::Result<Option<ProtocolNetworkConnection>>>;
         }
 
         pub(crate) trait ProtocolAcceptHandlerClone {
@@ -328,7 +328,7 @@ impl NetworkConnection {
         receiver: flume::Receiver<(Option<Id>, Vec<u8>)>,
         protocol_connection: ProtocolNetworkConnection,
         stats: Arc<Mutex<NetworkConnectionStats>>,
-    ) -> SendPinBoxFuture<()> {
+    ) -> PinBoxFutureStatic<()> {
         Box::pin(async move {
             let registry = connection_manager.registry();
 

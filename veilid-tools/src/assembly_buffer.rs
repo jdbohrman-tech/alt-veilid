@@ -247,6 +247,7 @@ impl AssemblyBuffer {
         }
     }
 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             inner: Arc::new(Mutex::new(Self::new_inner())),

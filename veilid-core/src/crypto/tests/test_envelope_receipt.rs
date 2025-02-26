@@ -91,7 +91,7 @@ pub async fn test_receipt_round_trip(
 
     // Should not validate even when a single bit is changed
     enc_data[5] = 0x01;
-    Receipt::from_signed_data(&crypto, &enc_data)
+    let _ = Receipt::from_signed_data(&crypto, &enc_data)
         .expect_err("should have failed to decrypt using wrong secret");
 
     // Compare receipts

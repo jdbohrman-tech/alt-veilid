@@ -221,11 +221,11 @@ pub async fn test_generation(vcrypto: &AsyncCryptoSystemGuard<'_>) {
     let pstr5 = vcrypto.hash_password(b"abc124", b"qwerasdg").await.unwrap();
     assert_ne!(pstr3, pstr5);
 
-    vcrypto
+    let _ = vcrypto
         .hash_password(b"abc123", b"qwe")
         .await
         .expect_err("should reject short salt");
-    vcrypto
+    let _ = vcrypto
         .hash_password(
             b"abc123",
             b"qwerqwerqwerqwerqwerqwerqwerqwerqwerqwerqwerqwerqwerqwerqwerqwerz",
@@ -249,11 +249,11 @@ pub async fn test_generation(vcrypto: &AsyncCryptoSystemGuard<'_>) {
     let ss5 = vcrypto.derive_shared_secret(b"abc124", b"qwerasdg").await;
     assert_ne!(ss3, ss5);
 
-    vcrypto
+    let _ = vcrypto
         .derive_shared_secret(b"abc123", b"qwe")
         .await
         .expect_err("should reject short salt");
-    vcrypto
+    let _ = vcrypto
         .derive_shared_secret(
             b"abc123",
             b"qwerqwerqwerqwerqwerqwerqwerqwerqwerqwerqwerqwerqwerqwerqwerqwerz",

@@ -13,6 +13,7 @@ impl fmt::Debug for BlockStoreInner {
 }
 
 #[derive(Debug)]
+#[must_use]
 pub struct BlockStore {
     registry: VeilidComponentRegistry,
     inner: Mutex<BlockStoreInner>,
@@ -31,12 +32,19 @@ impl BlockStore {
         }
     }
 
+    #[instrument(level = "debug", skip(self))]
     async fn init_async(&self) -> EyreResult<()> {
-        // Ensure permissions are correct
-        // ensure_file_private_owner(&dbpath)?;
-
         Ok(())
     }
 
+    #[instrument(level = "debug", skip(self), err)]
+    async fn post_init_async(&self) -> EyreResult<()> {
+        Ok(())
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    async fn pre_terminate_async(&self) {}
+
+    #[instrument(level = "debug", skip(self))]
     async fn terminate_async(&self) {}
 }

@@ -1,5 +1,4 @@
 use super::*;
-use futures_util::FutureExt;
 
 pub fn to_json_api_result<T: Clone + fmt::Debug + JsonSchema>(
     r: VeilidAPIResult<T>,
@@ -37,6 +36,7 @@ pub fn to_json_api_result_with_opt_vec_string<T: Clone + fmt::Debug>(
     }
 }
 
+#[must_use]
 pub fn to_json_api_result_with_vec_u8(r: VeilidAPIResult<Vec<u8>>) -> json_api::ApiResultWithVecU8 {
     match r {
         Err(e) => json_api::ApiResultWithVecU8::Err { error: e },
@@ -44,6 +44,7 @@ pub fn to_json_api_result_with_vec_u8(r: VeilidAPIResult<Vec<u8>>) -> json_api::
     }
 }
 
+#[must_use]
 pub fn to_json_api_result_with_vec_vec_u8(
     r: VeilidAPIResult<Vec<Vec<u8>>>,
 ) -> json_api::ApiResultWithVecVecU8 {
@@ -69,6 +70,7 @@ pub struct JsonRequestProcessor {
 }
 
 impl JsonRequestProcessor {
+    #[must_use]
     pub fn new(api: VeilidAPI) -> Self {
         Self {
             api,
@@ -212,7 +214,7 @@ impl JsonRequestProcessor {
     // Target
 
     // Parse target
-    async fn parse_target(&self, s: String) -> VeilidAPIResult<Target> {
+    fn parse_target(&self, s: String) -> VeilidAPIResult<Target> {
         // Is this a route id?
         if let Ok(rrid) = RouteId::from_str(&s) {
             let routing_table = self.api.core_context()?.routing_table();
@@ -277,18 +279,24 @@ impl JsonRequestProcessor {
             RoutingContextRequestOp::AppCall { target, message } => {
                 RoutingContextResponseOp::AppCall {
                     result: to_json_api_result_with_vec_u8(
-                        self.parse_target(target)
-                            .then(|tr| async { routing_context.app_call(tr?, message).await })
-                            .await,
+                        async {
+                            routing_context
+                                .app_call(self.parse_target(target)?, message)
+                                .await
+                        }
+                        .await,
                     ),
                 }
             }
             RoutingContextRequestOp::AppMessage { target, message } => {
                 RoutingContextResponseOp::AppMessage {
                     result: to_json_api_result(
-                        self.parse_target(target)
-                            .then(|tr| async { routing_context.app_message(tr?, message).await })
-                            .await,
+                        async {
+                            routing_context
+                                .app_message(self.parse_target(target)?, message)
+                                .await
+                        }
+                        .await,
                     ),
                 }
             }

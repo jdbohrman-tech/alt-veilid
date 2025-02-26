@@ -1,7 +1,4 @@
 #![forbid(unsafe_code)]
-#![deny(clippy::all)]
-#![allow(clippy::comparison_chain, clippy::upper_case_acronyms)]
-#![deny(unused_must_use)]
 #![recursion_limit = "256"]
 
 #[cfg(all(feature = "rt-async-std", windows))]
@@ -445,7 +442,7 @@ fn main() -> EyreResult<()> {
             run_veilid_server(settings, server_mode, veilid_logs).await
         })
         .inspect(|_v| {
-            println!("{}", success);
+            println!("{success}");
         })
         .inspect_err(|_e| {
             println!("{}", failure);

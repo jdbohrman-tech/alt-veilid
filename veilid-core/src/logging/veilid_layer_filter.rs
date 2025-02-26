@@ -11,6 +11,7 @@ struct VeilidLayerFilterInner {
 }
 
 #[derive(Clone)]
+#[must_use]
 pub struct VeilidLayerFilter {
     inner: Arc<RwLock<VeilidLayerFilterInner>>,
 }
@@ -19,6 +20,7 @@ pub const VEILID_LOG_KEY_FIELD: &str = "__VEILID_LOG_KEY";
 pub type VeilidLayerLogKeyFilter = Arc<dyn Fn(&str) -> bool + Send + Sync>;
 
 impl VeilidLayerFilter {
+    #[must_use]
     pub fn make_veilid_log_key(program_name: &str, namespace: &str) -> &'static str {
         if namespace.is_empty() {
             program_name.to_static_str()
@@ -66,6 +68,7 @@ impl VeilidLayerFilter {
         VeilidConfigLogLevel::from_tracing_level_filter(inner.max_level)
     }
 
+    #[must_use]
     pub fn ignore_list(&self) -> Vec<String> {
         let inner = self.inner.read();
         inner.ignore_list.clone()
@@ -113,6 +116,7 @@ impl VeilidLayerFilter {
         true
     }
 
+    #[must_use]
     pub fn apply_ignore_change(ignore_list: &[String], target_change: String) -> Vec<String> {
         let mut ignore_list = ignore_list.to_vec();
         let target_change = target_change

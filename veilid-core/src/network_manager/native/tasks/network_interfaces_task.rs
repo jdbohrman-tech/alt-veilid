@@ -11,9 +11,9 @@ impl Network {
         // Network lock ensures only one task operating on the low level network state
         // can happen at the same time. Try lock is here to give preference to other longer
         // running processes like update_network_class_task.
-        let _guard = match self.network_task_lock.try_lock() {
-            Ok(v) => v,
-            Err(_) => {
+        let _guard = match asyncmutex_try_lock!(self.network_task_lock) {
+            Some(v) => v,
+            None => {
                 // If we can't get the lock right now, then
                 return Ok(());
             }

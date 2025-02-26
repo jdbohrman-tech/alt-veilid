@@ -62,25 +62,25 @@ wFAbkZY9eS/x6P7qrpd7dUA=
 cfg_if! {
 
     if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
-        pub fn get_table_store_path() -> String {
+        #[must_use]pub fn get_table_store_path() -> String {
             String::new()
         }
-        pub fn get_block_store_path() -> String {
+        #[must_use]pub fn get_block_store_path() -> String {
             String::new()
         }
-        pub fn get_protected_store_path() -> String {
+        #[must_use]pub fn get_protected_store_path() -> String {
             String::new()
         }
-        pub fn get_certfile_path() -> String {
+        #[must_use]pub fn get_certfile_path() -> String {
             String::new()
         }
-        pub fn get_keyfile_path() -> String {
+        #[must_use]pub fn get_keyfile_path() -> String {
             String::new()
         }
     }
     else {
 
-        fn get_data_dir() -> PathBuf {
+        #[must_use] fn get_data_dir() -> PathBuf {
             cfg_if! {
                 if #[cfg(target_os = "android")] {
                     PathBuf::from(crate::intf::android::get_files_dir())
@@ -96,7 +96,7 @@ cfg_if! {
             }
         }
 
-        pub fn get_table_store_path() -> String {
+        #[must_use] pub fn get_table_store_path() -> String {
             let mut out = get_data_dir();
             std::fs::create_dir_all(&out).unwrap();
 
@@ -105,7 +105,7 @@ cfg_if! {
             out.into_os_string().into_string().unwrap()
         }
 
-        pub fn get_block_store_path() -> String {
+        #[must_use] pub fn get_block_store_path() -> String {
             let mut out = get_data_dir();
             std::fs::create_dir_all(&out).unwrap();
 
@@ -114,7 +114,7 @@ cfg_if! {
             out.into_os_string().into_string().unwrap()
         }
 
-        pub fn get_protected_store_path() -> String {
+        #[must_use]        pub fn get_protected_store_path() -> String {
             let mut out = get_data_dir();
             std::fs::create_dir_all(&out).unwrap();
 
@@ -123,7 +123,7 @@ cfg_if! {
             out.into_os_string().into_string().unwrap()
         }
 
-        pub fn get_certfile_path() -> String {
+        #[must_use]pub fn get_certfile_path() -> String {
             let mut out = get_data_dir();
             std::fs::create_dir_all(&out).unwrap();
 
@@ -137,7 +137,7 @@ cfg_if! {
             out.into_os_string().into_string().unwrap()
         }
 
-        pub fn get_keyfile_path() -> String {
+        #[must_use]pub fn get_keyfile_path() -> String {
             let mut out = get_data_dir();
             std::fs::create_dir_all(&out).unwrap();
 
@@ -307,7 +307,7 @@ pub fn get_config() -> VeilidConfig {
     }
 }
 
-pub async fn test_config() {
+pub fn test_config() {
     let vc = get_config();
 
     let inner = vc.get();
@@ -426,6 +426,7 @@ pub async fn test_config() {
     assert_eq!(inner.network.virtual_network.server_address, "");
 }
 
+#[expect(clippy::unused_async)]
 pub async fn test_all() {
-    test_config().await;
+    test_config();
 }

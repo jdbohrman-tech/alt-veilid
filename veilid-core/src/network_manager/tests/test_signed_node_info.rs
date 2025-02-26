@@ -54,7 +54,7 @@ pub async fn test_signed_node_info() {
             sni.timestamp(),
             sni.signatures().to_vec(),
         );
-        sdni.validate(&tks1, &crypto).unwrap_err();
+        let _ = sdni.validate(&tks1, &crypto).unwrap_err();
 
         // Test unsupported cryptosystem validation
         let fake_crypto_kind: CryptoKind = FourCC::from([0, 1, 2, 3]);
@@ -119,7 +119,7 @@ pub async fn test_signed_node_info() {
             sni2.timestamp(),
             sni2.signatures().to_vec(),
         );
-        srni.validate(&tks3, &crypto).unwrap_err();
+        assert_err!(srni.validate(&tks3, &crypto));
 
         // Test unsupported cryptosystem validation
         let fake_crypto_kind: CryptoKind = FourCC::from([0, 1, 2, 3]);

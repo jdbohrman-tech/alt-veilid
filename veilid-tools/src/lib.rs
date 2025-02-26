@@ -20,9 +20,6 @@
 //! * `rt-async-std` - Uses `async-std` as the async runtime
 //! * `rt-wasm-bindgen` - When building for the `wasm32` architecture, use this to enable `wasm-bindgen-futures` as the async runtime
 //!
-#![deny(clippy::all)]
-#![allow(clippy::comparison_chain, clippy::upper_case_acronyms)]
-#![deny(unused_must_use)]
 
 pub mod assembly_buffer;
 pub mod async_peek_stream;
@@ -44,6 +41,7 @@ pub mod must_join_single_future;
 pub mod mutable_future;
 pub mod network_interfaces;
 pub mod network_result;
+pub mod pin;
 pub mod random;
 pub mod single_shot_eventual;
 pub mod sleep;
@@ -62,12 +60,6 @@ pub mod tools;
 pub mod virtual_network;
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 pub mod wasm;
-
-pub type PinBox<T> = Pin<Box<T>>;
-pub type PinBoxFuture<T> = PinBox<dyn Future<Output = T> + 'static>;
-pub type PinBoxFutureLifetime<'a, T> = PinBox<dyn Future<Output = T> + 'a>;
-pub type SendPinBoxFuture<T> = PinBox<dyn Future<Output = T> + Send + 'static>;
-pub type SendPinBoxFutureLifetime<'a, T> = PinBox<dyn Future<Output = T> + Send + 'a>;
 
 #[doc(no_inline)]
 pub use std::borrow::{Cow, ToOwned};
@@ -215,6 +207,8 @@ pub use mutable_future::*;
 pub use network_interfaces::*;
 #[doc(inline)]
 pub use network_result::*;
+#[doc(inline)]
+pub use pin::*;
 #[doc(inline)]
 pub use random::*;
 #[doc(inline)]

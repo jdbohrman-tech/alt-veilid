@@ -279,6 +279,7 @@ async fn nonblocking_connect(
     }
 }
 
+#[must_use]
 pub fn domain_for_address(address: SocketAddr) -> core::ffi::c_int {
     socket2::Domain::for_address(address).into()
 }

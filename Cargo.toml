@@ -61,3 +61,19 @@ debug-assertions = false
 [profile.dev.package.chacha20]
 opt-level = 3
 debug-assertions = false
+
+[workspace.lints.clippy]
+all = { level = "deny", priority = -1 }
+must_use_candidate = "deny"
+large_futures = "deny"
+large_stack_arrays = "deny"
+large_stack_frames = "deny"
+large_types_passed_by_value = "deny"
+unused_async = "deny"
+ptr_cast_constness = "deny"
+comparison_chain = "allow"
+upper_case_acronyms = "allow"
+
+[workspace.lints.rust]
+unused_must_use = "deny"
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tokio_unstable)'] }

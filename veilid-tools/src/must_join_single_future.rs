@@ -35,6 +35,7 @@ impl<T> MustJoinSingleFuture<T>
 where
     T: 'static,
 {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             inner: Arc::new(Mutex::new(MustJoinSingleFutureInner {

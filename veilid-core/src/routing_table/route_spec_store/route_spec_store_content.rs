@@ -75,7 +75,7 @@ impl RouteSpecStoreContent {
     pub fn remove_detail(&mut self, id: &RouteId) -> Option<RouteSetSpecDetail> {
         let detail = self.details.remove(id)?;
         for (pk, _) in detail.iter_route_set() {
-            self.id_by_key.remove(pk).unwrap();
+            let _ = self.id_by_key.remove(pk).unwrap();
         }
         Some(detail)
     }

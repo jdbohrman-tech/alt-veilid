@@ -32,6 +32,7 @@ pub type ConfigCallback = Arc<dyn Fn(String) -> ConfigCallbackReturn + Send + Sy
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
+#[must_use]
 pub struct VeilidConfigHTTPS {
     pub enabled: bool,
     pub listen_address: String,
@@ -63,6 +64,7 @@ impl Default for VeilidConfigHTTPS {
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
+#[must_use]
 pub struct VeilidConfigHTTP {
     pub enabled: bool,
     pub listen_address: String,
@@ -90,6 +92,7 @@ impl Default for VeilidConfigHTTP {
 ///
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
+#[must_use]
 pub struct VeilidConfigApplication {
     pub https: VeilidConfigHTTPS,
     pub http: VeilidConfigHTTP,
@@ -107,6 +110,7 @@ pub struct VeilidConfigApplication {
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
+#[must_use]
 pub struct VeilidConfigUDP {
     pub enabled: bool,
     pub socket_pool_size: u32,
@@ -145,6 +149,7 @@ impl Default for VeilidConfigUDP {
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
+#[must_use]
 pub struct VeilidConfigTCP {
     pub connect: bool,
     pub listen: bool,
@@ -188,6 +193,7 @@ impl Default for VeilidConfigTCP {
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
+#[must_use]
 pub struct VeilidConfigWS {
     pub connect: bool,
     pub listen: bool,
@@ -233,6 +239,7 @@ impl Default for VeilidConfigWS {
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
+#[must_use]
 pub struct VeilidConfigWSS {
     pub connect: bool,
     pub listen: bool,
@@ -265,6 +272,7 @@ impl Default for VeilidConfigWSS {
 ///
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
+#[must_use]
 pub struct VeilidConfigProtocol {
     pub udp: VeilidConfigUDP,
     pub tcp: VeilidConfigTCP,
@@ -281,6 +289,7 @@ pub struct VeilidConfigProtocol {
 #[cfg(feature = "geolocation")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[must_use]
 pub struct VeilidConfigPrivacy {
     pub country_code_denylist: Vec<CountryCode>,
 }
@@ -304,6 +313,7 @@ impl Default for VeilidConfigPrivacy {
 #[cfg(feature = "virtual-network")]
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[must_use]
 pub struct VeilidConfigVirtualNetwork {
     pub enabled: bool,
     pub server_address: String,
@@ -319,6 +329,7 @@ pub struct VeilidConfigVirtualNetwork {
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
+#[must_use]
 pub struct VeilidConfigTLS {
     pub certificate_path: String,
     pub private_key_path: String,
@@ -339,6 +350,7 @@ impl Default for VeilidConfigTLS {
     all(target_arch = "wasm32", target_os = "unknown"),
     allow(unused_variables)
 )]
+#[must_use]
 pub fn get_default_ssl_directory(
     program_name: &str,
     organization: &str,
@@ -365,6 +377,7 @@ pub fn get_default_ssl_directory(
 /// for correct DHT operations.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
+#[must_use]
 pub struct VeilidConfigDHT {
     pub max_find_node_count: u32,
     pub resolve_node_timeout_ms: u32,
@@ -449,6 +462,7 @@ impl Default for VeilidConfigDHT {
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
+#[must_use]
 pub struct VeilidConfigRPC {
     pub concurrency: u32,
     pub queue_size: u32,
@@ -479,6 +493,7 @@ impl Default for VeilidConfigRPC {
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
+#[must_use]
 pub struct VeilidConfigRoutingTable {
     #[schemars(with = "Vec<String>")]
     pub node_id: TypedKeyGroup,
@@ -519,6 +534,7 @@ impl Default for VeilidConfigRoutingTable {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
+#[must_use]
 pub struct VeilidConfigNetwork {
     pub connection_initial_timeout_ms: u32,
     pub connection_inactivity_timeout_ms: u32,
@@ -578,6 +594,7 @@ impl Default for VeilidConfigNetwork {
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
+#[must_use]
 pub struct VeilidConfigTableStore {
     pub directory: String,
     pub delete: bool,
@@ -587,6 +604,7 @@ pub struct VeilidConfigTableStore {
     all(target_arch = "wasm32", target_os = "unknown"),
     allow(unused_variables)
 )]
+#[must_use]
 fn get_default_store_path(
     program_name: &str,
     organization: &str,
@@ -610,6 +628,7 @@ fn get_default_store_path(
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
+#[must_use]
 pub struct VeilidConfigBlockStore {
     pub directory: String,
     pub delete: bool,
@@ -626,6 +645,7 @@ impl Default for VeilidConfigBlockStore {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
+#[must_use]
 pub struct VeilidConfigProtectedStore {
     pub allow_insecure_fallback: bool,
     pub always_use_insecure_storage: bool,
@@ -651,6 +671,7 @@ impl Default for VeilidConfigProtectedStore {
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
+#[must_use]
 pub struct VeilidConfigCapabilities {
     pub disable: Vec<FourCC>,
 }
@@ -661,6 +682,7 @@ pub struct VeilidConfigCapabilities {
     all(target_arch = "wasm32", target_os = "unknown"),
     tsify(namespace, from_wasm_abi)
 )]
+#[must_use]
 pub enum VeilidConfigLogLevel {
     Off,
     Error,
@@ -671,6 +693,7 @@ pub enum VeilidConfigLogLevel {
 }
 
 impl VeilidConfigLogLevel {
+    #[must_use]
     pub fn to_veilid_log_level(&self) -> Option<VeilidLogLevel> {
         match self {
             Self::Off => None,
@@ -681,6 +704,7 @@ impl VeilidConfigLogLevel {
             Self::Trace => Some(VeilidLogLevel::Trace),
         }
     }
+    #[must_use]
     pub fn to_tracing_level_filter(&self) -> level_filters::LevelFilter {
         match self {
             Self::Off => level_filters::LevelFilter::OFF,
@@ -750,6 +774,7 @@ impl fmt::Display for VeilidConfigLogLevel {
 /// Top level of the Veilid configuration tree
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
+#[must_use]
 pub struct VeilidConfigInner {
     /// An identifier used to describe the program using veilid-core.
     /// Used to partition storage locations in places like the ProtectedStore.
@@ -857,6 +882,7 @@ impl VeilidConfigInner {
 
 /// The configuration built for each Veilid node during API startup
 #[derive(Clone)]
+#[must_use]
 pub struct VeilidConfig {
     update_cb: UpdateCallback,
     inner: Arc<RwLock<VeilidConfigInner>>,
@@ -879,6 +905,25 @@ impl VeilidConfig {
         }
     }
 
+    fn get_config_key<T: 'static>(
+        inner_field: &mut T,
+        keyname: &str,
+        cb: ConfigCallback,
+    ) -> VeilidAPIResult<()> {
+        let v = cb(keyname.to_owned())?;
+        *inner_field = match v.downcast() {
+            Ok(v) => *v,
+            Err(e) => {
+                apibail_generic!(format!(
+                    "incorrect type for key {}: {:?}",
+                    keyname,
+                    type_name_of_val(&*e)
+                ))
+            }
+        };
+        Ok(())
+    }
+
     pub(crate) fn new_from_callback(
         cb: ConfigCallback,
         update_cb: UpdateCallback,
@@ -888,18 +933,7 @@ impl VeilidConfig {
         // Simple config transformation
         macro_rules! get_config {
             ($key:expr) => {
-                let keyname = &stringify!($key)[6..];
-                let v = cb(keyname.to_owned())?;
-                $key = match v.downcast() {
-                    Ok(v) => *v,
-                    Err(e) => {
-                        apibail_generic!(format!(
-                            "incorrect type for key {}: {:?}",
-                            keyname,
-                            type_name_of_val(&*e)
-                        ))
-                    }
-                };
+                Self::get_config_key(&mut $key, &stringify!($key)[6..], cb.clone())?;
             };
         }
 
@@ -1019,6 +1053,7 @@ impl VeilidConfig {
         })
     }
 
+    #[must_use]
     pub fn update_callback(&self) -> UpdateCallback {
         self.update_cb.clone()
     }
@@ -1298,6 +1333,7 @@ impl VeilidConfig {
 }
 
 /// Return the default veilid config as a json object.
+#[must_use]
 pub fn default_veilid_config() -> String {
     serialize_json(VeilidConfigInner::default())
 }

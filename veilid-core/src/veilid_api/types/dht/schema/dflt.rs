@@ -8,6 +8,7 @@ use crate::storage_manager::{MAX_RECORD_DATA_SIZE, MAX_SUBKEY_SIZE};
     derive(Tsify),
     tsify(from_wasm_abi)
 )]
+#[must_use]
 pub struct DHTSchemaDFLT {
     /// Owner subkey count
     o_cnt: u16,
@@ -33,11 +34,13 @@ impl DHTSchemaDFLT {
     }
 
     /// Get the owner subkey count
+    #[must_use]
     pub fn o_cnt(&self) -> u16 {
         self.o_cnt
     }
 
     /// Build the data representation of the schema
+    #[must_use]
     pub fn compile(&self) -> Vec<u8> {
         let mut out = Vec::<u8>::with_capacity(Self::FIXED_SIZE);
         // kind
@@ -48,15 +51,18 @@ impl DHTSchemaDFLT {
     }
 
     /// Get the maximum subkey this schema allocates
+    #[must_use]
     pub fn max_subkey(&self) -> ValueSubkey {
         self.o_cnt as ValueSubkey - 1
     }
     /// Get the data size of this schema beyond the size of the structure itself
+    #[must_use]
     pub fn data_size(&self) -> usize {
         0
     }
 
     /// Check a subkey value data against the schema
+    #[must_use]
     pub fn check_subkey_value_data(
         &self,
         owner: &PublicKey,
@@ -90,6 +96,7 @@ impl DHTSchemaDFLT {
     }
 
     /// Check if a key is a schema member
+    #[must_use]
     pub fn is_member(&self, _key: &PublicKey) -> bool {
         false
     }

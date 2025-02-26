@@ -22,9 +22,6 @@
 //! * `default-wasm` - When building for the `wasm32` architecture, use this to enable `wasm-bindgen-futures` as the async runtime.
 //!
 
-#![deny(clippy::all)]
-#![allow(clippy::comparison_chain, clippy::upper_case_acronyms)]
-#![deny(unused_must_use)]
 #![recursion_limit = "256"]
 
 cfg_if::cfg_if! {
@@ -73,6 +70,16 @@ pub use veilid_tools as tools;
 
 /// The on-the-wire serialization format for Veilid RPC.
 pub mod veilid_capnp {
+    #![allow(
+        clippy::all,
+        clippy::must_use_candidate,
+        clippy::large_futures,
+        clippy::large_stack_arrays,
+        clippy::large_stack_frames,
+        clippy::large_types_passed_by_value,
+        clippy::unused_async,
+        clippy::ptr_cast_constness
+    )]
     include!("../proto/veilid_capnp.rs");
 }
 
@@ -80,11 +87,13 @@ pub mod veilid_capnp {
 pub mod tests;
 
 /// Return the cargo package version of veilid-core in string format.
+#[must_use]
 pub fn veilid_version_string() -> String {
     env!("CARGO_PKG_VERSION").to_owned()
 }
 
 /// Return the cargo package version of veilid-core in tuple format.
+#[must_use]
 pub fn veilid_version() -> (u32, u32, u32) {
     (
         u32::from_str(env!("CARGO_PKG_VERSION_MAJOR")).unwrap(),

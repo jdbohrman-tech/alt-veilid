@@ -1,6 +1,7 @@
 use super::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[must_use]
 pub struct CryptoTyped<K>
 where
     K: Clone

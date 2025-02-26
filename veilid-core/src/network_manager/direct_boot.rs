@@ -17,11 +17,8 @@ impl NetworkManager {
         let json_bytes = serialize_json(bootstrap_peerinfo).as_bytes().to_vec();
 
         // Reply with a chunk of signed routing table
-        match self
-            .net()
-            .send_data_to_existing_flow(flow, json_bytes)
-            .await?
-        {
+        let net = self.net();
+        match pin_future_closure!(net.send_data_to_existing_flow(flow, json_bytes)).await? {
             SendDataToExistingFlowResult::Sent(_) => {
                 // Bootstrap reply was sent
                 Ok(NetworkResult::value(()))

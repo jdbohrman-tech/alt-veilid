@@ -106,6 +106,7 @@ pub struct IpcListener {
 
 impl IpcListener {
     /// Creates a new `IpcListener` bound to the specified path.
+    #[expect(clippy::unused_async)]
     pub async fn bind<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         Ok(Self {
             path: Some(path.as_ref().to_path_buf()),
@@ -114,7 +115,8 @@ impl IpcListener {
     }
 
     /// Accepts a new incoming connection to this listener.
-    pub fn accept(&self) -> SendPinBoxFuture<io::Result<IpcStream>> {
+    #[must_use]
+    pub fn accept(&self) -> PinBoxFutureStatic<io::Result<IpcStream>> {
         if self.path.is_none() {
             return Box::pin(std::future::ready(Err(io::Error::from(
                 io::ErrorKind::NotConnected,

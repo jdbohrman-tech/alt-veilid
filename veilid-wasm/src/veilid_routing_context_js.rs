@@ -193,6 +193,7 @@ impl VeilidRoutingContext {
     /// DHT Records
 
     /// Deterministicly builds the record key for a given schema and owner public key
+    #[allow(clippy::unused_async)]
     pub async fn getDhtRecordKey(
         &self,
         schema: DHTSchema,

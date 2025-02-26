@@ -57,6 +57,7 @@ pub fn get_wasm_global_string_value<K: AsRef<str>>(key: K) -> Option<String> {
 #[error("JsValue error")]
 pub struct JsValueError(String);
 
+#[must_use]
 pub fn map_jsvalue_error(x: JsValue) -> JsValueError {
     JsValueError(x.as_string().unwrap_or_default())
 }
@@ -92,6 +93,7 @@ pub fn get_concurrency() -> u32 {
     res
 }
 
+#[must_use]
 pub fn ws_err_to_io_error(err: WsErr) -> io::Error {
     match err {
         WsErr::InvalidWsState { supplied: _ } => {

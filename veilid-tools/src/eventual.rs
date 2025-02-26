@@ -41,6 +41,7 @@ impl Default for Eventual {
 }
 
 impl Eventual {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             inner: Arc::new(Mutex::new(EventualBaseInner::new())),
@@ -57,6 +58,7 @@ impl Eventual {
             eventual: self.clone(),
         }
     }
+    #[must_use]
     pub fn instance_none<T>(&self) -> EventualFutureNone<T>
     where
         T: Unpin,
@@ -67,6 +69,7 @@ impl Eventual {
             _marker: core::marker::PhantomData {},
         }
     }
+    #[must_use]
     pub fn instance_empty(&self) -> EventualFutureEmpty {
         EventualFutureEmpty {
             id: None,
@@ -74,6 +77,7 @@ impl Eventual {
         }
     }
 
+    #[must_use]
     pub fn resolve(&self) -> EventualResolvedFuture<Self> {
         self.resolve_to_value(())
     }

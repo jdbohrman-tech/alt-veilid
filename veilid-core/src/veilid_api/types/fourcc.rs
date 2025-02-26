@@ -6,6 +6,7 @@ use super::*;
 )]
 #[serde(try_from = "String")]
 #[serde(into = "String")]
+#[must_use]
 pub struct FourCC(pub [u8; 4]);
 
 impl From<[u8; 4]> for FourCC {

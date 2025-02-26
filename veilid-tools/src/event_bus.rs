@@ -7,7 +7,7 @@ use stop_token::future::FutureExt as _;
 use std::any::{Any, TypeId};
 
 type AnyEventHandler =
-    Arc<dyn Fn(Arc<dyn Any + Send + Sync>) -> SendPinBoxFuture<()> + Send + Sync>;
+    Arc<dyn Fn(Arc<dyn Any + Send + Sync>) -> PinBoxFutureStatic<()> + Send + Sync>;
 type SubscriptionId = u64;
 
 #[derive(Debug)]
@@ -78,6 +78,7 @@ impl EventBus {
     // Public interface
 
     /// Create a new EventBus
+    #[must_use]
     pub fn new() -> Self {
         let (tx, rx) = flume::unbounded();
         Self {
@@ -91,7 +92,7 @@ impl EventBus {
     }
 
     /// Start up the EventBus background processor
-    pub async fn startup(&self) -> Result<(), StartupLockAlreadyStartedError> {
+    pub fn startup(&self) -> Result<(), StartupLockAlreadyStartedError> {
         let guard = self.unlocked_inner.startup_lock.startup()?;
         {
             let mut inner = self.inner.lock();
@@ -152,7 +153,7 @@ impl EventBus {
     /// Returns an subscription object that can be used to cancel this specific subscription if desired
     pub fn subscribe<
         E: Any + Send + Sync + 'static,
-        F: Fn(Arc<E>) -> SendPinBoxFuture<()> + Send + Sync + 'static,
+        F: Fn(Arc<E>) -> PinBoxFutureStatic<()> + Send + Sync + 'static,
     >(
         &self,
         handler: F,
@@ -194,11 +195,13 @@ impl EventBus {
     }
 
     /// Returns the number of unprocessed events remaining
+    #[must_use]
     pub fn len(&self) -> usize {
         self.unlocked_inner.rx.len()
     }
 
     /// Checks if the bus has no events
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.unlocked_inner.rx.is_empty()
     }

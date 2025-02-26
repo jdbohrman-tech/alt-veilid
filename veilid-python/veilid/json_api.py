@@ -243,7 +243,6 @@ class _JsonVeilidAPI(VeilidAPI):
         try:
             reqfuture = self.in_flight_requests.pop(id, None)
             if reqfuture is not None:
-                print("ass")
                 reqfuture.cancel()
         finally:
             self.lock.release()
@@ -277,7 +276,7 @@ class _JsonVeilidAPI(VeilidAPI):
             writer = self.writer
 
             if self.writer is None:
-                return
+                raise AssertionError("Don't send requests on a closed VeilidAPI object")
         finally:
             self.lock.release()
 

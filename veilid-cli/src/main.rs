@@ -1,6 +1,3 @@
-#![deny(clippy::all)]
-#![allow(clippy::comparison_chain, clippy::upper_case_acronyms)]
-#![deny(unused_must_use)]
 #![recursion_limit = "256"]
 
 use crate::{tools::*, ui::*};
@@ -290,7 +287,7 @@ fn main() -> Result<(), String> {
 
             // When UI quits, close connection and command processor cleanly
             comproc2.quit();
-            capi.disconnect().await;
+            capi.disconnect();
         };
 
         cfg_if! {

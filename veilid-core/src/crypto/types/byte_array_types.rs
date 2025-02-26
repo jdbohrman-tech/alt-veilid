@@ -83,6 +83,7 @@ macro_rules! byte_array_type {
             derive(Tsify),
             tsify(into_wasm_abi)
         )]
+        #[must_use]
         pub struct $name {
             pub bytes: [u8; $size],
         }
@@ -124,6 +125,7 @@ macro_rules! byte_array_type {
             }
 
             // Big endian bit ordering
+            #[must_use]
             pub fn bit(&self, index: usize) -> bool {
                 assert!(index < ($size * 8));
                 let bi = index / 8;
@@ -131,6 +133,7 @@ macro_rules! byte_array_type {
                 ((self.bytes[bi] >> ti) & 1) != 0
             }
 
+            #[must_use]
             pub fn first_nonzero_bit(&self) -> Option<usize> {
                 for i in 0..$size {
                     let b = self.bytes[i];
@@ -147,6 +150,7 @@ macro_rules! byte_array_type {
             }
 
             // Big endian nibble ordering
+            #[must_use]
             pub fn nibble(&self, index: usize) -> u8 {
                 assert!(index < ($size * 2));
                 let bi = index / 2;
@@ -157,6 +161,7 @@ macro_rules! byte_array_type {
                 }
             }
 
+            #[must_use]
             pub fn first_nonzero_nibble(&self) -> Option<(usize, u8)> {
                 for i in 0..($size * 2) {
                     let n = self.nibble(i);

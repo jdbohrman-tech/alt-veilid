@@ -131,7 +131,7 @@ impl ConnectionManager {
         self.arc.connection_inactivity_timeout_ms
     }
 
-    pub async fn startup(&self) -> EyreResult<()> {
+    pub fn startup(&self) -> EyreResult<()> {
         let guard = self.arc.startup_lock.startup()?;
 
         veilid_log!(self debug "startup connection manager");
@@ -158,7 +158,7 @@ impl ConnectionManager {
         }
 
         // Spawn the reconnection processor
-        self.arc.reconnection_processor.init().await;
+        self.arc.reconnection_processor.init();
 
         guard.success();
 
@@ -696,7 +696,7 @@ impl ConnectionManager {
         );
     }
 
-    pub async fn debug_print(&self) -> String {
+    pub fn debug_print(&self) -> String {
         //let inner = self.arc.inner.lock();
         format!(
             "Connection Table:\n\n{}",

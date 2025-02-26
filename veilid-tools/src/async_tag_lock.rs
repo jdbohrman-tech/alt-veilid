@@ -83,6 +83,7 @@ impl<T> AsyncTagLockTable<T>
 where
     T: Hash + Eq + Clone + Debug,
 {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             inner: Arc::new(Mutex::new(AsyncTagLockTableInner {
@@ -91,11 +92,13 @@ where
         }
     }
 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         let inner = self.inner.lock();
         inner.table.is_empty()
     }
 
+    #[must_use]
     pub fn len(&self) -> usize {
         let inner = self.inner.lock();
         inner.table.len()

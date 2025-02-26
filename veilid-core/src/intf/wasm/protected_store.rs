@@ -6,6 +6,7 @@ use web_sys::*;
 impl_veilid_log_facility!("pstore");
 
 #[derive(Debug)]
+#[must_use]
 pub struct ProtectedStore {
     registry: VeilidComponentRegistry,
 }
@@ -18,9 +19,9 @@ impl ProtectedStore {
     }
 
     #[instrument(level = "trace", skip(self), err)]
-    pub async fn delete_all(&self) -> EyreResult<()> {
+    pub fn delete_all(&self) -> EyreResult<()> {
         for kpsk in &KNOWN_PROTECTED_STORE_KEYS {
-            if let Err(e) = self.remove_user_secret(kpsk).await {
+            if let Err(e) = self.remove_user_secret(kpsk) {
                 error!("failed to delete '{}': {}", kpsk, e);
             } else {
                 veilid_log!(self debug "deleted table '{}'", kpsk);
@@ -30,20 +31,20 @@ impl ProtectedStore {
     }
 
     #[instrument(level = "debug", skip(self), err)]
-    pub(crate) async fn init_async(&self) -> EyreResult<()> {
+    async fn init_async(&self) -> EyreResult<()> {
         Ok(())
     }
 
     #[instrument(level = "debug", skip(self), err)]
-    pub(crate) async fn post_init_async(&self) -> EyreResult<()> {
+    async fn post_init_async(&self) -> EyreResult<()> {
         Ok(())
     }
 
     #[instrument(level = "debug", skip(self))]
-    pub(crate) async fn pre_terminate_async(&self) {}
+    async fn pre_terminate_async(&self) {}
 
     #[instrument(level = "debug", skip(self))]
-    pub(crate) async fn terminate_async(&self) {}
+    async fn terminate_async(&self) {}
 
     fn browser_key_name(&self, key: &str) -> String {
         let config = self.config();
@@ -55,8 +56,8 @@ impl ProtectedStore {
         }
     }
 
-    //#[instrument(level = "trace", skip(self, value), ret, err)]
-    pub async fn save_user_secret_string<K: AsRef<str> + fmt::Debug, V: AsRef<str> + fmt::Debug>(
+    #[instrument(level = "trace", skip(self, key, value))]
+    pub fn save_user_secret_string<K: AsRef<str> + fmt::Debug, V: AsRef<str> + fmt::Debug>(
         &self,
         key: K,
         value: V,
@@ -98,8 +99,8 @@ impl ProtectedStore {
         }
     }
 
-    #[instrument(level = "trace", skip(self), err)]
-    pub async fn load_user_secret_string<K: AsRef<str> + fmt::Debug>(
+    #[instrument(level = "trace", skip(self, key))]
+    pub fn load_user_secret_string<K: AsRef<str> + fmt::Debug>(
         &self,
         key: K,
     ) -> EyreResult<Option<String>> {
@@ -133,22 +134,22 @@ impl ProtectedStore {
     }
 
     #[instrument(level = "trace", skip(self, value))]
-    pub async fn save_user_secret_json<K, T>(&self, key: K, value: &T) -> EyreResult<bool>
+    pub fn save_user_secret_json<K, T>(&self, key: K, value: &T) -> EyreResult<bool>
     where
         K: AsRef<str> + fmt::Debug,
         T: serde::Serialize,
     {
         let v = serde_json::to_vec(value)?;
-        self.save_user_secret(key, &v).await
+        self.save_user_secret(key, &v)
     }
 
     #[instrument(level = "trace", skip(self))]
-    pub async fn load_user_secret_json<K, T>(&self, key: K) -> EyreResult<Option<T>>
+    pub fn load_user_secret_json<K, T>(&self, key: K) -> EyreResult<Option<T>>
     where
         K: AsRef<str> + fmt::Debug,
         T: for<'de> serde::de::Deserialize<'de>,
     {
-        let out = self.load_user_secret(key).await?;
+        let out = self.load_user_secret(key)?;
         let b = match out {
             Some(v) => v,
             None => {
@@ -161,7 +162,7 @@ impl ProtectedStore {
     }
 
     #[instrument(level = "trace", skip(self, value), ret, err)]
-    pub async fn save_user_secret<K: AsRef<str> + fmt::Debug>(
+    pub fn save_user_secret<K: AsRef<str> + fmt::Debug>(
         &self,
         key: K,
         value: &[u8],
@@ -169,15 +170,15 @@ impl ProtectedStore {
         let mut s = BASE64URL_NOPAD.encode(value);
         s.push('!');
 
-        self.save_user_secret_string(key, s.as_str()).await
+        self.save_user_secret_string(key, s.as_str())
     }
 
     #[instrument(level = "trace", skip(self), err)]
-    pub async fn load_user_secret<K: AsRef<str> + fmt::Debug>(
+    pub fn load_user_secret<K: AsRef<str> + fmt::Debug>(
         &self,
         key: K,
     ) -> EyreResult<Option<Vec<u8>>> {
-        let mut s = match self.load_user_secret_string(key).await? {
+        let mut s = match self.load_user_secret_string(key)? {
             Some(s) => s,
             None => {
                 return Ok(None);
@@ -207,7 +208,7 @@ impl ProtectedStore {
     }
 
     #[instrument(level = "trace", skip(self), ret, err)]
-    pub async fn remove_user_secret<K: AsRef<str> + fmt::Debug>(&self, key: K) -> EyreResult<bool> {
+    pub fn remove_user_secret<K: AsRef<str> + fmt::Debug>(&self, key: K) -> EyreResult<bool> {
         if is_browser() {
             let win = match window() {
                 Some(w) => w,

@@ -3,6 +3,7 @@ pub use keyvaluedb_sqlite::*;
 use std::path::PathBuf;
 
 #[derive(Clone)]
+#[must_use]
 pub(in crate::table_store) struct TableStoreDriver {
     registry: VeilidComponentRegistry,
 }
@@ -31,6 +32,7 @@ impl TableStoreDriver {
         Ok(dbpath)
     }
 
+    #[expect(clippy::unused_async)]
     pub async fn open(&self, table_name: &str, column_count: u32) -> VeilidAPIResult<Database> {
         let dbpath = self.get_dbpath(table_name)?;
 
@@ -52,6 +54,7 @@ impl TableStoreDriver {
         Ok(db)
     }
 
+    #[expect(clippy::unused_async)]
     pub async fn delete(&self, table_name: &str) -> VeilidAPIResult<bool> {
         let dbpath = self.get_dbpath(table_name)?;
         if !dbpath.exists() {

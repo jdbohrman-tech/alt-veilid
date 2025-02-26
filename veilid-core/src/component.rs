@@ -16,10 +16,10 @@ pub trait VeilidComponent:
     AsAnyArcSendSync + VeilidComponentRegistryAccessor + core::fmt::Debug
 {
     fn name(&self) -> &'static str;
-    fn init(&self) -> SendPinBoxFutureLifetime<'_, EyreResult<()>>;
-    fn post_init(&self) -> SendPinBoxFutureLifetime<'_, EyreResult<()>>;
-    fn pre_terminate(&self) -> SendPinBoxFutureLifetime<'_, ()>;
-    fn terminate(&self) -> SendPinBoxFutureLifetime<'_, ()>;
+    fn init(&self) -> PinBoxFuture<'_, EyreResult<()>>;
+    fn post_init(&self) -> PinBoxFuture<'_, EyreResult<()>>;
+    fn pre_terminate(&self) -> PinBoxFuture<'_, ()>;
+    fn terminate(&self) -> PinBoxFuture<'_, ()>;
 }
 
 pub trait VeilidComponentRegistryAccessor {
@@ -171,7 +171,7 @@ impl VeilidComponentRegistry {
         }
 
         // Event bus starts up early
-        self.event_bus.startup().await?;
+        self.event_bus.startup()?;
 
         // Process components in initialization order
         let init_order = self.get_init_order();
@@ -320,19 +320,19 @@ macro_rules! impl_veilid_component {
                 stringify!($component_name)
             }
 
-            fn init(&self) -> SendPinBoxFutureLifetime<'_, EyreResult<()>> {
+            fn init(&self) -> PinBoxFuture<'_, EyreResult<()>> {
                 Box::pin(async { self.init_async().await })
             }
 
-            fn post_init(&self) -> SendPinBoxFutureLifetime<'_, EyreResult<()>> {
+            fn post_init(&self) -> PinBoxFuture<'_, EyreResult<()>> {
                 Box::pin(async { self.post_init_async().await })
             }
 
-            fn pre_terminate(&self) -> SendPinBoxFutureLifetime<'_, ()> {
+            fn pre_terminate(&self) -> PinBoxFuture<'_, ()> {
                 Box::pin(async { self.pre_terminate_async().await })
             }
 
-            fn terminate(&self) -> SendPinBoxFutureLifetime<'_, ()> {
+            fn terminate(&self) -> PinBoxFuture<'_, ()> {
                 Box::pin(async { self.terminate_async().await })
             }
         }

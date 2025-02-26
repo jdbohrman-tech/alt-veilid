@@ -33,11 +33,20 @@ impl StorageManager {
         }
         format!("{}]\n", out)
     }
+
     pub async fn debug_offline_records(&self) -> String {
         let inner = self.inner.lock().await;
+        let Some(local_record_store) = &inner.local_record_store else {
+            return "not initialized".to_owned();
+        };
+
         let mut out = "[\n".to_owned();
         for (k, v) in &inner.offline_subkey_writes {
-            out += &format!("  {}:{:?}\n", k, v);
+            let record_info = local_record_store
+                .peek_record(*k, |r| format!("{} nodes", r.detail().nodes.len()))
+                .unwrap_or("Not found".to_owned());
+
+            out += &format!("  {}:{:?}, {}\n", k, v, record_info);
         }
         format!("{}]\n", out)
     }

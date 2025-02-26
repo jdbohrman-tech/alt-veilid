@@ -105,7 +105,8 @@ impl IpcListener {
     }
 
     /// Accepts a new incoming connection to this listener.
-    pub fn accept(&self) -> SendPinBoxFuture<io::Result<IpcStream>> {
+    #[must_use]
+    pub fn accept(&self) -> PinBoxFuture<io::Result<IpcStream>> {
         if self.path.is_none() {
             return Box::pin(std::future::ready(Err(io::Error::from(
                 io::ErrorKind::NotConnected,

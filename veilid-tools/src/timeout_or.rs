@@ -10,6 +10,7 @@ use std::io;
 pub struct TimeoutError();
 
 impl TimeoutError {
+    #[must_use]
     pub fn to_io(self) -> io::Error {
         io::Error::new(io::ErrorKind::TimedOut, self)
     }

@@ -253,7 +253,7 @@ pub async fn test_encode_decode(vcrypto: &AsyncCryptoSystemGuard<'_>) {
     assert!(f2.is_err());
 }
 
-pub async fn test_typed_convert(vcrypto: &AsyncCryptoSystemGuard<'_>) {
+pub fn test_typed_convert(vcrypto: &AsyncCryptoSystemGuard<'_>) {
     let tks1 = format!(
         "{}:7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ",
         vcrypto.kind()
@@ -381,7 +381,7 @@ async fn test_operations(vcrypto: &AsyncCryptoSystemGuard<'_>) {
     assert_eq!(d4.first_nonzero_bit(), Some(0));
 }
 
-pub async fn test_crypto_key_ordering() {
+pub fn test_crypto_key_ordering() {
     let k1 = CryptoKey::new([
         128, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0,
@@ -413,7 +413,7 @@ pub async fn test_all() {
     let api = crypto_tests_startup().await;
     let crypto = api.crypto().unwrap();
 
-    test_crypto_key_ordering().await;
+    test_crypto_key_ordering();
 
     // Test versions
     for v in VALID_CRYPTO_KINDS {
@@ -423,7 +423,7 @@ pub async fn test_all() {
         test_sign_and_verify(&vcrypto).await;
         test_key_conversions(&vcrypto).await;
         test_encode_decode(&vcrypto).await;
-        test_typed_convert(&vcrypto).await;
+        test_typed_convert(&vcrypto);
         test_hash(&vcrypto).await;
         test_operations(&vcrypto).await;
     }

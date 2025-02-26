@@ -196,6 +196,7 @@ impl Receipt {
         Ok(data)
     }
 
+    #[must_use]
     pub fn get_version(&self) -> u8 {
         self.version
     }
@@ -216,6 +217,7 @@ impl Receipt {
         TypedKey::new(self.crypto_kind, self.sender_id)
     }
 
+    #[must_use]
     pub fn get_extra_data(&self) -> &[u8] {
         &self.extra_data
     }
