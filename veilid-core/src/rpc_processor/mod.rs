@@ -527,11 +527,11 @@ impl RPCProcessor {
             .await;
         match &out {
             Err(e) => {
-                veilid_log!(self debug "RPC Lost (id={} {}): {}", id, debug_string, e);
+                veilid_log!(self debug "RPC Lost (id={} {}): {} ({}) ", id, debug_string, e, waitable_reply.context.send_data_result.unique_flow().flow);
                 self.record_lost_answer(&waitable_reply.context);
             }
             Ok(TimeoutOr::Timeout) => {
-                veilid_log!(self debug "RPC Lost (id={} {}): Timeout", id, debug_string);
+                veilid_log!(self debug "RPC Lost (id={} {}): Timeout ({})", id, debug_string, waitable_reply.context.send_data_result.unique_flow().flow);
                 self.record_lost_answer(&waitable_reply.context);
             }
             Ok(TimeoutOr::Value((rpcreader, _))) => {
