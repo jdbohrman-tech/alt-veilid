@@ -23,7 +23,7 @@ const UNRELIABLE_PING_SPAN_SECS: u32 = 60;
 const UNRELIABLE_PING_INTERVAL_SECS: u32 = 5;
 /// - Number of consecutive lost answers on an unordered protocol we will
 ///   tolerate before we call something unreliable
-const UNRELIABLE_LOST_ANSWERS_UNORDERED: u32 = 1;
+const UNRELIABLE_LOST_ANSWERS_UNORDERED: u32 = 2;
 /// - Number of consecutive lost answers on an ordered protocol we will
 ///   tolerate before we call something unreliable
 const UNRELIABLE_LOST_ANSWERS_ORDERED: u32 = 0;
@@ -1068,11 +1068,14 @@ impl BucketEntryInner {
     }
 
     pub(super) fn make_not_dead(&mut self, cur_ts: Timestamp) {
-        self.peer_stats.rpc_stats.last_seen_ts = None;
-        self.peer_stats.rpc_stats.failed_to_send = 0;
-        self.peer_stats.rpc_stats.recent_lost_answers_unordered = 0;
-        self.peer_stats.rpc_stats.recent_lost_answers_ordered = 0;
-        assert!(self.check_dead(cur_ts).is_none());
+        if self.check_dead(cur_ts).is_some() {
+            self.peer_stats.rpc_stats.last_seen_ts = None;
+            self.peer_stats.rpc_stats.first_consecutive_seen_ts = None;
+            self.peer_stats.rpc_stats.failed_to_send = 0;
+            self.peer_stats.rpc_stats.recent_lost_answers_unordered = 0;
+            self.peer_stats.rpc_stats.recent_lost_answers_ordered = 0;
+            assert!(self.check_dead(cur_ts).is_none());
+        }
     }
 
     pub(super) fn _state_debug_info(&self, cur_ts: Timestamp) -> String {

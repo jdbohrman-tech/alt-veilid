@@ -817,8 +817,10 @@ impl RPCProcessor {
             return SenderPeerInfo::default();
         };
         let Some(routing_domain) = opt_routing_domain else {
-            // No routing domain for target, no node info
-            // Only a stale connection or no connection exists
+            // No routing domain for target, no node info is safe to send here
+            // Only a stale connection or no connection exists, or an unexpected
+            // relay was used, possibly due to the destination switching relays
+            // in a race condition with our send
             return SenderPeerInfo::default();
         };
 

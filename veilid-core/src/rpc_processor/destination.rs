@@ -206,7 +206,7 @@ impl Destination {
                 }
                 if opt_routing_domain.is_none() {
                     // In the case of an unexpected relay, log it and don't pass any sender peer info into an unexpected relay
-                    veilid_log!(node warn "No routing domain for relay: relay={}, node={}", relay, node);
+                    veilid_log!(node debug "Unexpected relay: relay={}, node={}", relay, node);
                 };
 
                 (

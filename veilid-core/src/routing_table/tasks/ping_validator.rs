@@ -95,39 +95,17 @@ impl RoutingTable {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    // Ping the relay to keep it alive, over every protocol it is relaying for us
-    #[instrument(level = "trace", skip(self, futurequeue), err)]
-    async fn relay_keepalive_public_internet(
+    // Get protocol-specific noderefs for a relay to determine its liveness
+    // Relays get pinged over more protocols than non-relay nodes because we need to ensure
+    // that they can reliably forward packets with 'all' sequencing, not just over 'any' sequencing
+    fn get_relay_specific_noderefs(
         &self,
-        cur_ts: Timestamp,
-        futurequeue: &mut VecDeque<PingValidatorFuture>,
-    ) -> EyreResult<()> {
-        // Get the PublicInternet relay if we are using one
-        let Some(relay_nr) = self.relay_node(RoutingDomain::PublicInternet) else {
-            return Ok(());
-        };
-
+        relay_nr: FilteredNodeRef,
+        routing_domain: RoutingDomain,
+    ) -> Vec<FilteredNodeRef> {
         // Get our publicinternet dial info
-        let dids = self.all_filtered_dial_info_details(
-            RoutingDomain::PublicInternet.into(),
-            &DialInfoFilter::all(),
-        );
-
-        let opt_relay_keepalive_ts = self.relay_node_last_keepalive(RoutingDomain::PublicInternet);
-        let relay_needs_keepalive = opt_relay_keepalive_ts
-            .map(|kts| {
-                cur_ts.saturating_sub(kts).as_u64()
-                    >= (RELAY_KEEPALIVE_PING_INTERVAL_SECS as u64 * 1_000_000u64)
-            })
-            .unwrap_or(true);
-
-        if !relay_needs_keepalive {
-            return Ok(());
-        }
-        // Say we're doing this keepalive now
-        self.inner
-            .write()
-            .set_relay_node_last_keepalive(RoutingDomain::PublicInternet, cur_ts);
+        let dids =
+            self.all_filtered_dial_info_details(routing_domain.into(), &DialInfoFilter::all());
 
         // We need to keep-alive at one connection per ordering for relays
         // but also one per NAT mapping that we need to keep open for our inbound dial info
@@ -179,6 +157,41 @@ impl RoutingTable {
         if !got_unordered {
             relay_noderefs.push(relay_nr);
         }
+
+        relay_noderefs
+    }
+
+    // Ping the relay to keep it alive, over every protocol it is relaying for us
+    #[instrument(level = "trace", skip(self, futurequeue), err)]
+    async fn relay_keepalive_public_internet(
+        &self,
+        cur_ts: Timestamp,
+        futurequeue: &mut VecDeque<PingValidatorFuture>,
+    ) -> EyreResult<()> {
+        // Get the PublicInternet relay if we are using one
+        let Some(relay_nr) = self.relay_node(RoutingDomain::PublicInternet) else {
+            return Ok(());
+        };
+
+        let opt_relay_keepalive_ts = self.relay_node_last_keepalive(RoutingDomain::PublicInternet);
+        let relay_needs_keepalive = opt_relay_keepalive_ts
+            .map(|kts| {
+                cur_ts.saturating_sub(kts).as_u64()
+                    >= (RELAY_KEEPALIVE_PING_INTERVAL_SECS as u64 * 1_000_000u64)
+            })
+            .unwrap_or(true);
+
+        if !relay_needs_keepalive {
+            return Ok(());
+        }
+        // Say we're doing this keepalive now
+        self.inner
+            .write()
+            .set_relay_node_last_keepalive(RoutingDomain::PublicInternet, cur_ts);
+
+        // Get the sequencing-specific relay noderefs for this relay
+        let relay_noderefs =
+            self.get_relay_specific_noderefs(relay_nr, RoutingDomain::PublicInternet);
 
         for relay_nr_filtered in relay_noderefs {
             futurequeue.push_back(
@@ -249,24 +262,36 @@ impl RoutingTable {
         futurequeue: &mut VecDeque<PingValidatorFuture>,
     ) -> EyreResult<()> {
         // Get all nodes needing pings in the PublicInternet routing domain
+        let relay_node_filter = self.make_public_internet_relay_node_filter();
         let node_refs = self.get_nodes_needing_ping(RoutingDomain::PublicInternet, cur_ts);
 
         // Just do a single ping with the best protocol for all the other nodes to check for liveness
         for nr in node_refs {
-            let nr = nr.sequencing_clone(Sequencing::PreferOrdered);
+            // If the node is relay-capable, we should ping it over ALL sequencing types
+            // instead of just a simple liveness check on ANY best contact method
 
-            futurequeue.push_back(
-                async move {
-                    #[cfg(feature = "verbose-tracing")]
-                    veilid_log!(nr debug "--> PublicInternet Validator ping to {:?}", nr);
-                    let rpc_processor = nr.rpc_processor();
-                    let _ = rpc_processor
-                        .rpc_call_status(Destination::direct(nr))
-                        .await?;
-                    Ok(())
-                }
-                .boxed(),
-            );
+            let all_noderefs = if nr.operate(|_rti, e| !relay_node_filter(e)) {
+                // If this is a relay capable node, get all the sequencing specific noderefs
+                self.get_relay_specific_noderefs(nr, RoutingDomain::PublicInternet)
+            } else {
+                // If a non-relay node, ping with the normal ping type
+                vec![nr.sequencing_clone(Sequencing::PreferOrdered)]
+            };
+
+            for nr in all_noderefs {
+                futurequeue.push_back(
+                    async move {
+                        #[cfg(feature = "verbose-tracing")]
+                        veilid_log!(nr debug "--> PublicInternet Validator ping to {:?}", nr);
+                        let rpc_processor = nr.rpc_processor();
+                        let _ = rpc_processor
+                            .rpc_call_status(Destination::direct(nr))
+                            .await?;
+                        Ok(())
+                    }
+                    .boxed(),
+                );
+            }
         }
 
         Ok(())
