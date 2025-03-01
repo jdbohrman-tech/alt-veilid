@@ -73,6 +73,7 @@ unused_async = "deny"
 ptr_cast_constness = "deny"
 comparison_chain = "allow"
 upper_case_acronyms = "allow"
+needless_range_loop = "allow"
 
 [workspace.lints.rust]
 unused_must_use = "deny"

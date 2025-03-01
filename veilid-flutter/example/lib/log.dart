@@ -1,8 +1,8 @@
 // ignore_for_file: prefer_single_quotes
+import 'dart:io' show Platform;
 
 import 'package:ansicolor/ansicolor.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:loggy/loggy.dart';
 import 'package:veilid/veilid.dart';
 
@@ -84,7 +84,14 @@ class CallbackPrinter extends LoggyPrinter {
 
   @override
   void onLog(LogRecord record) {
-    debugPrint(record.pretty());
+    final out = record.pretty().replaceAll('\uFFFD', '');
+
+    if (!kIsWeb && Platform.isAndroid) {
+      debugPrint(out);
+    } else {
+      debugPrintSynchronously(out);
+    }
+
     callback?.call(record);
   }
 

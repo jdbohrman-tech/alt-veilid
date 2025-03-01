@@ -298,6 +298,8 @@ impl tracing::field::Visit for VeilidKeyedStringRecorder {
     fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
         if field.name() == VEILID_LOG_KEY_FIELD {
             self.log_key = value.to_owned();
+        } else {
+            self.record_debug(field, &value)
         }
     }
     fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn core::fmt::Debug) {

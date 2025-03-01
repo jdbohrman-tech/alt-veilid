@@ -184,7 +184,12 @@ impl NodeInfo {
         true
     }
 
-    /// Does this appear on the same network within the routing domain
+    /// Does this appear on the same network within the routing domain?
+    /// The notion of 'ipblock' is a single external IP address for ipv4, and a fixed prefix for ipv6.
+    /// If a NAT is present, this detects if two public peerinfo would share the same router and be
+    /// subject to hairpin NAT (for ipv4 typically). This is also overloaded for the concept
+    /// of rate-limiting the number of nodes coming from the same ip 'block' within a specific amount of
+    /// time for the address filter.
     pub fn node_is_on_same_ipblock(&self, node_b: &NodeInfo, ip6_prefix_size: usize) -> bool {
         let our_ip_blocks = self
             .dial_info_detail_list()

@@ -22,6 +22,7 @@ pub trait RoutingDomainDetail {
     fn requires_relay(&self) -> Option<RelayKind>;
     fn relay_node(&self) -> Option<FilteredNodeRef>;
     fn relay_node_last_keepalive(&self) -> Option<Timestamp>;
+    fn relay_node_last_optimized(&self) -> Option<Timestamp>;
     fn dial_info_details(&self) -> &Vec<DialInfoDetail>;
     fn get_published_peer_info(&self) -> Option<Arc<PeerInfo>>;
     fn inbound_dial_info_filter(&self) -> DialInfoFilter;
@@ -55,6 +56,8 @@ pub trait RoutingDomainDetail {
 
     // Set last relay keepalive time
     fn set_relay_node_last_keepalive(&mut self, ts: Option<Timestamp>);
+    // Set last relay optimized time
+    fn set_relay_node_last_optimized(&mut self, ts: Option<Timestamp>);
 }
 
 trait RoutingDomainDetailCommonAccessors: RoutingDomainDetail {
@@ -125,6 +128,7 @@ struct RoutingDomainDetailCommon {
     // caches
     cached_peer_info: Mutex<Option<Arc<PeerInfo>>>,
     relay_node_last_keepalive: Option<Timestamp>,
+    relay_node_last_optimized: Option<Timestamp>,
 }
 
 impl RoutingDomainDetailCommon {
@@ -140,6 +144,7 @@ impl RoutingDomainDetailCommon {
             confirmed: false,
             cached_peer_info: Mutex::new(Default::default()),
             relay_node_last_keepalive: Default::default(),
+            relay_node_last_optimized: Default::default(),
         }
     }
 
@@ -227,6 +232,10 @@ impl RoutingDomainDetailCommon {
         self.relay_node_last_keepalive
     }
 
+    pub fn relay_node_last_optimized(&self) -> Option<Timestamp> {
+        self.relay_node_last_optimized
+    }
+
     pub fn dial_info_details(&self) -> &Vec<DialInfoDetail> {
         &self.dial_info_details
     }
@@ -277,6 +286,12 @@ impl RoutingDomainDetailCommon {
     fn set_relay_node(&mut self, opt_relay_node: Option<NodeRef>) {
         self.relay_node = opt_relay_node;
         self.relay_node_last_keepalive = None;
+        self.relay_node_last_optimized = if self.relay_node.is_some() {
+            Some(Timestamp::now())
+        } else {
+            None
+        };
+
         self.clear_cache();
     }
 
@@ -316,6 +331,9 @@ impl RoutingDomainDetailCommon {
 
     fn set_relay_node_last_keepalive(&mut self, ts: Option<Timestamp>) {
         self.relay_node_last_keepalive = ts;
+    }
+    fn set_relay_node_last_optimized(&mut self, ts: Option<Timestamp>) {
+        self.relay_node_last_optimized = ts;
     }
 
     //////////////////////////////////////////////////////////////////////////////

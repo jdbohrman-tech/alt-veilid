@@ -121,9 +121,11 @@ class RPCStats:
     last_question_ts: Optional[Timestamp]
     last_seen_ts: Optional[Timestamp]
     first_consecutive_seen_ts: Optional[Timestamp]
-    recent_lost_answers: int
+    recent_lost_answers_unordered: int
+    recent_lost_answers_ordered: int
     failed_to_send: int
-    answer: AnswerStats
+    answer_unordered: AnswerStats
+    answer_ordered: AnswerStats
 
     def __init__(
         self,
@@ -133,9 +135,11 @@ class RPCStats:
         last_question_ts: Optional[Timestamp],
         last_seen_ts: Optional[Timestamp],
         first_consecutive_seen_ts: Optional[Timestamp],
-        recent_lost_answers: int,
+        recent_lost_answers_unordered: int,
+        recent_lost_answers_ordered: int,
         failed_to_send: int,
-        answer: AnswerStats,
+        answer_unordered: AnswerStats,
+        answer_ordered: AnswerStats,
     ):
         self.messages_sent = messages_sent
         self.messages_rcvd = messages_rcvd
@@ -143,9 +147,11 @@ class RPCStats:
         self.last_question_ts = last_question_ts
         self.last_seen_ts = last_seen_ts
         self.first_consecutive_seen_ts = first_consecutive_seen_ts
-        self.recent_lost_answers = recent_lost_answers
+        self.recent_lost_answers_unordered = recent_lost_answers_unordered
+        self.recent_lost_answers_ordered = recent_lost_answers_ordered
         self.failed_to_send = failed_to_send
-        self.answer = answer
+        self.answer_unordered = answer_unordered
+        self.answer_ordered = answer_ordered
 
     @classmethod
     def from_json(cls, j: dict) -> Self:
@@ -159,9 +165,11 @@ class RPCStats:
             None
             if j["first_consecutive_seen_ts"] is None
             else Timestamp(j["first_consecutive_seen_ts"]),
-            j["recent_lost_answers"],
+            j["recent_lost_answers_unordered"],
+            j["recent_lost_answers_ordered"],
             j["failed_to_send"],
-            AnswerStats.from_json(j["answer"]),
+            AnswerStats.from_json(j["answer_unordered"]),
+            AnswerStats.from_json(j["answer_ordered"]),
         )
 
 
@@ -169,16 +177,28 @@ class LatencyStats:
     fastest: TimestampDuration
     average: TimestampDuration
     slowest: TimestampDuration
+    tm90: TimestampDuration
+    tm75: TimestampDuration
+    p90: TimestampDuration
+    p75: TimestampDuration
 
     def __init__(
         self,
         fastest: TimestampDuration,
         average: TimestampDuration,
         slowest: TimestampDuration,
+        tm90: TimestampDuration,
+        tm75: TimestampDuration,
+        p90: TimestampDuration,
+        p75: TimestampDuration,
     ):
         self.fastest = fastest
         self.average = average
         self.slowest = slowest
+        self.tm90 = tm90
+        self.tm75 = tm75
+        self.p90 = p90
+        self.p75 = p75
 
     @classmethod
     def from_json(cls, j: dict) -> Self:
@@ -187,6 +207,10 @@ class LatencyStats:
             TimestampDuration(j["fastest"]),
             TimestampDuration(j["average"]),
             TimestampDuration(j["slowest"]),
+            TimestampDuration(j["tm90"]),
+            TimestampDuration(j["tm75"]),
+            TimestampDuration(j["p90"]),
+            TimestampDuration(j["p75"]),
         )
 
 

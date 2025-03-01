@@ -6702,6 +6702,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "veilid-tracing-wasm"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4b24035e775ff3d7f0c9f552f48296f8992dbc9e0347c5888891c9e96709ea7f"
+dependencies = [
+ "tracing",
+ "tracing-subscriber",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "veilid-wasm"
 version = "0.4.3"
 dependencies = [
@@ -6720,9 +6731,9 @@ dependencies = [
  "serde_json",
  "tracing",
  "tracing-subscriber",
- "tracing-wasm",
  "tsify",
  "veilid-core",
+ "veilid-tracing-wasm",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-bindgen-test",

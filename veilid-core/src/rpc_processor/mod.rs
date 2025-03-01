@@ -69,16 +69,22 @@ impl_veilid_log_facility!("rpc");
 
 #[derive(Debug)]
 #[must_use]
-struct WaitableReply {
-    handle: OperationWaitHandle<Message, Option<QuestionContext>>,
+struct WaitableReplyContext {
     timeout_us: TimestampDuration,
     node_ref: NodeRef,
     send_ts: Timestamp,
-    send_data_method: SendDataResult,
+    send_data_result: SendDataResult,
     safety_route: Option<PublicKey>,
     remote_private_route: Option<PublicKey>,
     reply_private_route: Option<PublicKey>,
+}
+
+#[derive(Debug)]
+#[must_use]
+struct WaitableReply {
+    handle: OperationWaitHandle<Message, Option<QuestionContext>>,
     _opt_connection_ref_scope: Option<ConnectionRefScope>,
+    context: WaitableReplyContext,
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -327,14 +333,19 @@ impl RPCProcessor {
 
         // Sender PeerInfo was specified, update our routing table with it
         if !self.verify_node_info(routing_domain, peer_info.signed_node_info(), &[]) {
-            veilid_log!(self debug target:"network_result", "Dropping invalid PeerInfo in {:?} for id {}: {:?}", routing_domain, sender_node_id, peer_info);
-            // Don't punish for this because in the case of hairpin NAT
-            // you can legally get LocalNetwork PeerInfo when you expect PublicInternet PeerInfo
-            //
-            // self.network_manager().address_filter().punish_node_id(
-            //     sender_node_id,
-            //     PunishmentReason::FailedToVerifySenderPeerInfo,
-            // );
+            veilid_log!(self debug target:"network_result", "Punishing invalid PeerInfo in {:?} for id {}: {:?}", routing_domain, sender_node_id, peer_info);
+
+            // Punish nodes that send peer info for the wrong routing domain
+            // Hairpin NAT situations where routing domain appears to be LocalNetwork
+            // shoud not happen. These nodes should be using InboundRelay now to communicate
+            // due to the 'node_is_on_same_ipblock' check in PublicInternetRoutigDomainDetail::get_contact_method.
+            // Nodes that are actually sending LocalNetwork ip addresses over the PublicInternet domain
+            // or vice-versa need to be punished.
+
+            self.network_manager().address_filter().punish_node_id(
+                sender_node_id,
+                PunishmentReason::FailedToVerifySenderPeerInfo,
+            );
             return Ok(NetworkResult::value(None));
         }
         let sender_nr = match self
@@ -512,28 +523,16 @@ impl RPCProcessor {
         let id = waitable_reply.handle.id();
         let out = self
             .waiting_rpc_table
-            .wait_for_op(waitable_reply.handle, waitable_reply.timeout_us)
+            .wait_for_op(waitable_reply.handle, waitable_reply.context.timeout_us)
             .await;
         match &out {
             Err(e) => {
                 veilid_log!(self debug "RPC Lost (id={} {}): {}", id, debug_string, e);
-                self.record_lost_answer(
-                    waitable_reply.send_ts,
-                    waitable_reply.node_ref.clone(),
-                    waitable_reply.safety_route,
-                    waitable_reply.remote_private_route,
-                    waitable_reply.reply_private_route,
-                );
+                self.record_lost_answer(&waitable_reply.context);
             }
             Ok(TimeoutOr::Timeout) => {
                 veilid_log!(self debug "RPC Lost (id={} {}): Timeout", id, debug_string);
-                self.record_lost_answer(
-                    waitable_reply.send_ts,
-                    waitable_reply.node_ref.clone(),
-                    waitable_reply.safety_route,
-                    waitable_reply.remote_private_route,
-                    waitable_reply.reply_private_route,
-                );
+                self.record_lost_answer(&waitable_reply.context);
             }
             Ok(TimeoutOr::Value((rpcreader, _))) => {
                 // Reply received
@@ -541,17 +540,13 @@ impl RPCProcessor {
 
                 // Record answer received
                 self.record_answer_received(
-                    waitable_reply.send_ts,
                     recv_ts,
                     rpcreader.header.body_len,
-                    waitable_reply.node_ref.clone(),
-                    waitable_reply.safety_route,
-                    waitable_reply.remote_private_route,
-                    waitable_reply.reply_private_route,
+                    &waitable_reply.context,
                 );
 
                 // Ensure the reply comes over the private route that was requested
-                if let Some(reply_private_route) = waitable_reply.reply_private_route {
+                if let Some(reply_private_route) = waitable_reply.context.reply_private_route {
                     match &rpcreader.header.detail {
                         RPCMessageHeaderDetail::Direct(_) => {
                             return Err(RPCError::protocol(
@@ -882,20 +877,15 @@ impl RPCProcessor {
 
     /// Record question lost to node or route
     #[instrument(level = "trace", target = "rpc", skip_all)]
-    fn record_lost_answer(
-        &self,
-        send_ts: Timestamp,
-        node_ref: NodeRef,
-        safety_route: Option<PublicKey>,
-        remote_private_route: Option<PublicKey>,
-        private_route: Option<PublicKey>,
-    ) {
+    fn record_lost_answer(&self, context: &WaitableReplyContext) {
         // Record for node if this was not sent via a route
-        if safety_route.is_none() && remote_private_route.is_none() {
-            node_ref.stats_lost_answer();
+        if context.safety_route.is_none() && context.remote_private_route.is_none() {
+            context
+                .node_ref
+                .stats_lost_answer(context.send_data_result.is_ordered());
 
             // Also clear the last_connections for the entry so we make a new connection next time
-            node_ref.clear_last_flows();
+            context.node_ref.clear_last_flows();
 
             return;
         }
@@ -904,20 +894,20 @@ impl RPCProcessor {
         let rss = routing_table.route_spec_store();
 
         // If safety route was used, record question lost there
-        if let Some(sr_pubkey) = &safety_route {
-            rss.with_route_stats_mut(send_ts, sr_pubkey, |s| {
+        if let Some(sr_pubkey) = &context.safety_route {
+            rss.with_route_stats_mut(context.send_ts, sr_pubkey, |s| {
                 s.record_lost_answer();
             });
         }
         // If remote private route was used, record question lost there
-        if let Some(rpr_pubkey) = &remote_private_route {
-            rss.with_route_stats_mut(send_ts, rpr_pubkey, |s| {
+        if let Some(rpr_pubkey) = &context.remote_private_route {
+            rss.with_route_stats_mut(context.send_ts, rpr_pubkey, |s| {
                 s.record_lost_answer();
             });
         }
-        // If private route was used, record question lost there
-        if let Some(pr_pubkey) = &private_route {
-            rss.with_route_stats_mut(send_ts, pr_pubkey, |s| {
+        // If reply private route was used, record question lost there
+        if let Some(pr_pubkey) = &context.reply_private_route {
+            rss.with_route_stats_mut(context.send_ts, pr_pubkey, |s| {
                 s.record_lost_answer();
             });
         }
@@ -925,6 +915,7 @@ impl RPCProcessor {
 
     /// Record success sending to node or route
     #[instrument(level = "trace", target = "rpc", skip_all)]
+    #[expect(clippy::too_many_arguments)]
     fn record_send_success(
         &self,
         rpc_kind: RPCKind,
@@ -933,6 +924,7 @@ impl RPCProcessor {
         node_ref: NodeRef,
         safety_route: Option<PublicKey>,
         remote_private_route: Option<PublicKey>,
+        ordered: bool,
     ) {
         // Record for node if this was not sent via a route
         if safety_route.is_none() && remote_private_route.is_none() {
@@ -942,7 +934,7 @@ impl RPCProcessor {
             if is_answer {
                 node_ref.stats_answer_sent(bytes);
             } else {
-                node_ref.stats_question_sent(send_ts, bytes, wants_answer);
+                node_ref.stats_question_sent(send_ts, bytes, wants_answer, ordered);
             }
             return;
         }
@@ -971,18 +963,21 @@ impl RPCProcessor {
     #[instrument(level = "trace", target = "rpc", skip_all)]
     fn record_answer_received(
         &self,
-        send_ts: Timestamp,
         recv_ts: Timestamp,
         bytes: ByteCount,
-        node_ref: NodeRef,
-        safety_route: Option<PublicKey>,
-        remote_private_route: Option<PublicKey>,
-        reply_private_route: Option<PublicKey>,
+        context: &WaitableReplyContext,
     ) {
         // Record stats for remote node if this was direct
-        if safety_route.is_none() && remote_private_route.is_none() && reply_private_route.is_none()
+        if context.safety_route.is_none()
+            && context.remote_private_route.is_none()
+            && context.reply_private_route.is_none()
         {
-            node_ref.stats_answer_rcvd(send_ts, recv_ts, bytes);
+            context.node_ref.stats_answer_rcvd(
+                context.send_ts,
+                recv_ts,
+                bytes,
+                context.send_data_result.is_ordered(),
+            );
             return;
         }
         // Get route spec store
@@ -991,11 +986,11 @@ impl RPCProcessor {
 
         // Get latency for all local routes
         let mut total_local_latency = TimestampDuration::new(0u64);
-        let total_latency: TimestampDuration = recv_ts.saturating_sub(send_ts);
+        let total_latency: TimestampDuration = recv_ts.saturating_sub(context.send_ts);
 
         // If safety route was used, record route there
-        if let Some(sr_pubkey) = &safety_route {
-            rss.with_route_stats_mut(send_ts, sr_pubkey, |s| {
+        if let Some(sr_pubkey) = &context.safety_route {
+            rss.with_route_stats_mut(context.send_ts, sr_pubkey, |s| {
                 // Record received bytes
                 s.record_answer_received(recv_ts, bytes);
 
@@ -1005,8 +1000,8 @@ impl RPCProcessor {
         }
 
         // If local private route was used, record route there
-        if let Some(pr_pubkey) = &reply_private_route {
-            rss.with_route_stats_mut(send_ts, pr_pubkey, |s| {
+        if let Some(pr_pubkey) = &context.reply_private_route {
+            rss.with_route_stats_mut(context.send_ts, pr_pubkey, |s| {
                 // Record received bytes
                 s.record_answer_received(recv_ts, bytes);
 
@@ -1016,8 +1011,8 @@ impl RPCProcessor {
         }
 
         // If remote private route was used, record there
-        if let Some(rpr_pubkey) = &remote_private_route {
-            rss.with_route_stats_mut(send_ts, rpr_pubkey, |s| {
+        if let Some(rpr_pubkey) = &context.remote_private_route {
+            rss.with_route_stats_mut(context.send_ts, rpr_pubkey, |s| {
                 // Record received bytes
                 s.record_answer_received(recv_ts, bytes);
 
@@ -1040,13 +1035,13 @@ impl RPCProcessor {
             // If no remote private route was used, then record half the total latency on our local routes
             // This is fine because if we sent with a local safety route,
             // then we must have received with a local private route too, per the design rules
-            if let Some(sr_pubkey) = &safety_route {
-                rss.with_route_stats_mut(send_ts, sr_pubkey, |s| {
+            if let Some(sr_pubkey) = &context.safety_route {
+                rss.with_route_stats_mut(context.send_ts, sr_pubkey, |s| {
                     s.record_latency(total_latency / 2u64);
                 });
             }
-            if let Some(pr_pubkey) = &reply_private_route {
-                rss.with_route_stats_mut(send_ts, pr_pubkey, |s| {
+            if let Some(pr_pubkey) = &context.reply_private_route {
+                rss.with_route_stats_mut(context.send_ts, pr_pubkey, |s| {
                     s.record_latency(total_latency / 2u64);
                 });
             }
@@ -1157,7 +1152,7 @@ impl RPCProcessor {
                 );
                 RPCError::network(e)
             })?;
-        let send_data_method = network_result_value_or_log!(self res => [ format!(": node_ref={}, destination_node_ref={}, message.len={}", node_ref, destination_node_ref, message_len) ] {
+        let send_data_result = network_result_value_or_log!(self res => [ format!(": node_ref={}, destination_node_ref={}, message.len={}", node_ref, destination_node_ref, message_len) ] {
                 // If we couldn't send we're still cleaning up
                 self.record_send_failure(RPCKind::Question, send_ts, node_ref.unfiltered(), safety_route, remote_private_route);
                 network_result_raise!(res);
@@ -1172,11 +1167,12 @@ impl RPCProcessor {
             node_ref.unfiltered(),
             safety_route,
             remote_private_route,
+            send_data_result.is_ordered(),
         );
 
         // Ref the connection so it doesn't go away until we're done with the waitable reply
         let opt_connection_ref_scope =
-            send_data_method.unique_flow().connection_id.and_then(|id| {
+            send_data_result.unique_flow().connection_id.and_then(|id| {
                 self.network_manager()
                     .connection_manager()
                     .try_connection_ref_scope(id)
@@ -1185,14 +1181,16 @@ impl RPCProcessor {
         // Pass back waitable reply completion
         Ok(NetworkResult::value(WaitableReply {
             handle,
-            timeout_us,
-            node_ref: node_ref.unfiltered(),
-            send_ts,
-            send_data_method,
-            safety_route,
-            remote_private_route,
-            reply_private_route,
             _opt_connection_ref_scope: opt_connection_ref_scope,
+            context: WaitableReplyContext {
+                timeout_us,
+                node_ref: node_ref.unfiltered(),
+                send_ts,
+                send_data_result,
+                safety_route,
+                remote_private_route,
+                reply_private_route,
+            },
         }))
     }
 
@@ -1243,7 +1241,7 @@ impl RPCProcessor {
                 );
                 RPCError::network(e)
             })?;
-        let _send_data_method = network_result_value_or_log!(self res => [ format!(": node_ref={}, destination_node_ref={}, message.len={}", node_ref, destination_node_ref, message_len) ] {
+        let send_data_result = network_result_value_or_log!(self res => [ format!(": node_ref={}, destination_node_ref={}, message.len={}", node_ref, destination_node_ref, message_len) ] {
                 // If we couldn't send we're still cleaning up
                 self.record_send_failure(RPCKind::Statement, send_ts, node_ref.unfiltered(), safety_route, remote_private_route);
                 network_result_raise!(res);
@@ -1258,6 +1256,7 @@ impl RPCProcessor {
             node_ref.unfiltered(),
             safety_route,
             remote_private_route,
+            send_data_result.is_ordered(),
         );
 
         Ok(NetworkResult::value(()))
@@ -1313,7 +1312,7 @@ impl RPCProcessor {
                 );
                 RPCError::network(e)
             })?;
-        let _send_data_kind = network_result_value_or_log!(self res => [ format!(": node_ref={}, destination_node_ref={}, message.len={}", node_ref, destination_node_ref, message_len) ] {
+        let send_data_result = network_result_value_or_log!(self res => [ format!(": node_ref={}, destination_node_ref={}, message.len={}", node_ref, destination_node_ref, message_len) ] {
                 // If we couldn't send we're still cleaning up
                 self.record_send_failure(RPCKind::Answer, send_ts, node_ref.unfiltered(), safety_route, remote_private_route);
                 network_result_raise!(res);
@@ -1328,6 +1327,7 @@ impl RPCProcessor {
             node_ref.unfiltered(),
             safety_route,
             remote_private_route,
+            send_data_result.is_ordered(),
         );
 
         Ok(NetworkResult::value(()))

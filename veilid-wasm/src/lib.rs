@@ -20,10 +20,10 @@ use send_wrapper::*;
 use serde::*;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::*;
-use tracing_wasm::{WASMLayerConfigBuilder, *};
 use tsify::*;
 use veilid_core::*;
 use veilid_core::{tools::*, VeilidAPIError};
+use veilid_tracing_wasm::*;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::*;
 
@@ -220,14 +220,14 @@ pub fn initialize_veilid_core(platform_config: String) {
             None,
         );
         let layer = WASMLayer::new(
-            WASMLayerConfigBuilder::new()
-                .set_report_logs_in_timings(platform_config.logging.performance.logs_in_timings)
-                .set_console_config(if platform_config.logging.performance.logs_in_console {
+            WASMLayerConfig::new()
+                .with_report_logs_in_timings(platform_config.logging.performance.logs_in_timings)
+                .with_console_config(if platform_config.logging.performance.logs_in_console {
                     ConsoleConfig::ReportWithConsoleColor
                 } else {
                     ConsoleConfig::NoReporting
                 })
-                .build(),
+                .with_field_filter(Some(Arc::new(|k| k != veilid_core::VEILID_LOG_KEY_FIELD))),
         )
         .with_filter(filter.clone());
         filters.insert("performance", filter);

@@ -84,7 +84,7 @@ cfg_if! {
     }
 }
 
-#[expect(clippy::unused_async)]
+#[allow(clippy::unused_async)]
 pub async fn txt_lookup<S: AsRef<str>>(host: S) -> EyreResult<Vec<String>> {
     cfg_if! {
         if #[cfg(target_os = "windows")] {
@@ -157,7 +157,7 @@ pub async fn txt_lookup<S: AsRef<str>>(host: S) -> EyreResult<Vec<String>> {
     }
 }
 
-#[expect(clippy::unused_async)]
+#[allow(clippy::unused_async)]
 pub async fn ptr_lookup(ip_addr: IpAddr) -> EyreResult<String> {
     cfg_if! {
         if #[cfg(target_os = "windows")] {

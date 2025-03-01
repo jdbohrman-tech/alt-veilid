@@ -317,7 +317,7 @@ impl RoutingTable {
         if count == 0 {
             return;
         }
-        veilid_log!(self debug "[{}] Ping validation queue: {} remaining", name, count);
+        veilid_log!(self debug target:"network_result", "[{}] Ping validation queue: {} remaining", name, count);
 
         let atomic_count = AtomicUsize::new(count);
         process_batched_future_queue(future_queue, MAX_PARALLEL_PINGS, stop_token, |res| async {
@@ -326,7 +326,7 @@ impl RoutingTable {
             }
             let remaining = atomic_count.fetch_sub(1, Ordering::AcqRel) - 1;
             if remaining > 0 {
-                veilid_log!(self debug "[{}] Ping validation queue: {} remaining", name, remaining);
+                veilid_log!(self debug target:"network_result", "[{}] Ping validation queue: {} remaining", name, remaining);
             }
         })
         .await;

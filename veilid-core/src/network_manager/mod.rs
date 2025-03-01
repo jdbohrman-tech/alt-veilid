@@ -93,6 +93,9 @@ impl SendDataResult {
                 Some(ncm) if ncm.is_direct()
             )
     }
+    pub fn is_ordered(&self) -> bool {
+        self.unique_flow.flow.protocol_type().is_ordered()
+    }
 
     pub fn unique_flow(&self) -> UniqueFlow {
         self.unique_flow

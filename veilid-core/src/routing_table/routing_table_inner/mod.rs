@@ -13,6 +13,14 @@ pub const RECENT_PEERS_TABLE_SIZE: usize = 64;
 pub const LOCK_TAG_TICK: &str = "TICK";
 
 pub type EntryCounts = BTreeMap<(RoutingDomain, CryptoKind), usize>;
+
+#[derive(Debug)]
+pub struct NodeRelativePerformance {
+    pub percentile: f32,
+    pub node_index: usize,
+    pub node_count: usize,
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 /// RoutingTable rwlock-internal data
@@ -108,6 +116,9 @@ impl RoutingTableInner {
     pub fn relay_node_last_keepalive(&self, domain: RoutingDomain) -> Option<Timestamp> {
         self.with_routing_domain(domain, |rdd| rdd.relay_node_last_keepalive())
     }
+    pub fn relay_node_last_optimized(&self, domain: RoutingDomain) -> Option<Timestamp> {
+        self.with_routing_domain(domain, |rdd| rdd.relay_node_last_optimized())
+    }
 
     pub fn set_relay_node_last_keepalive(&mut self, domain: RoutingDomain, ts: Timestamp) {
         match domain {
@@ -117,6 +128,16 @@ impl RoutingTableInner {
             RoutingDomain::LocalNetwork => self
                 .local_network_routing_domain
                 .set_relay_node_last_keepalive(Some(ts)),
+        };
+    }
+    pub fn set_relay_node_last_optimized(&mut self, domain: RoutingDomain, ts: Timestamp) {
+        match domain {
+            RoutingDomain::PublicInternet => self
+                .public_internet_routing_domain
+                .set_relay_node_last_optimized(Some(ts)),
+            RoutingDomain::LocalNetwork => self
+                .local_network_routing_domain
+                .set_relay_node_last_optimized(Some(ts)),
         };
     }
 
@@ -1381,6 +1402,105 @@ impl RoutingTableInner {
 
         // Unlock noderefs
         closest_nodes_locked.iter().map(|x| x.unlocked()).collect()
+    }
+
+    #[instrument(level = "trace", skip(self, filter, metric), ret)]
+    pub fn find_fastest_node(
+        &self,
+        cur_ts: Timestamp,
+        filter: impl Fn(&BucketEntryInner) -> bool,
+        metric: impl Fn(&LatencyStats) -> TimestampDuration,
+    ) -> Option<NodeRef> {
+        // Go through all entries and find fastest entry that matches filter function
+        let mut fastest_node: Option<Arc<BucketEntry>> = None;
+
+        // Iterate all known nodes for candidates
+        self.with_entries(cur_ts, BucketEntryState::Unreliable, |rti, entry| {
+            let entry2 = entry.clone();
+            entry.with(rti, |rti, e| {
+                // Filter this node
+                if filter(e) {
+                    // Compare against previous candidate
+                    if let Some(fastest_node) = fastest_node.as_mut() {
+                        // Less is faster
+                        let better = fastest_node.with(rti, |_rti, best| {
+                            // choose low latency stability for relays
+                            BucketEntryInner::cmp_fastest_reliable(cur_ts, e, best, &metric)
+                                == std::cmp::Ordering::Less
+                        });
+                        // Now apply filter function and see if this node should be included
+                        if better {
+                            *fastest_node = entry2;
+                        }
+                    } else {
+                        // Always store the first candidate
+                        fastest_node = Some(entry2);
+                    }
+                }
+            });
+            // Don't end early, iterate through all entries
+            Option::<()>::None
+        });
+        // Return the fastest node
+        fastest_node.map(|e| NodeRef::new(self.registry(), e))
+    }
+
+    #[instrument(level = "trace", skip(self, filter, metric), ret)]
+    pub fn get_node_relative_performance(
+        &self,
+        node_id: TypedKey,
+        cur_ts: Timestamp,
+        filter: impl Fn(&BucketEntryInner) -> bool,
+        metric: impl Fn(&LatencyStats) -> TimestampDuration,
+    ) -> Option<NodeRelativePerformance> {
+        // Go through all entries and find all entries that matches filter function
+        let mut all_filtered_nodes: Vec<Arc<BucketEntry>> = Vec::new();
+
+        // Iterate all known nodes for candidates
+        self.with_entries(cur_ts, BucketEntryState::Unreliable, |rti, entry| {
+            let entry2 = entry.clone();
+            entry.with(rti, |_rti, e| {
+                // Filter this node
+                if filter(e) {
+                    all_filtered_nodes.push(entry2);
+                }
+            });
+            // Don't end early, iterate through all entries
+            Option::<()>::None
+        });
+
+        // Sort by fastest tm90 reliable
+        all_filtered_nodes.sort_by(|a, b| {
+            a.with(self, |rti, ea| {
+                b.with(rti, |_rti, eb| {
+                    BucketEntryInner::cmp_fastest_reliable(cur_ts, ea, eb, &metric)
+                })
+            })
+        });
+
+        // Get position in list of requested node
+        let node_count = all_filtered_nodes.len();
+        let node_index = all_filtered_nodes
+            .iter()
+            .position(|x| x.with(self, |_rti, e| e.node_ids().contains(&node_id)))?;
+
+        // Print faster node stats
+        #[cfg(feature = "verbose-tracing")]
+        for nl in 0..node_index {
+            let (latency, node_id) = all_filtered_nodes[nl].with(self, |_rti, e| {
+                (e.peer_stats().latency.clone(), e.best_node_id())
+            });
+            if let Some(latency) = latency {
+                veilid_log!(self debug "Better relay {}: {}: {}", nl, node_id, latency);
+            }
+        }
+
+        // Return 'percentile' position. Fastest node is 100%.
+        Some(NodeRelativePerformance {
+            percentile: 100.0f32 - ((node_index * 100) as f32) / (node_count as f32),
+            node_index,
+            node_count,
+        })
     }
 }
 

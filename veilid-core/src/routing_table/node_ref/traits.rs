@@ -278,10 +278,16 @@ pub(crate) trait NodeRefCommonTrait: NodeRefAccessorsTrait + NodeRefOperateTrait
         self.stats_failed_to_send(Timestamp::now(), false);
     }
 
-    fn stats_question_sent(&self, ts: Timestamp, bytes: ByteCount, expects_answer: bool) {
+    fn stats_question_sent(
+        &self,
+        ts: Timestamp,
+        bytes: ByteCount,
+        expects_answer: bool,
+        ordered: bool,
+    ) {
         self.operate_mut(|rti, e| {
             rti.transfer_stats_accounting().add_up(bytes);
-            e.question_sent(ts, bytes, expects_answer);
+            e.question_sent(ts, bytes, expects_answer, ordered);
         })
     }
     fn stats_question_rcvd(&self, ts: Timestamp, bytes: ByteCount) {
@@ -296,17 +302,23 @@ pub(crate) trait NodeRefCommonTrait: NodeRefAccessorsTrait + NodeRefOperateTrait
             e.answer_sent(bytes);
         })
     }
-    fn stats_answer_rcvd(&self, send_ts: Timestamp, recv_ts: Timestamp, bytes: ByteCount) {
+    fn stats_answer_rcvd(
+        &self,
+        send_ts: Timestamp,
+        recv_ts: Timestamp,
+        bytes: ByteCount,
+        ordered: bool,
+    ) {
         self.operate_mut(|rti, e| {
             rti.transfer_stats_accounting().add_down(bytes);
             rti.latency_stats_accounting()
                 .record_latency(recv_ts.saturating_sub(send_ts));
-            e.answer_rcvd(send_ts, recv_ts, bytes);
+            e.answer_rcvd(send_ts, recv_ts, bytes, ordered);
         })
     }
-    fn stats_lost_answer(&self) {
+    fn stats_lost_answer(&self, ordered: bool) {
         self.operate_mut(|_rti, e| {
-            e.lost_answer();
+            e.lost_answer(ordered);
         })
     }
     fn stats_failed_to_send(&self, ts: Timestamp, expects_answer: bool) {

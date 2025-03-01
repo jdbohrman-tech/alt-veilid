@@ -40,6 +40,10 @@ pub const MIN_PUBLIC_INTERNET_ROUTING_DOMAIN_NODE_COUNT: usize = 4;
 
 /// How frequently we tick the relay management routine
 pub const RELAY_MANAGEMENT_INTERVAL_SECS: u32 = 1;
+/// How frequently we optimize relays
+pub const RELAY_OPTIMIZATION_INTERVAL_SECS: u32 = 10;
+/// What percentile to keep our relays optimized to
+pub const RELAY_OPTIMIZATION_PERCENTILE: f32 = 75.0;
 
 /// How frequently we tick the private route management routine
 pub const PRIVATE_ROUTE_MANAGEMENT_INTERVAL_SECS: u32 = 1;
@@ -1129,5 +1133,28 @@ impl RoutingTable {
                 });
             }
         }
+    }
+
+    #[instrument(level = "trace", skip(self, filter, metric), ret)]
+    pub fn find_fastest_node(
+        &self,
+        cur_ts: Timestamp,
+        filter: impl Fn(&BucketEntryInner) -> bool,
+        metric: impl Fn(&LatencyStats) -> TimestampDuration,
+    ) -> Option<NodeRef> {
+        let inner = self.inner.read();
+        inner.find_fastest_node(cur_ts, filter, metric)
+    }
+
+    #[instrument(level = "trace", skip(self, filter, metric), ret)]
+    pub fn get_node_speed_percentile(
+        &self,
+        node_id: TypedKey,
+        cur_ts: Timestamp,
+        filter: impl Fn(&BucketEntryInner) -> bool,
+        metric: impl Fn(&LatencyStats) -> TimestampDuration,
+    ) -> Option<NodeRelativePerformance> {
+        let inner = self.inner.read();
+        inner.get_node_relative_performance(node_id, cur_ts, filter, metric)
     }
 }

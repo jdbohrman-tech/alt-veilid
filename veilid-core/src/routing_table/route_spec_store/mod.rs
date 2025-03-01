@@ -466,7 +466,9 @@ impl RouteSpecStore {
             // always prioritize reliable nodes, but sort by oldest or fastest
             entry1.with_inner(|e1| {
                 entry2.with_inner(|e2| match safety_spec.stability {
-                    Stability::LowLatency => BucketEntryInner::cmp_fastest_reliable(cur_ts, e1, e2),
+                    Stability::LowLatency => {
+                        BucketEntryInner::cmp_fastest_reliable(cur_ts, e1, e2, |ls| ls.tm90)
+                    }
                     Stability::Reliable => BucketEntryInner::cmp_oldest_reliable(cur_ts, e1, e2),
                 })
             })

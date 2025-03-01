@@ -11,6 +11,10 @@ _$LatencyStatsImpl _$$LatencyStatsImplFromJson(Map<String, dynamic> json) =>
       fastest: TimestampDuration.fromJson(json['fastest']),
       average: TimestampDuration.fromJson(json['average']),
       slowest: TimestampDuration.fromJson(json['slowest']),
+      tm90: TimestampDuration.fromJson(json['tm90']),
+      tm75: TimestampDuration.fromJson(json['tm75']),
+      p90: TimestampDuration.fromJson(json['p90']),
+      p75: TimestampDuration.fromJson(json['p75']),
     );
 
 Map<String, dynamic> _$$LatencyStatsImplToJson(_$LatencyStatsImpl instance) =>
@@ -18,6 +22,10 @@ Map<String, dynamic> _$$LatencyStatsImplToJson(_$LatencyStatsImpl instance) =>
       'fastest': instance.fastest.toJson(),
       'average': instance.average.toJson(),
       'slowest': instance.slowest.toJson(),
+      'tm90': instance.tm90.toJson(),
+      'tm75': instance.tm75.toJson(),
+      'p90': instance.p90.toJson(),
+      'p75': instance.p75.toJson(),
     };
 
 _$TransferStatsImpl _$$TransferStatsImplFromJson(Map<String, dynamic> json) =>
@@ -148,9 +156,13 @@ _$RPCStatsImpl _$$RPCStatsImplFromJson(Map<String, dynamic> json) =>
       firstConsecutiveSeenTs: json['first_consecutive_seen_ts'] == null
           ? null
           : Timestamp.fromJson(json['first_consecutive_seen_ts']),
-      recentLostAnswers: (json['recent_lost_answers'] as num).toInt(),
+      recentLostAnswersUnordered:
+          (json['recent_lost_answers_unordered'] as num).toInt(),
+      recentLostAnswersOrdered:
+          (json['recent_lost_answers_ordered'] as num).toInt(),
       failedToSend: (json['failed_to_send'] as num).toInt(),
-      answer: AnswerStats.fromJson(json['answer']),
+      answerUnordered: AnswerStats.fromJson(json['answer_unordered']),
+      answerOrdered: AnswerStats.fromJson(json['answer_ordered']),
     );
 
 Map<String, dynamic> _$$RPCStatsImplToJson(_$RPCStatsImpl instance) =>
@@ -161,9 +173,11 @@ Map<String, dynamic> _$$RPCStatsImplToJson(_$RPCStatsImpl instance) =>
       'last_question_ts': instance.lastQuestionTs?.toJson(),
       'last_seen_ts': instance.lastSeenTs?.toJson(),
       'first_consecutive_seen_ts': instance.firstConsecutiveSeenTs?.toJson(),
-      'recent_lost_answers': instance.recentLostAnswers,
+      'recent_lost_answers_unordered': instance.recentLostAnswersUnordered,
+      'recent_lost_answers_ordered': instance.recentLostAnswersOrdered,
       'failed_to_send': instance.failedToSend,
-      'answer': instance.answer.toJson(),
+      'answer_unordered': instance.answerUnordered.toJson(),
+      'answer_ordered': instance.answerOrdered.toJson(),
     };
 
 _$PeerStatsImpl _$$PeerStatsImplFromJson(Map<String, dynamic> json) =>

@@ -214,6 +214,8 @@ impl tracing::field::Visit for LogKeyFilterVisitor {
     fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
         if field.name() == VEILID_LOG_KEY_FIELD {
             self.enabled = Some((self.filter)(value));
+        } else {
+            self.record_debug(field, &value)
         }
     }
     fn record_debug(&mut self, _field: &tracing::field::Field, _value: &dyn fmt::Debug) {}

@@ -49,14 +49,14 @@ impl VeilidClient {
                 None,
             );
             let layer = WASMLayer::new(
-                WASMLayerConfigBuilder::new()
-                    .set_report_logs_in_timings(platformConfig.logging.performance.logs_in_timings)
-                    .set_console_config(if platformConfig.logging.performance.logs_in_console {
+                WASMLayerConfig::new()
+                    .with_report_logs_in_timings(platformConfig.logging.performance.logs_in_timings)
+                    .with_console_config(if platformConfig.logging.performance.logs_in_console {
                         ConsoleConfig::ReportWithConsoleColor
                     } else {
                         ConsoleConfig::NoReporting
                     })
-                    .build(),
+                    .with_field_filter(Some(Arc::new(|k| k != veilid_core::VEILID_LOG_KEY_FIELD))),
             )
             .with_filter(filter.clone());
             filters.insert("performance", filter);

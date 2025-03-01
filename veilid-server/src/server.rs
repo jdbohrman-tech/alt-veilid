@@ -242,7 +242,7 @@ pub async fn run_veilid_server(
 
     // Run all subnodes
     let mut all_subnodes_jh = vec![];
-    for subnode in subnode_index..(subnode_index + subnode_count) {
+    for subnode in subnode_index..=(subnode_index + subnode_count - 1) {
         debug!("Spawning subnode {}", subnode);
         let jh = spawn(
             &format!("subnode{}", subnode),
@@ -254,7 +254,7 @@ pub async fn run_veilid_server(
     // Wait for all subnodes to complete
     for (sn, jh) in all_subnodes_jh.into_iter().enumerate() {
         jh.await?;
-        debug!("Subnode {} exited", sn);
+        debug!("Subnode {} exited", (sn as u16) + subnode_index);
     }
 
     // Finally, drop logs

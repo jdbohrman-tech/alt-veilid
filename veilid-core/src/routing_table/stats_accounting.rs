@@ -2,7 +2,7 @@ use super::*;
 
 // Latency entry is per round-trip packet (ping or data)
 // - Size is number of entries
-const ROLLING_LATENCIES_SIZE: usize = 10;
+const ROLLING_LATENCIES_SIZE: usize = 50;
 
 // Transfers entries are in bytes total for the interval
 // - Size is number of entries
@@ -102,28 +102,64 @@ impl LatencyStatsAccounting {
         }
     }
 
+    fn get_tm_n(sorted_latencies: &[TimestampDuration], n: usize) -> Option<TimestampDuration> {
+        let tmcount = sorted_latencies.len() * n / 100;
+        if tmcount == 0 {
+            None
+        } else {
+            let mut tm = TimestampDuration::new(0);
+            for l in &sorted_latencies[..tmcount] {
+                tm += *l;
+            }
+            tm /= tmcount as u64;
+            Some(tm)
+        }
+    }
+
+    fn get_p_n(sorted_latencies: &[TimestampDuration], n: usize) -> TimestampDuration {
+        let pindex = (sorted_latencies.len() * n / 100).saturating_sub(1);
+        sorted_latencies[pindex]
+    }
+
     pub fn record_latency(&mut self, latency: TimestampDuration) -> LatencyStats {
         while self.rolling_latencies.len() >= ROLLING_LATENCIES_SIZE {
             self.rolling_latencies.pop_front();
         }
         self.rolling_latencies.push_back(latency);
 
-        let mut ls = LatencyStats {
-            fastest: u64::MAX.into(),
-            average: 0.into(),
-            slowest: 0.into(),
-        };
+        // Calculate latency stats
+
+        let mut fastest = TimestampDuration::new(u64::MAX);
+        let mut slowest = TimestampDuration::new(0u64);
+        let mut average = TimestampDuration::new(0u64);
+
         for rl in &self.rolling_latencies {
-            ls.fastest.min_assign(*rl);
-            ls.slowest.max_assign(*rl);
-            ls.average += *rl;
+            fastest.min_assign(*rl);
+            slowest.max_assign(*rl);
+            average += *rl;
         }
         let len = self.rolling_latencies.len() as u64;
         if len > 0 {
-            ls.average /= len;
+            average /= len;
         }
 
-        ls
+        let mut sorted_latencies: Vec<_> = self.rolling_latencies.iter().copied().collect();
+        sorted_latencies.sort();
+
+        let tm90 = Self::get_tm_n(&sorted_latencies, 90).unwrap_or(average);
+        let tm75 = Self::get_tm_n(&sorted_latencies, 75).unwrap_or(average);
+        let p90 = Self::get_p_n(&sorted_latencies, 90);
+        let p75 = Self::get_p_n(&sorted_latencies, 75);
+
+        LatencyStats {
+            fastest,
+            average,
+            slowest,
+            tm90,
+            tm75,
+            p90,
+            p75,
+        }
     }
 }
 

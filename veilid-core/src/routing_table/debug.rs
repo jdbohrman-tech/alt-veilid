@@ -117,7 +117,7 @@ impl RoutingTable {
                 PunishmentReason::InvalidFraming => "PFRAME",
                 PunishmentReason::FailedToDecodeOperation => "PDECOP",
                 PunishmentReason::WrongSenderPeerInfo => "PSPBAD",
-                // PunishmentReason::FailedToVerifySenderPeerInfo => "PSPVER",
+                PunishmentReason::FailedToVerifySenderPeerInfo => "PSPVER",
                 PunishmentReason::FailedToRegisterSenderPeerInfo => "PSPREG",
                 //
             },

@@ -89,7 +89,7 @@ impl RPCProcessor {
         );
 
         // Keep the reply private route that was used to return with the answer
-        let reply_private_route = waitable_reply.reply_private_route;
+        let reply_private_route = waitable_reply.context.reply_private_route;
 
         // Wait for reply
         let (msg, latency) = match self.wait_for_reply(waitable_reply, debug_string).await? {

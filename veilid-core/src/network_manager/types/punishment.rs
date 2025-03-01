@@ -10,7 +10,7 @@ pub(crate) enum PunishmentReason {
     // Node-level punishments
     FailedToDecodeOperation,
     WrongSenderPeerInfo,
-    // FailedToVerifySenderPeerInfo,
+    FailedToVerifySenderPeerInfo,
     FailedToRegisterSenderPeerInfo,
     // Route-level punishments
     // FailedToDecodeRoutedMessage,
