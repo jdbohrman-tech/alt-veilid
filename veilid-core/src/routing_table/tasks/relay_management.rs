@@ -202,7 +202,12 @@ impl RoutingTable {
             }
             if !got_outbound_relay {
                 // Find a node in our routing table that is an acceptable inbound relay
-                if let Some(nr) = self.find_fastest_node(cur_ts, &relay_node_filter, |ls| ls.tm90) {
+                if let Some(nr) = self.find_random_fast_node(
+                    cur_ts,
+                    &relay_node_filter,
+                    RELAY_SELECTION_PERCENTILE,
+                    |ls| ls.tm90,
+                ) {
                     veilid_log!(self debug "Inbound relay node selected: {}", nr);
                     editor.set_relay_node(Some(nr));
                 }
