@@ -1163,12 +1163,21 @@ impl BucketEntryInner {
             self.answer_stats_accounting_ordered
                 .record_lost_answer(cur_ts);
             self.peer_stats.rpc_stats.recent_lost_answers_ordered += 1;
+            if self.peer_stats.rpc_stats.recent_lost_answers_ordered
+                > UNRELIABLE_LOST_ANSWERS_ORDERED
+            {
+                self.peer_stats.rpc_stats.first_consecutive_seen_ts = None;
+            }
         } else {
             self.answer_stats_accounting_unordered
                 .record_lost_answer(cur_ts);
             self.peer_stats.rpc_stats.recent_lost_answers_unordered += 1;
+            if self.peer_stats.rpc_stats.recent_lost_answers_unordered
+                > UNRELIABLE_LOST_ANSWERS_UNORDERED
+            {
+                self.peer_stats.rpc_stats.first_consecutive_seen_ts = None;
+            }
         }
-        self.peer_stats.rpc_stats.first_consecutive_seen_ts = None;
         self.peer_stats.rpc_stats.questions_in_flight -= 1;
     }
     pub(super) fn failed_to_send(&mut self, ts: Timestamp, expects_answer: bool) {

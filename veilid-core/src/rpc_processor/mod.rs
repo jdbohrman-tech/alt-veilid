@@ -527,11 +527,11 @@ impl RPCProcessor {
             .await;
         match &out {
             Err(e) => {
-                veilid_log!(self debug "RPC Lost (id={} {}): {}", id, debug_string, e);
+                veilid_log!(self debug "RPC Lost (id={} {}): {} ({}) ", id, debug_string, e, waitable_reply.context.send_data_result.unique_flow().flow);
                 self.record_lost_answer(&waitable_reply.context);
             }
             Ok(TimeoutOr::Timeout) => {
-                veilid_log!(self debug "RPC Lost (id={} {}): Timeout", id, debug_string);
+                veilid_log!(self debug "RPC Lost (id={} {}): Timeout ({})", id, debug_string, waitable_reply.context.send_data_result.unique_flow().flow);
                 self.record_lost_answer(&waitable_reply.context);
             }
             Ok(TimeoutOr::Value((rpcreader, _))) => {
@@ -1130,7 +1130,6 @@ impl RPCProcessor {
 
         // Send question
         let bytes: ByteCount = (message.len() as u64).into();
-        let send_ts = Timestamp::now();
         #[allow(unused_variables)]
         let message_len = message.len();
         let res = self
@@ -1143,6 +1142,7 @@ impl RPCProcessor {
             .await
             .map_err(|e| {
                 // If we're returning an error, clean up
+                let send_ts = Timestamp::now();
                 self.record_send_failure(
                     RPCKind::Question,
                     send_ts,
@@ -1152,6 +1152,9 @@ impl RPCProcessor {
                 );
                 RPCError::network(e)
             })?;
+        // Take send timestamp -after- send is attempted to exclude TCP connection time which
+        // may unfairly punish some nodes, randomly, based on their being in the connection table or not
+        let send_ts = Timestamp::now();
         let send_data_result = network_result_value_or_log!(self res => [ format!(": node_ref={}, destination_node_ref={}, message.len={}", node_ref, destination_node_ref, message_len) ] {
                 // If we couldn't send we're still cleaning up
                 self.record_send_failure(RPCKind::Question, send_ts, node_ref.unfiltered(), safety_route, remote_private_route);
@@ -1219,7 +1222,6 @@ impl RPCProcessor {
 
         // Send statement
         let bytes: ByteCount = (message.len() as u64).into();
-        let send_ts = Timestamp::now();
         #[allow(unused_variables)]
         let message_len = message.len();
         let res = self
@@ -1232,6 +1234,7 @@ impl RPCProcessor {
             .await
             .map_err(|e| {
                 // If we're returning an error, clean up
+                let send_ts = Timestamp::now();
                 self.record_send_failure(
                     RPCKind::Statement,
                     send_ts,
@@ -1241,6 +1244,9 @@ impl RPCProcessor {
                 );
                 RPCError::network(e)
             })?;
+        // Take send timestamp -after- send is attempted to exclude TCP connection time which
+        // may unfairly punish some nodes, randomly, based on their being in the connection table or not
+        let send_ts = Timestamp::now();
         let send_data_result = network_result_value_or_log!(self res => [ format!(": node_ref={}, destination_node_ref={}, message.len={}", node_ref, destination_node_ref, message_len) ] {
                 // If we couldn't send we're still cleaning up
                 self.record_send_failure(RPCKind::Statement, send_ts, node_ref.unfiltered(), safety_route, remote_private_route);
@@ -1290,7 +1296,6 @@ impl RPCProcessor {
 
         // Send the reply
         let bytes: ByteCount = (message.len() as u64).into();
-        let send_ts = Timestamp::now();
         #[allow(unused_variables)]
         let message_len = message.len();
         let res = self
@@ -1303,6 +1308,7 @@ impl RPCProcessor {
             .await
             .map_err(|e| {
                 // If we're returning an error, clean up
+                let send_ts = Timestamp::now();
                 self.record_send_failure(
                     RPCKind::Answer,
                     send_ts,
@@ -1312,6 +1318,9 @@ impl RPCProcessor {
                 );
                 RPCError::network(e)
             })?;
+        // Take send timestamp -after- send is attempted to exclude TCP connection time which
+        // may unfairly punish some nodes, randomly, based on their being in the connection table or not
+        let send_ts = Timestamp::now();
         let send_data_result = network_result_value_or_log!(self res => [ format!(": node_ref={}, destination_node_ref={}, message.len={}", node_ref, destination_node_ref, message_len) ] {
                 // If we couldn't send we're still cleaning up
                 self.record_send_failure(RPCKind::Answer, send_ts, node_ref.unfiltered(), safety_route, remote_private_route);
