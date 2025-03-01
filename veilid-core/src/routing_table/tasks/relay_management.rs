@@ -71,7 +71,7 @@ impl RoutingTable {
                     false
                 }
                 // Relay node no longer can relay
-                else if relay_node.operate(|_rti, e| !relay_node_filter(e)) {
+                else if relay_node.operate(|_rti, e| !&relay_node_filter(e)) {
                     veilid_log!(self debug
                         "Relay node can no longer relay, dropping relay {}",
                         relay_node
@@ -88,7 +88,86 @@ impl RoutingTable {
                     editor.set_relay_node(None);
                     false
                 } else {
-                    true
+                    // See if our relay was optimized last long enough ago to consider getting a new one
+                    // if it is no longer fast enough
+                    let mut has_relay = true;
+                    let mut inner = self.inner.upgradable_read();
+                    if let Some(last_optimized) =
+                        inner.relay_node_last_optimized(RoutingDomain::PublicInternet)
+                    {
+                        let last_optimized_duration = cur_ts - last_optimized;
+                        if last_optimized_duration
+                            > TimestampDuration::new_secs(RELAY_OPTIMIZATION_INTERVAL_SECS)
+                        {
+                            // See what our relay's current percentile is
+                            let relay_node_id = relay_node.best_node_id();
+                            if let Some(relay_relative_performance) = inner
+                                .get_node_relative_performance(
+                                    relay_node_id,
+                                    cur_ts,
+                                    &relay_node_filter,
+                                    |ls| ls.tm90,
+                                )
+                            {
+                                // Get latency numbers
+                                let latency_stats =
+                                    if let Some(latency) = relay_node.peer_stats().latency {
+                                        latency.to_string()
+                                    } else {
+                                        "[no stats]".to_owned()
+                                    };
+
+                                // Get current relay reliability
+                                let state_reason = relay_node.state_reason(cur_ts);
+
+                                if relay_relative_performance.percentile
+                                    < RELAY_OPTIMIZATION_PERCENTILE
+                                {
+                                    // Drop the current relay so we can get the best new one
+                                    veilid_log!(self debug
+                                        "Relay tm90 is ({:.2}% < {:.2}%) ({} out of {}) (latency {}, {:?}) optimizing relay {}",
+                                        relay_relative_performance.percentile,
+                                        RELAY_OPTIMIZATION_PERCENTILE,
+                                        relay_relative_performance.node_index,
+                                        relay_relative_performance.node_count,
+                                        latency_stats,
+                                        state_reason,
+                                        relay_node
+                                    );
+                                    editor.set_relay_node(None);
+                                    has_relay = false;
+                                } else {
+                                    // Note that we tried to optimize the relay but it was good
+                                    veilid_log!(self debug
+                                        "Relay tm90 is ({:.2}% >= {:.2}%) ({} out of {}) (latency {}, {:?}) keeping {}",
+                                        relay_relative_performance.percentile,
+                                        RELAY_OPTIMIZATION_PERCENTILE,
+                                        relay_relative_performance.node_index,
+                                        relay_relative_performance.node_count,
+                                        latency_stats,
+                                        state_reason,
+                                        relay_node
+                                    );
+                                    inner.with_upgraded(|inner| {
+                                        inner.set_relay_node_last_optimized(
+                                            RoutingDomain::PublicInternet,
+                                            cur_ts,
+                                        )
+                                    });
+                                }
+                            } else {
+                                // Drop the current relay because it could not be measured
+                                veilid_log!(self debug
+                                    "Relay relative performance not found {}",
+                                    relay_node
+                                );
+                                editor.set_relay_node(None);
+                                has_relay = false;
+                            }
+                        }
+                    }
+
+                    has_relay
                 }
             } else {
                 false
@@ -123,11 +202,7 @@ impl RoutingTable {
             }
             if !got_outbound_relay {
                 // Find a node in our routing table that is an acceptable inbound relay
-                if let Some(nr) = self.find_inbound_relay(
-                    RoutingDomain::PublicInternet,
-                    cur_ts,
-                    relay_node_filter,
-                ) {
+                if let Some(nr) = self.find_fastest_node(cur_ts, &relay_node_filter, |ls| ls.tm90) {
                     veilid_log!(self debug "Inbound relay node selected: {}", nr);
                     editor.set_relay_node(Some(nr));
                 }
@@ -232,48 +307,5 @@ impl RoutingTable {
 
             true
         }
-    }
-
-    #[instrument(level = "trace", skip(self, relay_node_filter), ret)]
-    pub fn find_inbound_relay(
-        &self,
-        routing_domain: RoutingDomain,
-        cur_ts: Timestamp,
-        relay_node_filter: impl Fn(&BucketEntryInner) -> bool,
-    ) -> Option<NodeRef> {
-        // Go through all entries and find fastest entry that matches filter function
-        let inner = self.inner.read();
-        let inner = &*inner;
-        let mut best_inbound_relay: Option<Arc<BucketEntry>> = None;
-
-        // Iterate all known nodes for candidates
-        inner.with_entries(cur_ts, BucketEntryState::Unreliable, |rti, entry| {
-            let entry2 = entry.clone();
-            entry.with(rti, |rti, e| {
-                // Filter this node
-                if relay_node_filter(e) {
-                    // Compare against previous candidate
-                    if let Some(best_inbound_relay) = best_inbound_relay.as_mut() {
-                        // Less is faster
-                        let better = best_inbound_relay.with(rti, |_rti, best| {
-                            // choose low latency stability for relays
-                            BucketEntryInner::cmp_fastest_reliable(cur_ts, e, best)
-                                == std::cmp::Ordering::Less
-                        });
-                        // Now apply filter function and see if this node should be included
-                        if better {
-                            *best_inbound_relay = entry2;
-                        }
-                    } else {
-                        // Always store the first candidate
-                        best_inbound_relay = Some(entry2);
-                    }
-                }
-            });
-            // Don't end early, iterate through all entries
-            Option::<()>::None
-        });
-        // Return the best inbound relay noderef
-        best_inbound_relay.map(|e| NodeRef::new(self.registry(), e))
     }
 }

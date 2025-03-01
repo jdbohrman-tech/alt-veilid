@@ -76,6 +76,10 @@ deps-rust:
             # Linux
                 x86_64-unknown-linux-gnu \
                 aarch64-unknown-linux-gnu \
+            # Windows
+                x86_64-pc-windows-gnu \
+            # MacOS
+                aarch64-apple-darwin \
             # Android
                 aarch64-linux-android \
                 armv7-linux-androideabi \
@@ -146,6 +150,8 @@ build-linux-cache:
     RUN cargo chef cook --profile=test --tests --target $DEFAULT_CARGO_TARGET --recipe-path recipe.json -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
     RUN cargo chef cook --zigbuild --release --target x86_64-unknown-linux-gnu --recipe-path recipe.json -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
     RUN cargo chef cook --zigbuild --release --target aarch64-unknown-linux-gnu --recipe-path recipe.json -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
+    # RUN cargo chef cook --zigbuild --release --target x86_64-pc-windows-gnu --recipe-path recipe.json -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
+    # RUN cargo chef cook --zigbuild --release --target aarch64-apple-darwin --recipe-path recipe.json -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
     RUN veilid-wasm/wasm_remap_paths.sh cargo chef cook --zigbuild --release --target wasm32-unknown-unknown --recipe-path recipe.json -p veilid-wasm
     ARG CI_REGISTRY_IMAGE=registry.gitlab.com/veilid/veilid
     SAVE IMAGE --push $CI_REGISTRY_IMAGE/build-cache:latest
@@ -176,6 +182,8 @@ code-android:
 clippy:
     FROM +code-linux
     RUN cargo clippy --target x86_64-unknown-linux-gnu
+    RUN cargo clippy --target x86_64-pc-windows-gnu
+    RUN cargo clippy --target aarch64-apple-darwin
     RUN cargo clippy --manifest-path=veilid-wasm/Cargo.toml --target wasm32-unknown-unknown
 
 # Build
@@ -191,8 +199,34 @@ build-linux-amd64:
 
 build-linux-arm64:
     FROM +code-linux
+    # Ensure we have enough memory
+    IF [ $(free -wmt | grep Total | awk  '{print $2}') -lt 7500 ]
+        RUN echo "not enough container memory to build. increase build host memory."
+        RUN false
+    END
     RUN cargo zigbuild --target aarch64-unknown-linux-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
     SAVE ARTIFACT ./target/aarch64-unknown-linux-gnu AS LOCAL ./target/artifacts/aarch64-unknown-linux-gnu
+
+# build-windows-amd64:
+#     FROM +code-linux
+#     # Ensure we have enough memory
+#     IF [ $(free -wmt | grep Total | awk  '{print $2}') -lt 7500 ]
+#         RUN echo "not enough container memory to build. increase build host memory."
+#         RUN false
+#     END
+#     RUN cargo zigbuild --target x86_64-pc-windows-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
+#     SAVE ARTIFACT ./target/x86_64-pc-windows-gnu AS LOCAL ./target/artifacts/x86_64-pc-windows-gnu
+
+# build-macos-arm64:
+#     FROM +code-linux
+#     # Ensure we have enough memory
+#     IF [ $(free -wmt | grep Total | awk  '{print $2}') -lt 7500 ]
+#         RUN echo "not enough container memory to build. increase build host memory."
+#         RUN false
+#     END
+#     RUN cargo zigbuild --target aarch64-apple-darwin --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
+#     SAVE ARTIFACT ./target/aarch64-apple-darwin AS LOCAL ./target/artifacts/aarch64-apple-darwin
+
 
 build-android:
     FROM +code-android
@@ -217,6 +251,14 @@ unit-tests-clippy-wasm-linux:
     FROM +code-linux
     RUN cargo clippy --manifest-path=veilid-wasm/Cargo.toml --target wasm32-unknown-unknown
 
+unit-tests-clippy-windows-linux:
+    FROM +code-linux
+    RUN cargo-zigbuild clippy --target x86_64-pc-windows-gnu
+
+unit-tests-clippy-macos-linux:
+    FROM +code-linux
+    RUN cargo-zigbuild clippy --target aarch64-apple-darwin
+
 unit-tests-docs-linux:
     FROM +code-linux
     RUN ./build_docs.sh
@@ -237,6 +279,12 @@ unit-tests-linux:
     END
     WAIT
         BUILD +unit-tests-clippy-wasm-linux
+    END
+    WAIT
+        BUILD +unit-tests-clippy-windows-linux
+    END
+    WAIT
+        BUILD +unit-tests-clippy-macos-linux
     END
     WAIT
         BUILD +unit-tests-docs-linux

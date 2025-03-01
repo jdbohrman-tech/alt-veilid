@@ -3110,8 +3110,28 @@
           "description": "fastest latency in the ROLLING_LATENCIES_SIZE last latencies",
           "type": "string"
         },
+        "p75": {
+          "description": "p75 latency in the ROLLING_LATENCIES_SIZE",
+          "default": "0",
+          "type": "string"
+        },
+        "p90": {
+          "description": "p90 latency in the ROLLING_LATENCIES_SIZE",
+          "default": "0",
+          "type": "string"
+        },
         "slowest": {
           "description": "slowest latency in the ROLLING_LATENCIES_SIZE last latencies",
+          "type": "string"
+        },
+        "tm75": {
+          "description": "trimmed mean with lowest 75% latency in the ROLLING_LATENCIES_SIZE",
+          "default": "0",
+          "type": "string"
+        },
+        "tm90": {
+          "description": "trimmed mean with lowest 90% latency in the ROLLING_LATENCIES_SIZE",
+          "default": "0",
           "type": "string"
         }
       }
@@ -3153,7 +3173,19 @@
         "rpc_stats": {
           "description": "information about RPCs",
           "default": {
-            "answer": {
+            "answer_ordered": {
+              "answers": 0,
+              "consecutive_answers_average": 0,
+              "consecutive_answers_maximum": 0,
+              "consecutive_answers_minimum": 0,
+              "consecutive_lost_answers_average": 0,
+              "consecutive_lost_answers_maximum": 0,
+              "consecutive_lost_answers_minimum": 0,
+              "lost_answers": 0,
+              "questions": 0,
+              "span": "0"
+            },
+            "answer_unordered": {
               "answers": 0,
               "consecutive_answers_average": 0,
               "consecutive_answers_maximum": 0,
@@ -3172,7 +3204,8 @@
             "messages_rcvd": 0,
             "messages_sent": 0,
             "questions_in_flight": 0,
-            "recent_lost_answers": 0
+            "recent_lost_answers_ordered": 0,
+            "recent_lost_answers_unordered": 0
           },
           "allOf": [
             {
@@ -3269,12 +3302,31 @@
         "failed_to_send",
         "messages_rcvd",
         "messages_sent",
-        "questions_in_flight",
-        "recent_lost_answers"
+        "questions_in_flight"
       ],
       "properties": {
-        "answer": {
-          "description": "rpc answer stats for this peer",
+        "answer_ordered": {
+          "description": "ordered rpc answer stats for this peer",
+          "default": {
+            "answers": 0,
+            "consecutive_answers_average": 0,
+            "consecutive_answers_maximum": 0,
+            "consecutive_answers_minimum": 0,
+            "consecutive_lost_answers_average": 0,
+            "consecutive_lost_answers_maximum": 0,
+            "consecutive_lost_answers_minimum": 0,
+            "lost_answers": 0,
+            "questions": 0,
+            "span": "0"
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/AnswerStats"
+            }
+          ]
+        },
+        "answer_unordered": {
+          "description": "unordered rpc answer stats for this peer",
           "default": {
             "answers": 0,
             "consecutive_answers_average": 0,
@@ -3338,8 +3390,16 @@
           "format": "uint32",
           "minimum": 0.0
         },
-        "recent_lost_answers": {
-          "description": "number of answers that have been lost consecutively",
+        "recent_lost_answers_ordered": {
+          "description": "number of answers that have been lost consecutively over an ordered channel",
+          "default": 0,
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "recent_lost_answers_unordered": {
+          "description": "number of answers that have been lost consecutively over an unordered channel",
+          "default": 0,
           "type": "integer",
           "format": "uint32",
           "minimum": 0.0

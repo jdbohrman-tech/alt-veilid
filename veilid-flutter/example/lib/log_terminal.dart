@@ -27,8 +27,9 @@ class _LogTerminalState extends State<LogTerminal> {
   void initState() {
     super.initState();
     _terminal.setLineFeedMode(true);
-    globalTerminalPrinter.setCallback((log) {
-      _terminal.write('${log.pretty()}\n');
+    globalTerminalPrinter.setCallback((record) {
+      final out = record.pretty().replaceAll('\uFFFD', '');
+      _terminal.write('$out\n');
     });
   }
 

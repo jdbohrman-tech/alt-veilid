@@ -51,6 +51,10 @@ class LatencyStats with _$LatencyStats {
     required TimestampDuration fastest,
     required TimestampDuration average,
     required TimestampDuration slowest,
+    required TimestampDuration tm90,
+    required TimestampDuration tm75,
+    required TimestampDuration p90,
+    required TimestampDuration p75,
   }) = _LatencyStats;
 
   factory LatencyStats.fromJson(dynamic json) =>
@@ -152,9 +156,11 @@ class RPCStats with _$RPCStats {
     required Timestamp? lastQuestionTs,
     required Timestamp? lastSeenTs,
     required Timestamp? firstConsecutiveSeenTs,
-    required int recentLostAnswers,
+    required int recentLostAnswersUnordered,
+    required int recentLostAnswersOrdered,
     required int failedToSend,
-    required AnswerStats answer,
+    required AnswerStats answerUnordered,
+    required AnswerStats answerOrdered,
   }) = _RPCStats;
 
   factory RPCStats.fromJson(dynamic json) =>

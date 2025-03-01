@@ -23,6 +23,10 @@ mixin _$LatencyStats {
   TimestampDuration get fastest => throw _privateConstructorUsedError;
   TimestampDuration get average => throw _privateConstructorUsedError;
   TimestampDuration get slowest => throw _privateConstructorUsedError;
+  TimestampDuration get tm90 => throw _privateConstructorUsedError;
+  TimestampDuration get tm75 => throw _privateConstructorUsedError;
+  TimestampDuration get p90 => throw _privateConstructorUsedError;
+  TimestampDuration get p75 => throw _privateConstructorUsedError;
 
   /// Serializes this LatencyStats to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -43,7 +47,11 @@ abstract class $LatencyStatsCopyWith<$Res> {
   $Res call(
       {TimestampDuration fastest,
       TimestampDuration average,
-      TimestampDuration slowest});
+      TimestampDuration slowest,
+      TimestampDuration tm90,
+      TimestampDuration tm75,
+      TimestampDuration p90,
+      TimestampDuration p75});
 }
 
 /// @nodoc
@@ -64,6 +72,10 @@ class _$LatencyStatsCopyWithImpl<$Res, $Val extends LatencyStats>
     Object? fastest = null,
     Object? average = null,
     Object? slowest = null,
+    Object? tm90 = null,
+    Object? tm75 = null,
+    Object? p90 = null,
+    Object? p75 = null,
   }) {
     return _then(_value.copyWith(
       fastest: null == fastest
@@ -77,6 +89,22 @@ class _$LatencyStatsCopyWithImpl<$Res, $Val extends LatencyStats>
       slowest: null == slowest
           ? _value.slowest
           : slowest // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      tm90: null == tm90
+          ? _value.tm90
+          : tm90 // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      tm75: null == tm75
+          ? _value.tm75
+          : tm75 // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      p90: null == p90
+          ? _value.p90
+          : p90 // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      p75: null == p75
+          ? _value.p75
+          : p75 // ignore: cast_nullable_to_non_nullable
               as TimestampDuration,
     ) as $Val);
   }
@@ -93,7 +121,11 @@ abstract class _$$LatencyStatsImplCopyWith<$Res>
   $Res call(
       {TimestampDuration fastest,
       TimestampDuration average,
-      TimestampDuration slowest});
+      TimestampDuration slowest,
+      TimestampDuration tm90,
+      TimestampDuration tm75,
+      TimestampDuration p90,
+      TimestampDuration p75});
 }
 
 /// @nodoc
@@ -112,6 +144,10 @@ class __$$LatencyStatsImplCopyWithImpl<$Res>
     Object? fastest = null,
     Object? average = null,
     Object? slowest = null,
+    Object? tm90 = null,
+    Object? tm75 = null,
+    Object? p90 = null,
+    Object? p75 = null,
   }) {
     return _then(_$LatencyStatsImpl(
       fastest: null == fastest
@@ -126,6 +162,22 @@ class __$$LatencyStatsImplCopyWithImpl<$Res>
           ? _value.slowest
           : slowest // ignore: cast_nullable_to_non_nullable
               as TimestampDuration,
+      tm90: null == tm90
+          ? _value.tm90
+          : tm90 // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      tm75: null == tm75
+          ? _value.tm75
+          : tm75 // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      p90: null == p90
+          ? _value.p90
+          : p90 // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      p75: null == p75
+          ? _value.p75
+          : p75 // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
     ));
   }
 }
@@ -134,7 +186,13 @@ class __$$LatencyStatsImplCopyWithImpl<$Res>
 @JsonSerializable()
 class _$LatencyStatsImpl implements _LatencyStats {
   const _$LatencyStatsImpl(
-      {required this.fastest, required this.average, required this.slowest});
+      {required this.fastest,
+      required this.average,
+      required this.slowest,
+      required this.tm90,
+      required this.tm75,
+      required this.p90,
+      required this.p75});
 
   factory _$LatencyStatsImpl.fromJson(Map<String, dynamic> json) =>
       _$$LatencyStatsImplFromJson(json);
@@ -145,10 +203,18 @@ class _$LatencyStatsImpl implements _LatencyStats {
   final TimestampDuration average;
   @override
   final TimestampDuration slowest;
+  @override
+  final TimestampDuration tm90;
+  @override
+  final TimestampDuration tm75;
+  @override
+  final TimestampDuration p90;
+  @override
+  final TimestampDuration p75;
 
   @override
   String toString() {
-    return 'LatencyStats(fastest: $fastest, average: $average, slowest: $slowest)';
+    return 'LatencyStats(fastest: $fastest, average: $average, slowest: $slowest, tm90: $tm90, tm75: $tm75, p90: $p90, p75: $p75)';
   }
 
   @override
@@ -158,12 +224,17 @@ class _$LatencyStatsImpl implements _LatencyStats {
             other is _$LatencyStatsImpl &&
             (identical(other.fastest, fastest) || other.fastest == fastest) &&
             (identical(other.average, average) || other.average == average) &&
-            (identical(other.slowest, slowest) || other.slowest == slowest));
+            (identical(other.slowest, slowest) || other.slowest == slowest) &&
+            (identical(other.tm90, tm90) || other.tm90 == tm90) &&
+            (identical(other.tm75, tm75) || other.tm75 == tm75) &&
+            (identical(other.p90, p90) || other.p90 == p90) &&
+            (identical(other.p75, p75) || other.p75 == p75));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, fastest, average, slowest);
+  int get hashCode =>
+      Object.hash(runtimeType, fastest, average, slowest, tm90, tm75, p90, p75);
 
   /// Create a copy of LatencyStats
   /// with the given fields replaced by the non-null parameter values.
@@ -185,7 +256,11 @@ abstract class _LatencyStats implements LatencyStats {
   const factory _LatencyStats(
       {required final TimestampDuration fastest,
       required final TimestampDuration average,
-      required final TimestampDuration slowest}) = _$LatencyStatsImpl;
+      required final TimestampDuration slowest,
+      required final TimestampDuration tm90,
+      required final TimestampDuration tm75,
+      required final TimestampDuration p90,
+      required final TimestampDuration p75}) = _$LatencyStatsImpl;
 
   factory _LatencyStats.fromJson(Map<String, dynamic> json) =
       _$LatencyStatsImpl.fromJson;
@@ -196,6 +271,14 @@ abstract class _LatencyStats implements LatencyStats {
   TimestampDuration get average;
   @override
   TimestampDuration get slowest;
+  @override
+  TimestampDuration get tm90;
+  @override
+  TimestampDuration get tm75;
+  @override
+  TimestampDuration get p90;
+  @override
+  TimestampDuration get p75;
 
   /// Create a copy of LatencyStats
   /// with the given fields replaced by the non-null parameter values.
@@ -1545,9 +1628,11 @@ mixin _$RPCStats {
   Timestamp? get lastQuestionTs => throw _privateConstructorUsedError;
   Timestamp? get lastSeenTs => throw _privateConstructorUsedError;
   Timestamp? get firstConsecutiveSeenTs => throw _privateConstructorUsedError;
-  int get recentLostAnswers => throw _privateConstructorUsedError;
+  int get recentLostAnswersUnordered => throw _privateConstructorUsedError;
+  int get recentLostAnswersOrdered => throw _privateConstructorUsedError;
   int get failedToSend => throw _privateConstructorUsedError;
-  AnswerStats get answer => throw _privateConstructorUsedError;
+  AnswerStats get answerUnordered => throw _privateConstructorUsedError;
+  AnswerStats get answerOrdered => throw _privateConstructorUsedError;
 
   /// Serializes this RPCStats to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -1571,11 +1656,14 @@ abstract class $RPCStatsCopyWith<$Res> {
       Timestamp? lastQuestionTs,
       Timestamp? lastSeenTs,
       Timestamp? firstConsecutiveSeenTs,
-      int recentLostAnswers,
+      int recentLostAnswersUnordered,
+      int recentLostAnswersOrdered,
       int failedToSend,
-      AnswerStats answer});
+      AnswerStats answerUnordered,
+      AnswerStats answerOrdered});
 
-  $AnswerStatsCopyWith<$Res> get answer;
+  $AnswerStatsCopyWith<$Res> get answerUnordered;
+  $AnswerStatsCopyWith<$Res> get answerOrdered;
 }
 
 /// @nodoc
@@ -1599,9 +1687,11 @@ class _$RPCStatsCopyWithImpl<$Res, $Val extends RPCStats>
     Object? lastQuestionTs = freezed,
     Object? lastSeenTs = freezed,
     Object? firstConsecutiveSeenTs = freezed,
-    Object? recentLostAnswers = null,
+    Object? recentLostAnswersUnordered = null,
+    Object? recentLostAnswersOrdered = null,
     Object? failedToSend = null,
-    Object? answer = null,
+    Object? answerUnordered = null,
+    Object? answerOrdered = null,
   }) {
     return _then(_value.copyWith(
       messagesSent: null == messagesSent
@@ -1628,17 +1718,25 @@ class _$RPCStatsCopyWithImpl<$Res, $Val extends RPCStats>
           ? _value.firstConsecutiveSeenTs
           : firstConsecutiveSeenTs // ignore: cast_nullable_to_non_nullable
               as Timestamp?,
-      recentLostAnswers: null == recentLostAnswers
-          ? _value.recentLostAnswers
-          : recentLostAnswers // ignore: cast_nullable_to_non_nullable
+      recentLostAnswersUnordered: null == recentLostAnswersUnordered
+          ? _value.recentLostAnswersUnordered
+          : recentLostAnswersUnordered // ignore: cast_nullable_to_non_nullable
+              as int,
+      recentLostAnswersOrdered: null == recentLostAnswersOrdered
+          ? _value.recentLostAnswersOrdered
+          : recentLostAnswersOrdered // ignore: cast_nullable_to_non_nullable
               as int,
       failedToSend: null == failedToSend
           ? _value.failedToSend
           : failedToSend // ignore: cast_nullable_to_non_nullable
               as int,
-      answer: null == answer
-          ? _value.answer
-          : answer // ignore: cast_nullable_to_non_nullable
+      answerUnordered: null == answerUnordered
+          ? _value.answerUnordered
+          : answerUnordered // ignore: cast_nullable_to_non_nullable
+              as AnswerStats,
+      answerOrdered: null == answerOrdered
+          ? _value.answerOrdered
+          : answerOrdered // ignore: cast_nullable_to_non_nullable
               as AnswerStats,
     ) as $Val);
   }
@@ -1647,9 +1745,19 @@ class _$RPCStatsCopyWithImpl<$Res, $Val extends RPCStats>
   /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
-  $AnswerStatsCopyWith<$Res> get answer {
-    return $AnswerStatsCopyWith<$Res>(_value.answer, (value) {
-      return _then(_value.copyWith(answer: value) as $Val);
+  $AnswerStatsCopyWith<$Res> get answerUnordered {
+    return $AnswerStatsCopyWith<$Res>(_value.answerUnordered, (value) {
+      return _then(_value.copyWith(answerUnordered: value) as $Val);
+    });
+  }
+
+  /// Create a copy of RPCStats
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $AnswerStatsCopyWith<$Res> get answerOrdered {
+    return $AnswerStatsCopyWith<$Res>(_value.answerOrdered, (value) {
+      return _then(_value.copyWith(answerOrdered: value) as $Val);
     });
   }
 }
@@ -1669,12 +1777,16 @@ abstract class _$$RPCStatsImplCopyWith<$Res>
       Timestamp? lastQuestionTs,
       Timestamp? lastSeenTs,
       Timestamp? firstConsecutiveSeenTs,
-      int recentLostAnswers,
+      int recentLostAnswersUnordered,
+      int recentLostAnswersOrdered,
       int failedToSend,
-      AnswerStats answer});
+      AnswerStats answerUnordered,
+      AnswerStats answerOrdered});
 
   @override
-  $AnswerStatsCopyWith<$Res> get answer;
+  $AnswerStatsCopyWith<$Res> get answerUnordered;
+  @override
+  $AnswerStatsCopyWith<$Res> get answerOrdered;
 }
 
 /// @nodoc
@@ -1696,9 +1808,11 @@ class __$$RPCStatsImplCopyWithImpl<$Res>
     Object? lastQuestionTs = freezed,
     Object? lastSeenTs = freezed,
     Object? firstConsecutiveSeenTs = freezed,
-    Object? recentLostAnswers = null,
+    Object? recentLostAnswersUnordered = null,
+    Object? recentLostAnswersOrdered = null,
     Object? failedToSend = null,
-    Object? answer = null,
+    Object? answerUnordered = null,
+    Object? answerOrdered = null,
   }) {
     return _then(_$RPCStatsImpl(
       messagesSent: null == messagesSent
@@ -1725,17 +1839,25 @@ class __$$RPCStatsImplCopyWithImpl<$Res>
           ? _value.firstConsecutiveSeenTs
           : firstConsecutiveSeenTs // ignore: cast_nullable_to_non_nullable
               as Timestamp?,
-      recentLostAnswers: null == recentLostAnswers
-          ? _value.recentLostAnswers
-          : recentLostAnswers // ignore: cast_nullable_to_non_nullable
+      recentLostAnswersUnordered: null == recentLostAnswersUnordered
+          ? _value.recentLostAnswersUnordered
+          : recentLostAnswersUnordered // ignore: cast_nullable_to_non_nullable
+              as int,
+      recentLostAnswersOrdered: null == recentLostAnswersOrdered
+          ? _value.recentLostAnswersOrdered
+          : recentLostAnswersOrdered // ignore: cast_nullable_to_non_nullable
               as int,
       failedToSend: null == failedToSend
           ? _value.failedToSend
           : failedToSend // ignore: cast_nullable_to_non_nullable
               as int,
-      answer: null == answer
-          ? _value.answer
-          : answer // ignore: cast_nullable_to_non_nullable
+      answerUnordered: null == answerUnordered
+          ? _value.answerUnordered
+          : answerUnordered // ignore: cast_nullable_to_non_nullable
+              as AnswerStats,
+      answerOrdered: null == answerOrdered
+          ? _value.answerOrdered
+          : answerOrdered // ignore: cast_nullable_to_non_nullable
               as AnswerStats,
     ));
   }
@@ -1751,9 +1873,11 @@ class _$RPCStatsImpl implements _RPCStats {
       required this.lastQuestionTs,
       required this.lastSeenTs,
       required this.firstConsecutiveSeenTs,
-      required this.recentLostAnswers,
+      required this.recentLostAnswersUnordered,
+      required this.recentLostAnswersOrdered,
       required this.failedToSend,
-      required this.answer});
+      required this.answerUnordered,
+      required this.answerOrdered});
 
   factory _$RPCStatsImpl.fromJson(Map<String, dynamic> json) =>
       _$$RPCStatsImplFromJson(json);
@@ -1771,15 +1895,19 @@ class _$RPCStatsImpl implements _RPCStats {
   @override
   final Timestamp? firstConsecutiveSeenTs;
   @override
-  final int recentLostAnswers;
+  final int recentLostAnswersUnordered;
+  @override
+  final int recentLostAnswersOrdered;
   @override
   final int failedToSend;
   @override
-  final AnswerStats answer;
+  final AnswerStats answerUnordered;
+  @override
+  final AnswerStats answerOrdered;
 
   @override
   String toString() {
-    return 'RPCStats(messagesSent: $messagesSent, messagesRcvd: $messagesRcvd, questionsInFlight: $questionsInFlight, lastQuestionTs: $lastQuestionTs, lastSeenTs: $lastSeenTs, firstConsecutiveSeenTs: $firstConsecutiveSeenTs, recentLostAnswers: $recentLostAnswers, failedToSend: $failedToSend, answer: $answer)';
+    return 'RPCStats(messagesSent: $messagesSent, messagesRcvd: $messagesRcvd, questionsInFlight: $questionsInFlight, lastQuestionTs: $lastQuestionTs, lastSeenTs: $lastSeenTs, firstConsecutiveSeenTs: $firstConsecutiveSeenTs, recentLostAnswersUnordered: $recentLostAnswersUnordered, recentLostAnswersOrdered: $recentLostAnswersOrdered, failedToSend: $failedToSend, answerUnordered: $answerUnordered, answerOrdered: $answerOrdered)';
   }
 
   @override
@@ -1799,11 +1927,19 @@ class _$RPCStatsImpl implements _RPCStats {
                 other.lastSeenTs == lastSeenTs) &&
             (identical(other.firstConsecutiveSeenTs, firstConsecutiveSeenTs) ||
                 other.firstConsecutiveSeenTs == firstConsecutiveSeenTs) &&
-            (identical(other.recentLostAnswers, recentLostAnswers) ||
-                other.recentLostAnswers == recentLostAnswers) &&
+            (identical(other.recentLostAnswersUnordered,
+                    recentLostAnswersUnordered) ||
+                other.recentLostAnswersUnordered ==
+                    recentLostAnswersUnordered) &&
+            (identical(
+                    other.recentLostAnswersOrdered, recentLostAnswersOrdered) ||
+                other.recentLostAnswersOrdered == recentLostAnswersOrdered) &&
             (identical(other.failedToSend, failedToSend) ||
                 other.failedToSend == failedToSend) &&
-            (identical(other.answer, answer) || other.answer == answer));
+            (identical(other.answerUnordered, answerUnordered) ||
+                other.answerUnordered == answerUnordered) &&
+            (identical(other.answerOrdered, answerOrdered) ||
+                other.answerOrdered == answerOrdered));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1816,9 +1952,11 @@ class _$RPCStatsImpl implements _RPCStats {
       lastQuestionTs,
       lastSeenTs,
       firstConsecutiveSeenTs,
-      recentLostAnswers,
+      recentLostAnswersUnordered,
+      recentLostAnswersOrdered,
       failedToSend,
-      answer);
+      answerUnordered,
+      answerOrdered);
 
   /// Create a copy of RPCStats
   /// with the given fields replaced by the non-null parameter values.
@@ -1844,9 +1982,11 @@ abstract class _RPCStats implements RPCStats {
       required final Timestamp? lastQuestionTs,
       required final Timestamp? lastSeenTs,
       required final Timestamp? firstConsecutiveSeenTs,
-      required final int recentLostAnswers,
+      required final int recentLostAnswersUnordered,
+      required final int recentLostAnswersOrdered,
       required final int failedToSend,
-      required final AnswerStats answer}) = _$RPCStatsImpl;
+      required final AnswerStats answerUnordered,
+      required final AnswerStats answerOrdered}) = _$RPCStatsImpl;
 
   factory _RPCStats.fromJson(Map<String, dynamic> json) =
       _$RPCStatsImpl.fromJson;
@@ -1864,11 +2004,15 @@ abstract class _RPCStats implements RPCStats {
   @override
   Timestamp? get firstConsecutiveSeenTs;
   @override
-  int get recentLostAnswers;
+  int get recentLostAnswersUnordered;
+  @override
+  int get recentLostAnswersOrdered;
   @override
   int get failedToSend;
   @override
-  AnswerStats get answer;
+  AnswerStats get answerUnordered;
+  @override
+  AnswerStats get answerOrdered;
 
   /// Create a copy of RPCStats
   /// with the given fields replaced by the non-null parameter values.

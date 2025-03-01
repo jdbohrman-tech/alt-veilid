@@ -19,11 +19,11 @@ pub fn setup() -> () {
     SETUP_ONCE.call_once(|| {
         console_error_panic_hook::set_once();
 
-        let mut builder = tracing_wasm::WASMLayerConfigBuilder::new();
-        builder.set_report_logs_in_timings(false);
-        builder.set_max_level(Level::TRACE);
-        builder.set_console_config(tracing_wasm::ConsoleConfig::ReportWithoutConsoleColor);
-        tracing_wasm::set_as_global_default_with_config(builder.build());
+        let config = veilid_tracing_wasm::WASMLayerConfig::new()
+            .with_report_logs_in_timings(false)
+            .with_max_level(Level::TRACE)
+            .with_console_config(tracing_wasm::ConsoleConfig::ReportWithoutConsoleColor);
+        tracing_wasm::set_as_global_default_with_config(config);
     });
 }
 

@@ -170,24 +170,26 @@ impl NetworkManager {
                 ncm_kind: NodeContactMethodKind::OutboundRelay(relay_nr),
             }) => {
                 // Relay loop or multiple relays
-                bail!(
-                            "Outbound relay loop or multiple relays detected: destination {} resolved to target {} via extraneous relay {}",
-                            destination_node_ref,
-                            target_node_ref,
-                            relay_nr,
-                        );
+                veilid_log!(self debug
+                "Outbound relay loop or multiple relays detected: destination {} resolved to target {} via extraneous relay {}",
+                    destination_node_ref,
+                    target_node_ref,
+                    relay_nr
+                );
+                return Ok(NetworkResult::no_connection_other("outbound relay loop"));
             }
             Some(NodeContactMethod {
                 ncm_key: _,
                 ncm_kind: NodeContactMethodKind::InboundRelay(relay_nr),
             }) => {
                 // Relay loop or multiple relays
-                bail!(
-                            "Inbound relay loop or multiple relays detected: destination {} resolved to target {} via extraneous relay {}",
-                            destination_node_ref,
-                            target_node_ref,
-                            relay_nr,
-                        );
+                veilid_log!(self debug
+                "Inbound relay loop or multiple relays detected: destination {} resolved to target {} via extraneous relay {}",
+                    destination_node_ref,
+                    target_node_ref,
+                    relay_nr
+                );
+                return Ok(NetworkResult::no_connection_other("inbound relay loop"));
             }
             Some(NodeContactMethod {
                 ncm_key: _,

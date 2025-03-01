@@ -10,14 +10,26 @@ pub struct LatencyStats {
     pub average: TimestampDuration,
     /// slowest latency in the ROLLING_LATENCIES_SIZE last latencies
     pub slowest: TimestampDuration,
+    /// trimmed mean with lowest 90% latency in the ROLLING_LATENCIES_SIZE
+    #[serde(default)]
+    pub tm90: TimestampDuration,
+    /// trimmed mean with lowest 75% latency in the ROLLING_LATENCIES_SIZE
+    #[serde(default)]
+    pub tm75: TimestampDuration,
+    /// p90 latency in the ROLLING_LATENCIES_SIZE
+    #[serde(default)]
+    pub p90: TimestampDuration,
+    /// p75 latency in the ROLLING_LATENCIES_SIZE
+    #[serde(default)]
+    pub p75: TimestampDuration,
 }
 
 impl fmt::Display for LatencyStats {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} slow / {} avg / {} fast",
-            self.slowest, self.average, self.fastest
+            "slow={} / avg={} / fast={} / tm90={} / tm75={} / p90={} / p75={}",
+            self.slowest, self.average, self.fastest, self.tm90, self.tm75, self.p90, self.p75
         )?;
         Ok(())
     }
@@ -206,13 +218,20 @@ pub struct RPCStats {
     pub last_seen_ts: Option<Timestamp>,
     /// the timestamp of the first consecutive proof-of-life for this node (an answer or received question)
     pub first_consecutive_seen_ts: Option<Timestamp>,
-    /// number of answers that have been lost consecutively
-    pub recent_lost_answers: u32,
     /// number of messages that have failed to send or connections dropped since we last successfully sent one
     pub failed_to_send: u32,
-    /// rpc answer stats for this peer
+    /// number of answers that have been lost consecutively over an unordered channel
     #[serde(default)]
-    pub answer: AnswerStats,
+    pub recent_lost_answers_unordered: u32,
+    /// number of answers that have been lost consecutively over an ordered channel
+    #[serde(default)]
+    pub recent_lost_answers_ordered: u32,
+    /// unordered rpc answer stats for this peer
+    #[serde(default)]
+    pub answer_unordered: AnswerStats,
+    /// ordered rpc answer stats for this peer
+    #[serde(default)]
+    pub answer_ordered: AnswerStats,
 }
 
 impl fmt::Display for RPCStats {
@@ -224,9 +243,10 @@ impl fmt::Display for RPCStats {
         )?;
         writeln!(
             f,
-            "# recently-lost/failed-to-send: {} / {}",
-            self.recent_lost_answers, self.failed_to_send
+            "# recently-lost unordered/ordered: {} / {}",
+            self.recent_lost_answers_unordered, self.recent_lost_answers_ordered,
         )?;
+        writeln!(f, "# failed-to-send: {}", self.failed_to_send)?;
         writeln!(
             f,
             "last_question:     {}",
@@ -255,7 +275,16 @@ impl fmt::Display for RPCStats {
             }
         )?;
 
-        write!(f, "answers:\n{}", indent_all_string(&self.answer))?;
+        write!(
+            f,
+            "unreliable answers:\n{}",
+            indent_all_string(&self.answer_unordered)
+        )?;
+        write!(
+            f,
+            "reliable answers:\n{}",
+            indent_all_string(&self.answer_ordered)
+        )?;
 
         Ok(())
     }

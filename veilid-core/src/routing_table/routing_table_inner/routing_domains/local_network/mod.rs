@@ -89,6 +89,9 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
     fn relay_node_last_keepalive(&self) -> Option<Timestamp> {
         self.common.relay_node_last_keepalive()
     }
+    fn relay_node_last_optimized(&self) -> Option<Timestamp> {
+        self.common.relay_node_last_optimized()
+    }
     fn dial_info_details(&self) -> &Vec<DialInfoDetail> {
         self.common.dial_info_details()
     }
@@ -235,5 +238,9 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
 
     fn set_relay_node_last_keepalive(&mut self, ts: Option<Timestamp>) {
         self.common.set_relay_node_last_keepalive(ts);
+    }
+
+    fn set_relay_node_last_optimized(&mut self, ts: Option<Timestamp>) {
+        self.common.set_relay_node_last_optimized(ts);
     }
 }

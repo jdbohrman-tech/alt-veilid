@@ -2,7 +2,7 @@ use super::*;
 use core::sync::atomic::{AtomicU32, Ordering};
 
 /// Reliable pings are done with increased spacing between pings
-
+///
 /// - Start secs is the number of seconds between the first two pings
 const RELIABLE_PING_INTERVAL_START_SECS: u32 = 10;
 /// - Max secs is the maximum number of seconds between consecutive pings
@@ -21,7 +21,15 @@ const RELIABLE_PING_INTERVAL_MULTIPLIER: f64 = 2.0;
 const UNRELIABLE_PING_SPAN_SECS: u32 = 60;
 /// - Interval is the number of seconds between each ping
 const UNRELIABLE_PING_INTERVAL_SECS: u32 = 5;
+/// - Number of consecutive lost answers on an unordered protocol we will
+///   tolerate before we call something unreliable
+const UNRELIABLE_LOST_ANSWERS_UNORDERED: u32 = 1;
+/// - Number of consecutive lost answers on an ordered protocol we will
+///   tolerate before we call something unreliable
+const UNRELIABLE_LOST_ANSWERS_ORDERED: u32 = 0;
 
+/// Dead nodes are unreachable nodes, not 'never reached' nodes
+///
 /// How many times do we try to ping a never-reached node before we call it dead
 const NEVER_SEEN_PING_COUNT: u32 = 3;
 
@@ -194,9 +202,12 @@ pub(crate) struct BucketEntryInner {
     /// The account for the state and reason statistics
     #[serde(skip)]
     state_stats_accounting: Mutex<StateStatsAccounting>,
-    /// RPC answer stats accounting
+    /// RPC answer stats accounting for unordered protocols
     #[serde(skip)]
-    answer_stats_accounting: AnswerStatsAccounting,
+    answer_stats_accounting_unordered: AnswerStatsAccounting,
+    /// RPC answer stats accounting for ordered protocols
+    #[serde(skip)]
+    answer_stats_accounting_ordered: AnswerStatsAccounting,
     /// If the entry is being punished and should be considered dead
     #[serde(skip)]
     punishment: Option<PunishmentReason>,
@@ -375,11 +386,15 @@ impl BucketEntryInner {
     }
 
     // Less is faster
-    pub fn cmp_fastest(e1: &Self, e2: &Self) -> std::cmp::Ordering {
+    pub fn cmp_fastest(
+        e1: &Self,
+        e2: &Self,
+        metric: impl Fn(&LatencyStats) -> TimestampDuration,
+    ) -> std::cmp::Ordering {
         // Lower latency to the front
         if let Some(e1_latency) = &e1.peer_stats.latency {
             if let Some(e2_latency) = &e2.peer_stats.latency {
-                e1_latency.average.cmp(&e2_latency.average)
+                metric(e1_latency).cmp(&metric(e2_latency))
             } else {
                 std::cmp::Ordering::Less
             }
@@ -391,7 +406,12 @@ impl BucketEntryInner {
     }
 
     // Less is more reliable then faster
-    pub fn cmp_fastest_reliable(cur_ts: Timestamp, e1: &Self, e2: &Self) -> std::cmp::Ordering {
+    pub fn cmp_fastest_reliable(
+        cur_ts: Timestamp,
+        e1: &Self,
+        e2: &Self,
+        metric: impl Fn(&LatencyStats) -> TimestampDuration,
+    ) -> std::cmp::Ordering {
         // Reverse compare so most reliable is at front
         let ret = e2.state(cur_ts).cmp(&e1.state(cur_ts));
         if ret != std::cmp::Ordering::Equal {
@@ -399,7 +419,7 @@ impl BucketEntryInner {
         }
 
         // Lower latency to the front
-        Self::cmp_fastest(e1, e2)
+        Self::cmp_fastest(e1, e2, metric)
     }
 
     // Less is more reliable then older
@@ -424,13 +444,6 @@ impl BucketEntryInner {
             // Then check 'since added to routing table' timestamp
             e1.peer_stats.time_added.cmp(&e2.peer_stats.time_added)
         }
-    }
-
-    #[expect(dead_code)]
-    pub fn sort_fastest_reliable_fn(
-        cur_ts: Timestamp,
-    ) -> impl FnMut(&Self, &Self) -> std::cmp::Ordering {
-        move |e1, e2| Self::cmp_fastest_reliable(cur_ts, e1, e2)
     }
 
     pub fn update_signed_node_info(
@@ -877,7 +890,10 @@ impl BucketEntryInner {
 
     // called every ROLLING_ANSWERS_INTERVAL_SECS seconds
     pub(super) fn roll_answer_stats(&mut self, cur_ts: Timestamp) {
-        self.peer_stats.rpc_stats.answer = self.answer_stats_accounting.roll_answers(cur_ts);
+        self.peer_stats.rpc_stats.answer_unordered =
+            self.answer_stats_accounting_unordered.roll_answers(cur_ts);
+        self.peer_stats.rpc_stats.answer_ordered =
+            self.answer_stats_accounting_ordered.roll_answers(cur_ts);
     }
 
     ///// state machine handling
@@ -890,8 +906,14 @@ impl BucketEntryInner {
             return Some(BucketEntryUnreliableReason::FailedToSend);
         }
 
-        // If we have had any lost answers recently, this is not reliable
-        if self.peer_stats.rpc_stats.recent_lost_answers > 0 {
+        // If we have had more than UNRELIABLE_LOST_ANSWERS_UNORDERED lost answers recently on an unordered protocol, this is not reliable
+        if self.peer_stats.rpc_stats.recent_lost_answers_unordered
+            > UNRELIABLE_LOST_ANSWERS_UNORDERED
+        {
+            return Some(BucketEntryUnreliableReason::LostAnswers);
+        }
+        // If we have had more than UNRELIABLE_LOST_ANSWERS_ORDERED lost answers recently on an ordered protocol, this is not reliable
+        if self.peer_stats.rpc_stats.recent_lost_answers_ordered > UNRELIABLE_LOST_ANSWERS_ORDERED {
             return Some(BucketEntryUnreliableReason::LostAnswers);
         }
 
@@ -920,8 +942,9 @@ impl BucketEntryInner {
             // a node is not dead if we haven't heard from it yet,
             // but we give it NEVER_REACHED_PING_COUNT chances to ping before we say it's dead
             None => {
-                let no_answers =
-                    self.peer_stats.rpc_stats.recent_lost_answers >= NEVER_SEEN_PING_COUNT;
+                let no_answers = self.peer_stats.rpc_stats.recent_lost_answers_unordered
+                    + self.peer_stats.rpc_stats.recent_lost_answers_ordered
+                    >= NEVER_SEEN_PING_COUNT;
                 if no_answers {
                     return Some(BucketEntryDeadReason::TooManyLostAnswers);
                 }
@@ -932,7 +955,8 @@ impl BucketEntryInner {
             Some(ts) => {
                 let not_seen = cur_ts.saturating_sub(ts)
                     >= TimestampDuration::new(UNRELIABLE_PING_SPAN_SECS as u64 * 1_000_000u64);
-                let no_answers = self.peer_stats.rpc_stats.recent_lost_answers
+                let no_answers = self.peer_stats.rpc_stats.recent_lost_answers_unordered
+                    + self.peer_stats.rpc_stats.recent_lost_answers_ordered
                     >= (UNRELIABLE_PING_SPAN_SECS / UNRELIABLE_PING_INTERVAL_SECS);
                 if not_seen && no_answers {
                     return Some(BucketEntryDeadReason::NoPingResponse);
@@ -1046,7 +1070,8 @@ impl BucketEntryInner {
     pub(super) fn make_not_dead(&mut self, cur_ts: Timestamp) {
         self.peer_stats.rpc_stats.last_seen_ts = None;
         self.peer_stats.rpc_stats.failed_to_send = 0;
-        self.peer_stats.rpc_stats.recent_lost_answers = 0;
+        self.peer_stats.rpc_stats.recent_lost_answers_unordered = 0;
+        self.peer_stats.rpc_stats.recent_lost_answers_ordered = 0;
         assert!(self.check_dead(cur_ts).is_none());
     }
 
@@ -1081,9 +1106,19 @@ impl BucketEntryInner {
     ////////////////////////////////////////////////////////////////
     /// Called when rpc processor things happen
 
-    pub(super) fn question_sent(&mut self, ts: Timestamp, bytes: ByteCount, expects_answer: bool) {
+    pub(super) fn question_sent(
+        &mut self,
+        ts: Timestamp,
+        bytes: ByteCount,
+        expects_answer: bool,
+        ordered: bool,
+    ) {
         self.transfer_stats_accounting.add_up(bytes);
-        self.answer_stats_accounting.record_question(ts);
+        if ordered {
+            self.answer_stats_accounting_ordered.record_question(ts);
+        } else {
+            self.answer_stats_accounting_unordered.record_question(ts);
+        }
         self.peer_stats.rpc_stats.messages_sent += 1;
         self.peer_stats.rpc_stats.failed_to_send = 0;
         if expects_answer {
@@ -1101,21 +1136,40 @@ impl BucketEntryInner {
         self.peer_stats.rpc_stats.messages_sent += 1;
         self.peer_stats.rpc_stats.failed_to_send = 0;
     }
-    pub(super) fn answer_rcvd(&mut self, send_ts: Timestamp, recv_ts: Timestamp, bytes: ByteCount) {
+    pub(super) fn answer_rcvd(
+        &mut self,
+        send_ts: Timestamp,
+        recv_ts: Timestamp,
+        bytes: ByteCount,
+        ordered: bool,
+    ) {
         self.transfer_stats_accounting.add_down(bytes);
-        self.answer_stats_accounting.record_answer(recv_ts);
+        if ordered {
+            self.answer_stats_accounting_ordered.record_answer(recv_ts);
+            self.peer_stats.rpc_stats.recent_lost_answers_ordered = 0;
+        } else {
+            self.answer_stats_accounting_unordered
+                .record_answer(recv_ts);
+            self.peer_stats.rpc_stats.recent_lost_answers_unordered = 0;
+        }
         self.peer_stats.rpc_stats.messages_rcvd += 1;
         self.peer_stats.rpc_stats.questions_in_flight -= 1;
         self.record_latency(recv_ts.saturating_sub(send_ts));
         self.touch_last_seen(recv_ts);
-        self.peer_stats.rpc_stats.recent_lost_answers = 0;
     }
-    pub(super) fn lost_answer(&mut self) {
+    pub(super) fn lost_answer(&mut self, ordered: bool) {
         let cur_ts = Timestamp::now();
-        self.answer_stats_accounting.record_lost_answer(cur_ts);
+        if ordered {
+            self.answer_stats_accounting_ordered
+                .record_lost_answer(cur_ts);
+            self.peer_stats.rpc_stats.recent_lost_answers_ordered += 1;
+        } else {
+            self.answer_stats_accounting_unordered
+                .record_lost_answer(cur_ts);
+            self.peer_stats.rpc_stats.recent_lost_answers_unordered += 1;
+        }
         self.peer_stats.rpc_stats.first_consecutive_seen_ts = None;
         self.peer_stats.rpc_stats.questions_in_flight -= 1;
-        self.peer_stats.rpc_stats.recent_lost_answers += 1;
     }
     pub(super) fn failed_to_send(&mut self, ts: Timestamp, expects_answer: bool) {
         if expects_answer {
@@ -1181,7 +1235,8 @@ impl BucketEntry {
             latency_stats_accounting: LatencyStatsAccounting::new(),
             transfer_stats_accounting: TransferStatsAccounting::new(),
             state_stats_accounting: Mutex::new(StateStatsAccounting::new()),
-            answer_stats_accounting: AnswerStatsAccounting::new(),
+            answer_stats_accounting_ordered: AnswerStatsAccounting::new(),
+            answer_stats_accounting_unordered: AnswerStatsAccounting::new(),
             punishment: None,
             #[cfg(feature = "tracking")]
             next_track_id: 0,

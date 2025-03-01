@@ -7,6 +7,10 @@ pub fn fix_latencystats() -> LatencyStats {
         fastest: TimestampDuration::from(1234),
         average: TimestampDuration::from(2345),
         slowest: TimestampDuration::from(3456),
+        tm90: TimestampDuration::from(4567),
+        tm75: TimestampDuration::from(5678),
+        p90: TimestampDuration::from(6789),
+        p75: TimestampDuration::from(7890),
     }
 }
 
@@ -49,9 +53,11 @@ pub fn fix_rpcstats() -> RPCStats {
         last_question_ts: Some(Timestamp::from(1685569084280)),
         last_seen_ts: Some(Timestamp::from(1685569101256)),
         first_consecutive_seen_ts: Some(Timestamp::from(1685569111851)),
-        recent_lost_answers: 5,
+        recent_lost_answers_unordered: 5,
+        recent_lost_answers_ordered: 6,
         failed_to_send: 3,
-        answer: fix_answerstats(),
+        answer_unordered: fix_answerstats(),
+        answer_ordered: fix_answerstats(),
     }
 }
 
