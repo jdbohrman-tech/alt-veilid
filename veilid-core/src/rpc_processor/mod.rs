@@ -2,6 +2,7 @@ use super::*;
 
 mod answer;
 mod coders;
+mod debug;
 mod destination;
 mod error;
 mod fanout;
@@ -22,6 +23,7 @@ mod rpc_status;
 mod rpc_validate_dial_info;
 mod rpc_value_changed;
 mod rpc_watch_value;
+mod rpc_worker;
 mod sender_info;
 mod sender_peer_info;
 
@@ -48,7 +50,7 @@ pub(crate) use error::*;
 pub(crate) use fanout::*;
 pub(crate) use sender_info::*;
 
-use futures_util::StreamExt;
+use futures_util::StreamExt as _;
 use stop_token::future::FutureExt as _;
 
 use coders::*;
@@ -56,6 +58,7 @@ use message::*;
 use message_header::*;
 use operation_waiter::*;
 use rendered_operation::*;
+use rpc_worker::*;
 use sender_peer_info::*;
 
 use crypto::*;
@@ -64,6 +67,10 @@ use routing_table::*;
 use storage_manager::*;
 
 impl_veilid_log_facility!("rpc");
+
+/////////////////////////////////////////////////////////////////////
+
+const RPC_WORKERS_PER_CORE: u32 = 16;
 
 /////////////////////////////////////////////////////////////////////
 
@@ -122,9 +129,13 @@ impl Default for RPCProcessorStartupContext {
 #[derive(Debug)]
 #[must_use]
 struct RPCProcessorInner {
-    send_channel: Option<flume::Sender<(Span, MessageEncoded)>>,
-    stop_source: Option<StopSource>,
-    worker_join_handles: Vec<MustJoinHandle<()>>,
+    rpc_send_channel: Option<flume::Sender<RPCWorkerRequest>>,
+    rpc_stop_source: Option<StopSource>,
+    rpc_worker_join_handles: Vec<MustJoinHandle<()>>,
+    rpc_worker_dequeue_latency: LatencyStats,
+    rpc_worker_process_latency: LatencyStats,
+    rpc_worker_dequeue_latency_accounting: LatencyStatsAccounting,
+    rpc_worker_process_latency_accounting: LatencyStatsAccounting,
 }
 
 #[derive(Debug)]
@@ -146,9 +157,13 @@ impl_veilid_component!(RPCProcessor);
 impl RPCProcessor {
     fn new_inner() -> RPCProcessorInner {
         RPCProcessorInner {
-            send_channel: None,
-            stop_source: None,
-            worker_join_handles: Vec::new(),
+            rpc_send_channel: None,
+            rpc_stop_source: None,
+            rpc_worker_join_handles: Vec::new(),
+            rpc_worker_dequeue_latency: LatencyStats::default(),
+            rpc_worker_process_latency: LatencyStats::default(),
+            rpc_worker_dequeue_latency_accounting: LatencyStatsAccounting::new(),
+            rpc_worker_process_latency_accounting: LatencyStatsAccounting::new(),
         }
     }
 
@@ -173,7 +188,7 @@ impl RPCProcessor {
                 }
 
                 // Default RPC concurrency is the number of CPUs * 16 rpc workers per core, as a single worker takes about 1% CPU when relaying and 16% is reasonable for baseline plus relay
-                concurrency *= 16;
+                concurrency *= RPC_WORKERS_PER_CORE;
             }
             (concurrency, queue_size, max_route_hop_count, timeout_us)
         };
@@ -227,22 +242,12 @@ impl RPCProcessor {
             let mut inner = self.inner.lock();
 
             let channel = flume::bounded(self.queue_size as usize);
-            inner.send_channel = Some(channel.0.clone());
-            inner.stop_source = Some(StopSource::new());
-
-            // spin up N workers
-            veilid_log!(self trace "Spinning up {} RPC workers", self.concurrency);
-            for task_n in 0..self.concurrency {
-                let registry = self.registry();
-                let receiver = channel.1.clone();
-                let stop_token = inner.stop_source.as_ref().unwrap().token();
-                let jh = spawn(&format!("rpc worker {}", task_n), async move {
-                    let this = registry.rpc_processor();
-                    Box::pin(this.rpc_worker(stop_token, receiver)).await
-                });
-                inner.worker_join_handles.push(jh);
-            }
+            inner.rpc_send_channel = Some(channel.0.clone());
+            inner.rpc_stop_source = Some(StopSource::new());
         }
+
+        self.startup_rpc_workers()?;
+
         guard.success();
 
         veilid_log!(self debug "finished rpc processor startup");
@@ -260,21 +265,7 @@ impl RPCProcessor {
             .await
             .expect("should be started up");
 
-        // Stop the rpc workers
-        let mut unord = FuturesUnordered::new();
-        {
-            let mut inner = self.inner.lock();
-            // take the join handles out
-            for h in inner.worker_join_handles.drain(..) {
-                unord.push(h);
-            }
-            // drop the stop
-            drop(inner.stop_source.take());
-        }
-        veilid_log!(self debug "stopping {} rpc worker tasks", unord.len());
-
-        // Wait for them to complete
-        while unord.next().await.is_some() {}
+        self.shutdown_rpc_workers().await;
 
         veilid_log!(self debug "resetting rpc processor state");
 
@@ -1619,165 +1610,5 @@ impl RPCProcessor {
                 Ok(NetworkResult::value(()))
             }
         }
-    }
-
-    async fn rpc_worker(
-        &self,
-        stop_token: StopToken,
-        receiver: flume::Receiver<(Span, MessageEncoded)>,
-    ) {
-        while let Ok(Ok((prev_span, msg))) =
-            receiver.recv_async().timeout_at(stop_token.clone()).await
-        {
-            let rpc_message_span = tracing::trace_span!("rpc message");
-            rpc_message_span.follows_from(prev_span);
-
-            network_result_value_or_log!(self match self
-                .process_rpc_message(msg).instrument(rpc_message_span)
-                .await
-            {
-                Err(e) => {
-                    veilid_log!(self error "couldn't process rpc message: {}", e);
-                    continue;
-                }
-
-                Ok(v) => {
-                    v
-                }
-            } => [ format!(": msg.header={:?}", msg.header) ] {});
-        }
-    }
-
-    #[instrument(level = "trace", target = "rpc", skip_all)]
-    pub fn enqueue_direct_message(
-        &self,
-        envelope: Envelope,
-        sender_noderef: FilteredNodeRef,
-        flow: Flow,
-        routing_domain: RoutingDomain,
-        body: Vec<u8>,
-    ) -> EyreResult<()> {
-        let _guard = self
-            .startup_context
-            .startup_lock
-            .enter()
-            .wrap_err("not started up")?;
-
-        if sender_noderef.routing_domain_set() != routing_domain {
-            bail!("routing domain should match peer noderef filter");
-        }
-
-        let header = MessageHeader {
-            detail: RPCMessageHeaderDetail::Direct(RPCMessageHeaderDetailDirect {
-                envelope,
-                sender_noderef,
-                flow,
-                routing_domain,
-            }),
-            timestamp: Timestamp::now(),
-            body_len: ByteCount::new(body.len() as u64),
-        };
-
-        let msg = MessageEncoded {
-            header,
-            data: MessageData { contents: body },
-        };
-
-        let send_channel = {
-            let inner = self.inner.lock();
-            let Some(send_channel) = inner.send_channel.as_ref().cloned() else {
-                bail!("send channel is closed");
-            };
-            send_channel
-        };
-        send_channel
-            .try_send((Span::current(), msg))
-            .map_err(|e| eyre!("failed to enqueue direct RPC message: {}", e))?;
-        Ok(())
-    }
-
-    #[instrument(level = "trace", target = "rpc", skip_all)]
-    fn enqueue_safety_routed_message(
-        &self,
-        direct: RPCMessageHeaderDetailDirect,
-        remote_safety_route: PublicKey,
-        sequencing: Sequencing,
-        body: Vec<u8>,
-    ) -> EyreResult<()> {
-        let _guard = self
-            .startup_context
-            .startup_lock
-            .enter()
-            .wrap_err("not started up")?;
-
-        let header = MessageHeader {
-            detail: RPCMessageHeaderDetail::SafetyRouted(RPCMessageHeaderDetailSafetyRouted {
-                direct,
-                remote_safety_route,
-                sequencing,
-            }),
-            timestamp: Timestamp::now(),
-            body_len: (body.len() as u64).into(),
-        };
-
-        let msg = MessageEncoded {
-            header,
-            data: MessageData { contents: body },
-        };
-        let send_channel = {
-            let inner = self.inner.lock();
-            let Some(send_channel) = inner.send_channel.as_ref().cloned() else {
-                bail!("send channel is closed");
-            };
-            send_channel
-        };
-        send_channel
-            .try_send((Span::current(), msg))
-            .map_err(|e| eyre!("failed to enqueue safety routed RPC message: {}", e))?;
-        Ok(())
-    }
-
-    #[instrument(level = "trace", target = "rpc", skip_all)]
-    fn enqueue_private_routed_message(
-        &self,
-        direct: RPCMessageHeaderDetailDirect,
-        remote_safety_route: PublicKey,
-        private_route: PublicKey,
-        safety_spec: SafetySpec,
-        body: Vec<u8>,
-    ) -> EyreResult<()> {
-        let _guard = self
-            .startup_context
-            .startup_lock
-            .enter()
-            .wrap_err("not started up")?;
-
-        let header = MessageHeader {
-            detail: RPCMessageHeaderDetail::PrivateRouted(RPCMessageHeaderDetailPrivateRouted {
-                direct,
-                remote_safety_route,
-                private_route,
-                safety_spec,
-            }),
-            timestamp: Timestamp::now(),
-            body_len: (body.len() as u64).into(),
-        };
-
-        let msg = MessageEncoded {
-            header,
-            data: MessageData { contents: body },
-        };
-
-        let send_channel = {
-            let inner = self.inner.lock();
-            let Some(send_channel) = inner.send_channel.as_ref().cloned() else {
-                bail!("send channel is closed");
-            };
-            send_channel
-        };
-        send_channel
-            .try_send((Span::current(), msg))
-            .map_err(|e| eyre!("failed to enqueue private routed RPC message: {}", e))?;
-        Ok(())
     }
 }

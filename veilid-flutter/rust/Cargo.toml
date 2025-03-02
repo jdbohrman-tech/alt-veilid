@@ -36,7 +36,7 @@ debug-load = ["dep:ctor", "dep:libc-print", "dep:android_log-sys", "dep:oslog"]
 [dependencies]
 veilid-core = { path = "../../veilid-core", default-features = false }
 tracing = { version = "0.1.40", features = ["log", "attributes"] }
-tracing-subscriber = "0.3.18"
+tracing-subscriber = "0.3.19"
 parking_lot = "0.12.3"
 backtrace = "0.3.71"
 serde_json = "1.0.120"
