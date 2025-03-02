@@ -1101,9 +1101,11 @@ impl NetworkManager {
 
                 // Relay the packet to the desired destination
                 veilid_log!(self trace "relaying {} bytes to {}", data.len(), relay_nr);
+                let cur_ts = Timestamp::now();
                 if let Err(e) = pin_future!(self.send_data(relay_nr, data.to_vec())).await {
                     veilid_log!(self debug "failed to relay envelope: {}" ,e);
                 }
+                veilid_log!(self debug target:"network_result", "relay time: {}", Timestamp::now() - cur_ts);
             }
             // Inform caller that we dealt with the envelope, but did not process it locally
             return Ok(false);
