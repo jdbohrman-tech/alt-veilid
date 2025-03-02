@@ -22,6 +22,10 @@ impl Default for PerAddressStatsKey {
 pub struct NetworkManagerStats {
     pub self_stats: PerAddressStats,
     pub per_address_stats: LruCache<PerAddressStatsKey, PerAddressStats>,
+    pub relay_worker_dequeue_latency: LatencyStats,
+    pub relay_worker_process_latency: LatencyStats,
+    pub relay_worker_dequeue_latency_accounting: LatencyStatsAccounting,
+    pub relay_worker_process_latency_accounting: LatencyStatsAccounting,
 }
 
 impl Default for NetworkManagerStats {
@@ -29,6 +33,10 @@ impl Default for NetworkManagerStats {
         Self {
             self_stats: PerAddressStats::default(),
             per_address_stats: LruCache::new(IPADDR_TABLE_SIZE),
+            relay_worker_dequeue_latency: LatencyStats::default(),
+            relay_worker_process_latency: LatencyStats::default(),
+            relay_worker_dequeue_latency_accounting: LatencyStatsAccounting::new(),
+            relay_worker_process_latency_accounting: LatencyStatsAccounting::new(),
         }
     }
 }
@@ -36,7 +44,7 @@ impl Default for NetworkManagerStats {
 impl NetworkManager {
     // Callbacks from low level network for statistics gathering
     pub fn stats_packet_sent(&self, addr: IpAddr, bytes: ByteCount) {
-        let inner = &mut *self.inner.lock();
+        let mut inner = self.inner.lock();
         inner
             .stats
             .self_stats
@@ -53,7 +61,7 @@ impl NetworkManager {
     }
 
     pub fn stats_packet_rcvd(&self, addr: IpAddr, bytes: ByteCount) {
-        let inner = &mut *self.inner.lock();
+        let mut inner = self.inner.lock();
         inner
             .stats
             .self_stats
@@ -69,26 +77,25 @@ impl NetworkManager {
             .add_down(bytes);
     }
 
+    pub fn stats_relay_processed(
+        &self,
+        dequeue_latency: TimestampDuration,
+        process_latency: TimestampDuration,
+    ) {
+        let mut inner = self.inner.lock();
+        inner.stats.relay_worker_dequeue_latency = inner
+            .stats
+            .relay_worker_dequeue_latency_accounting
+            .record_latency(dequeue_latency);
+        inner.stats.relay_worker_process_latency = inner
+            .stats
+            .relay_worker_process_latency_accounting
+            .record_latency(process_latency);
+    }
+
     pub fn get_stats(&self) -> NetworkManagerStats {
         let inner = self.inner.lock();
         inner.stats.clone()
-    }
-
-    pub fn debug(&self) -> String {
-        let stats = self.get_stats();
-
-        let mut out = String::new();
-        out += "Network Manager\n";
-        out += "---------------\n";
-        let mut out = format!(
-            "Transfer stats:\n{}\n",
-            indent_all_string(&stats.self_stats.transfer_stats)
-        );
-        out += "Node Contact Method Cache\n";
-        out += "-------------------------\n";
-        out += &self.inner.lock().node_contact_method_cache.debug();
-
-        out
     }
 
     pub fn get_veilid_state(&self) -> Box<VeilidStateNetwork> {

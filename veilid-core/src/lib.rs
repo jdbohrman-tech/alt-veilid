@@ -50,6 +50,7 @@ mod logging;
 mod network_manager;
 mod routing_table;
 mod rpc_processor;
+mod stats_accounting;
 mod storage_manager;
 mod table_store;
 mod veilid_api;
@@ -64,6 +65,7 @@ pub use self::logging::{
     DEFAULT_LOG_FACILITIES_ENABLED_LIST, DEFAULT_LOG_FACILITIES_IGNORE_LIST,
     DURATION_LOG_FACILITIES, FLAME_LOG_FACILITIES_IGNORE_LIST, VEILID_LOG_KEY_FIELD,
 };
+pub(crate) use self::stats_accounting::*;
 pub use self::veilid_api::*;
 pub use self::veilid_config::*;
 pub use veilid_tools as tools;

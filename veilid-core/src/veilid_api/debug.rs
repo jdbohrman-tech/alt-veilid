@@ -761,7 +761,9 @@ impl VeilidAPI {
     async fn debug_nodeinfo(&self, _args: String) -> VeilidAPIResult<String> {
         // Dump routing table entry
         let registry = self.core_context()?.registry();
-        let nodeinfo = registry.routing_table().debug_info_nodeinfo();
+        let nodeinfo_rtab = registry.routing_table().debug_info_nodeinfo();
+        let nodeinfo_net = registry.network_manager().debug_info_nodeinfo();
+        let nodeinfo_rpc = registry.rpc_processor().debug_info_nodeinfo();
 
         // Dump core state
         let state = self.get_state().await?;
@@ -790,7 +792,10 @@ impl VeilidAPI {
                 "Connection manager unavailable when detached".to_owned()
             };
 
-        Ok(format!("{}\n{}\n{}\n", nodeinfo, peertable, connman))
+        Ok(format!(
+            "{}\n{}\n{}\n{}\n{}\n",
+            nodeinfo_rtab, nodeinfo_net, nodeinfo_rpc, peertable, connman
+        ))
     }
 
     fn debug_nodeid(&self, _args: String) -> VeilidAPIResult<String> {

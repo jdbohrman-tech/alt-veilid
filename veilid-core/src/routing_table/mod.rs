@@ -43,7 +43,9 @@ pub const RELAY_MANAGEMENT_INTERVAL_SECS: u32 = 1;
 /// How frequently we optimize relays
 pub const RELAY_OPTIMIZATION_INTERVAL_SECS: u32 = 10;
 /// What percentile to keep our relays optimized to
-pub const RELAY_OPTIMIZATION_PERCENTILE: f32 = 75.0;
+pub const RELAY_OPTIMIZATION_PERCENTILE: f32 = 66.0;
+/// What percentile to choose our relays from (must be greater than RELAY_OPTIMIZATION_PERCENTILE)
+pub const RELAY_SELECTION_PERCENTILE: f32 = 85.0;
 
 /// How frequently we tick the private route management routine
 pub const PRIVATE_ROUTE_MANAGEMENT_INTERVAL_SECS: u32 = 1;
@@ -1144,6 +1146,18 @@ impl RoutingTable {
     ) -> Option<NodeRef> {
         let inner = self.inner.read();
         inner.find_fastest_node(cur_ts, filter, metric)
+    }
+
+    #[instrument(level = "trace", skip(self, filter, metric), ret)]
+    pub fn find_random_fast_node(
+        &self,
+        cur_ts: Timestamp,
+        filter: impl Fn(&BucketEntryInner) -> bool,
+        percentile: f32,
+        metric: impl Fn(&LatencyStats) -> TimestampDuration,
+    ) -> Option<NodeRef> {
+        let inner = self.inner.read();
+        inner.find_random_fast_node(cur_ts, filter, percentile, metric)
     }
 
     #[instrument(level = "trace", skip(self, filter, metric), ret)]

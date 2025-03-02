@@ -1446,6 +1446,54 @@ impl RoutingTableInner {
     }
 
     #[instrument(level = "trace", skip(self, filter, metric), ret)]
+    pub fn find_random_fast_node(
+        &self,
+        cur_ts: Timestamp,
+        filter: impl Fn(&BucketEntryInner) -> bool,
+        percentile: f32,
+        metric: impl Fn(&LatencyStats) -> TimestampDuration,
+    ) -> Option<NodeRef> {
+        // Go through all entries and find all entries that matches filter function
+        let mut all_filtered_nodes: Vec<Arc<BucketEntry>> = Vec::new();
+
+        // Iterate all known nodes for candidates
+        self.with_entries(cur_ts, BucketEntryState::Unreliable, |rti, entry| {
+            let entry2 = entry.clone();
+            entry.with(rti, |_rti, e| {
+                // Filter this node
+                if filter(e) {
+                    all_filtered_nodes.push(entry2);
+                }
+            });
+            // Don't end early, iterate through all entries
+            Option::<()>::None
+        });
+
+        // Sort by fastest tm90 reliable
+        all_filtered_nodes.sort_by(|a, b| {
+            a.with(self, |rti, ea| {
+                b.with(rti, |_rti, eb| {
+                    BucketEntryInner::cmp_fastest_reliable(cur_ts, ea, eb, &metric)
+                })
+            })
+        });
+
+        if all_filtered_nodes.is_empty() {
+            return None;
+        }
+
+        let max_index =
+            (((all_filtered_nodes.len() - 1) as f32) * (100.0 - percentile) / 100.0) as u32;
+        let chosen_index = (get_random_u32() % (max_index + 1)) as usize;
+
+        // Return the chosen node node
+        Some(NodeRef::new(
+            self.registry(),
+            all_filtered_nodes[chosen_index].clone(),
+        ))
+    }
+
+    #[instrument(level = "trace", skip(self, filter, metric), ret)]
     pub fn get_node_relative_performance(
         &self,
         node_id: TypedKey,

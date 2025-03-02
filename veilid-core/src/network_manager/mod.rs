@@ -10,10 +10,12 @@ mod address_filter;
 mod connection_handle;
 mod connection_manager;
 mod connection_table;
+mod debug;
 mod direct_boot;
 mod network_connection;
 mod node_contact_method_cache;
 mod receipt_manager;
+mod relay_worker;
 mod send_data;
 mod stats;
 mod tasks;
@@ -26,9 +28,10 @@ pub mod tests;
 
 pub use connection_manager::*;
 pub use network_connection::*;
-pub(crate) use node_contact_method_cache::*;
 pub use receipt_manager::*;
 pub use stats::*;
+
+pub(crate) use node_contact_method_cache::*;
 pub(crate) use types::*;
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -42,6 +45,7 @@ use hashlink::LruCache;
 use native::*;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub use native::{MAX_CAPABILITIES, PUBLIC_INTERNET_CAPABILITIES};
+use relay_worker::*;
 use routing_table::*;
 use rpc_processor::*;
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
@@ -60,6 +64,7 @@ pub const IPADDR_MAX_INACTIVE_DURATION_US: TimestampDuration =
 pub const ADDRESS_FILTER_TASK_INTERVAL_SECS: u32 = 60;
 pub const BOOT_MAGIC: &[u8; 4] = b"BOOT";
 pub const HOLE_PUNCH_DELAY_MS: u32 = 100;
+pub const RELAY_WORKERS_PER_CORE: u32 = 16;
 
 // Things we get when we start up and go away when we shut down
 // Routing table is not in here because we want it to survive a network shutdown/startup restart
@@ -171,7 +176,6 @@ impl Default for NetworkManagerStartupContext {
         Self::new()
     }
 }
-
 // The mutable state of the network manager
 #[derive(Debug)]
 struct NetworkManagerInner {
@@ -181,6 +185,11 @@ struct NetworkManagerInner {
     address_check: Option<AddressCheck>,
     peer_info_change_subscription: Option<EventBusSubscription>,
     socket_address_change_subscription: Option<EventBusSubscription>,
+
+    // Relay workers
+    relay_stop_source: Option<StopSource>,
+    relay_send_channel: Option<flume::Sender<RelayWorkerRequest>>,
+    relay_worker_join_handles: Vec<MustJoinHandle<()>>,
 }
 
 pub(crate) struct NetworkManager {
@@ -202,6 +211,10 @@ pub(crate) struct NetworkManager {
 
     // Startup context
     startup_context: NetworkManagerStartupContext,
+
+    // Relay workers config
+    concurrency: u32,
+    queue_size: u32,
 }
 
 impl_veilid_component!(NetworkManager);
@@ -214,6 +227,8 @@ impl fmt::Debug for NetworkManager {
             .field("address_filter", &self.address_filter)
             .field("network_key", &self.network_key)
             .field("startup_context", &self.startup_context)
+            .field("concurrency", &self.concurrency)
+            .field("queue_size", &self.queue_size)
             .finish()
     }
 }
@@ -227,6 +242,10 @@ impl NetworkManager {
             address_check: None,
             peer_info_change_subscription: None,
             socket_address_change_subscription: None,
+            //
+            relay_send_channel: None,
+            relay_stop_source: None,
+            relay_worker_join_handles: Vec::new(),
         }
     }
 
@@ -264,6 +283,26 @@ impl NetworkManager {
             network_key
         };
 
+        // make local copy of node id for easy access
+        let (concurrency, queue_size) = {
+            let config = registry.config();
+            let c = config.get();
+
+            // set up channel
+            let mut concurrency = c.network.rpc.concurrency;
+            let queue_size = c.network.rpc.queue_size;
+            if concurrency == 0 {
+                concurrency = get_concurrency();
+                if concurrency == 0 {
+                    concurrency = 1;
+                }
+
+                // Default relay concurrency is the number of CPUs * 16 relay workers per core
+                concurrency *= RELAY_WORKERS_PER_CORE;
+            }
+            (concurrency, queue_size)
+        };
+
         let inner = Self::new_inner();
         let address_filter = AddressFilter::new(registry.clone());
 
@@ -282,6 +321,8 @@ impl NetworkManager {
             ),
             network_key,
             startup_context,
+            concurrency,
+            queue_size,
         };
 
         this.setup_tasks();
@@ -360,7 +401,8 @@ impl NetworkManager {
             receipt_manager: receipt_manager.clone(),
         });
 
-        let address_check = AddressCheck::new(net.clone());
+        // Startup relay workers
+        self.startup_relay_workers()?;
 
         // Register event handlers
         let peer_info_change_subscription =
@@ -371,6 +413,7 @@ impl NetworkManager {
 
         {
             let mut inner = self.inner.lock();
+            let address_check = AddressCheck::new(net.clone());
             inner.address_check = Some(address_check);
             inner.peer_info_change_subscription = Some(peer_info_change_subscription);
             inner.socket_address_change_subscription = Some(socket_address_change_subscription);
@@ -425,6 +468,9 @@ impl NetworkManager {
             }
             inner.address_check = None;
         }
+
+        // Shutdown relay workers
+        self.shutdown_relay_workers().await;
 
         // Shutdown network components if they started up
         veilid_log!(self debug "shutting down network components");
@@ -1099,10 +1145,11 @@ impl NetworkManager {
                     relay_nr.set_sequencing(Sequencing::EnsureOrdered);
                 };
 
-                // Relay the packet to the desired destination
-                veilid_log!(self trace "relaying {} bytes to {}", data.len(), relay_nr);
-                if let Err(e) = pin_future!(self.send_data(relay_nr, data.to_vec())).await {
-                    veilid_log!(self debug "failed to relay envelope: {}" ,e);
+                // Pass relay to RPC system
+                if let Err(e) = self.enqueue_relay(relay_nr, data.to_vec()) {
+                    // Couldn't enqueue, but not the sender's fault
+                    veilid_log!(self debug "failed to enqueue relay: {}", e);
+                    return Ok(false);
                 }
             }
             // Inform caller that we dealt with the envelope, but did not process it locally

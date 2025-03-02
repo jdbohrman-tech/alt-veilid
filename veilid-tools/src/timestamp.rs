@@ -125,27 +125,33 @@ pub fn display_duration(dur: u64) -> String {
     let secs = dur / SEC;
     let dur = dur % SEC;
     let msecs = dur / MSEC;
+    let dur = dur % MSEC;
 
-    format!(
-        "{}{}{}{}.{:03}s",
-        if days != 0 {
-            format!("{}d", days)
-        } else {
-            "".to_owned()
-        },
-        if hours != 0 {
-            format!("{}h", hours)
-        } else {
-            "".to_owned()
-        },
-        if mins != 0 {
-            format!("{}m", mins)
-        } else {
-            "".to_owned()
-        },
-        secs,
-        msecs
-    )
+    // microseconds format
+    if days == 0 && hours == 0 && mins == 0 && secs == 0 {
+        format!("{}.{:03}ms", msecs, dur)
+    } else {
+        format!(
+            "{}{}{}{}.{:03}s",
+            if days != 0 {
+                format!("{}d", days)
+            } else {
+                "".to_owned()
+            },
+            if hours != 0 {
+                format!("{}h", hours)
+            } else {
+                "".to_owned()
+            },
+            if mins != 0 {
+                format!("{}m", mins)
+            } else {
+                "".to_owned()
+            },
+            secs,
+            msecs
+        )
+    }
 }
 
 #[must_use]
