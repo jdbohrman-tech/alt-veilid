@@ -5,7 +5,7 @@ impl NetworkManager {
         let mut out = String::new();
         let inner = self.inner.lock();
         out += &format!(
-            "Relay Worker Deque Latency:\n{}",
+            "Relay Worker Dequeue Latency:\n{}",
             indent_all_string(&inner.stats.relay_worker_dequeue_latency)
         );
         out += "\n";
