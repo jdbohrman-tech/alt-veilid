@@ -52,8 +52,16 @@ impl WebsocketNetworkConnection {
         instrument(level = "trace", err, skip(self))
     )]
     pub async fn close(&self) -> io::Result<NetworkResult<()>> {
+        let timeout_ms = self
+            .registry
+            .config()
+            .with(|c| c.network.connection_initial_timeout_ms);
+
         #[allow(unused_variables)]
-        let x = self.inner.ws_meta.close().await.map_err(ws_err_to_io_error);
+        let x = match timeout(timeout_ms, self.inner.ws_meta.close()).await {
+            Ok(v) => v.map_err(ws_err_to_io_error),
+            Err(_) => return Ok(NetworkResult::timeout()),
+        };
         #[cfg(feature = "verbose-tracing")]
         veilid_log!(self debug "close result: {:?}", x);
         Ok(NetworkResult::value(()))

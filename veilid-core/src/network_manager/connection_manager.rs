@@ -8,7 +8,7 @@ impl_veilid_log_facility!("net");
 
 const PROTECTED_CONNECTION_DROP_SPAN: TimestampDuration = TimestampDuration::new_secs(10);
 const PROTECTED_CONNECTION_DROP_COUNT: usize = 3;
-const NEW_CONNECTION_RETRY_COUNT: usize = 1;
+const NEW_CONNECTION_RETRY_COUNT: usize = 0;
 const NEW_CONNECTION_RETRY_DELAY_MS: u32 = 500;
 
 ///////////////////////////////////////////////////////////
@@ -415,7 +415,18 @@ impl ConnectionManager {
         let best_port = preferred_local_address.map(|pla| pla.port());
 
         // Async lock on the remote address for atomicity per remote
-        let _lock_guard = self.arc.address_lock_table.lock_tag(remote_addr).await;
+        // Use the initial timeout here as the 'close' timeout as well
+        let Ok(_lock_guard) = timeout(
+            self.arc.connection_initial_timeout_ms,
+            self.arc.address_lock_table.lock_tag(remote_addr),
+        )
+        .await
+        else {
+            veilid_log!(self debug "== get_or_create_connection: connection busy, not connecting to dial_info={:?}", dial_info);
+            return Ok(NetworkResult::no_connection_other(
+                "connection endpoint busy",
+            ));
+        };
 
         veilid_log!(self trace "== get_or_create_connection dial_info={:?}", dial_info);
 
@@ -477,8 +488,9 @@ impl ConnectionManager {
             veilid_log!(self debug "get_or_create_connection retries left: {}", retry_count);
             retry_count -= 1;
 
+            // XXX: This should not be necessary
             // Release the preferred local address if things can't connect due to a low-level collision we dont have a record of
-            preferred_local_address = None;
+            // preferred_local_address = None;
             sleep(NEW_CONNECTION_RETRY_DELAY_MS).await;
         });
 

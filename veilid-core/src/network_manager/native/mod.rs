@@ -636,6 +636,10 @@ impl Network {
     ) -> EyreResult<NetworkResult<UniqueFlow>> {
         let _guard = self.startup_lock.enter()?;
 
+        let connection_initial_timeout_us = self
+            .config()
+            .with(|c| c.network.connection_initial_timeout_ms as u64 * 1000);
+
         self.record_dial_info_failure(
             dial_info.clone(),
             async move {
@@ -652,24 +656,33 @@ impl Network {
                             ));
                         }
                     };
-                    let flow = network_result_try!(ph
-                        .send_message(data, peer_socket_addr)
-                        .await
-                        .wrap_err("failed to send data to dial info")?);
+                    let flow = network_result_try!(debug_duration(
+                        || { ph.send_message(data, peer_socket_addr) },
+                        Some(connection_initial_timeout_us * 2)
+                    )
+                    .await
+                    .wrap_err("failed to send data to dial info")?);
                     unique_flow = UniqueFlow {
                         flow,
                         connection_id: None,
                     };
                 } else {
                     // Handle connection-oriented protocols
+                    let connmgr = self.network_manager().connection_manager();
                     let conn = network_result_try!(
-                        self.network_manager()
-                            .connection_manager()
-                            .get_or_create_connection(dial_info.clone())
-                            .await?
+                        debug_duration(
+                            || { connmgr.get_or_create_connection(dial_info.clone()) },
+                            Some(connection_initial_timeout_us * 2)
+                        )
+                        .await?
                     );
 
-                    if let ConnectionHandleSendResult::NotSent(_) = conn.send_async(data).await {
+                    if let ConnectionHandleSendResult::NotSent(_) = debug_duration(
+                        || conn.send_async(data),
+                        Some(connection_initial_timeout_us * 2),
+                    )
+                    .await
+                    {
                         return Ok(NetworkResult::NoConnection(io::Error::new(
                             io::ErrorKind::ConnectionReset,
                             "failed to send",

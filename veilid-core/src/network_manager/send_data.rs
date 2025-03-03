@@ -152,7 +152,7 @@ impl NetworkManager {
                 // If a node is unreachable it may still have an existing inbound connection
                 // Try that, but don't cache anything
                 network_result_try!(
-                    pin_future_closure!(self.send_data_ncm_existing(target_node_ref, data)).await?
+                    pin_future_closure!(self.send_data_unreachable(target_node_ref, data)).await?
                 )
             }
             Some(NodeContactMethod {
@@ -239,6 +239,42 @@ impl NetworkManager {
         }))
     }
 
+    /// Send data to unreachable node
+    #[instrument(level = "trace", target = "net", skip_all, err)]
+    async fn send_data_unreachable(
+        &self,
+        target_node_ref: FilteredNodeRef,
+        data: Vec<u8>,
+    ) -> EyreResult<NetworkResult<UniqueFlow>> {
+        // First try to send data to the last connection we've seen this peer on
+        let Some(flow) = target_node_ref.last_flow() else {
+            return Ok(NetworkResult::no_connection_other(format!(
+                "node was unreachable: {}",
+                target_node_ref
+            )));
+        };
+
+        let net = self.net();
+        let unique_flow = match pin_future!(debug_duration(
+            || { net.send_data_to_existing_flow(flow, data) },
+            Some(1_000_000)
+        ))
+        .await?
+        {
+            SendDataToExistingFlowResult::Sent(unique_flow) => unique_flow,
+            SendDataToExistingFlowResult::NotSent(_) => {
+                return Ok(NetworkResult::no_connection_other(
+                    "failed to send to existing flow",
+                ));
+            }
+        };
+
+        // Update timestamp for this last connection since we just sent to it
+        self.set_last_flow(target_node_ref.unfiltered(), flow, Timestamp::now());
+
+        Ok(NetworkResult::value(unique_flow))
+    }
+
     /// Send data using NodeContactMethod::Existing
     #[instrument(level = "trace", target = "net", skip_all, err)]
     async fn send_data_ncm_existing(
@@ -255,7 +291,12 @@ impl NetworkManager {
         };
 
         let net = self.net();
-        let unique_flow = match pin_future!(net.send_data_to_existing_flow(flow, data)).await? {
+        let unique_flow = match pin_future!(debug_duration(
+            || { net.send_data_to_existing_flow(flow, data) },
+            Some(1_000_000)
+        ))
+        .await?
+        {
             SendDataToExistingFlowResult::Sent(unique_flow) => unique_flow,
             SendDataToExistingFlowResult::NotSent(_) => {
                 return Ok(NetworkResult::no_connection_other(
@@ -297,7 +338,12 @@ impl NetworkManager {
         // First try to send data to the last flow we've seen this peer on
         let data = if let Some(flow) = seq_target_node_ref.last_flow() {
             let net = self.net();
-            match pin_future!(net.send_data_to_existing_flow(flow, data)).await? {
+            match pin_future!(debug_duration(
+                || { net.send_data_to_existing_flow(flow, data) },
+                Some(1_000_000)
+            ))
+            .await?
+            {
                 SendDataToExistingFlowResult::Sent(unique_flow) => {
                     // Update timestamp for this last connection since we just sent to it
                     self.set_last_flow(target_node_ref.unfiltered(), flow, Timestamp::now());
@@ -321,9 +367,16 @@ impl NetworkManager {
             data
         };
 
+        let connection_initial_timeout_us = self
+            .config()
+            .with(|c| c.network.connection_initial_timeout_ms as u64 * 1000);
+
         let unique_flow = network_result_try!(
-            pin_future!(self.do_reverse_connect(relay_nr.clone(), target_node_ref.clone(), data))
-                .await?
+            pin_future!(debug_duration(
+                || { self.do_reverse_connect(relay_nr.clone(), target_node_ref.clone(), data) },
+                Some(connection_initial_timeout_us * 2)
+            ))
+            .await?
         );
         Ok(NetworkResult::value(unique_flow))
     }
@@ -339,7 +392,12 @@ impl NetworkManager {
         // First try to send data to the last flow we've seen this peer on
         let data = if let Some(flow) = target_node_ref.last_flow() {
             let net = self.net();
-            match pin_future!(net.send_data_to_existing_flow(flow, data)).await? {
+            match pin_future!(debug_duration(
+                || { net.send_data_to_existing_flow(flow, data) },
+                Some(1_000_000)
+            ))
+            .await?
+            {
                 SendDataToExistingFlowResult::Sent(unique_flow) => {
                     // Update timestamp for this last connection since we just sent to it
                     self.set_last_flow(target_node_ref.unfiltered(), flow, Timestamp::now());
@@ -363,9 +421,16 @@ impl NetworkManager {
             data
         };
 
+        let hole_punch_receipt_time_us = self
+            .config()
+            .with(|c| c.network.hole_punch_receipt_time_ms as u64 * 1000);
+
         let unique_flow = network_result_try!(
-            pin_future!(self.do_hole_punch(relay_nr.clone(), target_node_ref.clone(), data))
-                .await?
+            pin_future!(debug_duration(
+                || { self.do_hole_punch(relay_nr.clone(), target_node_ref.clone(), data) },
+                Some(hole_punch_receipt_time_us * 2)
+            ))
+            .await?
         );
 
         Ok(NetworkResult::value(unique_flow))
@@ -391,7 +456,12 @@ impl NetworkManager {
             );
 
             let net = self.net();
-            match pin_future!(net.send_data_to_existing_flow(flow, data)).await? {
+            match pin_future!(debug_duration(
+                || { net.send_data_to_existing_flow(flow, data) },
+                Some(1_000_000)
+            ))
+            .await?
+            {
                 SendDataToExistingFlowResult::Sent(unique_flow) => {
                     // Update timestamp for this last connection since we just sent to it
                     self.set_last_flow(node_ref.unfiltered(), flow, Timestamp::now());

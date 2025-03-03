@@ -47,6 +47,7 @@ veilid_tools_android_tests = ["dep:paranoid-android"]
 veilid_tools_ios_tests = ["dep:tracing", "dep:oslog", "dep:tracing-oslog"]
 tracing = ["dep:tracing", "dep:tracing-subscriber", "tokio/tracing"]
 debug-locks = []
+debug-duration-timeout = []
 
 virtual-network = []
 virtual-network-server = [

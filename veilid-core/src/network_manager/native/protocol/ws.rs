@@ -6,7 +6,7 @@ use async_tungstenite::tungstenite::handshake::server::{
     Callback, ErrorResponse, Request, Response,
 };
 use async_tungstenite::tungstenite::http::StatusCode;
-use async_tungstenite::tungstenite::protocol::{frame::coding::CloseCode, CloseFrame, Message};
+use async_tungstenite::tungstenite::protocol::Message;
 use async_tungstenite::tungstenite::Error;
 use async_tungstenite::{accept_hdr_async, client_async, WebSocketStream};
 use futures_util::{AsyncRead, AsyncWrite, SinkExt};
@@ -98,45 +98,27 @@ where
 
     #[instrument(level = "trace", target = "protocol", err, skip_all)]
     pub async fn close(&self) -> io::Result<NetworkResult<()>> {
+        let timeout_ms = self
+            .registry
+            .config()
+            .with(|c| c.network.connection_initial_timeout_ms);
+
         // Make an attempt to close the stream normally
         let mut stream = self.stream.clone();
-        let out = match stream
-            .send(Message::Close(Some(CloseFrame {
-                code: CloseCode::Normal,
-                reason: "".into(),
-            })))
-            .await
-        {
-            Ok(v) => NetworkResult::value(v),
-            Err(e) => err_to_network_result(e),
-        };
 
         // This close does not do a TCP shutdown so it is safe and will not cause TIME_WAIT
-        let _ = stream.close().await;
-
-        Ok(out)
-
-        // Drive connection to close
-        /*
-        let cur_ts = get_timestamp();
-        loop {
-            match stream.flush().await {
-                Ok(()) => {}
-                Err(Error::Io(ioerr)) => {
-                    break Err(ioerr).into_network_result();
-                }
-                Err(Error::ConnectionClosed) => {
-                    break Ok(NetworkResult::value(()));
-                }
-                Err(e) => {
-                    break Err(to_io_error_other(e));
-                }
+        match timeout(timeout_ms, stream.close()).await {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => {
+                return Ok(err_to_network_result(e));
             }
-            if get_timestamp().saturating_sub(cur_ts) >= MAX_CONNECTION_CLOSE_WAIT_US {
-                return Ok(NetworkResult::Timeout);
+            Err(_) => {
+                // Timed out
+                return Ok(NetworkResult::timeout());
             }
-        }
-        */
+        };
+
+        Ok(NetworkResult::value(()))
     }
 
     #[instrument(level = "trace", target="protocol", err, skip(self, message), fields(network_result, message.len = message.len()))]
