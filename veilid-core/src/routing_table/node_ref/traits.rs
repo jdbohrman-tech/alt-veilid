@@ -20,6 +20,13 @@ pub(crate) trait NodeRefOperateTrait {
     fn operate_mut<T, F>(&self, f: F) -> T
     where
         F: FnOnce(&mut RoutingTableInner, &mut BucketEntryInner) -> T;
+    #[expect(dead_code)]
+    fn with_inner<T, F>(&self, f: F) -> T
+    where
+        F: FnOnce(&RoutingTableInner) -> T;
+    fn with_inner_mut<T, F>(&self, f: F) -> T
+    where
+        F: FnOnce(&mut RoutingTableInner) -> T;
 }
 
 // Common Operations
@@ -115,7 +122,7 @@ pub(crate) trait NodeRefCommonTrait: NodeRefAccessorsTrait + NodeRefOperateTrait
     // }
 
     fn relay(&self, routing_domain: RoutingDomain) -> EyreResult<Option<FilteredNodeRef>> {
-        self.operate_mut(|rti, e| {
+        let Some(rpi) = self.operate(|rti, e| {
             let Some(sni) = e.signed_node_info(routing_domain) else {
                 return Ok(None);
             };
@@ -127,8 +134,14 @@ pub(crate) trait NodeRefCommonTrait: NodeRefAccessorsTrait + NodeRefOperateTrait
             if rti.routing_table().matches_own_node_id(rpi.node_ids()) {
                 bail!("Can't relay though ourselves");
             }
+            Ok(Some(rpi))
+        })?
+        else {
+            return Ok(None);
+        };
 
-            // Register relay node and return noderef
+        // Register relay node and return noderef
+        self.with_inner_mut(|rti| {
             let nr = rti.register_node_with_peer_info(rpi, false)?;
             Ok(Some(nr))
         })

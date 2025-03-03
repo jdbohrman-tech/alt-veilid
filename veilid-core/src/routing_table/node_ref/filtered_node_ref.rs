@@ -119,6 +119,24 @@ impl NodeRefOperateTrait for FilteredNodeRef {
         let inner = &mut *routing_table.inner.write();
         self.entry.with_mut(inner, f)
     }
+
+    fn with_inner<T, F>(&self, f: F) -> T
+    where
+        F: FnOnce(&RoutingTableInner) -> T,
+    {
+        let routing_table = self.registry.routing_table();
+        let inner = &*routing_table.inner.read();
+        f(inner)
+    }
+
+    fn with_inner_mut<T, F>(&self, f: F) -> T
+    where
+        F: FnOnce(&mut RoutingTableInner) -> T,
+    {
+        let routing_table = self.registry.routing_table();
+        let inner = &mut *routing_table.inner.write();
+        f(inner)
+    }
 }
 
 impl NodeRefCommonTrait for FilteredNodeRef {}
