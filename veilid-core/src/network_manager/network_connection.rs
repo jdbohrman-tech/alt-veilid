@@ -480,20 +480,21 @@ impl NetworkConnection {
                 }
             }
 
-            veilid_log!(registry trace
-                "Connection loop finished flow={:?}",
-                flow
-            );
 
             // Let the connection manager know the receive loop exited
             connection_manager
-                .report_connection_finished(connection_id)
-                .await;
+                .report_connection_finished(connection_id);
 
             // Close the low level socket
             if let Err(e) = protocol_connection.close().await {
                 veilid_log!(registry debug "Protocol connection close error: {}", e);
             }
+
+            veilid_log!(registry trace
+                "Connection loop exited flow={:?}",
+                flow
+            );
+
         }.in_current_span())
     }
 

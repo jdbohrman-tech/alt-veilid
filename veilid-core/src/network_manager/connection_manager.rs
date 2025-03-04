@@ -415,7 +415,8 @@ impl ConnectionManager {
         let best_port = preferred_local_address.map(|pla| pla.port());
 
         // Async lock on the remote address for atomicity per remote
-        // Use the initial timeout here as the 'close' timeout as well
+        // Use the initial connection timeout here because multiple calls to get_or_create_connection
+        // can be performed simultaneously and we want to wait for the first one to succeed or not
         let Ok(_lock_guard) = timeout(
             self.arc.connection_initial_timeout_ms,
             self.arc.address_lock_table.lock_tag(remote_addr),
@@ -461,6 +462,7 @@ impl ConnectionManager {
         let network_manager = self.network_manager();
 
         let prot_conn = network_result_try!(loop {
+            veilid_log!(self debug "get_or_create_connection connect({}) {:?} -> {}", retry_count, preferred_local_address, dial_info);
             let result_net_res = ProtocolNetworkConnection::connect(
                 self.registry(),
                 preferred_local_address,
@@ -485,11 +487,10 @@ impl ConnectionManager {
                     }
                 }
             };
-            veilid_log!(self debug "get_or_create_connection retries left: {}", retry_count);
             retry_count -= 1;
 
-            // XXX: This should not be necessary
-            // Release the preferred local address if things can't connect due to a low-level collision we dont have a record of
+            // // XXX: This should not be necessary
+            // // Release the preferred local address if things can't connect due to a low-level collision we dont have a record of
             // preferred_local_address = None;
             sleep(NEW_CONNECTION_RETRY_DELAY_MS).await;
         });
@@ -610,7 +611,7 @@ impl ConnectionManager {
 
     // Callback from network connection receive loop when it exits
     // cleans up the entry in the connection table
-    pub(super) async fn report_connection_finished(&self, connection_id: NetworkConnectionId) {
+    pub(super) fn report_connection_finished(&self, connection_id: NetworkConnectionId) {
         // Get channel sender
         let sender = {
             let mut inner = self.arc.inner.lock();
@@ -680,7 +681,7 @@ impl ConnectionManager {
                     }
                 }
             }
-            let _ = sender.send_async(ConnectionManagerEvent::Dead(conn)).await;
+            let _ = sender.send(ConnectionManagerEvent::Dead(conn));
         }
     }
 
