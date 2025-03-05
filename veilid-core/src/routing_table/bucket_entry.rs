@@ -1011,7 +1011,12 @@ impl BucketEntryInner {
 
                 match latest_contact_time {
                     None => {
-                        error!("Peer is reliable, but not seen!");
+                        // Peer may be appear reliable from a previous attach/detach
+                        // But reliability uses last_seen_ts not the last_outbound_contact_time
+                        // Regardless, if we haven't pinged it, we need to ping it.
+                        // But it it was reliable before, and pings successfully then it can
+                        // stay reliable, so we don't make it unreliable just because we haven't
+                        // contacted it yet during this attachment.
                         true
                     }
                     Some(latest_contact_time) => {

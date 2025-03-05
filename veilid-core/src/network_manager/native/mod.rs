@@ -662,11 +662,9 @@ impl Network {
                     };
                 } else {
                     // Handle connection-oriented protocols
+                    let connmgr = self.network_manager().connection_manager();
                     let conn = network_result_try!(
-                        self.network_manager()
-                            .connection_manager()
-                            .get_or_create_connection(dial_info.clone())
-                            .await?
+                        connmgr.get_or_create_connection(dial_info.clone()).await?
                     );
 
                     if let ConnectionHandleSendResult::NotSent(_) = conn.send_async(data).await {

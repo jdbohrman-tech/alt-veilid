@@ -289,3 +289,91 @@ macro_rules! veilid_log {
         $($k).+ = $($fields)*
     )};
 }
+
+#[macro_export]
+macro_rules! network_result_value_or_log {
+    ($self:ident $r:expr => $f:expr) => {
+        network_result_value_or_log!($self target: self::__VEILID_LOG_FACILITY, $r => [ "" ] $f )
+    };
+    ($self:ident $r:expr => [ $d:expr ] $f:expr) => {
+        network_result_value_or_log!($self target: self::__VEILID_LOG_FACILITY, $r => [ $d ] $f )
+    };
+    ($self:ident target: $target:expr, $r:expr => $f:expr) => {
+        network_result_value_or_log!($self target: $target, $r => [ "" ] $f )
+    };
+    ($self:ident target: $target:expr, $r:expr => [ $d:expr ] $f:expr) => { {
+        let __extra_message = if debug_target_enabled!("network_result") {
+            $d.to_string()
+        } else {
+            "".to_string()
+        };
+        match $r {
+            NetworkResult::Timeout => {
+                veilid_log!($self debug target: $target,
+                    "{} at {}@{}:{} in {}{}",
+                    "Timeout",
+                    file!(),
+                    line!(),
+                    column!(),
+                    fn_name::uninstantiated!(),
+                    __extra_message
+                );
+                $f
+            }
+            NetworkResult::ServiceUnavailable(ref s) => {
+                veilid_log!($self debug target: $target,
+                    "{}({}) at {}@{}:{} in {}{}",
+                    "ServiceUnavailable",
+                    s,
+                    file!(),
+                    line!(),
+                    column!(),
+                    fn_name::uninstantiated!(),
+                    __extra_message
+                );
+                $f
+            }
+            NetworkResult::NoConnection(ref e) => {
+                veilid_log!($self debug target: $target,
+                    "{}({}) at {}@{}:{} in {}{}",
+                    "No connection",
+                    e.to_string(),
+                    file!(),
+                    line!(),
+                    column!(),
+                    fn_name::uninstantiated!(),
+                    __extra_message
+                );
+                $f
+            }
+            NetworkResult::AlreadyExists(ref e) => {
+                veilid_log!($self debug target: $target,
+                    "{}({}) at {}@{}:{} in {}{}",
+                    "Already exists",
+                    e.to_string(),
+                    file!(),
+                    line!(),
+                    column!(),
+                    fn_name::uninstantiated!(),
+                    __extra_message
+                );
+                $f
+            }
+            NetworkResult::InvalidMessage(ref s) => {
+                veilid_log!($self debug target: $target,
+                    "{}({}) at {}@{}:{} in {}{}",
+                    "Invalid message",
+                    s,
+                    file!(),
+                    line!(),
+                    column!(),
+                    fn_name::uninstantiated!(),
+                    __extra_message
+                );
+                $f
+            }
+            NetworkResult::Value(v) => v,
+        }
+    } };
+
+}

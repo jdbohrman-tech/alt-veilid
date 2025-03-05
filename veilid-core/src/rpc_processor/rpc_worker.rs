@@ -70,7 +70,7 @@ impl RPCProcessor {
             match request.kind {
                 // Process RPC Message
                 RPCWorkerRequestKind::Message { message_encoded } => {
-                    network_result_value_or_log!(self match self
+                    network_result_value_or_log!(self target:"network_result", match self
                         .process_rpc_message(message_encoded).instrument(rpc_request_span)
                         .await
                     {

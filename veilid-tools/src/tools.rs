@@ -522,13 +522,33 @@ pub fn is_debug_backtrace_enabled() -> bool {
 }
 
 #[track_caller]
-pub fn debug_duration<R, F: Future<Output = R>, T: FnOnce() -> F>(f: T) -> impl Future<Output = R> {
-    let location = std::panic::Location::caller();
+pub fn debug_duration<R, F: Future<Output = R>, T: FnOnce() -> F>(
+    f: T,
+    opt_timeout_us: Option<u64>,
+) -> impl Future<Output = R> {
+    let location = core::panic::Location::caller();
     async move {
         let t1 = get_timestamp();
         let out = f().await;
         let t2 = get_timestamp();
-        debug!("duration@{}: {}", location, display_duration(t2 - t1));
+        let duration_us = t2 - t1;
+        if let Some(timeout_us) = opt_timeout_us {
+            if duration_us > timeout_us {
+                #[cfg(not(feature = "debug-duration-timeout"))]
+                debug!(
+                    "Excessive duration: {}\n{:?}",
+                    display_duration(duration_us),
+                    backtrace::Backtrace::new()
+                );
+                #[cfg(feature = "debug-duration-timeout")]
+                panic!(format!(
+                    "Duration panic timeout exceeded: {}",
+                    display_duration(duration_us)
+                ));
+            }
+        } else {
+            debug!("Duration: {} = {}", location, display_duration(duration_us),);
+        }
         out
     }
 }

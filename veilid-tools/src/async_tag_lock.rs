@@ -10,7 +10,7 @@ where
 {
     table: AsyncTagLockTable<T>,
     tag: T,
-    _guard: AsyncMutexGuardArc<()>,
+    guard: Option<AsyncMutexGuardArc<()>>,
 }
 
 impl<T> AsyncTagLockGuard<T>
@@ -21,7 +21,7 @@ where
         Self {
             table,
             tag,
-            _guard: guard,
+            guard: Some(guard),
         }
     }
 }
@@ -45,7 +45,8 @@ where
         if guards == 0 {
             inner.table.remove(&self.tag).unwrap();
         }
-        // Proceed with releasing _guard, which may cause some concurrent tag lock to acquire
+        // Proceed with releasing guard, which may cause some concurrent tag lock to acquire
+        drop(self.guard.take());
     }
 }
 
@@ -153,7 +154,7 @@ where
             }
             std::collections::hash_map::Entry::Vacant(v) => {
                 let mutex = Arc::new(AsyncMutex::new(()));
-                let guard = asyncmutex_try_lock_arc!(mutex)?;
+                let guard = asyncmutex_try_lock_arc!(mutex).unwrap();
                 v.insert(AsyncTagLockTableEntry { mutex, guards: 1 });
                 guard
             }

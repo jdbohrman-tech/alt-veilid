@@ -92,6 +92,22 @@ impl<'a, N: NodeRefAccessorsTrait + NodeRefOperateTrait + fmt::Debug + fmt::Disp
         let inner = &mut *self.inner.lock();
         self.nr.entry().with_mut(inner, f)
     }
+
+    fn with_inner<T, F>(&self, f: F) -> T
+    where
+        F: FnOnce(&RoutingTableInner) -> T,
+    {
+        let inner = &*self.inner.lock();
+        f(inner)
+    }
+
+    fn with_inner_mut<T, F>(&self, f: F) -> T
+    where
+        F: FnOnce(&mut RoutingTableInner) -> T,
+    {
+        let inner = &mut *self.inner.lock();
+        f(inner)
+    }
 }
 
 impl<'a, N: NodeRefAccessorsTrait + NodeRefOperateTrait + fmt::Debug + fmt::Display + Clone>

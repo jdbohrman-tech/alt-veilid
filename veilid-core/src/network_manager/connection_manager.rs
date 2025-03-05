@@ -8,7 +8,7 @@ impl_veilid_log_facility!("net");
 
 const PROTECTED_CONNECTION_DROP_SPAN: TimestampDuration = TimestampDuration::new_secs(10);
 const PROTECTED_CONNECTION_DROP_COUNT: usize = 3;
-const NEW_CONNECTION_RETRY_COUNT: usize = 1;
+const NEW_CONNECTION_RETRY_COUNT: usize = 0;
 const NEW_CONNECTION_RETRY_DELAY_MS: u32 = 500;
 
 ///////////////////////////////////////////////////////////
@@ -415,7 +415,19 @@ impl ConnectionManager {
         let best_port = preferred_local_address.map(|pla| pla.port());
 
         // Async lock on the remote address for atomicity per remote
-        let _lock_guard = self.arc.address_lock_table.lock_tag(remote_addr).await;
+        // Use the initial connection timeout here because multiple calls to get_or_create_connection
+        // can be performed simultaneously and we want to wait for the first one to succeed or not
+        let Ok(_lock_guard) = timeout(
+            self.arc.connection_initial_timeout_ms,
+            self.arc.address_lock_table.lock_tag(remote_addr),
+        )
+        .await
+        else {
+            veilid_log!(self debug "== get_or_create_connection: connection busy, not connecting to dial_info={:?}", dial_info);
+            return Ok(NetworkResult::no_connection_other(
+                "connection endpoint busy",
+            ));
+        };
 
         veilid_log!(self trace "== get_or_create_connection dial_info={:?}", dial_info);
 
@@ -449,7 +461,8 @@ impl ConnectionManager {
         let mut retry_count = NEW_CONNECTION_RETRY_COUNT;
         let network_manager = self.network_manager();
 
-        let prot_conn = network_result_try!(loop {
+        let nres = loop {
+            veilid_log!(self trace "== get_or_create_connection connect({}) {:?} -> {}", retry_count, preferred_local_address, dial_info);
             let result_net_res = ProtocolNetworkConnection::connect(
                 self.registry(),
                 preferred_local_address,
@@ -474,12 +487,16 @@ impl ConnectionManager {
                     }
                 }
             };
-            veilid_log!(self debug "get_or_create_connection retries left: {}", retry_count);
             retry_count -= 1;
 
-            // Release the preferred local address if things can't connect due to a low-level collision we dont have a record of
-            preferred_local_address = None;
+            // // XXX: This should not be necessary
+            // // Release the preferred local address if things can't connect due to a low-level collision we dont have a record of
+            // preferred_local_address = None;
             sleep(NEW_CONNECTION_RETRY_DELAY_MS).await;
+        };
+
+        let prot_conn = network_result_value_or_log!(self target:"network_result", nres => [ format!("== get_or_create_connection failed {:?} -> {}", preferred_local_address, dial_info) ] {
+            network_result_raise!(nres);
         });
 
         // Add to the connection table
@@ -598,7 +615,7 @@ impl ConnectionManager {
 
     // Callback from network connection receive loop when it exits
     // cleans up the entry in the connection table
-    pub(super) async fn report_connection_finished(&self, connection_id: NetworkConnectionId) {
+    pub(super) fn report_connection_finished(&self, connection_id: NetworkConnectionId) {
         // Get channel sender
         let sender = {
             let mut inner = self.arc.inner.lock();
@@ -668,7 +685,7 @@ impl ConnectionManager {
                     }
                 }
             }
-            let _ = sender.send_async(ConnectionManagerEvent::Dead(conn)).await;
+            let _ = sender.send(ConnectionManagerEvent::Dead(conn));
         }
     }
 
