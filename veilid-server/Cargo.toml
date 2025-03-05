@@ -53,8 +53,8 @@ geolocation = ["veilid-core/geolocation"]
 
 [dependencies]
 veilid-core = { path = "../veilid-core", default-features = false }
-tracing = { version = "^0.1.40", features = ["log", "attributes"] }
-tracing-subscriber = { version = "^0.3.18", features = ["env-filter", "time"] }
+tracing = { version = "^0.1.41", features = ["log", "attributes"] }
+tracing-subscriber = { version = "^0.3.19", features = ["env-filter", "time"] }
 tracing-appender = "^0.2.3"
 tracing-opentelemetry = "^0.24.0"
 # Buggy: tracing-error = "^0"
@@ -62,21 +62,21 @@ opentelemetry = { version = "^0.23" }
 opentelemetry-otlp = { version = "^0.16.0", default-features = false, optional = true }
 opentelemetry_sdk = "0.23.0"
 opentelemetry-semantic-conventions = "^0.16.0"
-async-std = { version = "^1.12.0", features = ["unstable"], optional = true }
-tokio = { version = "^1.38.1", features = ["full", "tracing"], optional = true }
-tokio-stream = { version = "^0.1.15", features = ["net"], optional = true }
-tokio-util = { version = "^0.7.11", features = ["compat"], optional = true }
+async-std = { version = "^1.13.0", features = ["unstable"], optional = true }
+tokio = { version = "^1.43.0", features = ["full", "tracing"], optional = true }
+tokio-stream = { version = "^0.1.17", features = ["net"], optional = true }
+tokio-util = { version = "^0.7.13", features = ["compat"], optional = true }
 console-subscriber = { version = "^0.3.0", optional = true }
 async-tungstenite = { version = "^0.27.0", features = ["async-tls"] }
 color-eyre = { version = "^0.6.3", default-features = false }
 backtrace = "^0.3.71"
-clap = { version = "^4.5.9", features = ["derive", "string", "wrap_help"] }
+clap = { version = "^4.5.31", features = ["derive", "string", "wrap_help"] }
 directories = "^5.0.1"
 parking_lot = "^0.12.3"
-config = { version = "^0.14.0", default-features = false, features = ["yaml"] }
+config = { version = "^0.14.1", default-features = false, features = ["yaml"] }
 cfg-if = "^1.0.0"
-serde = "^1.0.204"
-serde_derive = "^1.0.204"
+serde = "^1.0.218"
+serde_derive = "^1.0.218"
 serde_yaml = { package = "serde_yaml_ng", version = "^0.10.0" }
 json = "^0"
 futures-util = { version = "^0", default-features = false, features = [
@@ -91,10 +91,10 @@ rpassword = "^7"
 hostname = "^0"
 stop-token = { version = "^0", default-features = false }
 sysinfo = { version = "^0.30.13", default-features = false }
-wg = { version = "^0.9.1", features = ["future"] }
+wg = { version = "^0.9.2", features = ["future"] }
 tracing-flame = { version = "0.2.0", optional = true }
-time = { version = "0.3.36", features = ["local-offset"] }
-chrono = "0.4.38"
+time = { version = "0.3.38", features = ["local-offset"] }
+chrono = "0.4.40"
 
 [target.'cfg(windows)'.dependencies]
 windows-service = "^0"
@@ -108,10 +108,10 @@ nix = "^0.29.0"
 tracing-perfetto = { version = "0.1.5", optional = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-tracing-journald = "^0.3.0"
+tracing-journald = "^0.3.1"
 
 [dev-dependencies]
-serial_test = "^3.1.1"
+serial_test = "^3.2.0"
 
 [lints]
 workspace = true
