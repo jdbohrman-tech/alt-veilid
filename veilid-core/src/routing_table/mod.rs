@@ -1041,7 +1041,7 @@ impl RoutingTable {
     #[instrument(level = "trace", skip(self), err)]
     pub async fn find_nodes_close_to_node_id(
         &self,
-        node_ref: NodeRef,
+        node_ref: FilteredNodeRef,
         node_id: TypedKey,
         capabilities: Vec<Capability>,
     ) -> EyreResult<NetworkResult<Vec<NodeRef>>> {
@@ -1049,11 +1049,7 @@ impl RoutingTable {
 
         let res = network_result_try!(
             rpc_processor
-                .rpc_call_find_node(
-                    Destination::direct(node_ref.default_filtered()),
-                    node_id,
-                    capabilities
-                )
+                .rpc_call_find_node(Destination::direct(node_ref), node_id, capabilities)
                 .await?
         );
 
@@ -1069,7 +1065,7 @@ impl RoutingTable {
     pub async fn find_nodes_close_to_self(
         &self,
         crypto_kind: CryptoKind,
-        node_ref: NodeRef,
+        node_ref: FilteredNodeRef,
         capabilities: Vec<Capability>,
     ) -> EyreResult<NetworkResult<Vec<NodeRef>>> {
         let self_node_id = self.node_id(crypto_kind);
@@ -1083,7 +1079,7 @@ impl RoutingTable {
     pub async fn find_nodes_close_to_node_ref(
         &self,
         crypto_kind: CryptoKind,
-        node_ref: NodeRef,
+        node_ref: FilteredNodeRef,
         capabilities: Vec<Capability>,
     ) -> EyreResult<NetworkResult<Vec<NodeRef>>> {
         let Some(target_node_id) = node_ref.node_ids().get(crypto_kind) else {
@@ -1104,7 +1100,7 @@ impl RoutingTable {
         capabilities: Vec<Capability>,
     ) {
         // Ask node for nodes closest to our own node
-        let closest_nodes = network_result_value_or_log!(self match pin_future!(self.find_nodes_close_to_self(crypto_kind, node_ref.clone(), capabilities.clone())).await {
+        let closest_nodes = network_result_value_or_log!(self match pin_future!(self.find_nodes_close_to_self(crypto_kind, node_ref.sequencing_filtered(Sequencing::PreferOrdered), capabilities.clone())).await {
             Err(e) => {
                 veilid_log!(self error
                     "find_self failed for {:?}: {:?}",
@@ -1120,7 +1116,7 @@ impl RoutingTable {
         // Ask each node near us to find us as well
         if wide {
             for closest_nr in closest_nodes {
-                network_result_value_or_log!(self match pin_future!(self.find_nodes_close_to_self(crypto_kind, closest_nr.clone(), capabilities.clone())).await {
+                network_result_value_or_log!(self match pin_future!(self.find_nodes_close_to_self(crypto_kind, closest_nr.sequencing_filtered(Sequencing::PreferOrdered), capabilities.clone())).await {
                     Err(e) => {
                         veilid_log!(self error
                             "find_self failed for {:?}: {:?}",

@@ -1120,7 +1120,7 @@ impl StorageManager {
         let dest = rpc_processor
             .resolve_target_to_destination(
                 vc.target,
-                SafetySelection::Unsafe(Sequencing::NoPreference),
+                SafetySelection::Unsafe(Sequencing::PreferOrdered),
             )
             .await
             .map_err(VeilidAPIError::from)?;

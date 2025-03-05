@@ -461,8 +461,8 @@ impl ConnectionManager {
         let mut retry_count = NEW_CONNECTION_RETRY_COUNT;
         let network_manager = self.network_manager();
 
-        let prot_conn = network_result_try!(loop {
-            veilid_log!(self debug "get_or_create_connection connect({}) {:?} -> {}", retry_count, preferred_local_address, dial_info);
+        let nres = loop {
+            veilid_log!(self trace "== get_or_create_connection connect({}) {:?} -> {}", retry_count, preferred_local_address, dial_info);
             let result_net_res = ProtocolNetworkConnection::connect(
                 self.registry(),
                 preferred_local_address,
@@ -493,6 +493,10 @@ impl ConnectionManager {
             // // Release the preferred local address if things can't connect due to a low-level collision we dont have a record of
             // preferred_local_address = None;
             sleep(NEW_CONNECTION_RETRY_DELAY_MS).await;
+        };
+
+        let prot_conn = network_result_value_or_log!(self target:"network_result", nres => [ format!("== get_or_create_connection failed {:?} -> {}", preferred_local_address, dial_info) ] {
+            network_result_raise!(nres);
         });
 
         // Add to the connection table

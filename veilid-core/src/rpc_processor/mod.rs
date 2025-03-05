@@ -1471,11 +1471,24 @@ impl RPCProcessor {
                 let operation = match self.decode_rpc_operation(&encoded_msg) {
                     Ok(v) => v,
                     Err(e) => {
-                        // Debug on error
-                        veilid_log!(self debug "Dropping routed RPC: {}", e);
+                        match e {
+                            // Invalid messages that should be punished
+                            RPCError::Protocol(_) | RPCError::InvalidFormat(_) => {
+                                veilid_log!(self debug "Invalid routed RPC Operation: {}", e);
 
-                        // XXX: Punish routes that send routed undecodable crap
-                        // self.network_manager().address_filter().punish_route_id(xxx, PunishmentReason::FailedToDecodeRoutedMessage);
+                                // XXX: Punish routes that send routed undecodable crap
+                                // self.network_manager().address_filter().punish_route_id(xxx, PunishmentReason::FailedToDecodeRoutedMessage);
+                            }
+                            // Ignored messages that should be dropped
+                            RPCError::Ignore(_) | RPCError::Network(_) | RPCError::TryAgain(_) => {
+                                veilid_log!(self trace "Dropping routed RPC Operation: {}", e);
+                            }
+                            // Internal errors that deserve louder logging
+                            RPCError::Unimplemented(_) | RPCError::Internal(_) => {
+                                veilid_log!(self error "Error decoding routed RPC operation: {}", e);
+                            }
+                        };
+
                         return Ok(NetworkResult::invalid_message(e));
                     }
                 };
@@ -1593,16 +1606,16 @@ impl RPCProcessor {
                 if let Err(e) = self.waiting_rpc_table.complete_op_waiter(op_id, msg) {
                     match e {
                         RPCError::Unimplemented(_) | RPCError::Internal(_) => {
-                            veilid_log!(self error "Could not complete rpc operation: id = {}: {}", op_id, e);
+                            veilid_log!(self error "Error in RPC operation: id = {}: {}", op_id, e);
                         }
                         RPCError::InvalidFormat(_)
                         | RPCError::Protocol(_)
                         | RPCError::Network(_)
                         | RPCError::TryAgain(_) => {
-                            veilid_log!(self debug "Could not complete rpc operation: id = {}: {}", op_id, e);
+                            veilid_log!(self debug "Could not complete RPC operation: id = {}: {}", op_id, e);
                         }
-                        RPCError::Ignore(_) => {
-                            veilid_log!(self debug "Answer late: id = {}", op_id);
+                        RPCError::Ignore(e) => {
+                            veilid_log!(self debug "RPC operation ignored: id = {}: {}", op_id, e);
                         }
                     };
                     // Don't throw an error here because it's okay if the original operation timed out

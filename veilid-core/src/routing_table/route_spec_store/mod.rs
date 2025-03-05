@@ -716,7 +716,7 @@ impl RouteSpecStore {
         };
 
         let Some(rsid) = inner.content.get_id_by_key(&public_key.value) else {
-            veilid_log!(self debug "route id does not exist: {:?}", public_key.value);
+            veilid_log!(self debug target: "network_result", "route id does not exist: {:?}", public_key.value);
             return None;
         };
         let Some(rssd) = inner.content.get_detail(&rsid) else {
@@ -753,7 +753,7 @@ impl RouteSpecStore {
                         return None;
                     }
                     Err(e) => {
-                        veilid_log!(self debug "errir verifying signature for hop {} at {} on private route {}: {}", hop_n, hop_public_key, public_key, e);
+                        veilid_log!(self debug "error verifying signature for hop {} at {} on private route {}: {}", hop_n, hop_public_key, public_key, e);
                         return None;
                     }
                 }
