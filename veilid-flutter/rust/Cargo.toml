@@ -35,17 +35,17 @@ debug-load = ["dep:ctor", "dep:libc-print", "dep:android_log-sys", "dep:oslog"]
 
 [dependencies]
 veilid-core = { path = "../../veilid-core", default-features = false }
-tracing = { version = "0.1.40", features = ["log", "attributes"] }
+tracing = { version = "0.1.41", features = ["log", "attributes"] }
 tracing-subscriber = "0.3.19"
 parking_lot = "0.12.3"
-backtrace = "0.3.71"
-serde_json = "1.0.120"
-serde = "1.0.204"
-futures-util = { version = "0.3.30", default-features = false, features = [
+backtrace = "^0.3.71"
+serde_json = "1.0.140"
+serde = "1.0.218"
+futures-util = { version = "0.3.31", default-features = false, features = [
     "alloc",
 ] }
 cfg-if = "1.0.0"
-data-encoding = { version = "2.6.0" }
+data-encoding = { version = "2.8.0" }
 tracing-flame = "0.2.0"
 
 # Dependencies for native builds only
@@ -55,15 +55,15 @@ tracing-opentelemetry = "0.21"
 opentelemetry = { version = "0.20" }
 opentelemetry-otlp = { version = "0.13" }
 opentelemetry-semantic-conventions = "0.12"
-async-std = { version = "1.12.0", features = ["unstable"], optional = true }
-tokio = { version = "1.38.1", features = ["full"], optional = true }
-tokio-stream = { version = "0.1.15", features = ["net"], optional = true }
-tokio-util = { version = "0.7.11", features = ["compat"], optional = true }
-allo-isolate = "0.1.25"
+async-std = { version = "1.13.0", features = ["unstable"], optional = true }
+tokio = { version = "1.43.0", features = ["full"], optional = true }
+tokio-stream = { version = "0.1.17", features = ["net"], optional = true }
+tokio-util = { version = "0.7.13", features = ["compat"], optional = true }
+allo-isolate = "0.1.26"
 ffi-support = "0.4.4"
 lazy_static = "1.5.0"
 hostname = "0.3.1"
-ctor = { version = "0.2.8", optional = true }
+ctor = { version = "0.2.9", optional = true }
 libc-print = { version = "0.1.23", optional = true }
 
 
@@ -74,7 +74,7 @@ libc-print = { version = "0.1.23", optional = true }
 [target.'cfg(target_os = "android")'.dependencies]
 jni = "0.21.1"
 paranoid-android = "0.2.2"
-android_log-sys = { version = "0.3.1", optional = true }
+android_log-sys = { version = "0.3.2", optional = true }
 
 # Dependencies for iOS builds only
 [target.'cfg(target_os = "ios")'.dependencies]

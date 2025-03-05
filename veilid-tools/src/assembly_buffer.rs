@@ -14,9 +14,6 @@ type SequenceType = u16;
 const HEADER_LEN: usize = 8;
 const MAX_LEN: usize = LengthType::MAX as usize;
 
-// XXX: keep statistics on all drops and why we dropped them
-// XXX: move to config eventually?
-
 /// The hard-coded maximum fragment size used by AssemblyBuffer
 ///
 /// Eventually this should parameterized and made configurable.
@@ -119,7 +116,7 @@ impl PeerMessages {
         let mut assembly = MessageAssembly {
             timestamp,
             seq,
-            data: vec![0u8; len as usize],
+            data: unsafe { unaligned_u8_vec_uninit(len as usize) },
             parts: RangeSetBlaze::from_iter([part_start..=part_end]),
         };
         assembly.data[part_start as usize..=part_end as usize].copy_from_slice(chunk);
@@ -229,6 +226,7 @@ struct AssemblyBufferUnlockedInner {
 /// * No sequencing of packets. Packets may still be delivered to the application out of order, but this guarantees that only whole packets will be delivered if all of their fragments are received.
 
 #[derive(Clone)]
+#[must_use]
 pub struct AssemblyBuffer {
     inner: Arc<Mutex<AssemblyBufferInner>>,
     unlocked_inner: Arc<AssemblyBufferUnlockedInner>,
@@ -247,7 +245,6 @@ impl AssemblyBuffer {
         }
     }
 
-    #[must_use]
     pub fn new() -> Self {
         Self {
             inner: Arc::new(Mutex::new(Self::new_inner())),
