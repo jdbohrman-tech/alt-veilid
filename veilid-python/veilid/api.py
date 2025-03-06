@@ -6,11 +6,20 @@ from .state import VeilidState
 
 
 class RoutingContext(ABC):
+    ref_count: int
+
+    def __init__(
+        self,
+    ):
+        self.ref_count = 0
+
     async def __aenter__(self) -> Self:
+        self.ref_count += 1
         return self
 
     async def __aexit__(self, *excinfo):
-        if not self.is_done():
+        self.ref_count -= 1
+        if self.ref_count == 0 and not self.is_done():
             await self.release()
 
     @abstractmethod
@@ -109,13 +118,22 @@ class RoutingContext(ABC):
 
 
 class TableDbTransaction(ABC):
+    ref_count: int
+
+    def __init__(
+        self,
+    ):
+        self.ref_count = 0
+
     async def __aenter__(self) -> Self:
+        self.ref_count += 1
         return self
 
     async def __aexit__(self, *excinfo):
-        if not self.is_done():
-            await self.rollback()
-    
+        self.ref_count -= 1
+        if self.ref_count == 0 and not self.is_done():
+            await self.release()
+
     @abstractmethod
     def is_done(self) -> bool:
         pass
@@ -138,11 +156,20 @@ class TableDbTransaction(ABC):
 
 
 class TableDb(ABC):
+    ref_count: int
+
+    def __init__(
+        self,
+    ):
+        self.ref_count = 0
+
     async def __aenter__(self) -> Self:
+        self.ref_count += 1
         return self
 
     async def __aexit__(self, *excinfo):
-        if not self.is_done():
+        self.ref_count -= 1
+        if self.ref_count == 0 and not self.is_done():
             await self.release()
 
     @abstractmethod
@@ -179,11 +206,20 @@ class TableDb(ABC):
 
 
 class CryptoSystem(ABC):
+    ref_count: int
+
+    def __init__(
+        self,
+    ):
+        self.ref_count = 0
+
     async def __aenter__(self) -> Self:
+        self.ref_count += 1
         return self
 
     async def __aexit__(self, *excinfo):
-        if not self.is_done():
+        self.ref_count -= 1
+        if self.ref_count == 0 and not self.is_done():
             await self.release()
 
     @abstractmethod
@@ -306,11 +342,20 @@ class CryptoSystem(ABC):
 
 
 class VeilidAPI(ABC):
+    ref_count: int
+
+    def __init__(
+        self,
+    ):
+        self.ref_count = 0
+
     async def __aenter__(self) -> Self:
+        self.ref_count += 1
         return self
 
     async def __aexit__(self, *excinfo):
-        if not self.is_done():
+        self.ref_count -= 1
+        if self.ref_count == 0 and not self.is_done():
             await self.release()
 
     @abstractmethod

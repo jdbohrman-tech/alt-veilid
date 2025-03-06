@@ -99,6 +99,8 @@ class _JsonVeilidAPI(VeilidAPI):
         update_callback: Callable[[VeilidUpdate], Awaitable],
         validate_schema: bool = True,
     ):
+        super().__init__()
+
         self.reader = reader
         self.writer = writer
         self.update_callback = update_callback
@@ -308,7 +310,7 @@ class _JsonVeilidAPI(VeilidAPI):
 
         # Validate if we have a validator
         if response["op"] != req["op"]:
-            raise ValueError("Response op does not match request op")
+            raise ValueError(f"Response op does not match request op: {response['op']} != {req['op']}")
         if validate is not None:
             validate(req, response)
 
@@ -459,7 +461,7 @@ class _JsonVeilidAPI(VeilidAPI):
 
 def validate_rc_op(request: dict, response: dict):
     if response["rc_op"] != request["rc_op"]:
-        raise ValueError("Response rc_op does not match request rc_op")
+        raise ValueError(f"Response rc_op does not match request rc_op: {response["rc_op"]} != {request["rc_op"]}")
 
 
 class _JsonRoutingContext(RoutingContext):
@@ -468,6 +470,8 @@ class _JsonRoutingContext(RoutingContext):
     done: bool
 
     def __init__(self, api: _JsonVeilidAPI, rc_id: int):
+        super().__init__()
+
         self.api = api
         self.rc_id = rc_id
         self.done = False
@@ -728,7 +732,7 @@ class _JsonRoutingContext(RoutingContext):
 
 def validate_tx_op(request: dict, response: dict):
     if response["tx_op"] != request["tx_op"]:
-        raise ValueError("Response tx_op does not match request tx_op")
+        raise ValueError(f"Response tx_op does not match request tx_op: {response['tx_op']} != {request['tx_op']}")
 
 
 class _JsonTableDbTransaction(TableDbTransaction):
@@ -737,6 +741,8 @@ class _JsonTableDbTransaction(TableDbTransaction):
     done: bool
 
     def __init__(self, api: _JsonVeilidAPI, tx_id: int):
+        super().__init__()
+
         self.api = api
         self.tx_id = tx_id
         self.done = False
@@ -810,7 +816,7 @@ class _JsonTableDbTransaction(TableDbTransaction):
 
 def validate_db_op(request: dict, response: dict):
     if response["db_op"] != request["db_op"]:
-        raise ValueError("Response db_op does not match request db_op")
+        raise ValueError(f"Response db_op does not match request db_op: {response['db_op']} != {request['db_op']}")
 
 
 class _JsonTableDb(TableDb):
@@ -819,6 +825,8 @@ class _JsonTableDb(TableDb):
     done: bool
 
     def __init__(self, api: _JsonVeilidAPI, db_id: int):
+        super().__init__()
+
         self.api = api
         self.db_id = db_id
         self.done = False
@@ -929,7 +937,7 @@ class _JsonTableDb(TableDb):
 
 def validate_cs_op(request: dict, response: dict):
     if response["cs_op"] != request["cs_op"]:
-        raise ValueError("Response cs_op does not match request cs_op")
+        raise ValueError(f"Response cs_op does not match request cs_op: {response['cs_op']} != {request['cs_op']}")
 
 
 class _JsonCryptoSystem(CryptoSystem):
@@ -938,6 +946,8 @@ class _JsonCryptoSystem(CryptoSystem):
     done: bool
 
     def __init__(self, api: _JsonVeilidAPI, cs_id: int):
+        super().__init__()
+
         self.api = api
         self.cs_id = cs_id
         self.done = False
