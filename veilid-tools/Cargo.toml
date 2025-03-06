@@ -184,7 +184,6 @@ serial_test = { version = "2.0.0", default-features = false, features = [
 ] }
 console_error_panic_hook = "0.1.7"
 wasm-bindgen-test = "0.3.50"
-wee_alloc = "0.4.5"
 wasm-logger = "0.2.0"
 tracing-wasm = { version = "0.2.1" }
 
