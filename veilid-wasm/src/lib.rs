@@ -35,11 +35,6 @@ pub mod veilid_table_db_js;
 mod wasm_helpers;
 use wasm_helpers::*;
 
-// Allocator
-extern crate wee_alloc;
-#[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
-
 // API Singleton
 lazy_static! {
     static ref VEILID_API: SendWrapper<RefCell<Option<veilid_core::VeilidAPI>>> =
