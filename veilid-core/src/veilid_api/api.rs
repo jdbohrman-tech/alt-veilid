@@ -1,5 +1,7 @@
 use super::*;
 
+impl_veilid_log_facility!("veilid_api");
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
 pub(super) struct VeilidAPIInner {
@@ -41,10 +43,9 @@ pub struct VeilidAPI {
 }
 
 impl VeilidAPI {
-    #[instrument(target = "veilid_api", level = "debug", skip_all)]
+    #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = context.log_key()), skip_all)]
     pub(crate) fn new(context: VeilidCoreContext) -> Self {
-        event!(target: "veilid_api", Level::DEBUG,
-            "VeilidAPI::new()");
+        veilid_log!(context debug "VeilidAPI::new()");
         Self {
             inner: Arc::new(Mutex::new(VeilidAPIInner {
                 context: Some(context),
@@ -59,10 +60,9 @@ impl VeilidAPI {
     }
 
     /// Shut down Veilid and terminate the API.
-    #[instrument(target = "veilid_api", level = "debug", skip_all)]
+    #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), skip_all)]
     pub async fn shutdown(self) {
-        event!(target: "veilid_api", Level::DEBUG,
-            "VeilidAPI::shutdown()");
+        veilid_log!(self debug "VeilidAPI::shutdown()");
         let context = { self.inner.lock().context.take() };
         if let Some(context) = context {
             api_shutdown(context).await;
@@ -152,6 +152,15 @@ impl VeilidAPI {
         callback(&mut inner.debug_cache)
     }
 
+    #[must_use]
+    pub(crate) fn log_key(&self) -> &str {
+        let inner = self.inner.lock();
+        let Some(context) = &inner.context else {
+            return "";
+        };
+        context.log_key()
+    }
+
     ////////////////////////////////////////////////////////////////
     // Attach/Detach
 
@@ -174,9 +183,9 @@ impl VeilidAPI {
     }
 
     /// Connect to the network.
-    #[instrument(target = "veilid_api", level = "debug", skip_all, ret, err)]
+    #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), skip_all, ret, err)]
     pub async fn attach(&self) -> VeilidAPIResult<()> {
-        event!(target: "veilid_api", Level::DEBUG,
+        veilid_log!(self debug
             "VeilidAPI::attach()");
 
         let attachment_manager = self.core_context()?.attachment_manager();
@@ -187,9 +196,9 @@ impl VeilidAPI {
     }
 
     /// Disconnect from the network.
-    #[instrument(target = "veilid_api", level = "debug", skip_all, ret, err)]
+    #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), skip_all, ret, err)]
     pub async fn detach(&self) -> VeilidAPIResult<()> {
-        event!(target: "veilid_api", Level::DEBUG,
+        veilid_log!(self debug
             "VeilidAPI::detach()");
 
         let attachment_manager = self.core_context()?.attachment_manager();
@@ -203,9 +212,9 @@ impl VeilidAPI {
     // Routing Context
 
     /// Get a new `RoutingContext` object to use to send messages over the Veilid network with default safety, sequencing, and stability parameters.
-    #[instrument(target = "veilid_api", level = "debug", skip_all, err, ret)]
+    #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), skip_all, err, ret)]
     pub fn routing_context(&self) -> VeilidAPIResult<RoutingContext> {
-        event!(target: "veilid_api", Level::DEBUG,
+        veilid_log!(self debug
             "VeilidAPI::routing_context()");
 
         RoutingContext::try_new(self.clone())
@@ -218,11 +227,11 @@ impl VeilidAPI {
     /// `VLD0:XmnGyJrjMJBRC5ayJZRPXWTBspdX36-pbLb98H3UMeE` but if the prefix is left off
     /// `XmnGyJrjMJBRC5ayJZRPXWTBspdX36-pbLb98H3UMeE` will be parsed with the 'best' cryptosystem
     /// available (at the time of this writing this is `VLD0`).
-    #[instrument(target = "veilid_api", level = "debug", skip(self), fields(s=s.to_string()), ret, err)]
+    #[instrument(target = "veilid_api", level = "debug", skip(self), fields(__VEILID_LOG_KEY = self.log_key(), s=s.to_string()), ret, err)]
     pub fn parse_as_target<S: ToString>(&self, s: S) -> VeilidAPIResult<Target> {
         let s = s.to_string();
 
-        event!(target: "veilid_api", Level::DEBUG,
+        veilid_log!(self debug
             "VeilidAPI::parse_as_target(s: {:?})", s);
 
         // Is this a route id?
@@ -272,14 +281,14 @@ impl VeilidAPI {
     ///
     /// Returns a route id and 'blob' that can be published over some means (DHT or otherwise) to be
     /// imported by another Veilid node.
-    #[instrument(target = "veilid_api", level = "debug", skip(self), ret)]
+    #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), skip(self), ret)]
     pub async fn new_custom_private_route(
         &self,
         crypto_kinds: &[CryptoKind],
         stability: Stability,
         sequencing: Sequencing,
     ) -> VeilidAPIResult<(RouteId, Vec<u8>)> {
-        event!(target: "veilid_api", Level::DEBUG,
+        veilid_log!(self debug
             "VeilidAPI::new_custom_private_route(crypto_kinds: {:?}, stability: {:?}, sequencing: {:?})",
             crypto_kinds,
             stability,
@@ -336,9 +345,9 @@ impl VeilidAPI {
     /// Import a private route blob as a remote private route.
     ///
     /// Returns a route id that can be used to send private messages to the node creating this route.
-    #[instrument(target = "veilid_api", level = "debug", skip(self), ret, err)]
+    #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), skip(self), ret, err)]
     pub fn import_remote_private_route(&self, blob: Vec<u8>) -> VeilidAPIResult<RouteId> {
-        event!(target: "veilid_api", Level::DEBUG,
+        veilid_log!(self debug
             "VeilidAPI::import_remote_private_route(blob: {:?})", blob);
         let routing_table = self.core_context()?.routing_table();
         let rss = routing_table.route_spec_store();
@@ -349,9 +358,9 @@ impl VeilidAPI {
     ///
     /// This will deactivate the route and free its resources and it can no longer be sent to
     /// or received from.
-    #[instrument(target = "veilid_api", level = "debug", skip(self), ret, err)]
+    #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), skip(self), ret, err)]
     pub fn release_private_route(&self, route_id: RouteId) -> VeilidAPIResult<()> {
-        event!(target: "veilid_api", Level::DEBUG,
+        veilid_log!(self debug
             "VeilidAPI::release_private_route(route_id: {:?})", route_id);
         let routing_table = self.core_context()?.routing_table();
         let rss = routing_table.route_spec_store();
@@ -368,13 +377,13 @@ impl VeilidAPI {
     ///
     /// * `call_id` - specifies which call to reply to, and it comes from a [VeilidUpdate::AppCall], specifically the [VeilidAppCall::id()] value.
     /// * `message` - is an answer blob to be returned by the remote node's [RoutingContext::app_call()] function, and may be up to 32768 bytes.
-    #[instrument(target = "veilid_api", level = "debug", skip(self), ret, err)]
+    #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), skip(self), ret, err)]
     pub async fn app_call_reply(
         &self,
         call_id: OperationId,
         message: Vec<u8>,
     ) -> VeilidAPIResult<()> {
-        event!(target: "veilid_api", Level::DEBUG,
+        veilid_log!(self debug
             "VeilidAPI::app_call_reply(call_id: {:?}, message: {:?})", call_id, message);
 
         let rpc_processor = self.core_context()?.rpc_processor();
@@ -387,7 +396,7 @@ impl VeilidAPI {
     // Tunnel Building
 
     #[cfg(feature = "unstable-tunnels")]
-    #[instrument(target = "veilid_api", level = "debug", skip(self), ret, err)]
+    #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), skip(self), ret, err)]
     pub async fn start_tunnel(
         &self,
         _endpoint_mode: TunnelMode,
@@ -397,7 +406,7 @@ impl VeilidAPI {
     }
 
     #[cfg(feature = "unstable-tunnels")]
-    #[instrument(target = "veilid_api", level = "debug", skip(self), ret, err)]
+    #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), skip(self), ret, err)]
     pub async fn complete_tunnel(
         &self,
         _endpoint_mode: TunnelMode,
@@ -408,7 +417,7 @@ impl VeilidAPI {
     }
 
     #[cfg(feature = "unstable-tunnels")]
-    #[instrument(target = "veilid_api", level = "debug", skip(self), ret, err)]
+    #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), skip(self), ret, err)]
     pub async fn cancel_tunnel(&self, _tunnel_id: TunnelId) -> VeilidAPIResult<bool> {
         panic!("unimplemented");
     }

@@ -824,6 +824,8 @@ async def sync_win(
                 win.addstr(n+2, 1, " " * subkey_count, curses.color_pair(1))
 
         win.refresh()
+        time.sleep(.5)
+
 
     curses.endwin()
 
