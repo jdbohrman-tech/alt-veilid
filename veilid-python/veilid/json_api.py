@@ -338,6 +338,12 @@ class _JsonVeilidAPI(VeilidAPI):
     async def new_custom_private_route(
         self, kinds: list[CryptoKind], stability: Stability, sequencing: Sequencing
     ) -> tuple[RouteId, bytes]:
+        assert isinstance(kinds, list)
+        for k in kinds:
+            assert isinstance(k, CryptoKind)
+        assert isinstance(stability, Stability)
+        assert isinstance(sequencing, Sequencing)
+
         return NewPrivateRouteResult.from_json(
             raise_api_result(
                 await self.send_ndjson_request(
@@ -350,6 +356,8 @@ class _JsonVeilidAPI(VeilidAPI):
         ).to_tuple()
 
     async def import_remote_private_route(self, blob: bytes) -> RouteId:
+        assert isinstance(blob, bytes)
+
         return RouteId(
             raise_api_result(
                 await self.send_ndjson_request(Operation.IMPORT_REMOTE_PRIVATE_ROUTE, blob=blob)
@@ -357,11 +365,16 @@ class _JsonVeilidAPI(VeilidAPI):
         )
 
     async def release_private_route(self, route_id: RouteId):
+        assert isinstance(route_id, RouteId)
+
         raise_api_result(
             await self.send_ndjson_request(Operation.RELEASE_PRIVATE_ROUTE, route_id=route_id)
         )
 
     async def app_call_reply(self, call_id: OperationId, message: bytes):
+        assert isinstance(call_id, OperationId)
+        assert isinstance(message, bytes)
+
         raise_api_result(
             await self.send_ndjson_request(
                 Operation.APP_CALL_REPLY, call_id=call_id, message=message
@@ -373,6 +386,9 @@ class _JsonVeilidAPI(VeilidAPI):
         return _JsonRoutingContext(self, rc_id)
 
     async def open_table_db(self, name: str, column_count: int) -> TableDb:
+        assert isinstance(name, str)
+        assert isinstance(column_count, int)
+
         db_id = raise_api_result(
             await self.send_ndjson_request(
                 Operation.OPEN_TABLE_DB, name=name, column_count=column_count
@@ -381,11 +397,15 @@ class _JsonVeilidAPI(VeilidAPI):
         return _JsonTableDb(self, db_id)
 
     async def delete_table_db(self, name: str) -> bool:
+        assert isinstance(name, str)
+
         return raise_api_result(
             await self.send_ndjson_request(Operation.DELETE_TABLE_DB, name=name)
         )
 
     async def get_crypto_system(self, kind: CryptoKind) -> CryptoSystem:
+        assert isinstance(kind, CryptoKind)
+
         cs_id = raise_api_result(
             await self.send_ndjson_request(Operation.GET_CRYPTO_SYSTEM, kind=kind)
         )
@@ -398,6 +418,13 @@ class _JsonVeilidAPI(VeilidAPI):
     async def verify_signatures(
         self, node_ids: list[TypedKey], data: bytes, signatures: list[TypedSignature]
     ) -> Optional[list[TypedKey]]:
+        assert isinstance(node_ids, list)
+        for ni in node_ids:
+            assert isinstance(ni, TypedKey)
+        assert isinstance(data, bytes)
+        for sig in signatures:
+            assert isinstance(sig, TypedSignature)
+
         out = raise_api_result(
                 await self.send_ndjson_request(
                     Operation.VERIFY_SIGNATURES,
@@ -418,6 +445,11 @@ class _JsonVeilidAPI(VeilidAPI):
     async def generate_signatures(
         self, data: bytes, key_pairs: list[TypedKeyPair]
     ) -> list[TypedSignature]:
+        assert isinstance(data, bytes)
+        assert isinstance(key_pairs, list)
+        for kp in key_pairs:
+            assert isinstance(kp, TypedKeyPair)
+
         return list(
             map(
                 lambda x: TypedSignature(x),
@@ -430,6 +462,8 @@ class _JsonVeilidAPI(VeilidAPI):
         )
 
     async def generate_key_pair(self, kind: CryptoKind) -> list[TypedKeyPair]:
+        assert isinstance(kind, CryptoKind)
+
         return list(
             map(
                 lambda x: TypedKeyPair(x),
@@ -443,6 +477,7 @@ class _JsonVeilidAPI(VeilidAPI):
         return Timestamp(raise_api_result(await self.send_ndjson_request(Operation.NOW)))
 
     async def debug(self, command: str) -> str:
+        assert isinstance(command, str)
         return raise_api_result(await self.send_ndjson_request(Operation.DEBUG, command=command))
 
     async def veilid_version_string(self) -> str:
@@ -501,6 +536,8 @@ class _JsonRoutingContext(RoutingContext):
         self.done = True
 
     async def with_default_safety(self, release=True) -> Self:
+        assert isinstance(release, bool)
+
         new_rc_id = raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.ROUTING_CONTEXT,
@@ -514,6 +551,9 @@ class _JsonRoutingContext(RoutingContext):
         return self.__class__(self.api, new_rc_id)
 
     async def with_safety(self, safety_selection: SafetySelection, release=True) -> Self:
+        assert isinstance(safety_selection, SafetySelection)
+        assert isinstance(release, bool)
+
         new_rc_id = raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.ROUTING_CONTEXT,
@@ -528,6 +568,9 @@ class _JsonRoutingContext(RoutingContext):
         return self.__class__(self.api, new_rc_id)
 
     async def with_sequencing(self, sequencing: Sequencing, release=True) -> Self:
+        assert isinstance(sequencing, Sequencing)
+        assert isinstance(release, bool)
+
         new_rc_id = raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.ROUTING_CONTEXT,
@@ -555,6 +598,9 @@ class _JsonRoutingContext(RoutingContext):
             )
         )
     async def app_call(self, target: TypedKey | RouteId, message: bytes) -> bytes:
+        assert isinstance(target, TypedKey) or isinstance(target, RouteId)
+        assert isinstance(message, bytes)
+
         return urlsafe_b64decode_no_pad(
             raise_api_result(
                 await self.api.send_ndjson_request(
@@ -569,6 +615,9 @@ class _JsonRoutingContext(RoutingContext):
         )
 
     async def app_message(self, target: TypedKey | RouteId, message: bytes):
+        assert isinstance(target, TypedKey) or isinstance(target, RouteId)
+        assert isinstance(message, bytes)
+
         raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.ROUTING_CONTEXT,
@@ -583,6 +632,10 @@ class _JsonRoutingContext(RoutingContext):
     async def create_dht_record(
         self, schema: DHTSchema, owner: Optional[KeyPair] = None, kind: Optional[CryptoKind] = None
     ) -> DHTRecordDescriptor:
+        assert isinstance(schema, DHTSchema)
+        assert owner is None or isinstance(owner, KeyPair)
+        assert kind is None or isinstance(kind, CryptoKind)
+
         return DHTRecordDescriptor.from_json(
             raise_api_result(
                 await self.api.send_ndjson_request(
@@ -600,6 +653,9 @@ class _JsonRoutingContext(RoutingContext):
     async def open_dht_record(
         self, key: TypedKey, writer: Optional[KeyPair] = None
     ) -> DHTRecordDescriptor:
+        assert isinstance(key, TypedKey)
+        assert writer is None or isinstance(writer, KeyPair)
+
         return DHTRecordDescriptor.from_json(
             raise_api_result(
                 await self.api.send_ndjson_request(
@@ -614,6 +670,8 @@ class _JsonRoutingContext(RoutingContext):
         )
 
     async def close_dht_record(self, key: TypedKey):
+        assert isinstance(key, TypedKey)
+
         raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.ROUTING_CONTEXT,
@@ -625,6 +683,8 @@ class _JsonRoutingContext(RoutingContext):
         )
 
     async def delete_dht_record(self, key: TypedKey):
+        assert isinstance(key, TypedKey)
+
         raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.ROUTING_CONTEXT,
@@ -638,6 +698,10 @@ class _JsonRoutingContext(RoutingContext):
     async def get_dht_value(
         self, key: TypedKey, subkey: ValueSubkey, force_refresh: bool = False
     ) -> Optional[ValueData]:
+        assert isinstance(key, TypedKey)
+        assert isinstance(subkey, ValueSubkey)
+        assert isinstance(force_refresh, bool)
+
         ret = raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.ROUTING_CONTEXT,
@@ -654,6 +718,11 @@ class _JsonRoutingContext(RoutingContext):
     async def set_dht_value(
         self, key: TypedKey, subkey: ValueSubkey, data: bytes, writer: Optional[KeyPair] = None
     ) -> Optional[ValueData]:
+        assert isinstance(key, TypedKey)
+        assert isinstance(subkey, ValueSubkey)
+        assert isinstance(data, bytes)
+        assert writer is None or isinstance(writer, KeyPair)
+
         ret = raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.ROUTING_CONTEXT,
@@ -675,6 +744,15 @@ class _JsonRoutingContext(RoutingContext):
         expiration: Timestamp = 0,
         count: int = 0xFFFFFFFF,
     ) -> Timestamp:
+        assert isinstance(key, TypedKey)
+        assert isinstance(subkeys, list)
+        for s in subkeys:
+            assert isinstance(s, tuple)
+            assert isinstance(s[0], ValueSubkey)
+            assert isinstance(s[1], ValueSubkey)
+        assert isinstance(expiration, Timestamp)
+        assert isinstance(count, int)
+
         return Timestamp(
             raise_api_result(
                 await self.api.send_ndjson_request(
@@ -693,6 +771,13 @@ class _JsonRoutingContext(RoutingContext):
     async def cancel_dht_watch(
         self, key: TypedKey, subkeys: list[tuple[ValueSubkey, ValueSubkey]]
     ) -> bool:
+        assert isinstance(key, TypedKey)
+        assert isinstance(subkeys, list)
+        for s in subkeys:
+            assert isinstance(s, tuple)
+            assert isinstance(s[0], ValueSubkey)
+            assert isinstance(s[1], ValueSubkey)
+
         return raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.ROUTING_CONTEXT,
@@ -710,6 +795,14 @@ class _JsonRoutingContext(RoutingContext):
         subkeys: list[tuple[ValueSubkey, ValueSubkey]],
         scope: DHTReportScope = DHTReportScope.LOCAL,
     ) -> DHTRecordReport:
+        assert isinstance(key, TypedKey)
+        assert isinstance(subkeys, list)
+        for s in subkeys:
+            assert isinstance(s, tuple)
+            assert isinstance(s[0], ValueSubkey)
+            assert isinstance(s[1], ValueSubkey)
+        assert isinstance(scope, DHTReportScope)
+
         return DHTRecordReport.from_json(            
             raise_api_result(
                 await self.api.send_ndjson_request(
@@ -790,6 +883,10 @@ class _JsonTableDbTransaction(TableDbTransaction):
         self.done = True
 
     async def store(self, key: bytes, value: bytes, col: int = 0):
+        assert isinstance(key, bytes)
+        assert isinstance(value, bytes)
+        assert isinstance(col, int)
+
         await self.api.send_ndjson_request(
             Operation.TABLE_DB_TRANSACTION,
             validate=validate_tx_op,
@@ -801,6 +898,9 @@ class _JsonTableDbTransaction(TableDbTransaction):
         )
 
     async def delete(self, key: bytes, col: int = 0):
+        assert isinstance(key, bytes)
+        assert isinstance(col, int)
+
         await self.api.send_ndjson_request(
             Operation.TABLE_DB_TRANSACTION,
             validate=validate_tx_op,
@@ -866,6 +966,8 @@ class _JsonTableDb(TableDb):
         )
 
     async def get_keys(self, col: int = 0) -> list[bytes]:
+        assert isinstance(col, int)
+
         return list(
             map(
                 lambda x: urlsafe_b64decode_no_pad(x),
@@ -893,6 +995,10 @@ class _JsonTableDb(TableDb):
         return _JsonTableDbTransaction(self.api, tx_id)
 
     async def store(self, key: bytes, value: bytes, col: int = 0):
+        assert isinstance(key, bytes)
+        assert isinstance(value, bytes)
+        assert isinstance(col, int)
+
         return raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.TABLE_DB,
@@ -906,6 +1012,9 @@ class _JsonTableDb(TableDb):
         )
 
     async def load(self, key: bytes, col: int = 0) -> Optional[bytes]:
+        assert isinstance(key, bytes)
+        assert isinstance(col, int)
+
         res = raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.TABLE_DB,
@@ -919,6 +1028,9 @@ class _JsonTableDb(TableDb):
         return None if res is None else urlsafe_b64decode_no_pad(res)
 
     async def delete(self, key: bytes, col: int = 0) -> Optional[bytes]:
+        assert isinstance(key, bytes)
+        assert isinstance(col, int)
+
         res = raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.TABLE_DB,
@@ -989,6 +1101,9 @@ class _JsonCryptoSystem(CryptoSystem):
         self.done = True
 
     async def cached_dh(self, key: PublicKey, secret: SecretKey) -> SharedSecret:
+        assert isinstance(key, PublicKey)
+        assert isinstance(secret, SecretKey)
+
         return SharedSecret(
             raise_api_result(
                 await self.api.send_ndjson_request(
@@ -1003,6 +1118,9 @@ class _JsonCryptoSystem(CryptoSystem):
         )
 
     async def compute_dh(self, key: PublicKey, secret: SecretKey) -> SharedSecret:
+        assert isinstance(key, PublicKey)
+        assert isinstance(secret, SecretKey)
+
         return SharedSecret(
             raise_api_result(
                 await self.api.send_ndjson_request(
@@ -1017,6 +1135,10 @@ class _JsonCryptoSystem(CryptoSystem):
         )
 
     async def generate_shared_secret(self, key: PublicKey, secret: SecretKey, domain: bytes) -> SharedSecret:
+        assert isinstance(key, PublicKey)
+        assert isinstance(secret, SecretKey)
+        assert isinstance(domain, bytes)
+
         return SharedSecret(
             raise_api_result(
                 await self.api.send_ndjson_request(
@@ -1032,6 +1154,8 @@ class _JsonCryptoSystem(CryptoSystem):
         )
 
     async def random_bytes(self, len: int) -> bytes:
+        assert isinstance(len, int)
+
         return urlsafe_b64decode_no_pad(
             raise_api_result(
                 await self.api.send_ndjson_request(
@@ -1055,6 +1179,9 @@ class _JsonCryptoSystem(CryptoSystem):
         )
 
     async def hash_password(self, password: bytes, salt: bytes) -> str:
+        assert isinstance(password, bytes)
+        assert isinstance(salt, bytes)
+
         return raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.CRYPTO_SYSTEM,
@@ -1067,6 +1194,9 @@ class _JsonCryptoSystem(CryptoSystem):
         )
 
     async def verify_password(self, password: bytes, password_hash: str) -> bool:
+        assert isinstance(password, bytes)
+        assert isinstance(password_hash, str)
+
         return raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.CRYPTO_SYSTEM,
@@ -1079,6 +1209,9 @@ class _JsonCryptoSystem(CryptoSystem):
         )
 
     async def derive_shared_secret(self, password: bytes, salt: bytes) -> SharedSecret:
+        assert isinstance(password, bytes)
+        assert isinstance(salt, bytes)
+
         return SharedSecret(
             raise_api_result(
                 await self.api.send_ndjson_request(
@@ -1129,6 +1262,8 @@ class _JsonCryptoSystem(CryptoSystem):
         )
 
     async def generate_hash(self, data: bytes) -> HashDigest:
+        assert isinstance(data, bytes)
+
         return HashDigest(
             raise_api_result(
                 await self.api.send_ndjson_request(
@@ -1142,6 +1277,9 @@ class _JsonCryptoSystem(CryptoSystem):
         )
 
     async def validate_key_pair(self, key: PublicKey, secret: SecretKey) -> bool:
+        assert isinstance(key, PublicKey)
+        assert isinstance(secret, SecretKey)
+
         return raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.CRYPTO_SYSTEM,
@@ -1154,6 +1292,9 @@ class _JsonCryptoSystem(CryptoSystem):
         )
 
     async def validate_hash(self, data: bytes, hash_digest: HashDigest) -> bool:
+        assert isinstance(data, bytes)
+        assert isinstance(hash_digest, HashDigest)
+
         return raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.CRYPTO_SYSTEM,
@@ -1166,6 +1307,9 @@ class _JsonCryptoSystem(CryptoSystem):
         )
 
     async def distance(self, key1: CryptoKey, key2: CryptoKey) -> CryptoKeyDistance:
+        assert isinstance(key1, CryptoKey)
+        assert isinstance(key2, CryptoKey)
+
         return CryptoKeyDistance(
             raise_api_result(
                 await self.api.send_ndjson_request(
@@ -1180,6 +1324,10 @@ class _JsonCryptoSystem(CryptoSystem):
         )
 
     async def sign(self, key: PublicKey, secret: SecretKey, data: bytes) -> Signature:
+        assert isinstance(key, PublicKey)
+        assert isinstance(secret, SecretKey)
+        assert isinstance(data, bytes)
+
         return Signature(
             raise_api_result(
                 await self.api.send_ndjson_request(
@@ -1195,6 +1343,10 @@ class _JsonCryptoSystem(CryptoSystem):
         )
 
     async def verify(self, key: PublicKey, data: bytes, signature: Signature):
+        assert isinstance(key, PublicKey)
+        assert isinstance(data, bytes)
+        assert isinstance(signature, Signature)
+
         return raise_api_result(
             await self.api.send_ndjson_request(
                 Operation.CRYPTO_SYSTEM,
@@ -1224,6 +1376,11 @@ class _JsonCryptoSystem(CryptoSystem):
         shared_secret: SharedSecret,
         associated_data: Optional[bytes],
     ) -> bytes:
+        assert isinstance(body, bytes)
+        assert isinstance(nonce, Nonce)
+        assert isinstance(shared_secret, SharedSecret)
+        assert associated_data is None or isinstance(associated_data, bytes)
+
         return urlsafe_b64decode_no_pad(
             raise_api_result(
                 await self.api.send_ndjson_request(
@@ -1246,6 +1403,11 @@ class _JsonCryptoSystem(CryptoSystem):
         shared_secret: SharedSecret,
         associated_data: Optional[bytes],
     ) -> bytes:
+        assert isinstance(body, bytes)
+        assert isinstance(nonce, Nonce)
+        assert isinstance(shared_secret, SharedSecret)
+        assert associated_data is None or isinstance(associated_data, bytes)
+
         return urlsafe_b64decode_no_pad(
             raise_api_result(
                 await self.api.send_ndjson_request(
@@ -1262,6 +1424,9 @@ class _JsonCryptoSystem(CryptoSystem):
         )
 
     async def crypt_no_auth(self, body: bytes, nonce: Nonce, shared_secret: SharedSecret) -> bytes:
+        assert isinstance(body, bytes)
+        assert isinstance(nonce, Nonce)
+        assert isinstance(shared_secret, SharedSecret)
         return urlsafe_b64decode_no_pad(
             raise_api_result(
                 await self.api.send_ndjson_request(

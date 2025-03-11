@@ -2,7 +2,7 @@ import base64
 import json
 from enum import StrEnum
 from functools import total_ordering
-from typing import Any, Optional, Self, Tuple
+from typing import Any, Optional, Self
 
 ####################################################################
 
@@ -122,6 +122,7 @@ class EncodedString(str):
 
     @classmethod
     def from_bytes(cls, b: bytes) -> Self:
+        assert isinstance(b, bytes)
         return cls(urlsafe_b64encode_no_pad(b))
 
 
@@ -160,6 +161,8 @@ class Nonce(EncodedString):
 class KeyPair(str):
     @classmethod
     def from_parts(cls, key: PublicKey, secret: SecretKey) -> Self:
+        assert isinstance(key, PublicKey)
+        assert isinstance(secret, SecretKey)
         return cls(f"{key}:{secret}")
 
     def key(self) -> PublicKey:
@@ -168,7 +171,7 @@ class KeyPair(str):
     def secret(self) -> SecretKey:
         return SecretKey(self.split(":", 1)[1])
 
-    def to_parts(self) -> Tuple[PublicKey, SecretKey]:
+    def to_parts(self) -> tuple[PublicKey, SecretKey]:
         public, secret = self.split(":", 1)
         return (PublicKey(public), SecretKey(secret))
 
@@ -188,6 +191,8 @@ class CryptoTyped(str):
 class TypedKey(CryptoTyped):
     @classmethod
     def from_value(cls, kind: CryptoKind, value: PublicKey) -> Self:
+        assert isinstance(kind, CryptoKind)
+        assert isinstance(value, PublicKey)
         return cls(f"{kind}:{value}")
 
     def value(self) -> PublicKey:
@@ -197,6 +202,8 @@ class TypedKey(CryptoTyped):
 class TypedSecret(CryptoTyped):
     @classmethod
     def from_value(cls, kind: CryptoKind, value: SecretKey) -> Self:
+        assert isinstance(kind, CryptoKind)
+        assert isinstance(value, SecretKey)
         return cls(f"{kind}:{value}")
 
     def value(self) -> SecretKey:
@@ -206,6 +213,8 @@ class TypedSecret(CryptoTyped):
 class TypedKeyPair(CryptoTyped):
     @classmethod
     def from_value(cls, kind: CryptoKind, value: KeyPair) -> Self:
+        assert isinstance(kind, CryptoKind)
+        assert isinstance(value, KeyPair)
         return cls(f"{kind}:{value}")
 
     def value(self) -> KeyPair:
@@ -215,6 +224,8 @@ class TypedKeyPair(CryptoTyped):
 class TypedSignature(CryptoTyped):
     @classmethod
     def from_value(cls, kind: CryptoKind, value: Signature) -> Self:
+        assert isinstance(kind, CryptoKind)
+        assert isinstance(value, Signature)
         return cls(f"{kind}:{value}")
 
     def value(self) -> Signature:
@@ -226,7 +237,7 @@ class ValueSubkey(int):
 
 
 class ValueSeqNum(int):
-    pass
+    NONE = 4294967295
 
 
 ####################################################################
@@ -284,10 +295,13 @@ class NewPrivateRouteResult:
     blob: bytes
 
     def __init__(self, route_id: RouteId, blob: bytes):
+        assert isinstance(route_id, RouteId)
+        assert isinstance(blob, bytes)
+
         self.route_id = route_id
         self.blob = blob
 
-    def to_tuple(self) -> Tuple[RouteId, bytes]:
+    def to_tuple(self) -> tuple[RouteId, bytes]:
         return (self.route_id, self.blob)
 
     @classmethod
@@ -300,6 +314,9 @@ class DHTSchemaSMPLMember:
     m_cnt: int
 
     def __init__(self, m_key: PublicKey, m_cnt: int):
+        assert isinstance(m_key, PublicKey)
+        assert isinstance(m_cnt, int)
+
         self.m_key = m_key
         self.m_cnt = m_cnt
 
@@ -321,10 +338,15 @@ class DHTSchema:
 
     @classmethod
     def dflt(cls, o_cnt: int) -> Self:
+        assert isinstance(o_cnt, int)
         return cls(DHTSchemaKind.DFLT, o_cnt=o_cnt)
 
     @classmethod
     def smpl(cls, o_cnt: int, members: list[DHTSchemaSMPLMember]) -> Self:
+        assert isinstance(o_cnt, int)
+        assert isinstance(members, list)
+        for m in members:
+            assert isinstance(m, DHTSchemaSMPLMember)
         return cls(DHTSchemaKind.SMPL, o_cnt=o_cnt, members=members)
 
     @classmethod
@@ -404,8 +426,8 @@ class DHTRecordReport:
     @classmethod
     def from_json(cls, j: dict) -> Self:
         return cls(
-            [[p[0], p[1]] for p in j["subkeys"]],
-            [[p[0], p[1]] for p in j["offline_subkeys"]],
+            [(p[0], p[1]) for p in j["subkeys"]],
+            [(p[0], p[1]) for p in j["offline_subkeys"]],
             [ValueSeqNum(s) for s in j["local_seqs"]],
             [ValueSeqNum(s) for s in j["network_seqs"]],
         )
