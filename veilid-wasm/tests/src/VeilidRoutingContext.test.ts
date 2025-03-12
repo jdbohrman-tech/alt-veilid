@@ -113,14 +113,9 @@ describe('VeilidRoutingContext', () => {
 
     describe('DHT stress tests', () => {
 
-      var savedHandler = undefined;
-
       before(async () => {
         await browser.cdp("Profiler", "enable")
         await browser.cdp("Profiler", "start")
-
-        savedHandler = window.onerror;
-        process.removeListener("uncaughtException");
       })
 
       it('should inspect in parallel without delay', async () => {
