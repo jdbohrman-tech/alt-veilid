@@ -662,10 +662,11 @@ async def test_dht_write_read_full_subkeys_local():
                     subkey_data = await cs.crypt_no_auth(subkey_data, NONCE, SECRET)
                 subkey_data_list.append(subkey_data)
 
-
+                # Create dht record
                 desc = await rc0.create_dht_record(schema)
                 records.append(desc)
 
+                # Set all subkeys in their own future
                 for i in range(SUBKEY_COUNT):
                     init_futures.add(rc0.set_dht_value(desc.key, ValueSubkey(i), subkey_data))
 

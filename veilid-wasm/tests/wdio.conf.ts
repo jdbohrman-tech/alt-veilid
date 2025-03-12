@@ -1,5 +1,7 @@
-import type { Options } from '@wdio/types';
-export const config: Options.Testrunner = {
+/// <reference types="node" />
+/// <reference types="@wdio/types" />
+
+export const config: WebdriverIO.Config = {
   //
   // ====================
   // Runner Configuration
@@ -19,13 +21,6 @@ export const config: Options.Testrunner = {
       },
     },
   ],
-  autoCompileOpts: {
-    autoCompile: true,
-    tsNodeOpts: {
-      project: './tsconfig.json',
-      typeCheck: true,
-    },
-  },
 
   //
   // ==================
@@ -70,20 +65,22 @@ export const config: Options.Testrunner = {
   // Sauce Labs platform configurator - a great tool to configure your capabilities:
   // https://saucelabs.com/platform/platform-configurator
   //
+
   capabilities: [
-    {
-      // capabilities for local browser web tests
-      browserName: 'firefox', // or "chrome", "microsoftedge", "safari"
-      'moz:firefoxOptions': {
-        args: process.env.WDIO_HEADLESS ? ['-headless'] : [],
-      },
-    },
     // {
-    //   browserName: 'chrome',
-    //   'goog:chromeOptions': {
-    //     args: process.env.WDIO_HEADLESS ? ['headless', 'disable-gpu'] : [],
+    //   // capabilities for local browser web tests
+    //   browserName: 'firefox', // or "chrome", "microsoftedge", "safari"
+    //   'moz:debuggerAddress': true,
+    //   'moz:firefoxOptions': {
+    //     args: process.env.WDIO_HEADLESS ? ['-headless'] : [],
     //   },
     // },
+    {
+      browserName: 'chrome',
+      'goog:chromeOptions': {
+        args: process.env.WDIO_HEADLESS ? ['headless', 'disable-gpu'] : [],
+      },
+    },
   ],
 
   //
@@ -133,7 +130,7 @@ export const config: Options.Testrunner = {
   // Services take over a specific job you don't want to take care of. They enhance
   // your test setup with almost no effort. Unlike plugins, they don't add new
   // commands. Instead, they hook themselves up into the test process.
-  // services: [],
+  services: ['devtools'],
   //
   // Framework you want to run your specs with.
   // The following are supported: Mocha, Jasmine, and Cucumber

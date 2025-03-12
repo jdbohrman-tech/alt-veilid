@@ -6,10 +6,11 @@
     "node": ">=18"
   },
   "devDependencies": {
-    "@wdio/browser-runner": "^8.16.4",
-    "@wdio/cli": "^8.16.4",
-    "@wdio/mocha-framework": "^8.16.3",
-    "@wdio/spec-reporter": "^8.16.3",
+    "@wdio/browser-runner": "^9.12.0",
+    "@wdio/cli": "^9.12.0",
+    "@wdio/devtools-service": "^8.42.0",
+    "@wdio/mocha-framework": "^9.11.0",
+    "@wdio/spec-reporter": "^9.11.0",
     "ts-node": "^10.9.1",
     "typescript": "^5.2.2",
     "veilid-wasm": "file:../pkg",

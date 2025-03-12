@@ -1,4 +1,6 @@
 import { expect } from '@wdio/globals';
+import * as fs from 'fs';
+import * as path from 'path';
 
 import {
   veilidCoreInitConfig,
@@ -81,7 +83,7 @@ describe('VeilidRoutingContext', () => {
         const dhtRecord = await routingContext.createDhtRecord({ kind: 'DFLT', o_cnt: 1 });
         expect(dhtRecord.key).toBeDefined();
         expect(dhtRecord.owner).toBeDefined();
-        expect(dhtRecord.owner_secret).toBeDefined(); 
+        expect(dhtRecord.owner_secret).toBeDefined();
         expect(dhtRecord.schema).toEqual({ kind: 'DFLT', o_cnt: 1 });
       });
 
@@ -107,6 +109,82 @@ describe('VeilidRoutingContext', () => {
         expect(dhtRecord.owner_secret).toEqual(secret);
         expect(dhtRecord.schema).toEqual({ kind: 'DFLT', o_cnt: 1 });
       });
+    });
+
+    describe('DHT stress tests', () => {
+
+      var savedHandler = undefined;
+
+      before(async () => {
+        await browser.cdp("Profiler", "enable")
+        await browser.cdp("Profiler", "start")
+
+        savedHandler = window.onerror;
+        process.removeListener("uncaughtException");
+      })
+
+      it('should inspect in parallel without delay', async () => {
+
+        const recordCount = 16;
+        const subkeyCount = 32;
+        const inspectCount = 10;
+        const data = textEncoder.encode('🚀 This example DHT data with unicode a Ā 𐀀 文 🚀');
+
+        let a = Array();
+        for (var r = 0; r < recordCount; r++) {
+          let dhtRecord = await routingContext.createDhtRecord(
+            {
+              kind: 'DFLT',
+              o_cnt: subkeyCount,
+            },
+          );
+
+          // Set all subkeys
+          for (var n = 0; n < subkeyCount; n++) {
+            a.push((async () => {
+              const measureName = `${r}-setDhtValue-${n}`;
+
+              performance.mark(measureName + "-start")
+              const res = await routingContext.setDhtValue(
+                dhtRecord.key,
+                n,
+                data,
+              );
+
+              console.log(performance.measure(measureName, measureName + "-start").toJSON())
+            })());
+          }
+
+          // Inspect all records N times while sets are happening
+          for (var n = 0; n < inspectCount; n++) {
+            a.push((async () => {
+              const measureName = `${r}-inspectDhtRecord-${n}`;
+
+              performance.mark(measureName + "-start")
+              const res = await routingContext.inspectDhtRecord(
+                dhtRecord.key,
+                null,
+                "SyncSet",
+              );
+
+              console.log(performance.measure(measureName, measureName + "-start").toJSON())
+            })());
+          }
+        }
+
+        // Wait for all results
+        await Promise.all(a)
+      });
+
+      after(async () => {
+
+        let profile = await browser.cdp("Profiler", "stop")
+
+        fs.writeFileSync(path.join(__dirname, "profile.json"), JSON.stringify(profile));
+
+        await browser.cdp("Profiler", "disable")
+      })
+
     });
 
     describe('DHT kitchen sink', () => {

@@ -7,6 +7,13 @@ pushd "$SCRIPTDIR" &> /dev/null
 WASM_PACK_FLAGS="--dev"
 if [[ "$1" == "release" ]]; then
   WASM_PACK_FLAGS="--release"
+  shift
+fi
+
+TEST_COMMAND="npm run test:headless"
+if [[ "$1" == "interactive" ]]; then
+  TEST_COMMAND="npm run test"
+  shift
 fi
 
 # Build wasm into an npm package, output into ./pkg
@@ -18,7 +25,7 @@ npm install
 original_tmpdir=$TMPDIR
 mkdir -p ~/tmp
 export TMPDIR=~/tmp
-npm run test:headless
+$TEST_COMMAND $@
 export TMPDIR=$original_tmpdir
 
 popd &> /dev/null

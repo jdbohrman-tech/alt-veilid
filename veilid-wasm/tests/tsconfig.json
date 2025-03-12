@@ -8,7 +8,8 @@
       "@wdio/globals/types",
       "expect-webdriverio",
       "@wdio/mocha-framework",
-      "@wdio/browser-runner"
+      "@wdio/browser-runner",
+      "@wdio/devtools-service",
     ],
     "skipLibCheck": true,
     "noEmit": true,
@@ -20,5 +21,7 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": [
+    "src"
+  ]
 }
