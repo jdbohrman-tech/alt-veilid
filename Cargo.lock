@@ -6091,17 +6091,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tracing-wasm"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4575c663a174420fa2d78f4108ff68f65bf2fbb7dd89f33749b6e826b3626e07"
-dependencies = [
- "tracing",
- "tracing-subscriber",
- "wasm-bindgen",
-]
-
-[[package]]
 name = "triomphe"
 version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6483,12 +6472,12 @@ dependencies = [
  "tracing-error",
  "tracing-oslog",
  "tracing-subscriber",
- "tracing-wasm",
  "tsify",
  "veilid-bugsalot",
  "veilid-hashlink",
  "veilid-igd",
  "veilid-tools",
+ "veilid-tracing-wasm",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-bindgen-test",
@@ -6680,9 +6669,9 @@ dependencies = [
  "tracing",
  "tracing-oslog",
  "tracing-subscriber",
- "tracing-wasm",
  "validator",
  "veilid-bugsalot",
+ "veilid-tracing-wasm",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-bindgen-test",
