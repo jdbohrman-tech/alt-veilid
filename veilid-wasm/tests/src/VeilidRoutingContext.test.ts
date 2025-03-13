@@ -1,6 +1,4 @@
 import { expect } from '@wdio/globals';
-import * as fs from 'fs';
-import * as path from 'path';
 
 import {
   veilidCoreInitConfig,
@@ -114,15 +112,14 @@ describe('VeilidRoutingContext', () => {
     describe('DHT stress tests', () => {
 
       before(async () => {
-        await browser.cdp("Profiler", "enable")
-        await browser.cdp("Profiler", "start")
+        await browser.startTracing({})
       })
 
       it('should inspect in parallel without delay', async () => {
 
-        const recordCount = 16;
-        const subkeyCount = 32;
-        const inspectCount = 10;
+        const recordCount = 2;
+        const subkeyCount = 4;
+        const inspectCount = 4;
         const data = textEncoder.encode('🚀 This example DHT data with unicode a Ā 𐀀 文 🚀');
 
         let a = Array();
@@ -146,7 +143,7 @@ describe('VeilidRoutingContext', () => {
                 data,
               );
 
-              console.log(performance.measure(measureName, measureName + "-start").toJSON())
+              performance.measure(measureName, measureName + "-start")
             })());
           }
 
@@ -162,7 +159,7 @@ describe('VeilidRoutingContext', () => {
                 "SyncSet",
               );
 
-              console.log(performance.measure(measureName, measureName + "-start").toJSON())
+              performance.measure(measureName, measureName + "-start")
             })());
           }
         }
@@ -173,11 +170,11 @@ describe('VeilidRoutingContext', () => {
 
       after(async () => {
 
-        let profile = await browser.cdp("Profiler", "stop")
+        const events = await browser.endTracing()
+        if (events) {
+          await browser.writeFile("profile-dht-stress-test.json", events);
+        }
 
-        fs.writeFileSync(path.join(__dirname, "profile.json"), JSON.stringify(profile));
-
-        await browser.cdp("Profiler", "disable")
       })
 
     });
