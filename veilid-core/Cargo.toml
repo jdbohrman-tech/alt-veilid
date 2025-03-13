@@ -216,7 +216,6 @@ ws_stream_wasm = "0.7.4"
 
 # Logging
 wasm-logger = "0.2.0"
-tracing-wasm = "0.2.1"
 
 # Data Structures
 keyvaluedb-web = "0.1.2"
@@ -272,6 +271,7 @@ serial_test = { version = "2.0.0", default-features = false, features = [
 wasm-bindgen-test = "0.3.50"
 console_error_panic_hook = "0.1.7"
 wasm-logger = "0.2.0"
+veilid-tracing-wasm = "^0"
 
 ### BUILD OPTIONS
 

@@ -1,5 +1,7 @@
 use super::*;
 
+impl_veilid_log_facility!("veilid_api");
+
 ///////////////////////////////////////////////////////////////////////////////////////
 
 /// Valid destinations for a message sent over a routing context.
@@ -62,6 +64,11 @@ impl RoutingContext {
         })
     }
 
+    #[must_use]
+    pub(crate) fn log_key(&self) -> &str {
+        self.api.log_key()
+    }
+
     /// Turn on sender privacy, enabling the use of safety routes. This is the default and
     /// calling this function is only necessary if you have previously disable safety or used other parameters.
     ///
@@ -72,9 +79,9 @@ impl RoutingContext {
     /// * Sequencing default is to prefer ordered before unordered message delivery.
     ///
     /// To customize the safety selection in use, use [RoutingContext::with_safety()].
-    #[instrument(target = "veilid_api", level = "debug", ret, err)]
+    #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), ret, err)]
     pub fn with_default_safety(self) -> VeilidAPIResult<Self> {
-        event!(target: "veilid_api", Level::DEBUG, 
+        veilid_log!(self debug
             "RoutingContext::with_default_safety(self: {:?})", self);
 
         let config = self.api.config()?;
@@ -89,9 +96,9 @@ impl RoutingContext {
     }
 
     /// Use a custom [SafetySelection]. Can be used to disable safety via [SafetySelection::Unsafe].
-    #[instrument(target = "veilid_api", level = "debug", ret, err)]
+    #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), ret, err)]
     pub fn with_safety(self, safety_selection: SafetySelection) -> VeilidAPIResult<Self> {
-        event!(target: "veilid_api", Level::DEBUG, 
+        veilid_log!(self debug
             "RoutingContext::with_safety(self: {:?}, safety_selection: {:?})", self, safety_selection);
 
         Ok(Self {
@@ -101,9 +108,9 @@ impl RoutingContext {
     }
 
     /// Use a specified [Sequencing] preference, with or without privacy.
-    #[instrument(target = "veilid_api", level = "debug", ret)]
+    #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), ret)]
     pub fn with_sequencing(self, sequencing: Sequencing) -> Self {
-        event!(target: "veilid_api", Level::DEBUG, 
+        veilid_log!(self debug
             "RoutingContext::with_sequencing(self: {:?}, sequencing: {:?})", self, sequencing);
 
         Self {
@@ -140,9 +147,9 @@ impl RoutingContext {
         self.api.clone()
     }
 
-    #[instrument(target = "veilid_api", level = "debug", ret, err)]
+    #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), ret, err)]
     async fn get_destination(&self, target: Target) -> VeilidAPIResult<rpc_processor::Destination> {
-        event!(target: "veilid_api", Level::DEBUG, 
+        veilid_log!(self debug
             "RoutingContext::get_destination(self: {:?}, target: {:?})", self, target);
 
         let rpc_processor = self.api.core_context()?.rpc_processor();
@@ -165,9 +172,9 @@ impl RoutingContext {
     /// * `message` - an arbitrary message blob of up to 32768 bytes.
     ///
     /// Returns an answer blob of up to 32768 bytes.
-    #[instrument(target = "veilid_api", level = "debug", ret, err)]
+    #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), ret, err)]
     pub async fn app_call(&self, target: Target, message: Vec<u8>) -> VeilidAPIResult<Vec<u8>> {
-        event!(target: "veilid_api", Level::DEBUG, 
+        veilid_log!(self debug
             "RoutingContext::app_call(self: {:?}, target: {:?}, message: {:?})", self, target, message);
 
         let rpc_processor = self.api.core_context()?.rpc_processor();
@@ -199,9 +206,9 @@ impl RoutingContext {
     ///
     /// * `target` - can be either a direct node id or a private route.
     /// * `message` - an arbitrary message blob of up to 32768 bytes.
-    #[instrument(target = "veilid_api", level = "debug", ret, err)]
+    #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), ret, err)]
     pub async fn app_message(&self, target: Target, message: Vec<u8>) -> VeilidAPIResult<()> {
-        event!(target: "veilid_api", Level::DEBUG, 
+        veilid_log!(self debug
             "RoutingContext::app_message(self: {:?}, target: {:?}, message: {:?})", self, target, message);
 
         let rpc_processor = self.api.core_context()?.rpc_processor();
@@ -230,14 +237,14 @@ impl RoutingContext {
     /// DHT Records
 
     /// Deterministicly builds the record key for a given schema and owner public key
-    #[instrument(target = "veilid_api", level = "debug", ret, err)]
+    #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), ret, err)]
     pub fn get_dht_record_key(
         &self,
         schema: DHTSchema,
         owner_key: &PublicKey,
         kind: Option<CryptoKind>,
     ) -> VeilidAPIResult<TypedKey> {
-        event!(target: "veilid_api", Level::DEBUG, 
+        veilid_log!(self debug
             "RoutingContext::get_dht_record_key(self: {:?}, schema: {:?}, owner_key: {:?}, kind: {:?})", self, schema, owner_key, kind);
         schema.validate()?;
 
@@ -256,14 +263,14 @@ impl RoutingContext {
     /// Returns the newly allocated DHT record's key if successful.   
     ///
     /// Note: if you pass in an owner keypair this call is a deterministic! This means that if you try to create a new record for a given owner and schema that already exists it *will* fail.
-    #[instrument(target = "veilid_api", level = "debug", ret, err)]
+    #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), ret, err)]
     pub async fn create_dht_record(
         &self,
         schema: DHTSchema,
         owner: Option<KeyPair>,
         kind: Option<CryptoKind>,
     ) -> VeilidAPIResult<DHTRecordDescriptor> {
-        event!(target: "veilid_api", Level::DEBUG, 
+        veilid_log!(self debug
             "RoutingContext::create_dht_record(self: {:?}, schema: {:?}, owner: {:?}, kind: {:?})", self, schema, owner, kind);
         schema.validate()?;
 
@@ -291,13 +298,13 @@ impl RoutingContext {
     /// safety selection.
     ///
     /// Returns the DHT record descriptor for the opened record if successful.
-    #[instrument(target = "veilid_api", level = "debug", ret, err)]
+    #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), ret, err)]
     pub async fn open_dht_record(
         &self,
         key: TypedKey,
         default_writer: Option<KeyPair>,
     ) -> VeilidAPIResult<DHTRecordDescriptor> {
-        event!(target: "veilid_api", Level::DEBUG, 
+        veilid_log!(self debug
             "RoutingContext::open_dht_record(self: {:?}, key: {:?}, default_writer: {:?})", self, key, default_writer);
 
         Crypto::validate_crypto_kind(key.kind)?;
@@ -311,9 +318,9 @@ impl RoutingContext {
     /// Closes a DHT record at a specific key that was opened with create_dht_record or open_dht_record.
     ///
     /// Closing a record allows you to re-open it with a different routing context.
-    #[instrument(target = "veilid_api", level = "debug", ret, err)]
+    #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), ret, err)]
     pub async fn close_dht_record(&self, key: TypedKey) -> VeilidAPIResult<()> {
-        event!(target: "veilid_api", Level::DEBUG, 
+        veilid_log!(self debug
             "RoutingContext::close_dht_record(self: {:?}, key: {:?})", self, key);
 
         Crypto::validate_crypto_kind(key.kind)?;
@@ -327,9 +334,9 @@ impl RoutingContext {
     /// If the record is opened, it must be closed before it is deleted.
     /// Deleting a record does not delete it from the network, but will remove the storage of the record
     /// locally, and will prevent its value from being refreshed on the network by this node.
-    #[instrument(target = "veilid_api", level = "debug", ret, err)]
+    #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), ret, err)]
     pub async fn delete_dht_record(&self, key: TypedKey) -> VeilidAPIResult<()> {
-        event!(target: "veilid_api", Level::DEBUG, 
+        veilid_log!(self debug
             "RoutingContext::delete_dht_record(self: {:?}, key: {:?})", self, key);
 
         Crypto::validate_crypto_kind(key.kind)?;
@@ -344,14 +351,14 @@ impl RoutingContext {
     ///
     /// Returns `None` if the value subkey has not yet been set.
     /// Returns `Some(data)` if the value subkey has valid data.
-    #[instrument(target = "veilid_api", level = "debug", ret, err)]
+    #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), ret, err)]
     pub async fn get_dht_value(
         &self,
         key: TypedKey,
         subkey: ValueSubkey,
         force_refresh: bool,
     ) -> VeilidAPIResult<Option<ValueData>> {
-        event!(target: "veilid_api", Level::DEBUG, 
+        veilid_log!(self debug
             "RoutingContext::get_dht_value(self: {:?}, key: {:?}, subkey: {:?}, force_refresh: {:?})", self, key, subkey, force_refresh);
 
         Crypto::validate_crypto_kind(key.kind)?;
@@ -367,7 +374,7 @@ impl RoutingContext {
     ///
     /// Returns `None` if the value was successfully put.
     /// Returns `Some(data)` if the value put was older than the one available on the network.
-    #[instrument(target = "veilid_api", level = "debug", skip(data), fields(data = print_data(&data, Some(64))), ret, err)]
+    #[instrument(target = "veilid_api", level = "debug", skip(data), fields(__VEILID_LOG_KEY = self.log_key(), data = print_data(&data, Some(64))), ret, err)]
     pub async fn set_dht_value(
         &self,
         key: TypedKey,
@@ -375,7 +382,7 @@ impl RoutingContext {
         data: Vec<u8>,
         writer: Option<KeyPair>,
     ) -> VeilidAPIResult<Option<ValueData>> {
-        event!(target: "veilid_api", Level::DEBUG, 
+        veilid_log!(self debug
             "RoutingContext::set_dht_value(self: {:?}, key: {:?}, subkey: {:?}, data: len={}, writer: {:?})", self, key, subkey, data.len(), writer);
 
         Crypto::validate_crypto_kind(key.kind)?;
@@ -404,7 +411,7 @@ impl RoutingContext {
     /// * If a member (either the owner or a SMPL schema member) has opened the key for writing (even if no writing is performed) then the watch will be signed and guaranteed network.dht.member_watch_limit per writer.
     ///
     /// Members can be specified via the SMPL schema and do not need to allocate writable subkeys in order to offer a member watch capability.
-    #[instrument(target = "veilid_api", level = "debug", ret, err)]
+    #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), ret, err)]
     pub async fn watch_dht_values(
         &self,
         key: TypedKey,
@@ -412,7 +419,7 @@ impl RoutingContext {
         expiration: Timestamp,
         count: u32,
     ) -> VeilidAPIResult<Timestamp> {
-        event!(target: "veilid_api", Level::DEBUG, 
+        veilid_log!(self debug
             "RoutingContext::watch_dht_values(self: {:?}, key: {:?}, subkeys: {:?}, expiration: {}, count: {})", self, key, subkeys, expiration, count);
 
         Crypto::validate_crypto_kind(key.kind)?;
@@ -430,13 +437,13 @@ impl RoutingContext {
     ///
     /// Returns Ok(true) if there is any remaining watch for this record.
     /// Returns Ok(false) if the entire watch has been cancelled.
-    #[instrument(target = "veilid_api", level = "debug", ret, err)]
+    #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), ret, err)]
     pub async fn cancel_dht_watch(
         &self,
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
     ) -> VeilidAPIResult<bool> {
-        event!(target: "veilid_api", Level::DEBUG, 
+        veilid_log!(self debug
             "RoutingContext::cancel_dht_watch(self: {:?}, key: {:?}, subkeys: {:?}", self, key, subkeys);
 
         Crypto::validate_crypto_kind(key.kind)?;
@@ -484,14 +491,14 @@ impl RoutingContext {
     ///     Useful for determine which subkeys would change with an SetValue operation.
     ///
     /// Returns a DHTRecordReport with the subkey ranges that were returned that overlapped the schema, and sequence numbers for each of the subkeys in the range.
-    #[instrument(target = "veilid_api", level = "debug", ret, err)]
+    #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), ret, err)]
     pub async fn inspect_dht_record(
         &self,
         key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
         scope: DHTReportScope,
     ) -> VeilidAPIResult<DHTRecordReport> {
-        event!(target: "veilid_api", Level::DEBUG, 
+        veilid_log!(self debug
             "RoutingContext::inspect_dht_record(self: {:?}, key: {:?}, subkeys: {:?}, scope: {:?})", self, key, subkeys, scope);
 
         Crypto::validate_crypto_kind(key.kind)?;
@@ -504,13 +511,13 @@ impl RoutingContext {
     /// Block Store
 
     #[cfg(feature = "unstable-blockstore")]
-    #[instrument(target = "veilid_api", level = "debug", ret, err)]
+    #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), ret, err)]
     pub async fn find_block(&self, _block_id: PublicKey) -> VeilidAPIResult<Vec<u8>> {
         panic!("unimplemented");
     }
 
     #[cfg(feature = "unstable-blockstore")]
-    #[instrument(target = "veilid_api", level = "debug", ret, err)]
+    #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), ret, err)]
     pub async fn supply_block(&self, _block_id: PublicKey) -> VeilidAPIResult<bool> {
         panic!("unimplemented");
     }

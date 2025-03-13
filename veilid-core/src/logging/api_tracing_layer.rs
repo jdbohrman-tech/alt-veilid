@@ -193,16 +193,13 @@ impl<S: Subscriber + for<'a> registry::LookupSpan<'a>> Layer<S> for ApiTracingLa
         attrs.record(&mut new_debug_record);
 
         if let Some(span_ref) = ctx.span(id) {
-            span_ref
-                .extensions_mut()
-                .insert::<VeilidKeyedStringRecorder>(new_debug_record);
+            let mut extensions_mut = span_ref.extensions_mut();
+            extensions_mut.insert::<VeilidKeyedStringRecorder>(new_debug_record);
             if crate::DURATION_LOG_FACILITIES.contains(&attrs.metadata().target()) {
-                span_ref
-                    .extensions_mut()
-                    .insert::<SpanDuration>(SpanDuration {
-                        start: Timestamp::now(),
-                        end: Timestamp::default(),
-                    });
+                extensions_mut.insert::<SpanDuration>(SpanDuration {
+                    start: Timestamp::now(),
+                    end: Timestamp::default(),
+                });
             }
         }
     }
@@ -213,14 +210,14 @@ impl<S: Subscriber + for<'a> registry::LookupSpan<'a>> Layer<S> for ApiTracingLa
             return;
         }
         if let Some(span_ref) = ctx.span(&id) {
-            if let Some(span_duration) = span_ref.extensions_mut().get_mut::<SpanDuration>() {
+            let mut extensions_mut = span_ref.extensions_mut();
+            if let Some(span_duration) = extensions_mut.get_mut::<SpanDuration>() {
                 span_duration.end = Timestamp::now();
                 let duration = span_duration.end.saturating_sub(span_duration.start);
                 let meta = span_ref.metadata();
 
-                let mut extensions = span_ref.extensions_mut();
                 let log_key =
-                    if let Some(span_ksr) = extensions.get_mut::<VeilidKeyedStringRecorder>() {
+                    if let Some(span_ksr) = extensions_mut.get_mut::<VeilidKeyedStringRecorder>() {
                         span_ksr.log_key()
                     } else {
                         ""
@@ -254,10 +251,9 @@ impl<S: Subscriber + for<'a> registry::LookupSpan<'a>> Layer<S> for ApiTracingLa
             return;
         }
         if let Some(span_ref) = ctx.span(id) {
-            if let Some(debug_record) = span_ref
-                .extensions_mut()
-                .get_mut::<VeilidKeyedStringRecorder>()
-            {
+            let mut extensions_mut = span_ref.extensions_mut();
+
+            if let Some(debug_record) = extensions_mut.get_mut::<VeilidKeyedStringRecorder>() {
                 values.record(debug_record);
             }
         }

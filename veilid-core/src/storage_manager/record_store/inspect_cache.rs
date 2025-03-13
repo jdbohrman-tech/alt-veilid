@@ -68,9 +68,9 @@ impl InspectCache {
             };
             if idx < entry.1.seqs.len() {
                 entry.1.seqs[idx] = seq;
-            } else if idx > entry.1.seqs.len() {
+            } else {
                 panic!(
-                    "representational error in l2 inspect cache: {} > {}",
+                    "representational error in l2 inspect cache: {} >= {}",
                     idx,
                     entry.1.seqs.len()
                 )

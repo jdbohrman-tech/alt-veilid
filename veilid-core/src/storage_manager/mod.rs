@@ -59,6 +59,8 @@ struct StorageManagerInner {
     pub remote_record_store: Option<RecordStore<RemoteRecordDetail>>,
     /// Record subkeys that have not been pushed to the network because they were written to offline
     pub offline_subkey_writes: HashMap<TypedKey, tasks::offline_subkey_writes::OfflineSubkeyWrite>,
+    /// Record subkeys that are currently being written to in the foreground
+    pub active_subkey_writes: HashMap<TypedKey, ValueSubkeyRangeSet>,
     /// Storage manager metadata that is persistent, including copy of offline subkey writes
     pub metadata_db: Option<TableDB>,
     /// Background processing task (not part of attachment manager tick tree so it happens when detached too)
@@ -73,6 +75,7 @@ impl fmt::Debug for StorageManagerInner {
             .field("local_record_store", &self.local_record_store)
             .field("remote_record_store", &self.remote_record_store)
             .field("offline_subkey_writes", &self.offline_subkey_writes)
+            .field("active_subkey_writes", &self.active_subkey_writes)
             //.field("metadata_db", &self.metadata_db)
             //.field("tick_future", &self.tick_future)
             .finish()
@@ -736,7 +739,21 @@ impl StorageManager {
         )
         .await?;
 
-        if !self.dht_is_online() {
+        // Note that we are writing this subkey actively
+        // If it appears we are already doing this, then put it to the offline queue
+        let already_writing = {
+            let asw = inner.active_subkey_writes.entry(key).or_default();
+            if asw.contains(subkey) {
+                veilid_log!(self debug "Already writing to this subkey: {}:{}", key, subkey);
+                true
+            } else {
+                // Add to our list of active subkey writes
+                asw.insert(subkey);
+                false
+            }
+        };
+
+        if already_writing || !self.dht_is_online() {
             veilid_log!(self debug "Writing subkey offline: {}:{} len={}", key, subkey, signed_value_data.value_data().data().len() );
             // Add to offline writes to flush
             Self::add_offline_subkey_write_inner(&mut inner, key, subkey, safety_selection);
@@ -764,41 +781,68 @@ impl StorageManager {
                 // Failed to write, try again later
                 let mut inner = self.inner.lock().await;
                 Self::add_offline_subkey_write_inner(&mut inner, key, subkey, safety_selection);
+
+                // Remove from active subkey writes
+                let asw = inner.active_subkey_writes.get_mut(&key).unwrap();
+                if !asw.remove(subkey) {
+                    panic!("missing active subkey write: {}:{}", key, subkey);
+                }
+                if asw.is_empty() {
+                    inner.active_subkey_writes.remove(&key);
+                }
                 return Err(e);
             }
         };
 
-        // Wait for the first result
-        let Ok(result) = res_rx.recv_async().await else {
-            apibail_internal!("failed to receive results");
+        let process = || async {
+            // Wait for the first result
+            let Ok(result) = res_rx.recv_async().await else {
+                apibail_internal!("failed to receive results");
+            };
+            let result = result?;
+            let partial = result.fanout_result.kind.is_partial();
+
+            // Process the returned result
+            let out = self
+                .process_outbound_set_value_result(
+                    key,
+                    subkey,
+                    signed_value_data.value_data().clone(),
+                    safety_selection,
+                    result,
+                )
+                .await?;
+
+            // If there's more to process, do it in the background
+            if partial {
+                self.process_deferred_outbound_set_value_result(
+                    res_rx,
+                    key,
+                    subkey,
+                    out.clone()
+                        .unwrap_or_else(|| signed_value_data.value_data().clone()),
+                    safety_selection,
+                );
+            }
+
+            Ok(out)
         };
-        let result = result?;
-        let partial = result.fanout_result.kind.is_partial();
 
-        // Process the returned result
-        let out = self
-            .process_outbound_set_value_result(
-                key,
-                subkey,
-                signed_value_data.value_data().clone(),
-                safety_selection,
-                result,
-            )
-            .await?;
+        let out = process().await;
 
-        // If there's more to process, do it in the background
-        if partial {
-            self.process_deferred_outbound_set_value_result(
-                res_rx,
-                key,
-                subkey,
-                out.clone()
-                    .unwrap_or_else(|| signed_value_data.value_data().clone()),
-                safety_selection,
-            );
+        // Remove active subkey write
+        let mut inner = self.inner.lock().await;
+
+        // Remove from active subkey writes
+        let asw = inner.active_subkey_writes.get_mut(&key).unwrap();
+        if !asw.remove(subkey) {
+            panic!("missing active subkey write: {}:{}", key, subkey);
+        }
+        if asw.is_empty() {
+            inner.active_subkey_writes.remove(&key);
         }
 
-        Ok(out)
+        out
     }
 
     /// Create,update or cancel an outbound watch to a DHT value
@@ -1019,11 +1063,18 @@ impl StorageManager {
         );
 
         // Get the offline subkeys for this record still only returning the ones we're inspecting
+        // Merge in the currently offline in-flight records and the actively written records as well
+        let active_subkey_writes = inner
+            .active_subkey_writes
+            .get(&key)
+            .cloned()
+            .unwrap_or_default();
         let offline_subkey_writes = inner
             .offline_subkey_writes
             .get(&key)
             .map(|o| o.subkeys.union(&o.subkeys_in_flight))
             .unwrap_or_default()
+            .union(&active_subkey_writes)
             .intersect(&subkeys);
 
         // If this is the maximum scope we're interested in, return the report

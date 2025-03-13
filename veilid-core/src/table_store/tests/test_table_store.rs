@@ -1,5 +1,6 @@
 use crate::tests::test_veilid_config::*;
 use crate::*;
+use futures_util::StreamExt as _;
 
 async fn startup() -> VeilidAPI {
     trace!("test_table_store: starting");
@@ -266,10 +267,54 @@ pub async fn test_protect_unprotect(vcrypto: &AsyncCryptoSystemGuard<'_>, ts: &T
     }
 }
 
+pub async fn test_store_load_json_many(ts: &TableStore) {
+    trace!("test_json");
+
+    let _ = ts.delete("test").await;
+    let db = ts.open("test", 3).await.expect("should have opened");
+
+    let rows = 16;
+    let valuesize = 32768;
+    let parallel = 10;
+
+    let value = vec!["ABCD".to_string(); valuesize];
+
+    let mut unord = FuturesUnordered::new();
+
+    let mut r = 0;
+    let start_ts = Timestamp::now();
+    loop {
+        while r < rows && unord.len() < parallel {
+            let key = format!("key_{}", r);
+            r += 1;
+
+            unord.push(Box::pin(async {
+                let key = key;
+                db.store_json(0, key.as_bytes(), &value)
+                    .await
+                    .expect("should store");
+                let value2 = db
+                    .load_json::<Vec<String>>(0, key.as_bytes())
+                    .await
+                    .expect("should load")
+                    .expect("should exist");
+                assert_eq!(value, value2);
+            }));
+        }
+        if unord.next().await.is_none() {
+            break;
+        }
+    }
+    let end_ts = Timestamp::now();
+    trace!("test_store_load_json_many duration={}", (end_ts - start_ts));
+}
+
 pub async fn test_all() {
     let api = startup().await;
     let crypto = api.crypto().unwrap();
     let ts = api.table_store().unwrap();
+
+    test_store_load_json_many(&ts).await;
 
     for ck in VALID_CRYPTO_KINDS {
         let vcrypto = crypto.get_async(ck).unwrap();
