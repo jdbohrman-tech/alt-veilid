@@ -9,7 +9,7 @@
       "expect-webdriverio",
       "@wdio/mocha-framework",
       "@wdio/browser-runner",
-      "@wdio/devtools-service",
+      "@wdio/lighthouse-service",
     ],
     "skipLibCheck": true,
     "noEmit": true,

@@ -111,8 +111,54 @@ describe('VeilidRoutingContext', () => {
 
     describe('DHT stress tests', () => {
 
+      //var _orig_log: (message?: any, ...optionalParams: any[]) => void;
+      //const logfilter = /\[[^\]]*\]\ webdriver.*/g;
       before(async () => {
-        await browser.startTracing({})
+        // _orig_log = console.log;
+        // console.log = function log(message?: any, ...optionalParams: any[]): void {
+        //   // if (typeof message === 'string' || message instanceof String) {
+        //   //   if (message.match(logfilter)) {
+        //   //     return;
+        //   //   }
+        //   // }
+        //   _orig_log.call(this, "ass");
+        //   //_orig_log.call(this, message, ...optionalParams);
+        // };
+        await browser.startTracing({
+          'categories': [
+            // Exclude default categories. We'll be selective to minimize trace size
+            '-*',
+
+            // Used instead of 'toplevel' in Chrome 71+
+            'disabled-by-default-lighthouse',
+
+            // All compile/execute events are captured by parent events in devtools.timeline..
+            // But the v8 category provides some nice context for only <0.5% of the trace size
+            'v8',
+            // Same situation here. This category is there for RunMicrotasks only, but with other teams
+            // accidentally excluding microtasks, we don't want to assume a parent event will always exist
+            'v8.execute',
+
+            // For extracting UserTiming marks/measures
+            'blink.user_timing',
+
+            // Not mandatory but not used much
+            'blink.console',
+
+            // Most the events we need come in on these two
+            'devtools.timeline',
+            'disabled-by-default-devtools.timeline',
+
+            // Up to 450 (https://goo.gl/rBfhn4) JPGs added to the trace
+            'disabled-by-default-devtools.screenshot',
+
+            // This doesn't add its own events, but adds a `stackTrace` property to devtools.timeline events
+            'disabled-by-default-devtools.timeline.stack',
+
+            // Include screenshots for frame viewer
+            'disabled-by-default-devtools.screenshot'
+          ]
+        });
       })
 
       it('should inspect in parallel without delay', async () => {
@@ -172,9 +218,9 @@ describe('VeilidRoutingContext', () => {
 
         const events = await browser.endTracing()
         if (events) {
-          await browser.writeFile("profile-dht-stress-test.json", events);
+          await browser.writeFile("test_results/profile-dht-stress-test.json", events);
         }
-
+        //console.log = _orig_log;
       })
 
     });
