@@ -367,14 +367,16 @@ impl NetworkManager {
             data
         };
 
-        let connection_initial_timeout_us = self
-            .config()
-            .with(|c| c.network.connection_initial_timeout_ms as u64 * 1000);
+        let excessive_reverse_connect_duration_us = self.config().with(|c| {
+            (c.network.connection_initial_timeout_ms * 2
+                + c.network.reverse_connection_receipt_time_ms) as u64
+                * 1000
+        });
 
         let unique_flow = network_result_try!(
             pin_future!(debug_duration(
                 || { self.do_reverse_connect(relay_nr.clone(), target_node_ref.clone(), data) },
-                Some(connection_initial_timeout_us * 2)
+                Some(excessive_reverse_connect_duration_us)
             ))
             .await?
         );
