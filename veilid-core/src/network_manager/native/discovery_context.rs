@@ -7,9 +7,6 @@ use stop_token::future::FutureExt as _;
 
 impl_veilid_log_facility!("net");
 
-const PORT_MAP_VALIDATE_TRY_COUNT: usize = 3;
-const PORT_MAP_VALIDATE_DELAY_MS: u32 = 500;
-const PORT_MAP_TRY_COUNT: usize = 3;
 const EXTERNAL_INFO_NODE_COUNT: usize = 20;
 const EXTERNAL_INFO_CONCURRENCY: usize = 20;
 const EXTERNAL_INFO_VALIDATIONS: usize = 5;
@@ -121,7 +118,8 @@ struct ExternalInfo {
 }
 
 struct DiscoveryContextInner {
-    external_info: Vec<ExternalInfo>,
+    external_infos: Vec<ExternalInfo>,
+    mapped_dial_info: Option<DialInfo>,
 }
 
 pub(super) struct DiscoveryContextUnlockedInner {
@@ -163,7 +161,8 @@ impl DiscoveryContext {
             registry,
             unlocked_inner: Arc::new(DiscoveryContextUnlockedInner { config, intf_addrs }),
             inner: Arc::new(Mutex::new(DiscoveryContextInner {
-                external_info: Vec::new(),
+                external_infos: Vec::new(),
+                mapped_dial_info: None,
             })),
             stop_token,
         }
@@ -405,11 +404,11 @@ impl DiscoveryContext {
 
         {
             let mut inner = self.inner.lock();
-            inner.external_info = external_address_infos;
+            inner.external_infos = external_address_infos;
             veilid_log!(self debug "External Addresses ({:?}:{:?}):\n{}",
                 protocol_type,
                 address_type,
-                inner.external_info.iter().map(|x| format!("    {} <- {}",x.address, x.node)).collect::<Vec<_>>().join("\n"));
+                inner.external_infos.iter().map(|x| format!("    {} <- {}",x.address, x.node)).collect::<Vec<_>>().join("\n"));
         }
 
         true
@@ -454,76 +453,86 @@ impl DiscoveryContext {
             AddressType::IPV4 => IGDAddressType::IPV4,
         };
 
-        let external_1 = self.inner.lock().external_info.first().unwrap().clone();
-
         let igd_manager = self.network_manager().net().igd_manager.clone();
-        let mut tries = 0;
-        loop {
-            tries += 1;
 
-            // Attempt a port mapping. If this doesn't succeed, it's not going to
-            let mapped_external_address = igd_manager
-                .map_any_port(
-                    igd_protocol_type,
-                    igd_address_type,
-                    local_port,
-                    Some(external_1.address.ip_addr()),
-                )
-                .await?;
+        // Attempt a port mapping. If this doesn't succeed, it's not going to
+        let mapped_external_address = igd_manager
+            .map_any_port(igd_protocol_type, igd_address_type, local_port, None)
+            .await?;
 
-            // Make dial info from the port mapping
-            let external_mapped_dial_info = self.network_manager().net().make_dial_info(
-                SocketAddress::from_socket_addr(mapped_external_address),
-                protocol_type,
-            );
+        // Make dial info from the port mapping
+        let external_mapped_dial_info = self.network_manager().net().make_dial_info(
+            SocketAddress::from_socket_addr(mapped_external_address),
+            protocol_type,
+        );
 
-            // Attempt to validate the port mapping
-            let mut validate_tries = 0;
-            loop {
-                validate_tries += 1;
+        Some(external_mapped_dial_info)
+    }
 
-                // Ensure people can reach us. If we're firewalled off, this is useless
-                if self
-                    .validate_dial_info(
-                        external_1.node.clone(),
-                        external_mapped_dial_info.clone(),
-                        false,
-                    )
-                    .await
-                {
-                    return Some(external_mapped_dial_info);
-                }
-
-                if validate_tries != PORT_MAP_VALIDATE_TRY_COUNT {
-                    veilid_log!(self debug "UPNP port mapping succeeded but port {}/{} is still unreachable.\nretrying\n",
-                    local_port, igd_protocol_type);
-                    sleep(PORT_MAP_VALIDATE_DELAY_MS).await
-                } else {
-                    break;
-                }
-            }
-
-            // Release the mapping if we're still unreachable
-            let _ = igd_manager
-                .unmap_port(
-                    igd_protocol_type,
-                    igd_address_type,
-                    external_1.address.port(),
-                )
-                .await;
-
-            if tries == PORT_MAP_TRY_COUNT {
-                veilid_log!(self warn "UPNP port mapping succeeded but port {}/{} is still unreachable.\nYou may need to add a local firewall allowed port on this machine.\n",
-                    local_port, igd_protocol_type
-                );
-                break;
+    fn matches_mapped_dial_info(&self, dial_info: &DialInfo) -> bool {
+        let mut skip = false;
+        if let Some(mapped_dial_info) = self.inner.lock().mapped_dial_info.as_ref() {
+            if mapped_dial_info == dial_info {
+                skip = true;
             }
         }
-        None
+        skip
     }
 
     ///////
     // Per-protocol discovery routines
+
+    // If we know we are not behind NAT, check our firewall status
+    #[instrument(level = "trace", skip(self), ret)]
+    fn protocol_process_mapped_dial_info(
+        &self,
+        all_possibilities: &mut DialInfoClassAllPossibilities,
+        unord: &mut FuturesUnordered<PinBoxFutureStatic<DetectionResultKind>>,
+    ) {
+        let (external_infos, mapped_dial_info) = {
+            let inner = self.inner.lock();
+            let Some(mapped_dial_info) = inner.mapped_dial_info.clone() else {
+                return;
+            };
+
+            (inner.external_infos.clone(), mapped_dial_info)
+        };
+
+        // Have all the external validator nodes check us
+        for external_info in external_infos {
+            let possibilities = vec![(DialInfoClass::Mapped, 1)];
+            all_possibilities.add(&possibilities);
+
+            let this = self.clone();
+            let mapped_dial_info = mapped_dial_info.clone();
+            let do_no_nat_fut: PinBoxFutureStatic<DetectionResultKind> = Box::pin(async move {
+                // Do a validate_dial_info on the external address from a redirected node
+                if this
+                    .validate_dial_info(external_info.node.clone(), mapped_dial_info.clone(), true)
+                    .await
+                {
+                    // Add public dial info with Direct dialinfo class
+                    DetectionResultKind::Result {
+                        possibilities,
+                        result: DetectionResult {
+                            config: this.config,
+                            ddi: DetectedDialInfo::Detected(DialInfoDetail {
+                                dial_info: mapped_dial_info.clone(),
+                                class: DialInfoClass::Mapped,
+                            }),
+                            external_address_types: AddressTypeSet::only(
+                                external_info.address.address_type(),
+                            ),
+                        },
+                    }
+                } else {
+                    DetectionResultKind::Failure { possibilities }
+                }
+            });
+
+            unord.push(do_no_nat_fut);
+        }
+    }
 
     // If we know we are not behind NAT, check our firewall status
     #[instrument(level = "trace", skip(self), ret)]
@@ -532,15 +541,20 @@ impl DiscoveryContext {
         all_possibilities: &mut DialInfoClassAllPossibilities,
         unord: &mut FuturesUnordered<PinBoxFutureStatic<DetectionResultKind>>,
     ) {
-        let external_infos = self.inner.lock().external_info.clone();
+        let external_infos = self.inner.lock().external_infos.clone();
 
         // Have all the external validator nodes check us
         for external_info in external_infos {
-            let this = self.clone();
+            // If this is the same as an existing upnp mapping, skip it, since
+            // we are already validating that
+            if self.matches_mapped_dial_info(&external_info.dial_info) {
+                continue;
+            }
 
             let possibilities = vec![(DialInfoClass::Direct, 1), (DialInfoClass::Blocked, 1)];
             all_possibilities.add(&possibilities);
 
+            let this = self.clone();
             let do_no_nat_fut: PinBoxFutureStatic<DetectionResultKind> = Box::pin(async move {
                 // Do a validate_dial_info on the external address from a redirected node
                 if this
@@ -597,7 +611,7 @@ impl DiscoveryContext {
         // Get the external dial info histogram for our use here
         let external_info = {
             let inner = self.inner.lock();
-            inner.external_info.clone()
+            inner.external_infos.clone()
         };
         let local_port = self.config.port;
 
@@ -673,47 +687,51 @@ impl DiscoveryContext {
         // If we have no external address that matches our local port, then lets try that port
         // on our best external address and see if there's a port forward someone added manually
         ///////////
-        let this = self.clone();
         if local_port_matching_external_info.is_none() && best_external_info.is_some() {
             let c_external_1 = best_external_info.as_ref().unwrap().clone();
-            let c_this = this.clone();
 
-            let possibilities = vec![(DialInfoClass::Direct, 1)];
-            all_possibilities.add(&possibilities);
+            // Do a validate_dial_info on the external address, but with the same port as the local port of local interface, from a redirected node
+            // This test is to see if a node had manual port forwarding done with the same port number as the local listener
+            let mut external_1_dial_info_with_local_port = c_external_1.dial_info.clone();
+            external_1_dial_info_with_local_port.set_port(local_port);
 
-            let do_manual_map_fut: PinBoxFutureStatic<DetectionResultKind> = Box::pin(async move {
-                // Do a validate_dial_info on the external address, but with the same port as the local port of local interface, from a redirected node
-                // This test is to see if a node had manual port forwarding done with the same port number as the local listener
-                let mut external_1_dial_info_with_local_port = c_external_1.dial_info.clone();
-                external_1_dial_info_with_local_port.set_port(local_port);
+            // If this is the same as an existing upnp mapping, skip it, since
+            // we are already validating that
+            if !self.matches_mapped_dial_info(&external_1_dial_info_with_local_port) {
+                let possibilities = vec![(DialInfoClass::Direct, 1)];
+                all_possibilities.add(&possibilities);
 
-                if this
-                    .validate_dial_info(
-                        c_external_1.node.clone(),
-                        external_1_dial_info_with_local_port.clone(),
-                        true,
-                    )
-                    .await
-                {
-                    // Add public dial info with Direct dialinfo class
-                    return DetectionResultKind::Result {
-                        possibilities,
-                        result: DetectionResult {
-                            config: c_this.config,
-                            ddi: DetectedDialInfo::Detected(DialInfoDetail {
-                                dial_info: external_1_dial_info_with_local_port,
-                                class: DialInfoClass::Direct,
-                            }),
-                            external_address_types: AddressTypeSet::only(
-                                c_external_1.address.address_type(),
-                            ),
-                        },
-                    };
-                }
+                let c_this = self.clone();
+                let do_manual_map_fut: PinBoxFutureStatic<DetectionResultKind> =
+                    Box::pin(async move {
+                        if c_this
+                            .validate_dial_info(
+                                c_external_1.node.clone(),
+                                external_1_dial_info_with_local_port.clone(),
+                                true,
+                            )
+                            .await
+                        {
+                            // Add public dial info with Direct dialinfo class
+                            return DetectionResultKind::Result {
+                                possibilities,
+                                result: DetectionResult {
+                                    config: c_this.config,
+                                    ddi: DetectedDialInfo::Detected(DialInfoDetail {
+                                        dial_info: external_1_dial_info_with_local_port,
+                                        class: DialInfoClass::Direct,
+                                    }),
+                                    external_address_types: AddressTypeSet::only(
+                                        c_external_1.address.address_type(),
+                                    ),
+                                },
+                            };
+                        }
 
-                DetectionResultKind::Failure { possibilities }
-            });
-            unord.push(do_manual_map_fut);
+                        DetectionResultKind::Failure { possibilities }
+                    });
+                unord.push(do_manual_map_fut);
+            }
         }
 
         // NAT Detection
@@ -724,86 +742,39 @@ impl DiscoveryContext {
         // Full Cone NAT Detection
         ///////////
 
-        let c_this = self.clone();
-        let c_external_1 = external_info.first().cloned().unwrap();
         let possibilities = vec![(DialInfoClass::FullConeNAT, 1)];
         all_possibilities.add(&possibilities);
-        let do_full_cone_fut: PinBoxFutureStatic<DetectionResultKind> = Box::pin(async move {
-            let mut retry_count = retry_count;
-
-            // Let's see what kind of NAT we have
-            // Does a redirected dial info validation from a different address and a random port find us?
-            loop {
-                if c_this
-                    .validate_dial_info(
-                        c_external_1.node.clone(),
-                        c_external_1.dial_info.clone(),
-                        true,
-                    )
-                    .await
-                {
-                    // Yes, another machine can use the dial info directly, so Full Cone
-                    // Add public dial info with full cone NAT network class
-
-                    return DetectionResultKind::Result {
-                        possibilities,
-                        result: DetectionResult {
-                            config: c_this.config,
-                            ddi: DetectedDialInfo::Detected(DialInfoDetail {
-                                dial_info: c_external_1.dial_info,
-                                class: DialInfoClass::FullConeNAT,
-                            }),
-                            external_address_types: AddressTypeSet::only(
-                                c_external_1.address.address_type(),
-                            ),
-                        },
-                    };
-                }
-                if retry_count == 0 {
-                    break;
-                }
-                retry_count -= 1;
-            }
-
-            DetectionResultKind::Failure { possibilities }
-        });
-        unord.push(do_full_cone_fut);
 
         let c_this = self.clone();
         let c_external_1 = external_info.first().cloned().unwrap();
-        let c_external_2 = external_info.get(1).cloned().unwrap();
-        let possibilities = vec![
-            (DialInfoClass::AddressRestrictedNAT, 1),
-            (DialInfoClass::PortRestrictedNAT, 1),
-        ];
-        all_possibilities.add(&possibilities);
-        let do_restricted_cone_fut: PinBoxFutureStatic<DetectionResultKind> =
-            Box::pin(async move {
+
+        // If this is the same as an existing upnp mapping, skip it, since
+        // we are already validating that
+        if !self.matches_mapped_dial_info(&c_external_1.dial_info) {
+            let do_full_cone_fut: PinBoxFutureStatic<DetectionResultKind> = Box::pin(async move {
                 let mut retry_count = retry_count;
 
-                // We are restricted, determine what kind of restriction
-
-                // If we're going to end up as a restricted NAT of some sort
-                // Address is the same, so it's address or port restricted
-
+                // Let's see what kind of NAT we have
+                // Does a redirected dial info validation from a different address and a random port find us?
                 loop {
-                    // Do a validate_dial_info on the external address from a random port
                     if c_this
                         .validate_dial_info(
-                            c_external_2.node.clone(),
+                            c_external_1.node.clone(),
                             c_external_1.dial_info.clone(),
-                            false,
+                            true,
                         )
                         .await
                     {
-                        // Got a reply from a non-default port, which means we're only address restricted
+                        // Yes, another machine can use the dial info directly, so Full Cone
+                        // Add public dial info with full cone NAT network class
+
                         return DetectionResultKind::Result {
                             possibilities,
                             result: DetectionResult {
                                 config: c_this.config,
                                 ddi: DetectedDialInfo::Detected(DialInfoDetail {
-                                    dial_info: c_external_1.dial_info.clone(),
-                                    class: DialInfoClass::AddressRestrictedNAT,
+                                    dial_info: c_external_1.dial_info,
+                                    class: DialInfoClass::FullConeNAT,
                                 }),
                                 external_address_types: AddressTypeSet::only(
                                     c_external_1.address.address_type(),
@@ -811,29 +782,83 @@ impl DiscoveryContext {
                             },
                         };
                     }
-
                     if retry_count == 0 {
                         break;
                     }
                     retry_count -= 1;
                 }
 
-                // Didn't get a reply from a non-default port, which means we are also port restricted
-                DetectionResultKind::Result {
-                    possibilities,
-                    result: DetectionResult {
-                        config: c_this.config,
-                        ddi: DetectedDialInfo::Detected(DialInfoDetail {
-                            dial_info: c_external_1.dial_info.clone(),
-                            class: DialInfoClass::PortRestrictedNAT,
-                        }),
-                        external_address_types: AddressTypeSet::only(
-                            c_external_1.address.address_type(),
-                        ),
-                    },
-                }
+                DetectionResultKind::Failure { possibilities }
             });
-        unord.push(do_restricted_cone_fut);
+            unord.push(do_full_cone_fut);
+
+            let possibilities = vec![
+                (DialInfoClass::AddressRestrictedNAT, 1),
+                (DialInfoClass::PortRestrictedNAT, 1),
+            ];
+            all_possibilities.add(&possibilities);
+
+            let c_this = self.clone();
+            let c_external_1 = external_info.first().cloned().unwrap();
+            let c_external_2 = external_info.get(1).cloned().unwrap();
+            let do_restricted_cone_fut: PinBoxFutureStatic<DetectionResultKind> =
+                Box::pin(async move {
+                    let mut retry_count = retry_count;
+
+                    // We are restricted, determine what kind of restriction
+
+                    // If we're going to end up as a restricted NAT of some sort
+                    // Address is the same, so it's address or port restricted
+
+                    loop {
+                        // Do a validate_dial_info on the external address from a random port
+                        if c_this
+                            .validate_dial_info(
+                                c_external_2.node.clone(),
+                                c_external_1.dial_info.clone(),
+                                false,
+                            )
+                            .await
+                        {
+                            // Got a reply from a non-default port, which means we're only address restricted
+                            return DetectionResultKind::Result {
+                                possibilities,
+                                result: DetectionResult {
+                                    config: c_this.config,
+                                    ddi: DetectedDialInfo::Detected(DialInfoDetail {
+                                        dial_info: c_external_1.dial_info.clone(),
+                                        class: DialInfoClass::AddressRestrictedNAT,
+                                    }),
+                                    external_address_types: AddressTypeSet::only(
+                                        c_external_1.address.address_type(),
+                                    ),
+                                },
+                            };
+                        }
+
+                        if retry_count == 0 {
+                            break;
+                        }
+                        retry_count -= 1;
+                    }
+
+                    // Didn't get a reply from a non-default port, which means we are also port restricted
+                    DetectionResultKind::Result {
+                        possibilities,
+                        result: DetectionResult {
+                            config: c_this.config,
+                            ddi: DetectedDialInfo::Detected(DialInfoDetail {
+                                dial_info: c_external_1.dial_info.clone(),
+                                class: DialInfoClass::PortRestrictedNAT,
+                            }),
+                            external_address_types: AddressTypeSet::only(
+                                c_external_1.address.address_type(),
+                            ),
+                        },
+                    }
+                });
+            unord.push(do_restricted_cone_fut);
+        }
     }
 
     /// Run a discovery for a particular context
@@ -861,34 +886,16 @@ impl DiscoveryContext {
 
         let enable_upnp = self.config().with(|c| c.network.upnp);
         if enable_upnp {
-            let this = self.clone();
+            // Attempt a port mapping via all available and enabled mechanisms
+            // Try this before the direct mapping in the event that we are restarting
+            // and may not have recorded a mapping created the last time
+            if let Some(external_mapped_dial_info) = self.try_upnp_port_mapping().await {
+                // Got a port mapping, store it
+                self.inner.lock().mapped_dial_info = Some(external_mapped_dial_info);
 
-            let possibilities = vec![(DialInfoClass::Mapped, 1)];
-            all_possibilities.add(&possibilities);
-
-            let do_mapped_fut: PinBoxFutureStatic<DetectionResultKind> = Box::pin(async move {
-                // Attempt a port mapping via all available and enabled mechanisms
-                // Try this before the direct mapping in the event that we are restarting
-                // and may not have recorded a mapping created the last time
-                if let Some(external_mapped_dial_info) = this.try_upnp_port_mapping().await {
-                    // Got a port mapping, let's use it
-                    return DetectionResultKind::Result {
-                        possibilities,
-                        result: DetectionResult {
-                            config: this.config,
-                            ddi: DetectedDialInfo::Detected(DialInfoDetail {
-                                dial_info: external_mapped_dial_info.clone(),
-                                class: DialInfoClass::Mapped,
-                            }),
-                            external_address_types: AddressTypeSet::only(
-                                external_mapped_dial_info.address_type(),
-                            ),
-                        },
-                    };
-                }
-                DetectionResultKind::Failure { possibilities }
-            });
-            unord.push(do_mapped_fut);
+                // And validate it
+                self.protocol_process_mapped_dial_info(&mut all_possibilities, &mut unord);
+            }
         }
 
         // NAT Detection
@@ -898,7 +905,7 @@ impl DiscoveryContext {
         let local_address_in_external_info = self
             .inner
             .lock()
-            .external_info
+            .external_infos
             .iter()
             .find_map(|ei| self.intf_addrs.contains(&ei.address).then_some(true))
             .unwrap_or_default();
