@@ -66,7 +66,7 @@ async fn main() {
     };
 
     let veilid = veilid_core::api_startup_config(update_callback, config).await.unwrap();
-    println!("Node ID: {}", veilid.config().unwrap().get_veilid_state().config.network.routing_table.node_id);
+    println!("Node ID: {}", veilid.config().unwrap().get().network.routing_table.node_id);
     veilid.attach().await.unwrap();
     // Until CTRL+C is pressed, keep running
     tokio::signal::ctrl_c().await.unwrap();
