@@ -263,6 +263,10 @@ dryrun_create_build_machines:
   script:
     - uv --directory scripts/cicd-python sync
     - uv --directory scripts/cicd-python run veilid_release_utils.py --create-build-machine
+  artifacts:
+    paths: 
+      - scripts/cicd-python/config.json
+    expire_in: 6 hours
   rules:
     - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
 
@@ -337,7 +341,9 @@ dryrun_delete_build_machines:
     - dryrun_deploy_repos
   tags:
     - build-orchestration
+    - dryrun_create_build_machines]
   script:
+    - cp config.json /scripts/cicd-python/config.json
     - uv --directory scripts/cicd-python sync
     - uv --directory scripts/cicd-python run veilid_release_utils.py --delete-build-machine
   rules:
