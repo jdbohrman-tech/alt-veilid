@@ -15,9 +15,9 @@ gpg --armor --export admin@veilid.org > $HOME/srv/gpg/veilid-packages-key.public
 
 # Copy .deb files into the workspace and generate repo files
 echo "Starting deb process"
-cd $HOME
-tar -xf amd64-debs.tar
-tar -xf arm64-debs.tar
+#cd $HOME
+#tar -xf amd64-debs.tar
+#tar -xf arm64-debs.tar
 cp *.deb $HOME/srv/apt/pool/stable/main
 cd $HOME/srv/apt
 echo "Creating Packages file"
@@ -34,8 +34,8 @@ cat $HOME/srv/apt/dists/stable/Release | gpg --default-key admin@veilid.org -abs
 
 # Copy .rpm files into the workspace and generate repo files
 echo "Starting rpm process"
-cd $HOME
-tar -xf amd64-rpms.tar
+#cd $HOME
+#tar -xf amd64-rpms.tar
 echo "Copying rpms to container workspace"
 cp *x86_64.rpm $HOME/rpm-build-container/mount/repo/stable/x86_64
 echo "Copying signing material to container workspace"
@@ -72,7 +72,7 @@ rsync --archive --delete $HOME/srv/* gitlab-runner@10.116.0.3:/srv
 # Cleanup
 echo "Cleaning up the workspace"
 rm -rf $GNUPGHOME
-rm $HOME/*.tar
+#rm $HOME/*.tar
 rm $HOME/*.deb
 rm $HOME/*.rpm
 rm -rf $HOME/rpm-build-container/mount/keystore/*
