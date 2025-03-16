@@ -339,9 +339,9 @@ dryrun_delete_build_machines:
   stage: distribute
   needs:
     - dryrun_deploy_repos
+    - dryrun_create_build_machines
   tags:
     - build-orchestration
-    - dryrun_create_build_machines]
   script:
     - cp config.json /scripts/cicd-python/config.json
     - uv --directory scripts/cicd-python sync
