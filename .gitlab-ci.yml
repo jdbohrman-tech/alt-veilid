@@ -261,13 +261,11 @@ dryrun_create_build_machines:
   tags:
     - build-orchestration
   script:
-    - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh create amd64-deb
-    - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh create arm64-deb
-    - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh create amd64-rpm
+    - uv run scripts/cicd-python/veilid_release_utils.py create_build_machine
   rules:
     - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
 
-dryrun_package_amd64_deb:
+dryrun_package_linux:
   stage: build_packages
   needs:
     - dryrun_create_build_machines
@@ -275,34 +273,10 @@ dryrun_package_amd64_deb:
     - build-amd64-deb
   script:
     - earthly bootstrap
-    - earthly +package-linux-amd64-deb
-    - bash scripts/cicd/build-machine/scp-amd64-debs-to-orchestrator.sh
-  rules:
-    - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
-
-dryrun_package_arm64_deb:
-  stage: build_packages
-  needs:
-    - dryrun_create_build_machines
-  tags:
-    - build-arm64-deb
-  script:
-    - earthly bootstrap
-    - earthly +package-linux-arm64-deb
-    - bash scripts/cicd/build-machine/scp-arm64-debs-to-orchestrator.sh
-  rules:
-    - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
-
-dryrun_package_amd64_rpm:
-  stage: build_packages
-  needs:
-    - dryrun_create_build_machines
-  tags:
-    - build-amd64-rpm
-  script:
-    - earthly bootstrap
-    - earthly +package-linux-amd64-rpm
-    - bash scripts/cicd/build-machine/scp-amd64-rpms-to-orchestrator.sh
+    - earthly +package-linux
+  artifacts:
+    paths:
+      - target/packages/*
   rules:
     - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
 
@@ -315,7 +289,6 @@ dryrun_publish_crates:
   script:
     - vlt login
     - vlt run --command="cargo publish -p veilid-tools --dry-run"
-    - vlt run --command="cargo publish -p veilid-core --dry-run"
   rules:
     - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
 
@@ -338,8 +311,11 @@ dryrun_build_repositories:
     SECURE_FILES_DOWNLOAD_PATH: './'
   script:
     - curl --silent "https://gitlab.com/gitlab-org/incubation-engineering/mobile-devops/download-secure-files/-/raw/main/installer" | bash
-    - cp scripts/cicd/build-orchestration/generate-release.sh ~
-    - bash scripts/cicd/build-orchestration/distribute-packages.sh
+    - cp scripts/cicd/build-orchestration/rpm-repo-building/Dockerfile ~/rpm-build-container
+    - cp scripts/cicd/build-orchestration/rpm-repo-building/repobuild.sh ~/rpm-build-container
+    - cp scripts/cicd/build-orchestration/generate-stable-release.sh ~
+    - bash scripts/cicd/build-orchestration/distribute-stable-packages.sh
+  dependencies: [dryrun_package_linux]
   rules:
     - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
 
@@ -361,9 +337,7 @@ dryrun_delete_build_machines:
   tags:
     - build-orchestration
   script:
-    - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh delete amd64-deb
-    - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh delete arm64-deb
-    - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh delete amd64-rpm
+    - uv run scripts/cicd-python/veilid_release_utils.py delete_build_machine
   rules:
     - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
 
