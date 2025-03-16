@@ -261,6 +261,7 @@ dryrun_create_build_machines:
   tags:
     - build-orchestration
   script:
+    - uv --directory scripts/cicd-python sync
     - uv run scripts/cicd-python/veilid_release_utils.py create_build_machine
   rules:
     - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
@@ -337,6 +338,7 @@ dryrun_delete_build_machines:
   tags:
     - build-orchestration
   script:
+    - uv --directory scripts/cicd-python sync
     - uv run scripts/cicd-python/veilid_release_utils.py delete_build_machine
   rules:
     - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
