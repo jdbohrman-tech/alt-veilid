@@ -1,0 +1,11 @@
+[project]
+name = "cicd-python"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "aiohttp>=3.11.12",
+    "python-digitalocean>=1.17.0",
+    "python-dotenv>=1.0.1",
+]
