@@ -18,7 +18,8 @@ echo "Starting deb process"
 #cd $HOME
 #tar -xf amd64-debs.tar
 #tar -xf arm64-debs.tar
-cp *.deb $HOME/srv/apt/pool/stable/main
+#cp *.deb $HOME/srv/apt/pool/stable/main
+cp target/packages/*.deb $HOME/srv/apt/pool/stable/main
 cd $HOME/srv/apt
 echo "Creating Packages file"
 dpkg-scanpackages --arch amd64 pool/stable > dists/stable/main/binary-amd64/Packages
@@ -37,7 +38,7 @@ echo "Starting rpm process"
 #cd $HOME
 #tar -xf amd64-rpms.tar
 echo "Copying rpms to container workspace"
-cp *x86_64.rpm $HOME/rpm-build-container/mount/repo/stable/x86_64
+cp target/packages/*x86_64.rpm $HOME/rpm-build-container/mount/repo/stable/x86_64
 echo "Copying signing material to container workspace"
 cp -R $GNUPGHOME/* $HOME/rpm-build-container/mount/keystore
 echo "Executing container actions"
