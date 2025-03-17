@@ -19,6 +19,7 @@ echo "Starting deb process"
 #tar -xf amd64-debs.tar
 #tar -xf arm64-debs.tar
 #cp *.deb $HOME/srv/apt/pool/stable/main
+echo "Copying debs to $HOME/srv/apt/pool/stable/main"
 cp target/packages/*.deb $HOME/srv/apt/pool/stable/main
 cd $HOME/srv/apt
 echo "Creating Packages file"
