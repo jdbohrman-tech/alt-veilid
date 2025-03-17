@@ -355,50 +355,55 @@ nightly_create_build_machines:
   tags:
     - build-orchestration
   script:
-    - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh create amd64-deb
-    - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh create arm64-deb
-    - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh create amd64-rpm
+    - uv --directory scripts/cicd-python sync
+    - uv --directory scripts/cicd-python run veilid_release_utils.py --create-build-machine
+  artifacts:
+    paths: 
+      - scripts/cicd-python/config.json
+    expire_in: 6 hours
   rules:
     - if: $IS_NIGHTLY == "true"
 
 nightly_package_amd64_deb:
   stage: build_packages
   needs:
-    - nightly_create_build_machines
+    - dryrun_create_build_machines
   tags:
     - build-amd64-deb
   script:
     - earthly bootstrap
-    - earthly +package-linux-amd64-deb --IS_NIGHTLY="$IS_NIGHTLY"
-    - bash scripts/cicd/build-machine/scp-amd64-debs-to-orchestrator.sh
+    - earthly +package-linux
+  artifacts:
+    paths:
+      - target/packages/*
   rules:
     - if: $IS_NIGHTLY == "true"
 
-nightly_package_arm64_deb:
-  stage: build_packages
-  needs:
-    - nightly_create_build_machines
-  tags:
-    - build-arm64-deb
-  script:
-    - earthly bootstrap
-    - earthly +package-linux-arm64-deb --IS_NIGHTLY="$IS_NIGHTLY"
-    - bash scripts/cicd/build-machine/scp-arm64-debs-to-orchestrator.sh
-  rules:
-    - if: $IS_NIGHTLY == "true"
+# nightly_package_arm64_deb:
+#   stage: build_packages
+#   needs:
+#     - nightly_create_build_machines
+#   tags:
+#     - build-arm64-deb
+#   script:
+#     - earthly bootstrap
+#     - earthly +package-linux-arm64-deb --IS_NIGHTLY="$IS_NIGHTLY"
+#     - bash scripts/cicd/build-machine/scp-arm64-debs-to-orchestrator.sh
+#   rules:
+#     - if: $IS_NIGHTLY == "true"
 
-nightly_package_amd64_rpm:
-  stage: build_packages
-  needs:
-    - nightly_create_build_machines
-  tags:
-    - build-amd64-rpm
-  script:
-    - earthly bootstrap
-    - earthly +package-linux-amd64-rpm --IS_NIGHTLY="$IS_NIGHTLY"
-    - bash scripts/cicd/build-machine/scp-amd64-rpms-to-orchestrator.sh
-  rules:
-    - if: $IS_NIGHTLY == "true"
+# nightly_package_amd64_rpm:
+#   stage: build_packages
+#   needs:
+#     - nightly_create_build_machines
+#   tags:
+#     - build-amd64-rpm
+#   script:
+#     - earthly bootstrap
+#     - earthly +package-linux-amd64-rpm --IS_NIGHTLY="$IS_NIGHTLY"
+#     - bash scripts/cicd/build-machine/scp-amd64-rpms-to-orchestrator.sh
+#   rules:
+#     - if: $IS_NIGHTLY == "true"
 
 nightly_build_repositories:
   stage: distribute
