@@ -79,7 +79,7 @@ async def create_build_machine(token: str) -> None:
                               file=sys.stderr)
                         sys.exit("Droplet data missing in polling response")
             
-            print("Droplet is up and running.")
+            print(f"Droplet ID {droplet_id} is up and running.")
             # Once active, send a final GET request to output the droplet's information.
             async with session.get(droplet_url, headers=headers) as final_resp:
                 if final_resp.status != 200:
@@ -104,6 +104,8 @@ async def delete_build_machine(token: str) -> None:
         "Content-Type": "application/json",
     }
     delete_url = f"https://api.digitalocean.com/v2/droplets/{droplet_id}"
+
+    print(f"Deleting droplet ID {droplet_id}")
     
     async with aiohttp.ClientSession() as session:
         async with session.delete(delete_url, headers=headers) as resp:
@@ -116,4 +118,4 @@ async def delete_build_machine(token: str) -> None:
             # Remove droplet ID from config
             config.pop("droplet_id", None)
             save_config(config)
-            print("Droplet ID removed from config.")
+            print(f"Droplet ID {droplet_id} removed from config.")
