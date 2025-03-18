@@ -7,19 +7,22 @@ rsync --archive gitlab-runner@10.116.0.3:/srv/ $HOME/srv/
 # Delete previous versions of packages
 rm -rf $HOME/srv/apt/pool/nightly/main/*.deb
 rm -rf $HOME/srv/rpm/nightly/x86_64/*
+rm -rf $HOME/rpm-build-container/mount/repo/nightly/x86_64/*
+
+# Move build artifacts to workspaces
+echo "Copying debs to $HOME/srv/apt/pool/nightly/main"
+cp target/packages/*.deb $HOME/srv/apt/pool/nightly/main
+echo "Copying rpms to $HOME/rpm-build-container/mount/repo/nightly/x86_64"
+cp target/packages/*x86_64.rpm $HOME/rpm-build-container/mount/repo/nightly/x86_64
 
 # Setup crypto
 export GNUPGHOME="$(mktemp -d ~/pgpkeys-XXXXXX)"
 cat veilid-packages-key.private | gpg --import
 gpg --armor --export admin@veilid.org > $HOME/srv/gpg/veilid-packages-key.public
 
-# Copy .deb files into the workspace and generate repo files
+# Generate apt repo files
 echo "Starting deb process"
-cd $HOME
-tar -xf amd64-debs.tar
-tar -xf arm64-debs.tar
-cp *.deb /home/gitlab-runner/srv/apt/pool/nightly/main
-cd /home/gitlab-runner/srv/apt
+cd $HOME/srv/apt
 echo "Creating Packages file"
 dpkg-scanpackages --arch amd64 pool/nightly > dists/nightly/main/binary-amd64/Packages
 dpkg-scanpackages --arch arm64 pool/nightly > dists/nightly/main/binary-arm64/Packages
@@ -32,12 +35,9 @@ echo "Signing Release file and creating InRelease"
 cat $HOME/srv/apt/dists/nightly/Release | gpg --default-key admin@veilid.org -abs > /home/gitlab-runner/srv/apt/dists/nightly/Release.gpg
 cat $HOME/srv/apt/dists/nightly/Release | gpg --default-key admin@veilid.org -abs --clearsign > /home/gitlab-runner/srv/apt/dists/nightly/InRelease
 
-# Copy .rpm files into the workspace and generate repo files
+# Generate RPM repo files
 echo "Starting rpm process"
 cd $HOME
-tar -xf amd64-rpms.tar
-echo "Copying rpms to container workspace"
-cp *x86_64.rpm $HOME/rpm-build-container/mount/repo/nightly/x86_64
 echo "Copying signing material to container workspace"
 cp -R $GNUPGHOME/* $HOME/rpm-build-container/mount/keystore
 echo "Executing container actions"
@@ -48,6 +48,7 @@ cd $HOME/srv/rpm/nightly/x86_64
 echo "Signing the rpm repository"
 gpg --default-key admin@veilid.org --detach-sign --armor $HOME/srv/rpm/nightly/x86_64/repodata/repomd.xml
 
+# Generate .repo file for stable x86_64 releases
 echo "[veilid-nightly-x86_64-rpm-repo]
 name=Veilid Nightly x86_64 RPM Repo
 baseurl=https://packages.veilid.net/rpm/nightly/x86_64
@@ -63,9 +64,5 @@ rsync --archive --delete $HOME/srv/* gitlab-runner@10.116.0.3:/srv
 # Cleanup
 echo "Cleaning up the workspace"
 rm -rf $GNUPGHOME
-rm $HOME/*.tar
-rm $HOME/*.deb
-rm $HOME/*.rpm
 rm -rf $HOME/rpm-build-container/mount/keystore/*
-rm -rf $HOME/rpm-build-container/mount/repo/nightly/x86_64/*
 echo "Nightly packages distribution process complete"
