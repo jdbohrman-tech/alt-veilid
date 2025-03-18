@@ -418,6 +418,7 @@ nightly_build_repositories:
     - cp scripts/cicd/build-orchestration/rpm-repo-building/repobuild.sh ~/rpm-build-container
     - cp scripts/cicd/build-orchestration/generate-nightly-release.sh ~
     - bash scripts/cicd/build-orchestration/distribute-nightly-packages.sh
+  dependencies: [nightly_package_linux]
   rules:
     - if: $IS_NIGHTLY == "true"
 
@@ -426,7 +427,7 @@ nightly_delete_build_machines:
   tags:
     - build-orchestration
   dependencies:
-    - dryrun_create_build_machines
+    - nightly_create_build_machines
   script:
     - uv --directory scripts/cicd-python sync
     - uv --directory scripts/cicd-python run veilid_release_utils.py --delete-build-machine
@@ -435,12 +436,23 @@ nightly_delete_build_machines:
 
 # If any steps fail this will run the build machine tear down scripts
 
-failed_pipeline_actions:
+stable_failed_pipeline_actions:
   stage: failed
   tags:
     - build-orchestration
   dependencies:
-    - dryrun_create_build_machines
+    - create_build_machines
+  script:
+    - uv --directory scripts/cicd-python sync
+    - uv --directory scripts/cicd-python run veilid_release_utils.py --delete-build-machine
+  when: on_failure
+
+nightly_failed_pipeline_actions:
+  stage: failed
+  tags:
+    - build-orchestration
+  dependencies:
+    - nightly_create_build_machines
   script:
     - uv --directory scripts/cicd-python sync
     - uv --directory scripts/cicd-python run veilid_release_utils.py --delete-build-machine
