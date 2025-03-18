@@ -3,6 +3,5 @@
         "name": "build-server-tmp",
         "image": 181423111,
         "size": "c2-16vcpu-32gb"
-    },
-    "droplet_id": 483191411
+    }
 }

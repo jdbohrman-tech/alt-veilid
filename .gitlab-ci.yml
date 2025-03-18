@@ -11,6 +11,7 @@ stages:
   - build_packages
   - distribute
   - release
+  - cleanup
   - failed
 
 format:
@@ -278,7 +279,9 @@ dryrun_package_linux:
     - build-amd64-deb
   script:
     - earthly bootstrap
-    - earthly +package-linux
+    - earthly +package-linux-amd64-deb
+    - earthly +package-linux-amd64-rpm
+    - earthly +package-linux-arm64-deb
   artifacts:
     paths:
       - target/packages/*
@@ -336,11 +339,11 @@ dryrun_deploy_repos:
     - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
 
 dryrun_delete_build_machines:
-  stage: distribute
-  needs:
-    - dryrun_deploy_repos
+  stage: cleanup
   tags:
     - build-orchestration
+  dependencies:
+    - dryrun_create_build_machines
   script:
     - uv --directory scripts/cicd-python sync
     - uv --directory scripts/cicd-python run veilid_release_utils.py --delete-build-machine
@@ -367,7 +370,7 @@ nightly_create_build_machines:
 nightly_package_amd64_deb:
   stage: build_packages
   needs:
-    - dryrun_create_build_machines
+    - nightly_create_build_machines
   tags:
     - build-amd64-deb
   script:
