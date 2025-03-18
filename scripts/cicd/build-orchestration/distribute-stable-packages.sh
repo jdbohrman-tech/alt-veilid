@@ -7,20 +7,25 @@ rsync --archive gitlab-runner@10.116.0.3:/srv/ $HOME/srv/
 # Delete previous versions of packages
 rm -rf $HOME/srv/apt/pool/stable/main/*.deb
 rm -rf $HOME/srv/rpm/stable/x86_64/*
+rm -rf $HOME/rpm-build-container/mount/repo/stable/x86_64/*
+
+# Move build artifacts to workspaces
+echo "Copying debs to $HOME/srv/apt/pool/stable/main"
+cp target/packages/*.deb $HOME/srv/apt/pool/stable/main
+echo "Copying rpms to $HOME/rpm-build-container/mount/repo/stable/x86_64"
+cp target/packages/*x86_64.rpm $HOME/rpm-build-container/mount/repo/stable/x86_64
 
 # Setup crypto
 export GNUPGHOME="$(mktemp -d ~/pgpkeys-XXXXXX)"
 cat veilid-packages-key.private | gpg --import
 gpg --armor --export admin@veilid.org > $HOME/srv/gpg/veilid-packages-key.public
 
-# Copy .deb files into the workspace and generate repo files
+# Generate apt repo files
 echo "Starting deb process"
 #cd $HOME
 #tar -xf amd64-debs.tar
 #tar -xf arm64-debs.tar
 #cp *.deb $HOME/srv/apt/pool/stable/main
-echo "Copying debs to $HOME/srv/apt/pool/stable/main"
-cp target/packages/*.deb $HOME/srv/apt/pool/stable/main
 cd $HOME/srv/apt
 echo "Creating Packages file"
 dpkg-scanpackages --arch amd64 pool/stable > dists/stable/main/binary-amd64/Packages
@@ -34,12 +39,10 @@ echo "Signing Release file and creating InRelease"
 cat $HOME/srv/apt/dists/stable/Release | gpg --default-key admin@veilid.org -abs > $HOME/srv/apt/dists/stable/Release.gpg
 cat $HOME/srv/apt/dists/stable/Release | gpg --default-key admin@veilid.org -abs --clearsign > $HOME/srv/apt/dists/stable/InRelease
 
-# Copy .rpm files into the workspace and generate repo files
+# Generate RPM repo files
 echo "Starting rpm process"
-#cd $HOME
+cd $HOME
 #tar -xf amd64-rpms.tar
-echo "Copying rpms to container workspace"
-cp target/packages/*x86_64.rpm $HOME/rpm-build-container/mount/repo/stable/x86_64
 echo "Copying signing material to container workspace"
 cp -R $GNUPGHOME/* $HOME/rpm-build-container/mount/keystore
 echo "Executing container actions"
@@ -75,8 +78,8 @@ rsync --archive --delete $HOME/srv/* gitlab-runner@10.116.0.3:/srv
 echo "Cleaning up the workspace"
 rm -rf $GNUPGHOME
 #rm $HOME/*.tar
-rm $HOME/*.deb
-rm $HOME/*.rpm
+#rm $HOME/*.deb
+#rm $HOME/*.rpm
 rm -rf $HOME/rpm-build-container/mount/keystore/*
-rm -rf $HOME/rpm-build-container/mount/repo/nightly/x86_64/*
+#rm -rf $HOME/rpm-build-container/mount/repo/nightly/x86_64/*
 echo "Stable packages distribution process complete"
