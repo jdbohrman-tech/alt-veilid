@@ -279,9 +279,7 @@ dryrun_package_linux:
     - build-amd64-deb
   script:
     - earthly bootstrap
-    - earthly +package-linux-amd64-deb
-    - earthly +package-linux-amd64-rpm
-    - earthly +package-linux-arm64-deb
+    - earthly +package-linux
   artifacts:
     paths:
       - target/packages/*
@@ -367,7 +365,7 @@ nightly_create_build_machines:
   rules:
     - if: $IS_NIGHTLY == "true"
 
-nightly_package_amd64_deb:
+nightly_package_linux:
   stage: build_packages
   needs:
     - nightly_create_build_machines
@@ -422,15 +420,14 @@ nightly_build_repositories:
     - if: $IS_NIGHTLY == "true"
 
 nightly_delete_build_machines:
-  stage: distribute
-  needs:
-    - nightly_build_repositories
+  stage: cleanup
   tags:
     - build-orchestration
+  dependencies:
+    - dryrun_create_build_machines
   script:
-    - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh delete amd64-deb
-    - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh delete arm64-deb
-    - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh delete amd64-rpm
+    - uv --directory scripts/cicd-python sync
+    - uv --directory scripts/cicd-python run veilid_release_utils.py --delete-build-machine
   rules:
     - if: $IS_NIGHTLY == "true"
 
@@ -440,10 +437,9 @@ failed_pipeline_actions:
   stage: failed
   tags:
     - build-orchestration
+  dependencies:
+    - dryrun_create_build_machines
   script:
-    - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh delete amd64-deb
-    - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh delete arm64-deb
-    - bash scripts/cicd/build-orchestration/build-machine-ctrl.sh delete amd64-rpm
+    - uv --directory scripts/cicd-python sync
+    - uv --directory scripts/cicd-python run veilid_release_utils.py --delete-build-machine
   when: on_failure
-
-  #
