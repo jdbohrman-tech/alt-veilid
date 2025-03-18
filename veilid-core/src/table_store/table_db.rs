@@ -38,13 +38,6 @@ impl fmt::Debug for TableDBUnlockedInner {
     }
 }
 
-impl Drop for TableDBUnlockedInner {
-    fn drop(&mut self) {
-        let table_store = self.registry.table_store();
-        table_store.on_table_db_drop(self.table.clone());
-    }
-}
-
 #[derive(Debug, Clone)]
 #[must_use]
 pub struct TableDB {
@@ -87,26 +80,24 @@ impl TableDB {
         }
     }
 
-    pub(super) fn try_new_from_weak_inner(
-        weak_inner: Weak<TableDBUnlockedInner>,
+    pub(super) fn new_from_unlocked_inner(
+        unlocked_inner: Arc<TableDBUnlockedInner>,
         opened_column_count: u32,
-    ) -> Option<Self> {
-        weak_inner.upgrade().map(|table_db_unlocked_inner| {
-            let db = &table_db_unlocked_inner.database;
-            let total_columns = db.num_columns().unwrap();
-            Self {
-                opened_column_count: if opened_column_count == 0 {
-                    total_columns
-                } else {
-                    opened_column_count
-                },
-                unlocked_inner: table_db_unlocked_inner,
-            }
-        })
+    ) -> Self {
+        let db = &unlocked_inner.database;
+        let total_columns = db.num_columns().unwrap();
+        Self {
+            opened_column_count: if opened_column_count == 0 {
+                total_columns
+            } else {
+                opened_column_count
+            },
+            unlocked_inner,
+        }
     }
 
-    pub(super) fn weak_unlocked_inner(&self) -> Weak<TableDBUnlockedInner> {
-        Arc::downgrade(&self.unlocked_inner)
+    pub(super) fn unlocked_inner(&self) -> Arc<TableDBUnlockedInner> {
+        self.unlocked_inner.clone()
     }
 
     /// Get the internal name of the table

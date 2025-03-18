@@ -15,6 +15,7 @@ mod native;
 use native::*;
 
 use keyvaluedb::*;
+use weak_table::WeakValueHashMap;
 
 impl_veilid_log_facility!("tstore");
 
@@ -72,7 +73,7 @@ pub struct TableInfo {
 
 #[must_use]
 struct TableStoreInner {
-    opened: BTreeMap<String, Weak<TableDBUnlockedInner>>,
+    opened: WeakValueHashMap<String, Weak<TableDBUnlockedInner>>,
     encryption_key: Option<TypedSharedSecret>,
     all_table_names: HashMap<String, String>,
     all_tables_db: Option<Database>,
@@ -115,7 +116,7 @@ impl_veilid_component!(TableStore);
 impl TableStore {
     fn new_inner() -> TableStoreInner {
         TableStoreInner {
-            opened: BTreeMap::new(),
+            opened: WeakValueHashMap::new(),
             encryption_key: None,
             all_table_names: HashMap::new(),
             all_tables_db: None,
@@ -528,6 +529,7 @@ impl TableStore {
         self.flush().await;
 
         let mut inner = self.inner.lock();
+        inner.opened.shrink_to_fit();
         if !inner.opened.is_empty() {
             panic!(
                 "all open databases should have been closed: {:?}",
@@ -537,15 +539,6 @@ impl TableStore {
         inner.all_tables_db = None;
         inner.all_table_names.clear();
         inner.encryption_key = None;
-    }
-
-    #[instrument(level = "trace", target = "tstore", skip_all)]
-    pub(crate) fn on_table_db_drop(&self, table: String) {
-        veilid_log!(self trace "dropping table db: {}", table);
-        let mut inner = self.inner.lock();
-        if inner.opened.remove(&table).is_none() {
-            unreachable!("should have removed an item");
-        }
     }
 
     /// Get or create a TableDB database table. If the column count is greater than an
@@ -566,25 +559,20 @@ impl TableStore {
 
         // See if this table is already opened, if so the column count must be the same
         {
-            let mut inner = self.inner.lock();
-            if let Some(table_db_weak_inner) = inner.opened.get(&table_name) {
-                match TableDB::try_new_from_weak_inner(table_db_weak_inner.clone(), column_count) {
-                    Some(tdb) => {
-                        // Ensure column count isnt bigger
-                        let existing_col_count = tdb.get_column_count()?;
-                        if column_count > existing_col_count {
-                            return Err(VeilidAPIError::generic(format!(
-                                "database must be closed before increasing column count {} -> {}",
-                                existing_col_count, column_count,
-                            )));
-                        }
+            let inner = self.inner.lock();
+            if let Some(table_db_unlocked_inner) = inner.opened.get(&table_name) {
+                let tdb = TableDB::new_from_unlocked_inner(table_db_unlocked_inner, column_count);
 
-                        return Ok(tdb);
-                    }
-                    None => {
-                        inner.opened.remove(&table_name);
-                    }
-                };
+                // Ensure column count isnt bigger
+                let existing_col_count = tdb.get_column_count()?;
+                if column_count > existing_col_count {
+                    return Err(VeilidAPIError::generic(format!(
+                        "database must be closed before increasing column count {} -> {}",
+                        existing_col_count, column_count,
+                    )));
+                }
+
+                return Ok(tdb);
             }
         }
 
@@ -637,7 +625,7 @@ impl TableStore {
         // Keep track of opened DBs
         inner
             .opened
-            .insert(table_name.clone(), table_db.weak_unlocked_inner());
+            .insert(table_name.clone(), table_db.unlocked_inner());
 
         Ok(table_db)
     }
