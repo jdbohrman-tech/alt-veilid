@@ -373,7 +373,7 @@ nightly_package_linux:
     - build-amd64-deb
   script:
     - earthly bootstrap
-    - earthly +package-linux
+    - earthly +package-linux --IS_NIGHTLY="$IS_NIGHTLY"
   artifacts:
     paths:
       - target/packages/*
