@@ -233,7 +233,7 @@ delete_build_machines:
 
 # Dryrun release -- triggered by changes in .gitlab-ci.yml, CICD scripts, or Earthfile
 
-dryrun_create_build_machines:
+dryrun_create_build_machine:
   stage: prepare
   tags:
     - build-orchestration
@@ -263,7 +263,7 @@ dryrun_package_linux:
 dryrun_publish_crates:
   stage: build_packages
   needs:
-    - dryrun_create_build_machines
+    - dryrun_package_linux
   tags:
     - build-amd64-deb
   script:
@@ -275,7 +275,7 @@ dryrun_publish_crates:
 dryrun_publish_python:
   stage: build_packages
   needs:
-    - dryrun_create_build_machines
+    - dryrun_package_linux
   tags:
     - build-amd64-deb
   script:
@@ -316,7 +316,7 @@ dryrun_delete_build_machines:
   tags:
     - build-orchestration
   dependencies:
-    - dryrun_create_build_machines
+    - dryrun_create_build_machine
   script:
     - uv --directory scripts/cicd-python sync
     - uv --directory scripts/cicd-python run veilid_release_utils.py --delete-build-machine
