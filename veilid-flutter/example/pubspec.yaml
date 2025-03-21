@@ -44,7 +44,7 @@ dev_dependencies:
     sdk: flutter
   integration_test:
     sdk: flutter
-  lint_hard: ^4.0.0
+  lint_hard: ^6.0.0
   veilid_test:
     path: ../packages/veilid_test
 
