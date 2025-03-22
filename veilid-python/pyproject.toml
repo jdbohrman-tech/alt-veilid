@@ -1,7 +1,7 @@
 [tool.poetry]
 # --- Bumpversion match - do not reorder
 name = "veilid"
-version = "0.4.3"
+version = "0.4.4"
 # ---
 description = "Create an application in Python using the distributed Veilid framework for private, E2EE, app-to-app communication."
 authors = ["Veilid Team <contact@veilid.com>"]
