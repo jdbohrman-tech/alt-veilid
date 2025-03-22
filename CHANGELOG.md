@@ -1,39 +1,49 @@
 **Changed in Veilid 0.4.4**
 
-veilid-core:
-- Improved termination conditions for DiscoveryContext, faster shutdown acknowledgment
-- Network class discovery from 25s to 5s in worst case
-- Moved some futures to the heap with Box::pin to reduce risk of stack overflows
-- Restore punishment for FailedToVerifySenderPeerInfo
-- Convert inbound relay loop notification from an error to a NetworkResult
-- Relays were being picked before we had good stats on their performance. Relays are now optimized to be within the top 25% of p90 latencies
-- LatencyStats now have median 80% average, p90, p75, and p50 latency numbers
-- RPC Answer stats now are split by 'ordered' and 'unordered' protocols
-- Unordered protocols are given a higher tolerance for lost answers before being marked 'unreliable'
-- Fix race condition in TTL code for udp hole punching
-- Correct use of IPV6_UNICAST_HOPS socket option instead of IP_TTL for ipv6 sockets
-- Move relaying to a relay worker pool
-- Connection table and RPC locking improvements
-- Remove TCP connection retries
-- Deadlock bugfix in relay code
-- 'Finding more nodes' tasks now use PreferOrdered sequencing
-- Fix deadlock in veilid_api duration testing
-- Correct offline_subkey_writes inflight reporting
-- Simplify upnp code, eliminate useless high-latency retry logic, and ensure it doesn't conflict with NAT detection
+- veilid-core:
+  - Improved termination conditions for DiscoveryContext, faster shutdown acknowledgment
+  - Network class discovery from 25s to 5s in worst case
+  - Moved some futures to the heap with Box::pin to reduce risk of stack overflows
+  - Restore punishment for FailedToVerifySenderPeerInfo
+  - Convert inbound relay loop notification from an error to a NetworkResult
+  - Relays were being picked before we had good stats on their performance. Relays are now optimized to be within the top 25% of p90 latencies
+  - LatencyStats now have median 80% average, p90, p75, and p50 latency numbers
+  - RPC Answer stats now are split by 'ordered' and 'unordered' protocols
+  - Unordered protocols are given a higher tolerance for lost answers before being marked 'unreliable'
+  - Fix race condition in TTL code for udp hole punching
+  - Correct use of IPV6_UNICAST_HOPS socket option instead of IP_TTL for ipv6 sockets
+  - Move relaying to a relay worker pool
+  - Connection table and RPC locking improvements
+  - Remove TCP connection retries
+  - Deadlock bugfix in relay code
+  - 'Finding more nodes' tasks now use PreferOrdered sequencing
+  - Fix deadlock in veilid_api duration testing
+  - Correct offline_subkey_writes inflight reporting
+  - Simplify upnp code, eliminate useless high-latency retry logic, and ensure it doesn't conflict with NAT detection
 
-veilid-python:
-- Fix async context implementation so it works correctly when re-entrant (nested `async with` blocks)
-- Validate types for API calls, will raise an assertion error if type is unexpected
-- Add more stress tests
+- veilid-python:
+  - Fix async context implementation so it works correctly when re-entrant (nested `async with` blocks)
+  - Validate types for API calls, will raise an assertion error if type is unexpected
+  - Add more stress tests
 
-veilid-wasm:
-- fork tracing-wasm and add output filter for veilid log key
+- veilid-wasm:
+  - fork tracing-wasm and add output filter for veilid log key
 
-general:
-- Added some pedantic clippy lints, moved lint config into workspace Cargo.toml
-- Fixed async-std support
-- Added windows and macos clippy lints to CI via earthfile
-- Upgrade all pinned crate dependencies
+- general:
+  - Added some pedantic clippy lints, moved lint config into workspace Cargo.toml
+  - Fixed async-std support
+  - Added windows and macos clippy lints to CI via earthfile
+  - Upgrade all pinned crate dependencies
+
+- CICD
+  - Began migrating build/package/deploy scripts from shell to Python
+  - Switched from using multiple build machines (one per arch/package) to a single machine running the +package-linux Earthly target
+
+- _community contributions_
+  - (veilid-wasm) Remove wee_alloc due to memory leak issues -- @bmv437
+  - (veilid-core) Fix geolocation feature after recent refactor -- @neequ57
+  - (documentation) Update README code snippet to work with current version -- @carvilsi
+
 
 **Changed in Veilid 0.4.3**
 
