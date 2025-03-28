@@ -129,6 +129,7 @@ cfg_if! {
     }
 }
 
+#[must_use]
 pub fn async_tcp_listener_incoming(
     tcp_listener: TcpListener,
 ) -> Pin<Box<impl futures_util::stream::Stream<Item = std::io::Result<TcpStream>> + Send>> {
@@ -143,6 +144,7 @@ pub fn async_tcp_listener_incoming(
     }
 }
 
+#[must_use]
 pub fn split_async_tcp_stream(tcp_stream: TcpStream) -> (ReadHalf, WriteHalf) {
     cfg_if! {
         if #[cfg(feature="rt-async-std")] {

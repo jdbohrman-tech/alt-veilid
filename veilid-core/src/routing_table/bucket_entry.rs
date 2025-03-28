@@ -981,7 +981,7 @@ impl BucketEntryInner {
         self.peer_stats.rpc_stats.last_question_ts
     }
 
-    /// Return the last time we asked a node a question
+    // /// Return the last time we asked a node a question
     // fn last_question_time(&self) -> Option<Timestamp> {
     //     self.peer_stats.rpc_stats.last_question_ts
     // }
@@ -1112,7 +1112,7 @@ impl BucketEntryInner {
     }
 
     ////////////////////////////////////////////////////////////////
-    /// Called when rpc processor things happen
+    // Called when rpc processor things happen
 
     pub(super) fn question_sent(
         &mut self,

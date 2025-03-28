@@ -97,8 +97,7 @@ impl SignedNodeInfo {
             }
         }
         // Check our relay if we have one
-        return self
-            .relay_info()
+        self.relay_info()
             .map(|relay_ni| {
                 for did in relay_ni.dial_info_detail_list() {
                     match sequencing {
@@ -112,7 +111,7 @@ impl SignedNodeInfo {
                 }
                 false
             })
-            .unwrap_or_default();
+            .unwrap_or_default()
     }
 
     #[cfg(feature = "geolocation")]

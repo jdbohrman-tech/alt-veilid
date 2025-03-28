@@ -409,26 +409,20 @@ Core Debug Commands:
                 let ipc_path_opt = self.inner_mut().ipc_path.clone();
                 if let Some(ipc_path) = ipc_path_opt {
                     if first {
-                        info!(
-                            "Connecting to server at {}",
-                            ipc_path.to_string_lossy().to_string()
-                        );
+                        info!("Connecting to server at {}", ipc_path.to_string_lossy());
                         self.set_connection_state(ConnectionState::RetryingIPC(
                             ipc_path.clone(),
                             SystemTime::now(),
                         ));
                     } else {
-                        debug!(
-                            "Retrying connection to {}",
-                            ipc_path.to_string_lossy().to_string()
-                        );
+                        debug!("Retrying connection to {}", ipc_path.to_string_lossy());
                     }
                     let capi = self.capi();
                     let res = capi.ipc_connect(ipc_path.clone()).await;
                     if res.is_ok() {
                         info!(
                             "Connection to server at {} terminated normally",
-                            ipc_path.to_string_lossy().to_string()
+                            ipc_path.to_string_lossy()
                         );
                         break;
                     }

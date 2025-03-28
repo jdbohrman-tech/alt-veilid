@@ -209,7 +209,7 @@ impl RoutingTable {
     }
 
     /////////////////////////////////////
-    /// Initialization
+    // Initialization
 
     /// Called to initialize the routing table after it is created
     async fn init_async(&self) -> EyreResult<()> {
@@ -517,7 +517,7 @@ impl RoutingTable {
     }
 
     /////////////////////////////////////
-    /// Locked operations
+    // Locked operations
 
     pub fn routing_domain_for_address(&self, address: Address) -> Option<RoutingDomain> {
         self.inner.read().routing_domain_for_address(address)

@@ -1337,12 +1337,12 @@ impl RoutingTableInner {
             }
 
             // reliable nodes come first, pessimistically treating our own node as unreliable
-            let ra = a_entry.as_ref().map_or(false, |x| {
-                x.with_inner(|x| x.check_unreliable(cur_ts).is_none())
-            });
-            let rb = b_entry.as_ref().map_or(false, |x| {
-                x.with_inner(|x| x.check_unreliable(cur_ts).is_none())
-            });
+            let ra = a_entry
+                .as_ref()
+                .is_some_and(|x| x.with_inner(|x| x.check_unreliable(cur_ts).is_none()));
+            let rb = b_entry
+                .as_ref()
+                .is_some_and(|x| x.with_inner(|x| x.check_unreliable(cur_ts).is_none()));
             if ra != rb {
                 if ra {
                     return core::cmp::Ordering::Less;

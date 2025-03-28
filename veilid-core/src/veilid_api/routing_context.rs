@@ -234,7 +234,7 @@ impl RoutingContext {
     }
 
     ///////////////////////////////////
-    /// DHT Records
+    // DHT Records
 
     /// Deterministicly builds the record key for a given schema and owner public key
     #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), ret, err)]

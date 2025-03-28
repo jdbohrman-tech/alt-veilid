@@ -293,7 +293,7 @@ pub struct WindowsInterfacesIterator<'a> {
     _phantom: std::marker::PhantomData<&'a u8>,
 }
 
-impl<'a> Iterator for WindowsInterfacesIterator<'a> {
+impl Iterator for WindowsInterfacesIterator<'_> {
     type Item = IpAdapterAddresses;
 
     #[allow(unsafe_code)]

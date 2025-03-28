@@ -53,7 +53,7 @@ where
     }
 }
 
-impl<'a, F, Out> VisitOutput<Out> for FmtStripVisitor<'a, F, Out>
+impl<F, Out> VisitOutput<Out> for FmtStripVisitor<'_, F, Out>
 where
     F: Visit + VisitOutput<Out>,
 {
@@ -70,7 +70,7 @@ where
     }
 }
 
-impl<'a, F, Out> Visit for FmtStripVisitor<'a, F, Out>
+impl<F, Out> Visit for FmtStripVisitor<'_, F, Out>
 where
     F: Visit + VisitOutput<Out>,
 {

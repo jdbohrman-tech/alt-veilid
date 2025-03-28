@@ -207,7 +207,7 @@ impl RPCProcessor {
     }
 
     /////////////////////////////////////
-    /// Initialization
+    // Initialization
 
     #[expect(clippy::unused_async)]
     async fn init_async(&self) -> EyreResult<()> {

@@ -30,7 +30,7 @@ impl<'a> RoutingDomainEditorLocalNetwork<'a> {
     }
 }
 
-impl<'a> RoutingDomainEditorCommonTrait for RoutingDomainEditorLocalNetwork<'a> {
+impl RoutingDomainEditorCommonTrait for RoutingDomainEditorLocalNetwork<'_> {
     #[instrument(level = "debug", skip(self))]
     fn clear_dial_info_details(
         &mut self,

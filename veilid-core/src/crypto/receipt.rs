@@ -3,6 +3,11 @@ use super::*;
 use crate::*;
 use core::convert::TryInto;
 
+pub const MAX_RECEIPT_SIZE: usize = 1380;
+pub const MAX_EXTRA_DATA_SIZE: usize = MAX_RECEIPT_SIZE - MIN_RECEIPT_SIZE; // 1250
+pub const MIN_RECEIPT_SIZE: usize = 130;
+pub const RECEIPT_MAGIC: &[u8; 3] = b"RCP";
+
 /// Out-of-band receipts are versioned along with envelope versions
 ///
 /// These are the formats for the on-the-wire serialization performed by this module
@@ -26,12 +31,6 @@ use core::convert::TryInto;
 ///     extra_data: [u8; ??],        // 0x42: Extra data is appended (arbitrary extra data, not encrypted by receipt itself, maximum size is 1250 bytes)
 ///     signature: [u8; 64],         // 0x?? (end-0x40): Signature of the entire receipt including header and extra data is appended to the packet
 /// }
-
-pub const MAX_RECEIPT_SIZE: usize = 1380;
-pub const MAX_EXTRA_DATA_SIZE: usize = MAX_RECEIPT_SIZE - MIN_RECEIPT_SIZE; // 1250
-pub const MIN_RECEIPT_SIZE: usize = 130;
-pub const RECEIPT_MAGIC: &[u8; 3] = b"RCP";
-
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Receipt {
     version: u8,

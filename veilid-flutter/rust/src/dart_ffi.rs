@@ -209,7 +209,7 @@ pub extern "C" fn initialize_veilid_flutter(
 }
 
 //////////////////////////////////////////////////////////////////////////////////
-/// C-compatible FFI Functions
+// C-compatible FFI Functions
 
 #[no_mangle]
 #[instrument]

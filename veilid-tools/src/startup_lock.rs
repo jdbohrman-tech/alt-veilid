@@ -22,7 +22,7 @@ pub struct StartupLockGuard<'a> {
     success_value: bool,
 }
 
-impl<'a> StartupLockGuard<'a> {
+impl StartupLockGuard<'_> {
     /// Call this function at the end of a successful startup or shutdown
     /// operation to switch the state of the StartupLock.
     pub fn success(mut self) {

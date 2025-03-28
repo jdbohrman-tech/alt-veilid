@@ -351,7 +351,7 @@ impl Network {
         // Add static public dialinfo if it's configured
         if let Some(url) = url.as_ref() {
             let mut split_url = SplitUrl::from_str(url).wrap_err("couldn't split url")?;
-            if split_url.scheme.to_ascii_lowercase() != "ws" {
+            if !split_url.scheme.eq_ignore_ascii_case("ws") {
                 bail!("WS URL must use 'ws://' scheme");
             }
             "ws".clone_into(&mut split_url.scheme);
@@ -478,7 +478,7 @@ impl Network {
         if let Some(url) = url.as_ref() {
             // Add static public dialinfo if it's configured
             let mut split_url = SplitUrl::from_str(url)?;
-            if split_url.scheme.to_ascii_lowercase() != "wss" {
+            if !split_url.scheme.eq_ignore_ascii_case("wss") {
                 bail!("WSS URL must use 'wss://' scheme");
             }
             "wss".clone_into(&mut split_url.scheme);

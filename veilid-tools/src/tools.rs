@@ -465,7 +465,7 @@ struct AlignToEight([u8; 8]);
 /// Ensure you immediately initialize this vector as it could contain sensitive data
 #[must_use]
 pub unsafe fn aligned_8_u8_vec_uninit(n_bytes: usize) -> Vec<u8> {
-    let n_units = (n_bytes + mem::size_of::<AlignToEight>() - 1) / mem::size_of::<AlignToEight>();
+    let n_units = n_bytes.div_ceil(mem::size_of::<AlignToEight>());
     let mut aligned: Vec<AlignToEight> = Vec::with_capacity(n_units);
     let ptr = aligned.as_mut_ptr();
     let cap_units = aligned.capacity();

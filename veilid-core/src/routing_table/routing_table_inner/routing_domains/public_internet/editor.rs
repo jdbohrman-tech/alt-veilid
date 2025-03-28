@@ -41,7 +41,7 @@ impl<'a> RoutingDomainEditorPublicInternet<'a> {
     }
 }
 
-impl<'a> RoutingDomainEditorCommonTrait for RoutingDomainEditorPublicInternet<'a> {
+impl RoutingDomainEditorCommonTrait for RoutingDomainEditorPublicInternet<'_> {
     #[instrument(level = "debug", skip(self))]
     fn clear_dial_info_details(
         &mut self,

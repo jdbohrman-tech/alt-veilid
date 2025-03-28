@@ -190,7 +190,7 @@ impl VeilidRoutingContext {
     }
 
     ///////////////////////////////////
-    /// DHT Records
+    // DHT Records
 
     /// Deterministicly builds the record key for a given schema and owner public key
     #[allow(clippy::unused_async)]

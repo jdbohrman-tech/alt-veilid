@@ -50,7 +50,7 @@ pub struct VeilidComponentGuard<'a, T: VeilidComponent + Send + Sync + 'static> 
     _phantom: core::marker::PhantomData<&'a T>,
 }
 
-impl<'a, T> core::ops::Deref for VeilidComponentGuard<'a, T>
+impl<T> core::ops::Deref for VeilidComponentGuard<'_, T>
 where
     T: VeilidComponent + Send + Sync + 'static,
 {

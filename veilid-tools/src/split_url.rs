@@ -101,7 +101,7 @@ fn url_decode<S: AsRef<str>>(s: S) -> Result<String, SplitUrlError> {
             if (i + 1) >= end {
                 return Err(SplitUrlError::new("Invalid URL encoding"));
             }
-            b = hex_decode(url_bytes[i])? << 4 | hex_decode(url_bytes[i + 1])?;
+            b = (hex_decode(url_bytes[i])? << 4) | hex_decode(url_bytes[i + 1])?;
             i += 2;
         }
         dec_bytes.push(b);

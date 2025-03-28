@@ -63,7 +63,7 @@ pub struct IpcIncoming<'a> {
     internal: Incoming<'a>,
 }
 
-impl<'a> Drop for IpcIncoming<'a> {
+impl Drop for IpcIncoming<'_> {
     fn drop(&mut self) {
         // Clean up IPC path
         if let Err(e) = std::fs::remove_file(&self.path) {
@@ -72,7 +72,7 @@ impl<'a> Drop for IpcIncoming<'a> {
     }
 }
 
-impl<'a> Stream for IpcIncoming<'a> {
+impl Stream for IpcIncoming<'_> {
     type Item = io::Result<IpcStream>;
 
     fn poll_next(
@@ -124,7 +124,7 @@ impl IpcListener {
     }
 
     /// Returns a stream of incoming connections.
-    pub fn incoming<'a>(&'a mut self) -> io::Result<IpcIncoming<'a>> {
+    pub fn incoming(&mut self) -> io::Result<IpcIncoming<'_>> {
         if self.path.is_none() {
             return Err(io::Error::from(io::ErrorKind::NotConnected));
         }

@@ -13,7 +13,7 @@ pub const ADDRESS_CONSISTENCY_DETECTION_COUNT: usize = 5;
 /// Length of consistent/inconsistent result cache for detection
 pub const ADDRESS_CHECK_CACHE_SIZE: usize = 10;
 
-/// Length of consistent/inconsistent result cache for detection
+// /// Length of consistent/inconsistent result cache for detection
 // pub const ADDRESS_CHECK_PEER_COUNT: usize = 256;
 // /// Frequency of address checks
 // pub const PUBLIC_ADDRESS_CHECK_TASK_INTERVAL_SECS: u32 = 60;

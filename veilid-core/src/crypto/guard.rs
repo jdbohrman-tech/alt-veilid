@@ -19,7 +19,7 @@ impl<'a> CryptoSystemGuard<'a> {
     }
 }
 
-impl<'a> core::ops::Deref for CryptoSystemGuard<'a> {
+impl core::ops::Deref for CryptoSystemGuard<'_> {
     type Target = dyn CryptoSystem + Send + Sync;
 
     fn deref(&self) -> &Self::Target {
@@ -39,7 +39,7 @@ async fn yielding<R, T: FnOnce() -> R>(x: T) -> R {
     out
 }
 
-impl<'a> AsyncCryptoSystemGuard<'a> {
+impl AsyncCryptoSystemGuard<'_> {
     // Accessors
     pub fn kind(&self) -> CryptoKind {
         self.guard.kind()
