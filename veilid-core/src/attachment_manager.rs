@@ -81,20 +81,30 @@ impl AttachmentManager {
         health: &RoutingTableHealth,
         config: &VeilidConfigRoutingTable,
     ) -> AttachmentState {
-        if health.reliable_entry_count >= config.limit_over_attached.try_into().unwrap() {
+        if health.reliable_entry_count
+            >= TryInto::<usize>::try_into(config.limit_over_attached).unwrap()
+        {
             return AttachmentState::OverAttached;
         }
-        if health.reliable_entry_count >= config.limit_fully_attached.try_into().unwrap() {
+        if health.reliable_entry_count
+            >= TryInto::<usize>::try_into(config.limit_fully_attached).unwrap()
+        {
             return AttachmentState::FullyAttached;
         }
-        if health.reliable_entry_count >= config.limit_attached_strong.try_into().unwrap() {
+        if health.reliable_entry_count
+            >= TryInto::<usize>::try_into(config.limit_attached_strong).unwrap()
+        {
             return AttachmentState::AttachedStrong;
         }
-        if health.reliable_entry_count >= config.limit_attached_good.try_into().unwrap() {
+        if health.reliable_entry_count
+            >= TryInto::<usize>::try_into(config.limit_attached_good).unwrap()
+        {
             return AttachmentState::AttachedGood;
         }
-        if health.reliable_entry_count >= config.limit_attached_weak.try_into().unwrap()
-            || health.unreliable_entry_count >= config.limit_attached_weak.try_into().unwrap()
+        if health.reliable_entry_count
+            >= TryInto::<usize>::try_into(config.limit_attached_weak).unwrap()
+            || health.unreliable_entry_count
+                >= TryInto::<usize>::try_into(config.limit_attached_weak).unwrap()
         {
             return AttachmentState::AttachedWeak;
         }
