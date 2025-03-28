@@ -16,14 +16,13 @@ pub(crate) struct NodeRefLockMut<
 }
 
 impl<
-        'a,
         N: NodeRefAccessorsTrait
             + NodeRefOperateTrait
             + VeilidComponentRegistryAccessor
             + fmt::Debug
             + fmt::Display
             + Clone,
-    > VeilidComponentRegistryAccessor for NodeRefLockMut<'a, N>
+    > VeilidComponentRegistryAccessor for NodeRefLockMut<'_, N>
 {
     fn registry(&self) -> VeilidComponentRegistry {
         self.nr.registry()
@@ -46,8 +45,8 @@ impl<'a, N: NodeRefAccessorsTrait + NodeRefOperateTrait + fmt::Debug + fmt::Disp
     }
 }
 
-impl<'a, N: NodeRefAccessorsTrait + NodeRefOperateTrait + fmt::Debug + fmt::Display + Clone>
-    NodeRefAccessorsTrait for NodeRefLockMut<'a, N>
+impl<N: NodeRefAccessorsTrait + NodeRefOperateTrait + fmt::Debug + fmt::Display + Clone>
+    NodeRefAccessorsTrait for NodeRefLockMut<'_, N>
 {
     fn entry(&self) -> Arc<BucketEntry> {
         self.nr.entry()
@@ -74,8 +73,8 @@ impl<'a, N: NodeRefAccessorsTrait + NodeRefOperateTrait + fmt::Debug + fmt::Disp
     }
 }
 
-impl<'a, N: NodeRefAccessorsTrait + NodeRefOperateTrait + fmt::Debug + fmt::Display + Clone>
-    NodeRefOperateTrait for NodeRefLockMut<'a, N>
+impl<N: NodeRefAccessorsTrait + NodeRefOperateTrait + fmt::Debug + fmt::Display + Clone>
+    NodeRefOperateTrait for NodeRefLockMut<'_, N>
 {
     fn operate<T, F>(&self, f: F) -> T
     where
@@ -110,21 +109,21 @@ impl<'a, N: NodeRefAccessorsTrait + NodeRefOperateTrait + fmt::Debug + fmt::Disp
     }
 }
 
-impl<'a, N: NodeRefAccessorsTrait + NodeRefOperateTrait + fmt::Debug + fmt::Display + Clone>
-    NodeRefCommonTrait for NodeRefLockMut<'a, N>
+impl<N: NodeRefAccessorsTrait + NodeRefOperateTrait + fmt::Debug + fmt::Display + Clone>
+    NodeRefCommonTrait for NodeRefLockMut<'_, N>
 {
 }
 
-impl<'a, N: NodeRefAccessorsTrait + NodeRefOperateTrait + fmt::Debug + fmt::Display + Clone>
-    fmt::Display for NodeRefLockMut<'a, N>
+impl<N: NodeRefAccessorsTrait + NodeRefOperateTrait + fmt::Debug + fmt::Display + Clone>
+    fmt::Display for NodeRefLockMut<'_, N>
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.nr)
     }
 }
 
-impl<'a, N: NodeRefAccessorsTrait + NodeRefOperateTrait + fmt::Debug + fmt::Display + Clone>
-    fmt::Debug for NodeRefLockMut<'a, N>
+impl<N: NodeRefAccessorsTrait + NodeRefOperateTrait + fmt::Debug + fmt::Display + Clone> fmt::Debug
+    for NodeRefLockMut<'_, N>
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("NodeRefLockMut")

@@ -71,7 +71,7 @@ pub struct IpcIncoming<'a> {
     phantom: std::marker::PhantomData<&'a ()>,
 }
 
-impl<'a> Stream for IpcIncoming<'a> {
+impl Stream for IpcIncoming<'_> {
     type Item = io::Result<IpcStream>;
 
     fn poll_next(
@@ -88,7 +88,7 @@ impl<'a> Stream for IpcIncoming<'a> {
     }
 }
 
-impl<'a> Drop for IpcIncoming<'a> {
+impl Drop for IpcIncoming<'_> {
     fn drop(&mut self) {
         // Clean up IPC path
         if let Err(e) = std::fs::remove_file(&self.path) {

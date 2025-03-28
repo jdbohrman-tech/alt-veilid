@@ -3,6 +3,10 @@ use super::*;
 use crate::*;
 use core::convert::TryInto;
 
+pub const MAX_ENVELOPE_SIZE: usize = 65507;
+pub const MIN_ENVELOPE_SIZE: usize = 0x6A + 0x40; // Header + Signature
+pub const ENVELOPE_MAGIC: &[u8; 3] = b"VLD";
+
 /// Envelopes are versioned
 ///
 /// These are the formats for the on-the-wire serialization performed by this module
@@ -29,11 +33,6 @@ use core::convert::TryInto;
 ///     signature: [u8; 64],         // 0x?? (end-0x40): Signature of the entire envelope including header is appended to the packet
 ///                                  // entire header needs to be included in message digest, relays are not allowed to modify the envelope without invalidating the signature.
 /// }
-
-pub const MAX_ENVELOPE_SIZE: usize = 65507;
-pub const MIN_ENVELOPE_SIZE: usize = 0x6A + 0x40; // Header + Signature
-pub const ENVELOPE_MAGIC: &[u8; 3] = b"VLD";
-
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Envelope {
     version: EnvelopeVersion,

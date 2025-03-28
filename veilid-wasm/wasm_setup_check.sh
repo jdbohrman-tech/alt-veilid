@@ -28,7 +28,6 @@ else
     exit 1
 fi
 
-
 if command -v npm &> /dev/null; then 
     echo '[X] npm is available in the path'
 else
@@ -37,5 +36,22 @@ else
   Or from a package manager: https://nodejs.org/en/download/package-manager'
     exit 1
 fi
+
+if command -v wasm-tools &> /dev/null; then
+    echo '[X] wasm-tools is available in the path'
+else
+    echo -e 'wasm-tools is not available in the path.
+  Install wasm-tools: cargo install wasm-tools'
+    exit 1
+fi
+
+if command -v wasm-bindgen &> /dev/null; then
+    echo '[X] wasm-bindgen is available in the path'
+else
+    echo -e 'wasm-bindgen is not available in the path.
+  Install wasm-bindgen: cargo install wasm-bindgen'
+    exit 1
+fi
+
 
 popd &> /dev/null

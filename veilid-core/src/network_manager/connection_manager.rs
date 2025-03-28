@@ -521,7 +521,7 @@ impl ConnectionManager {
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
-    /// Asynchronous Event Processor
+    // Asynchronous Event Processor
 
     async fn process_connection_manager_event(
         &self,

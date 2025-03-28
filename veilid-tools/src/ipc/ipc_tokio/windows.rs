@@ -121,7 +121,7 @@ pub struct IpcIncoming<'a> {
     phantom: std::marker::PhantomData<&'a ()>,
 }
 
-impl<'t> Stream for IpcIncoming<'t> {
+impl Stream for IpcIncoming<'_> {
     type Item = io::Result<IpcStream>;
 
     fn poll_next<'a>(
