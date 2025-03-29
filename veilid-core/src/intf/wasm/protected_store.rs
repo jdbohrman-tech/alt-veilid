@@ -14,7 +14,7 @@ pub struct ProtectedStore {
 impl_veilid_component!(ProtectedStore);
 
 impl ProtectedStore {
-    pub fn new(registry: VeilidComponentRegistry) -> Self {
+    pub(crate) fn new(registry: VeilidComponentRegistry) -> Self {
         Self { registry }
     }
 

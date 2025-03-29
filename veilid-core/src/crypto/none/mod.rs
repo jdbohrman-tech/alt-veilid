@@ -54,7 +54,7 @@ pub struct CryptoSystemNONE {
 }
 
 impl CryptoSystemNONE {
-    pub fn new(registry: VeilidComponentRegistry) -> Self {
+    pub(crate) fn new(registry: VeilidComponentRegistry) -> Self {
         Self { registry }
     }
 }
