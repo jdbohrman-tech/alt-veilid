@@ -25,7 +25,7 @@ impl BlockStore {
     fn new_inner() -> BlockStoreInner {
         BlockStoreInner {}
     }
-    pub fn new(registry: VeilidComponentRegistry) -> Self {
+    pub(crate) fn new(registry: VeilidComponentRegistry) -> Self {
         Self {
             registry,
             inner: Mutex::new(Self::new_inner()),

@@ -53,7 +53,7 @@ pub struct CryptoSystemVLD0 {
 
 impl CryptoSystemVLD0 {
     #[must_use]
-    pub fn new(registry: VeilidComponentRegistry) -> Self {
+    pub(crate) fn new(registry: VeilidComponentRegistry) -> Self {
         Self { registry }
     }
 }

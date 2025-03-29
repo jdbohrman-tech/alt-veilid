@@ -2,7 +2,7 @@ use super::*;
 
 impl_veilid_log_facility!("registry");
 
-pub trait AsAnyArcSendSync {
+pub(crate) trait AsAnyArcSendSync {
     fn as_any_arc_send_sync(self: Arc<Self>) -> Arc<dyn core::any::Any + Send + Sync>;
 }
 
@@ -12,7 +12,7 @@ impl<T: Send + Sync + 'static> AsAnyArcSendSync for T {
     }
 }
 
-pub trait VeilidComponent:
+pub(crate) trait VeilidComponent:
     AsAnyArcSendSync + VeilidComponentRegistryAccessor + core::fmt::Debug
 {
     fn name(&self) -> &'static str;
@@ -22,7 +22,7 @@ pub trait VeilidComponent:
     fn terminate(&self) -> PinBoxFuture<'_, ()>;
 }
 
-pub trait VeilidComponentRegistryAccessor {
+pub(crate) trait VeilidComponentRegistryAccessor {
     fn registry(&self) -> VeilidComponentRegistry;
 
     fn config(&self) -> VeilidConfig {
@@ -34,25 +34,19 @@ pub trait VeilidComponentRegistryAccessor {
     fn event_bus(&self) -> EventBus {
         self.registry().event_bus.clone()
     }
-    fn namespace(&self) -> &'static str {
-        self.registry().namespace()
-    }
-    fn program_name(&self) -> &'static str {
-        self.registry().program_name()
-    }
     fn log_key(&self) -> &'static str {
         self.registry().log_key()
     }
 }
 
-pub struct VeilidComponentGuard<'a, T: VeilidComponent + Send + Sync + 'static> {
+pub struct VeilidComponentGuard<'a, T: Send + Sync + 'static> {
     component: Arc<T>,
     _phantom: core::marker::PhantomData<&'a T>,
 }
 
 impl<T> core::ops::Deref for VeilidComponentGuard<'_, T>
 where
-    T: VeilidComponent + Send + Sync + 'static,
+    T: Send + Sync + 'static,
 {
     type Target = T;
 
@@ -69,7 +63,7 @@ struct VeilidComponentRegistryInner {
 }
 
 #[derive(Clone, Debug)]
-pub struct VeilidComponentRegistry {
+pub(crate) struct VeilidComponentRegistry {
     inner: Arc<Mutex<VeilidComponentRegistryInner>>,
     config: VeilidConfig,
     namespace: &'static str,
@@ -106,6 +100,7 @@ impl VeilidComponentRegistry {
         inner.mock = true;
     }
 
+    #[expect(dead_code)]
     pub fn namespace(&self) -> &'static str {
         self.namespace
     }

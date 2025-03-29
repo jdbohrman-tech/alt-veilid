@@ -120,7 +120,7 @@ impl Crypto {
         }
     }
 
-    pub fn new(registry: VeilidComponentRegistry) -> Self {
+    pub(crate) fn new(registry: VeilidComponentRegistry) -> Self {
         Self {
             registry: registry.clone(),
             inner: Mutex::new(Self::new_inner()),

@@ -144,7 +144,7 @@ impl VeilidCoreContext {
 
 /////////////////////////////////////////////////////////////////////////////
 
-pub trait RegisteredComponents {
+pub(crate) trait RegisteredComponents {
     fn protected_store<'a>(&self) -> VeilidComponentGuard<'a, ProtectedStore>;
     fn crypto<'a>(&self) -> VeilidComponentGuard<'a, Crypto>;
     fn table_store<'a>(&self) -> VeilidComponentGuard<'a, TableStore>;
