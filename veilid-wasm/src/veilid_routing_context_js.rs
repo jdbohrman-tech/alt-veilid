@@ -379,7 +379,7 @@ impl VeilidRoutingContext {
         let res = routing_context
             .watch_dht_values(key, subkeys, expiration, count)
             .await?;
-        APIResult::Ok(res.to_string())
+        APIResult::Ok(res.as_u64().to_string())
     }
 
     /// Cancels a watch early

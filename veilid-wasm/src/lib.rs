@@ -628,7 +628,7 @@ pub fn routing_context_watch_dht_values(
         let res = routing_context
             .watch_dht_values(key, subkeys, expiration, count)
             .await?;
-        APIResult::Ok(res.to_string())
+        APIResult::Ok(res.as_u64().to_string())
     })
 }
 
