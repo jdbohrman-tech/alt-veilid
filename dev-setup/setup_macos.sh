@@ -146,7 +146,7 @@ $BREW_COMMAND install capnp cmake llvm jq
 rustup target add aarch64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-darwin x86_64-apple-ios wasm32-unknown-unknown aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
 
 # install cargo packages
-cargo install wasm-bindgen-cli wasm-pack cargo-edit wasm-tools
+cargo install wasm-bindgen-cli wasm-pack cargo-edit@0.13.0 wasm-tools
 
 # attempt to install pip packages - this may result in an error, which we will try to catch
 pip3 install --upgrade bumpversion || ( \
