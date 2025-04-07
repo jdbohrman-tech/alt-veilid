@@ -8,8 +8,10 @@ This guide covers setting up environments for core, Flutter/Dart, and Python dev
 
 ## Obtaining the source code
 
+1. Start by [forking] the project
+1. Clone your fork
 ```shell
-git clone https://gitlab.com/veilid/veilid.git
+git clone https://gitlab.com/[USERNAME]/veilid.git
 ```
 
 ## Dependencies
@@ -266,3 +268,5 @@ For each language, perform the listed steps and commit changed files.
 ### WASM
 
 1. Update sources in `veilid-wasm/src`
+
+[forking]:https://docs.gitlab.com/ee/user/project/repository/forking_workflow.html
