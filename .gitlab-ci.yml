@@ -70,13 +70,12 @@ build_cache:
     -   echo "No need to rebuild"
     - fi
   rules:
-    - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/
+    - if: $CI_COMMIT_MESSAGE =~ /\[ci dryrun]/ || $IS_NIGHTLY == "true"
       when: never
-    - if: $IS_NIGHTLY == "true"
-      when: never
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_PIPELINE_SOURCE == "push"
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - veilid-*/**/*
+        - '**/*[Cc]argo*'
 
 
 # Runs a basic unit test build, this task will use the `build-cache:latest` as set up in the projects Container Registry
@@ -88,12 +87,7 @@ test_build:
     - earthly --use-inline-cache +unit-tests-linux --BASE=container $project_args
   resource_group: test
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      changes:
-        - veilid-*/**/*
-        - '**/*[Cc]argo*'
-      when: always
-    - if: $CI_PIPELINE_SOURCE == "push"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
         - veilid-*/**/*
         - '**/*[Cc]argo*'
