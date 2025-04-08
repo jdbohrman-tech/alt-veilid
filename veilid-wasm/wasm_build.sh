@@ -17,8 +17,8 @@ if [[ "$1" == "release" ]]; then
     ./wasm_remap_paths.sh cargo build --target wasm32-unknown-unknown --release
     mkdir -p $OUTPUTDIR
     wasm-bindgen --out-dir $OUTPUTDIR --target web --weak-refs $INPUTDIR/veilid_wasm.wasm
-    wasm-tools strip $OUTPUTDIR/veilid_wasm_bg.wasm -o $OUTPUTDIR/veilid_wasm_bg.wasm.stripped
-    mv $OUTPUTDIR/veilid_wasm_bg.wasm.stripped $OUTPUTDIR/veilid_wasm_bg.wasm
+    wasm-opt -O --enable-mutable-globals $OUTPUTDIR/veilid_wasm_bg.wasm -o $OUTPUTDIR/veilid_wasm_bg.wasm.optimized
+    mv $OUTPUTDIR/veilid_wasm_bg.wasm.optimized $OUTPUTDIR/veilid_wasm_bg.wasm
 else
     OUTPUTDIR=$SCRIPTDIR/../target/wasm32-unknown-unknown/debug/pkg
     INPUTDIR=$SCRIPTDIR/../target/wasm32-unknown-unknown/debug
