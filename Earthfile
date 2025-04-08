@@ -92,7 +92,7 @@ deps-rust:
             echo "retry #$retry..."; \
             sleep 10; \
         done
-    RUN cargo install wasm-pack wasm-tools --locked
+    RUN cargo install wasm-pack wasm-opt --locked
     RUN cargo install -f wasm-bindgen-cli --locked --version $WASM_BINDGEN_CLI_VERSION
     # Caching tool
     RUN cargo install cargo-chef --locked

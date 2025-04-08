@@ -111,7 +111,7 @@ fi
 rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android wasm32-unknown-unknown
 
 # install cargo packages
-cargo install wasm-bindgen-cli wasm-pack cargo-edit@0.13.0 wasm-tools
+cargo install wasm-bindgen-cli wasm-pack wasm-opt cargo-edit@0.13.0
 
 # install pip packages
 pip3 install --upgrade bumpversion
