@@ -24,9 +24,10 @@ format:
     - cargo fmt --all -- --check --verbose
 
   rules:
-    - if: $CI_COMMIT_TAG
-      when: never
-    - when: always
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - veilid-*/**/*.rs #Should fire when rust source files are changed
+        - '**/*[Cc]argo*'
 
 # base earthly setup for jobs
 .base:
@@ -99,11 +100,7 @@ semgrep:
   image: semgrep/semgrep
 
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"  # Include all merge requests
-    - if: $CI_PIPELINE_SOURCE == "push"  # Include all commits
-    - if: $CI_PIPELINE_SOURCE == "schedule"  # Optionally include scheduled pipelines
-    - when: always  # Ensure it runs if the pipeline is triggered for any other reason
-
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
   variables:
     # Connect to Semgrep AppSec Platform through your SEMGREP_APP_TOKEN.
