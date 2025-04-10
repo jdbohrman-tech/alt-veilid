@@ -531,10 +531,11 @@ impl TableStore {
         let mut inner = self.inner.lock();
         inner.opened.shrink_to_fit();
         if !inner.opened.is_empty() {
-            panic!(
+            veilid_log!(self warn
                 "all open databases should have been closed: {:?}",
                 inner.opened
             );
+            inner.opened.clear();
         }
         inner.all_tables_db = None;
         inner.all_table_names.clear();

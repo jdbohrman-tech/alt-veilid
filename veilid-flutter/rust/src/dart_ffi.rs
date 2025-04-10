@@ -78,13 +78,6 @@ async fn get_veilid_api() -> veilid_core::VeilidAPIResult<veilid_core::VeilidAPI
         .ok_or(veilid_core::VeilidAPIError::NotInitialized)
 }
 
-async fn take_veilid_api() -> veilid_core::VeilidAPIResult<veilid_core::VeilidAPI> {
-    let mut api_lock = VEILID_API.lock().await;
-    api_lock
-        .take()
-        .ok_or(veilid_core::VeilidAPIError::NotInitialized)
-}
-
 /////////////////////////////////////////
 // FFI Helpers
 
@@ -513,7 +506,10 @@ pub extern "C" fn detach(port: i64) {
 pub extern "C" fn shutdown_veilid_core(port: i64) {
     DartIsolateWrapper::new(port).spawn_result(
         async move {
-            let veilid_api = take_veilid_api().await?;
+            let mut api_lock = VEILID_API.lock().await;
+            let veilid_api = api_lock
+                .take()
+                .ok_or(veilid_core::VeilidAPIError::NotInitialized)?;
             veilid_api.shutdown().await;
             APIRESULT_VOID
         }

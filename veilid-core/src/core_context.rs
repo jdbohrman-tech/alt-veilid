@@ -284,7 +284,6 @@ pub async fn api_startup_config(
 
     // Only allow one startup/shutdown per program_name+namespace combination simultaneously
     let _tag_guard = STARTUP_TABLE.lock_tag(init_key.clone()).await;
-
     // See if we have an API started up already
     if INITIALIZED.lock().contains(&init_key) {
         apibail_already_initialized!();
