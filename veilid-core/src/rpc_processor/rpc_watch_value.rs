@@ -1,5 +1,7 @@
 use super::*;
 
+impl_veilid_log_facility!("rpc");
+
 #[derive(Clone, Debug)]
 pub struct WatchValueAnswer {
     pub accepted: bool,
@@ -85,7 +87,7 @@ impl RPCProcessor {
             RPCQuestionDetail::WatchValueQ(Box::new(watch_value_q)),
         );
 
-        veilid_log!(self debug "{}", debug_string);
+        veilid_log!(self debug target: "dht", "{}", debug_string);
 
         let waitable_reply =
             network_result_try!(self.question(dest.clone(), question, None).await?);
@@ -122,13 +124,13 @@ impl RPCProcessor {
                 dest
             );
 
-            veilid_log!(self debug "{}", debug_string_answer);
+            veilid_log!(self debug target: "dht", "{}", debug_string_answer);
 
             let peer_ids: Vec<String> = peers
                 .iter()
                 .filter_map(|p| p.node_ids().get(key.kind).map(|k| k.to_string()))
                 .collect();
-            veilid_log!(self debug "Peers: {:#?}", peer_ids);
+            veilid_log!(self debug target: "dht", "Peers: {:#?}", peer_ids);
         }
 
         // Validate accepted requests
@@ -249,7 +251,7 @@ impl RPCProcessor {
                 watcher
             );
 
-            veilid_log!(self debug "{}", debug_string);
+            veilid_log!(self debug target: "dht", "{}", debug_string);
         }
 
         // Get the nodes that we know about that are closer to the the key than our own node
@@ -268,8 +270,7 @@ impl RPCProcessor {
                 (false, 0, watch_id.unwrap_or_default())
             } else {
                 // Accepted, lets try to watch or cancel it
-
-                let params = WatchParameters {
+                let params = InboundWatchParameters {
                     subkeys: subkeys.clone(),
                     expiration: Timestamp::new(expiration),
                     count,
@@ -280,19 +281,19 @@ impl RPCProcessor {
                 // See if we have this record ourselves, if so, accept the watch
                 let storage_manager = self.storage_manager();
                 let watch_result = network_result_try!(storage_manager
-                    .inbound_watch_value(key, params, watch_id,)
+                    .inbound_watch_value(key, params, watch_id)
                     .await
                     .map_err(RPCError::internal)?);
 
                 // Encode the watch result
                 // Rejections and cancellations are treated the same way by clients
                 let (ret_expiration, ret_watch_id) = match watch_result {
-                    WatchResult::Created { id, expiration } => (expiration.as_u64(), id),
-                    WatchResult::Changed { expiration } => {
+                    InboundWatchResult::Created { id, expiration } => (expiration.as_u64(), id),
+                    InboundWatchResult::Changed { expiration } => {
                         (expiration.as_u64(), watch_id.unwrap_or_default())
                     }
-                    WatchResult::Cancelled => (0, watch_id.unwrap_or_default()),
-                    WatchResult::Rejected => (0, watch_id.unwrap_or_default()),
+                    InboundWatchResult::Cancelled => (0, watch_id.unwrap_or_default()),
+                    InboundWatchResult::Rejected => (0, watch_id.unwrap_or_default()),
                 };
                 (true, ret_expiration, ret_watch_id)
             };
@@ -309,7 +310,7 @@ impl RPCProcessor {
                 msg.header.direct_sender_node_id()
             );
 
-            veilid_log!(self debug "{}", debug_string_answer);
+            veilid_log!(self debug target: "dht", "{}", debug_string_answer);
         }
 
         // Make WatchValue answer

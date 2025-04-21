@@ -450,7 +450,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "0.4.3"
+    version: "0.4.4"
   veilid_test:
     dependency: "direct dev"
     description:

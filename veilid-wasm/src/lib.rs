@@ -626,9 +626,9 @@ pub fn routing_context_watch_dht_values(
         let routing_context = get_routing_context(id, "routing_context_watch_dht_values")?;
 
         let res = routing_context
-            .watch_dht_values(key, subkeys, expiration, count)
+            .watch_dht_values(key, Some(subkeys), Some(expiration), Some(count))
             .await?;
-        APIResult::Ok(res.as_u64().to_string())
+        APIResult::Ok(res)
     })
 }
 
@@ -642,7 +642,7 @@ pub fn routing_context_cancel_dht_watch(id: u32, key: String, subkeys: String) -
 
         let routing_context = get_routing_context(id, "routing_context_cancel_dht_watch")?;
 
-        let res = routing_context.cancel_dht_watch(key, subkeys).await?;
+        let res = routing_context.cancel_dht_watch(key, Some(subkeys)).await?;
         APIResult::Ok(res)
     })
 }
@@ -665,7 +665,7 @@ pub fn routing_context_inspect_dht_record(
         let routing_context = get_routing_context(id, "routing_context_inspect_dht_record")?;
 
         let res = routing_context
-            .inspect_dht_record(key, subkeys, scope)
+            .inspect_dht_record(key, Some(subkeys), scope)
             .await?;
 
         APIResult::Ok(res)

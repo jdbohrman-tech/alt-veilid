@@ -3,8 +3,26 @@ use super::*;
 use core::fmt::Debug;
 use core::hash::Hash;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct AsyncTagLockGuard<T>
+where
+    T: Hash + Eq + Clone + Debug,
+{
+    inner: Arc<AsyncTagLockGuardInner<T>>,
+}
+
+impl<T> AsyncTagLockGuard<T>
+where
+    T: Hash + Eq + Clone + Debug,
+{
+    #[must_use]
+    pub fn tag(&self) -> T {
+        self.inner.tag()
+    }
+}
+
+#[derive(Debug)]
+struct AsyncTagLockGuardInner<T>
 where
     T: Hash + Eq + Clone + Debug,
 {
@@ -13,7 +31,7 @@ where
     guard: Option<AsyncMutexGuardArc<()>>,
 }
 
-impl<T> AsyncTagLockGuard<T>
+impl<T> AsyncTagLockGuardInner<T>
 where
     T: Hash + Eq + Clone + Debug,
 {
@@ -24,9 +42,13 @@ where
             guard: Some(guard),
         }
     }
+
+    fn tag(&self) -> T {
+        self.tag.clone()
+    }
 }
 
-impl<T> Drop for AsyncTagLockGuard<T>
+impl<T> Drop for AsyncTagLockGuardInner<T>
 where
     T: Hash + Eq + Clone + Debug,
 {
@@ -133,7 +155,9 @@ where
         let guard = asyncmutex_lock_arc!(mutex);
 
         // Return the locked guard
-        AsyncTagLockGuard::new(self.clone(), tag, guard)
+        AsyncTagLockGuard {
+            inner: Arc::new(AsyncTagLockGuardInner::new(self.clone(), tag, guard)),
+        }
     }
 
     pub fn try_lock_tag(&self, tag: T) -> Option<AsyncTagLockGuard<T>> {
@@ -160,7 +184,9 @@ where
             }
         };
         // Return guard
-        Some(AsyncTagLockGuard::new(self.clone(), tag, guard))
+        Some(AsyncTagLockGuard {
+            inner: Arc::new(AsyncTagLockGuardInner::new(self.clone(), tag, guard)),
+        })
     }
 }
 

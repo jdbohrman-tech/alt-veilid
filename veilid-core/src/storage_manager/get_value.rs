@@ -6,8 +6,6 @@ impl_veilid_log_facility!("stor");
 struct OutboundGetValueContext {
     /// The latest value of the subkey, may be the value passed in
     pub value: Option<Arc<SignedValueData>>,
-    /// The nodes that have returned the value so far (up to the consensus count)
-    pub value_nodes: Vec<NodeRef>,
     /// The descriptor if we got a fresh one or empty if no descriptor was needed
     pub descriptor: Option<Arc<SignedValueDescriptor>>,
     /// The parsed schema from the descriptor if we have one
@@ -17,7 +15,7 @@ struct OutboundGetValueContext {
 }
 
 /// The result of the outbound_get_value operation
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub(super) struct OutboundGetValueResult {
     /// Fanout result
     pub fanout_result: FanoutResult,
@@ -74,123 +72,132 @@ impl StorageManager {
         // Make do-get-value answer context
         let context = Arc::new(Mutex::new(OutboundGetValueContext {
             value: last_get_result.opt_value,
-            value_nodes: vec![],
             descriptor: last_get_result.opt_descriptor.clone(),
             schema,
-            send_partial_update: false,
+            send_partial_update: true,
         }));
 
         // Routine to call to generate fanout
         let call_routine = {
             let context = context.clone();
             let registry = self.registry();
-            Arc::new(move |next_node: NodeRef| {
-                let context = context.clone();
-                let registry = registry.clone();
-                let last_descriptor = last_get_result.opt_descriptor.clone();
-                Box::pin(async move {
-                    let rpc_processor = registry.rpc_processor();
-                    let gva = network_result_try!(
-                        rpc_processor
-                            .rpc_call_get_value(
-                                Destination::direct(next_node.routing_domain_filtered(routing_domain))
-                                    .with_safety(safety_selection),
-                                key,
-                                subkey,
-                                last_descriptor.map(|x| (*x).clone()),
-                            )
-                            .await?
-                    );
-                    let mut ctx = context.lock();
+            Arc::new(
+                move |next_node: NodeRef| -> PinBoxFutureStatic<FanoutCallResult> {
+                    let context = context.clone();
+                    let registry = registry.clone();
+                    let last_descriptor = last_get_result.opt_descriptor.clone();
+                    Box::pin(async move {
+                        let rpc_processor = registry.rpc_processor();
+                        let gva = match
+                            rpc_processor
+                                .rpc_call_get_value(
+                                    Destination::direct(next_node.routing_domain_filtered(routing_domain))
+                                        .with_safety(safety_selection),
+                                    key,
+                                    subkey,
+                                    last_descriptor.map(|x| (*x).clone()),
+                                )
+                                .await? {
+                                    NetworkResult::Timeout => {
+                                        return Ok(FanoutCallOutput{peer_info_list: vec![], disposition: FanoutCallDisposition::Timeout});
+                                    }
+                                    NetworkResult::ServiceUnavailable(_) |
+                                    NetworkResult::NoConnection(_)  |
+                                    NetworkResult::AlreadyExists(_) |
+                                    NetworkResult::InvalidMessage(_) => {
+                                        return Ok(FanoutCallOutput{peer_info_list: vec![], disposition: FanoutCallDisposition::Invalid});
+                                    }
+                                    NetworkResult::Value(v) => v
+                                };
+                        let mut ctx = context.lock();
 
-                    // Keep the descriptor if we got one. If we had a last_descriptor it will
-                    // already be validated by rpc_call_get_value
-                    if let Some(descriptor) = gva.answer.descriptor {
-                        if ctx.descriptor.is_none() && ctx.schema.is_none() {
-                            let schema = match descriptor.schema() {
-                                Ok(v) => v,
-                                Err(e) => {
-                                    return Ok(NetworkResult::invalid_message(e));
-                                }
-                            };
-                            ctx.schema = Some(schema);
-                            ctx.descriptor = Some(Arc::new(descriptor));
-                        }
-                    }
-
-                    // Keep the value if we got one and it is newer and it passes schema validation
-                    let Some(value) = gva.answer.value else {
-                        // Return peers if we have some
-                        veilid_log!(registry debug target:"network_result", "GetValue returned no value, fanout call returned peers {}", gva.answer.peers.len());
-
-                        return Ok(NetworkResult::value(FanoutCallOutput{peer_info_list: gva.answer.peers}))
-                    };
-
-                    veilid_log!(registry debug "GetValue got value back: len={} seq={}", value.value_data().data().len(), value.value_data().seq());
-
-                    // Ensure we have a schema and descriptor
-                    let (Some(descriptor), Some(schema)) = (&ctx.descriptor, &ctx.schema)
-                    else {
-                        // Got a value but no descriptor for it
-                        // Move to the next node
-                        return Ok(NetworkResult::invalid_message(
-                            "Got value with no descriptor",
-                        ));
-                    };
-
-                    // Validate with schema
-                    if !schema.check_subkey_value_data(
-                        descriptor.owner(),
-                        subkey,
-                        value.value_data(),
-                    ) {
-                        // Validation failed, ignore this value
-                        // Move to the next node
-                        return Ok(NetworkResult::invalid_message(format!(
-                            "Schema validation failed on subkey {}",
-                            subkey
-                        )));
-                    }
-
-                    // If we have a prior value, see if this is a newer sequence number
-                    if let Some(prior_value) = &ctx.value {
-                        let prior_seq = prior_value.value_data().seq();
-                        let new_seq = value.value_data().seq();
-
-                        if new_seq == prior_seq {
-                            // If sequence number is the same, the data should be the same
-                            if prior_value.value_data() != value.value_data() {
-                                // Move to the next node
-                                return Ok(NetworkResult::invalid_message(
-                                    "value data mismatch",
-                                ));
+                        // Keep the descriptor if we got one. If we had a last_descriptor it will
+                        // already be validated by rpc_call_get_value
+                        if let Some(descriptor) = gva.answer.descriptor {
+                            if ctx.descriptor.is_none() && ctx.schema.is_none() {
+                                let schema = match descriptor.schema() {
+                                    Ok(v) => v,
+                                    Err(e) => {
+                                        veilid_log!(registry debug target:"network_result", "GetValue returned an invalid descriptor: {}", e);
+                                        return Ok(FanoutCallOutput{peer_info_list: vec![], disposition: FanoutCallDisposition::Invalid});
+                                    }
+                                };
+                                ctx.schema = Some(schema);
+                                ctx.descriptor = Some(Arc::new(descriptor));
                             }
-                            // Increase the consensus count for the existing value
-                            ctx.value_nodes.push(next_node);
-                        } else if new_seq > prior_seq {
-                            // If the sequence number is greater, start over with the new value
-                            ctx.value = Some(Arc::new(value));
-                            // One node has shown us this value so far
-                            ctx.value_nodes = vec![next_node];
-                            // Send an update since the value changed
-                            ctx.send_partial_update = true;
-                        } else {
-                            // If the sequence number is older, ignore it
                         }
-                    } else {
-                        // If we have no prior value, keep it
-                        ctx.value = Some(Arc::new(value));
-                        // One node has shown us this value so far
-                        ctx.value_nodes = vec![next_node];
-                        // Send an update since the value changed
-                        ctx.send_partial_update = true;
-                    }
-                    // Return peers if we have some
-                    veilid_log!(registry debug target:"network_result", "GetValue fanout call returned peers {}", gva.answer.peers.len());
 
-                    Ok(NetworkResult::value(FanoutCallOutput{peer_info_list: gva.answer.peers}))
-                }.instrument(tracing::trace_span!("outbound_get_value fanout routine"))) as PinBoxFuture<FanoutCallResult>
-            })
+                        // Keep the value if we got one and it is newer and it passes schema validation
+                        let Some(value) = gva.answer.value else {
+                            // Return peers if we have some
+                            veilid_log!(registry debug target:"network_result", "GetValue returned no value, fanout call returned peers {}", gva.answer.peers.len());
+                            return Ok(FanoutCallOutput{peer_info_list: gva.answer.peers, disposition: FanoutCallDisposition::Rejected});
+                        };
+
+                        veilid_log!(registry debug "GetValue got value back: len={} seq={}", value.value_data().data().len(), value.value_data().seq());
+
+                        // Ensure we have a schema and descriptor
+                        let (Some(descriptor), Some(schema)) = (&ctx.descriptor, &ctx.schema)
+                        else {
+                            // Got a value but no descriptor for it
+                            // Move to the next node
+                            return Ok(FanoutCallOutput{peer_info_list: vec![], disposition: FanoutCallDisposition::Invalid});
+                        };
+
+                        // Validate with schema
+                        if !schema.check_subkey_value_data(
+                            descriptor.owner(),
+                            subkey,
+                            value.value_data(),
+                        ) {
+                            // Validation failed, ignore this value
+                            // Move to the next node
+                            return Ok(FanoutCallOutput{peer_info_list: vec![], disposition: FanoutCallDisposition::Invalid});
+                        }
+
+                        // If we have a prior value, see if this is a newer sequence number
+                        let disposition = if let Some(prior_value) = &ctx.value {
+                            let prior_seq = prior_value.value_data().seq();
+                            let new_seq = value.value_data().seq();
+
+                            if new_seq == prior_seq {
+                                // If sequence number is the same, the data should be the same
+                                if prior_value.value_data() != value.value_data() {
+                                    // Value data mismatch means skip this node
+                                    // This is okay because even the conflicting value is signed,
+                                    // so the application just needs to push a newer value
+                                    FanoutCallDisposition::Stale
+                                } else {
+                                    // Increase the consensus count for the existing value
+                                    FanoutCallDisposition::Accepted
+                                }
+                            } else if new_seq > prior_seq {
+                                // If the sequence number is greater, start over with the new value
+                                ctx.value = Some(Arc::new(value));
+                                // Send an update since the value changed
+                                ctx.send_partial_update = true;
+
+                                // Restart the consensus since we have a new value, but
+                                // don't retry nodes we've already seen because they will return
+                                // the same answer
+                                FanoutCallDisposition::AcceptedNewer
+                            } else {
+                                // If the sequence number is older, ignore it
+                                FanoutCallDisposition::Stale
+                            }
+                        } else {
+                            // If we have no prior value, keep it
+                            ctx.value = Some(Arc::new(value));
+                            // No value was returned
+                            FanoutCallDisposition::Accepted
+                        };
+                        // Return peers if we have some
+                        veilid_log!(registry debug target:"network_result", "GetValue fanout call returned peers {}", gva.answer.peers.len());
+
+                        Ok(FanoutCallOutput{peer_info_list: gva.answer.peers, disposition})
+                    }.instrument(tracing::trace_span!("outbound_get_value fanout routine"))) as PinBoxFuture<FanoutCallResult>
+                },
+            )
         };
 
         // Routine to call to check if we're done at each step
@@ -198,37 +205,44 @@ impl StorageManager {
             let context = context.clone();
             let out_tx = out_tx.clone();
             let registry = self.registry();
-            Arc::new(move |_closest_nodes: &[NodeRef]| {
+            Arc::new(move |fanout_result: &FanoutResult| -> bool {
                 let mut ctx = context.lock();
 
-                // send partial update if desired
-                if ctx.send_partial_update {
-                    ctx.send_partial_update = false;
+                match fanout_result.kind {
+                    FanoutResultKind::Incomplete => {
+                        // Send partial update if desired, if we've gotten at least one consensus node
+                        if ctx.send_partial_update && !fanout_result.consensus_nodes.is_empty() {
+                            ctx.send_partial_update = false;
 
-                    // return partial result
-                    let fanout_result = FanoutResult {
-                        kind: FanoutResultKind::Partial,
-                        value_nodes: ctx.value_nodes.clone(),
-                    };
-                    if let Err(e) = out_tx.send(Ok(OutboundGetValueResult {
-                        fanout_result,
-                        get_result: GetResult {
-                            opt_value: ctx.value.clone(),
-                            opt_descriptor: ctx.descriptor.clone(),
-                        },
-                    })) {
-                        veilid_log!(registry debug "Sending partial GetValue result failed: {}", e);
+                            // Return partial result
+                            let out = OutboundGetValueResult {
+                                fanout_result: fanout_result.clone(),
+                                get_result: GetResult {
+                                    opt_value: ctx.value.clone(),
+                                    opt_descriptor: ctx.descriptor.clone(),
+                                },
+                            };
+                            veilid_log!(registry debug "Sending partial GetValue result: {:?}", out);
+                            if let Err(e) = out_tx.send(Ok(out)) {
+                                veilid_log!(registry debug "Sending partial GetValue result failed: {}", e);
+                            }
+                        }
+                        // Keep going
+                        false
+                    }
+                    FanoutResultKind::Timeout | FanoutResultKind::Exhausted => {
+                        // Signal we're done
+                        true
+                    }
+                    FanoutResultKind::Consensus => {
+                        assert!(
+                            ctx.value.is_some() && ctx.descriptor.is_some(),
+                            "should have gotten a value if we got consensus"
+                        );
+                        // Signal we're done
+                        true
                     }
                 }
-
-                // If we have reached sufficient consensus, return done
-                if ctx.value.is_some()
-                    && ctx.descriptor.is_some()
-                    && ctx.value_nodes.len() >= consensus_count
-                {
-                    return Some(());
-                }
-                None
             })
         };
 
@@ -244,21 +258,16 @@ impl StorageManager {
                         key,
                         key_count,
                         fanout,
+                        consensus_count,
                         timeout_us,
                         capability_fanout_node_info_filter(vec![CAP_DHT]),
                         call_routine,
                         check_done,
                     );
 
-                    let kind = match fanout_call.run(init_fanout_queue).await {
-                        // If we don't finish in the timeout (too much time passed checking for consensus)
-                        TimeoutOr::Timeout => FanoutResultKind::Timeout,
-                        // If we finished with or without consensus (enough nodes returning the same value)
-                        TimeoutOr::Value(Ok(Some(()))) => FanoutResultKind::Finished,
-                        // If we ran out of nodes before getting consensus)
-                        TimeoutOr::Value(Ok(None)) => FanoutResultKind::Exhausted,
-                        // Failed
-                        TimeoutOr::Value(Err(e)) => {
+                    let fanout_result = match fanout_call.run(init_fanout_queue).await {
+                        Ok(v) => v,
+                        Err(e) => {
                             // If we finished with an error, return that
                             veilid_log!(registry debug "GetValue fanout error: {}", e);
                             if let Err(e) = out_tx.send(Err(e.into())) {
@@ -268,20 +277,20 @@ impl StorageManager {
                         }
                     };
 
-                    let ctx = context.lock();
-                    let fanout_result = FanoutResult {
-                        kind,
-                        value_nodes: ctx.value_nodes.clone(),
-                    };
-                    veilid_log!(registry debug "GetValue Fanout: {:?}", fanout_result);
+                    veilid_log!(registry debug "GetValue Fanout: {:#}", fanout_result);
 
-                    if let Err(e) = out_tx.send(Ok(OutboundGetValueResult {
-                        fanout_result,
-                        get_result: GetResult {
-                            opt_value: ctx.value.clone(),
-                            opt_descriptor: ctx.descriptor.clone(),
-                        },
-                    })) {
+                    let out = {
+                        let ctx = context.lock();
+                        OutboundGetValueResult {
+                            fanout_result,
+                            get_result: GetResult {
+                                opt_value: ctx.value.clone(),
+                                opt_descriptor: ctx.descriptor.clone(),
+                            },
+                        }
+                    };
+
+                    if let Err(e) = out_tx.send(Ok(out)) {
                         veilid_log!(registry debug "Sending GetValue result failed: {}", e);
                     }
                 }
@@ -316,18 +325,18 @@ impl StorageManager {
                                 return false;
                             }
                         };
-                        let is_partial = result.fanout_result.kind.is_partial();
+                        let is_incomplete = result.fanout_result.kind.is_incomplete();
                         let value_data = match this.process_outbound_get_value_result(key, subkey, Some(last_seq), result).await {
                             Ok(Some(v)) => v,
                             Ok(None) => {
-                                return is_partial;
+                                return is_incomplete;
                             }
                             Err(e) => {
                                 veilid_log!(this debug "Deferred fanout error: {}", e);
                                 return false;
                             }
                         };
-                        if is_partial {
+                        if is_incomplete {
                             // If more partial results show up, don't send an update until we're done
                             return true;
                         }
@@ -349,7 +358,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "dht", skip_all)]
     pub(super) async fn process_outbound_get_value_result(
         &self,
-        key: TypedKey,
+        record_key: TypedKey,
         subkey: ValueSubkey,
         opt_last_seq: Option<u32>,
         result: get_value::OutboundGetValueResult,
@@ -360,13 +369,20 @@ impl StorageManager {
             return Ok(None);
         };
 
+        // Get cryptosystem
+        let crypto = self.crypto();
+        let Some(vcrypto) = crypto.get(record_key.kind) else {
+            apibail_generic!("unsupported cryptosystem");
+        };
+
         // Keep the list of nodes that returned a value for later reference
         let mut inner = self.inner.lock().await;
 
         Self::process_fanout_results_inner(
             &mut inner,
-            key,
-            core::iter::once((subkey, &result.fanout_result)),
+            &vcrypto,
+            record_key,
+            core::iter::once((ValueSubkeyRangeSet::single(subkey), result.fanout_result)),
             false,
             self.config()
                 .with(|c| c.network.dht.set_value_count as usize),
@@ -376,10 +392,10 @@ impl StorageManager {
         if Some(get_result_value.value_data().seq()) != opt_last_seq {
             Self::handle_set_local_value_inner(
                 &mut inner,
-                key,
+                record_key,
                 subkey,
                 get_result_value.clone(),
-                WatchUpdateMode::UpdateAll,
+                InboundWatchUpdateMode::UpdateAll,
             )
             .await?;
         }

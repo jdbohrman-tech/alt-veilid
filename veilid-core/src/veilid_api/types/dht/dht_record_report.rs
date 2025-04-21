@@ -51,6 +51,20 @@ impl DHTRecordReport {
     pub fn network_seqs(&self) -> &[ValueSeqNum] {
         &self.network_seqs
     }
+    pub fn changed_subkeys(&self) -> ValueSubkeyRangeSet {
+        let mut changed = ValueSubkeyRangeSet::new();
+        for ((sk, lseq), nseq) in self
+            .subkeys
+            .iter()
+            .zip(self.local_seqs.iter())
+            .zip(self.network_seqs.iter())
+        {
+            if nseq > lseq {
+                changed.insert(sk);
+            }
+        }
+        changed
+    }
 }
 
 impl fmt::Debug for DHTRecordReport {
@@ -65,9 +79,21 @@ impl fmt::Debug for DHTRecordReport {
         )
     }
 }
+
 /// DHT Record Report Scope
 #[derive(
-    Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema,
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    Default,
 )]
 #[cfg_attr(
     all(target_arch = "wasm32", target_os = "unknown"),
@@ -77,6 +103,7 @@ impl fmt::Debug for DHTRecordReport {
 pub enum DHTReportScope {
     /// Return only the local copy sequence numbers
     /// Useful for seeing what subkeys you have locally and which ones have not been retrieved
+    #[default]
     Local = 0,
     /// Return the local sequence numbers and the network sequence numbers with GetValue fanout parameters
     /// Provides an independent view of both the local sequence numbers and the network sequence numbers for nodes that
@@ -99,9 +126,4 @@ pub enum DHTReportScope {
     /// This simulates a SetValue with the initial sequence number incremented by 1, like a real SetValue would when updating.
     /// Useful for determine which subkeys would change on an SetValue operation
     UpdateSet = 4,
-}
-impl Default for DHTReportScope {
-    fn default() -> Self {
-        Self::Local
-    }
 }

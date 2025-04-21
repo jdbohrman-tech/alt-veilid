@@ -117,7 +117,7 @@ impl RouterServer {
         let stop_token = stop_source.token();
 
         let this = self.clone();
-        let listener_fut = system_boxed(async move {
+        let listener_fut = Box::pin(async move {
             loop {
                 // Wait for a new connection
                 match listener.accept().timeout_at(stop_token.clone()).await {
@@ -125,7 +125,7 @@ impl RouterServer {
                         let conn = conn.compat();
                         // Register a connection processing inbound receiver
                         let this2 = this.clone();
-                        let inbound_receiver_fut = system_boxed(async move {
+                        let inbound_receiver_fut = Box::pin(async move {
                             let (reader, writer) = conn.split();
 
                             this2.process_connection(reader, writer).await
@@ -178,7 +178,7 @@ impl RouterServer {
         let stop_token = stop_source.token();
 
         let this = self.clone();
-        let listener_fut = system_boxed(async move {
+        let listener_fut = Box::pin(async move {
             loop {
                 // Wait for a new connection
                 match listener.accept().timeout_at(stop_token.clone()).await {
@@ -188,7 +188,7 @@ impl RouterServer {
                             let ws = WsStream::new(s);
                             // Register a connection processing inbound receiver
                             let this2 = this.clone();
-                            let inbound_receiver_fut = system_boxed(async move {
+                            let inbound_receiver_fut = Box::pin(async move {
                                 let (reader, writer) = ws.split();
                                 this2.process_connection(reader, writer).await
                             });
@@ -233,7 +233,7 @@ impl RouterServer {
         let (local_outbound_sender, local_outbound_receiver) = flume::unbounded();
 
         let this = self.clone();
-        let inbound_receiver_fut = system_boxed(async move {
+        let inbound_receiver_fut = Box::pin(async move {
             local_inbound_receiver
                 .into_stream()
                 .for_each(|cmd| async {
@@ -316,7 +316,7 @@ impl RouterServer {
         let framed_writer = FramedWrite::new(writer, BytesCodec);
 
         let (outbound_sender, outbound_receiver) = flume::unbounded();
-        let outbound_fut = system_boxed(
+        let outbound_fut = Box::pin(
             outbound_receiver
                 .into_stream()
                 .map(|command| {
@@ -327,7 +327,7 @@ impl RouterServer {
                 .forward(framed_writer),
         );
 
-        let inbound_fut = system_boxed(framed_reader.try_for_each(|x| async {
+        let inbound_fut = Box::pin(framed_reader.try_for_each(|x| async {
             let x = x;
             let cmd = from_bytes::<ServerProcessorCommand>(&x).map_err(io::Error::other)?;
 

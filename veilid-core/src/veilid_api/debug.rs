@@ -1474,6 +1474,11 @@ impl VeilidAPI {
                 out += &storage_manager.debug_opened_records().await;
                 out
             }
+            "watched" => {
+                let mut out = "Watched Records:\n".to_string();
+                out += &storage_manager.debug_watched_records().await;
+                out
+            }
             "offline" => {
                 let mut out = "Offline Records:\n".to_string();
                 out += &storage_manager.debug_offline_records().await;
@@ -1488,6 +1493,11 @@ impl VeilidAPI {
         // <local|remote> [bytes]
         let registry = self.core_context()?.registry();
         let storage_manager = registry.storage_manager();
+
+        self.with_debug_cache(|dc| {
+            dc.opened_record_contexts.clear();
+        });
+        storage_manager.close_all_records().await?;
 
         let scope = get_debug_argument_at(&args, 1, "debug_record_purge", "scope", get_string)?;
         let bytes = get_debug_argument_at(&args, 2, "debug_record_purge", "bytes", get_number).ok();
@@ -1786,13 +1796,14 @@ impl VeilidAPI {
             get_subkeys,
         )
         .ok()
+        .map(Some)
         .unwrap_or_else(|| {
             rest_defaults = true;
-            Default::default()
+            None
         });
 
-        let expiration = if rest_defaults {
-            Default::default()
+        let opt_expiration = if rest_defaults {
+            None
         } else {
             get_debug_argument_at(
                 &args,
@@ -1802,14 +1813,20 @@ impl VeilidAPI {
                 parse_duration,
             )
             .ok()
-            .map(|dur| dur + get_timestamp())
+            .map(|dur| {
+                if dur == 0 {
+                    None
+                } else {
+                    Some(Timestamp::new(dur + get_timestamp()))
+                }
+            })
             .unwrap_or_else(|| {
                 rest_defaults = true;
-                Default::default()
+                None
             })
         };
         let count = if rest_defaults {
-            u32::MAX
+            None
         } else {
             get_debug_argument_at(
                 &args,
@@ -1819,15 +1836,16 @@ impl VeilidAPI {
                 get_number,
             )
             .ok()
+            .map(Some)
             .unwrap_or_else(|| {
                 rest_defaults = true;
-                u32::MAX
+                Some(u32::MAX)
             })
         };
 
         // Do a record watch
-        let ts = match rc
-            .watch_dht_values(key, subkeys, Timestamp::new(expiration), count)
+        let active = match rc
+            .watch_dht_values(key, subkeys, opt_expiration, count)
             .await
         {
             Err(e) => {
@@ -1835,10 +1853,10 @@ impl VeilidAPI {
             }
             Ok(v) => v,
         };
-        if ts.as_u64() == 0 {
+        if !active {
             return Ok("Failed to watch value".to_owned());
         }
-        Ok(format!("Success: expiration={:?}", display_ts(ts.as_u64())))
+        Ok("Success".to_owned())
     }
 
     async fn debug_record_cancel(&self, args: Vec<String>) -> VeilidAPIResult<String> {
@@ -1858,8 +1876,7 @@ impl VeilidAPI {
             "subkeys",
             get_subkeys,
         )
-        .ok()
-        .unwrap_or_default();
+        .ok();
 
         // Do a record watch cancel
         let still_active = match rc.cancel_dht_watch(key, subkeys).await {
@@ -1906,18 +1923,18 @@ impl VeilidAPI {
             })
         };
 
-        let subkeys = get_debug_argument_at(
-            &args,
-            2 + opt_arg_add,
-            "debug_record_inspect",
-            "subkeys",
-            get_subkeys,
-        )
-        .ok()
-        .unwrap_or_else(|| {
-            rest_defaults = true;
-            Default::default()
-        });
+        let subkeys = if rest_defaults {
+            None
+        } else {
+            get_debug_argument_at(
+                &args,
+                2 + opt_arg_add,
+                "debug_record_inspect",
+                "subkeys",
+                get_subkeys,
+            )
+            .ok()
+        };
 
         // Do a record inspect
         let report = match rc.inspect_dht_record(key, subkeys, scope).await {
@@ -2115,7 +2132,7 @@ RPC Operations:
     appreply [#id] <data> - Reply to an 'App Call' RPC received by this node
 
 DHT Operations:
-    record list <local|remote|opened|offline> - display the dht records in the store
+    record list <local|remote|opened|offline|watched> - display the dht records in the store
            purge <local|remote> [bytes] - clear all dht records optionally down to some total size
            create <dhtschema> [<cryptokind> [<safety>]] - create a new dht record
            open <key>[+<safety>] [<writer>] - open an existing dht record

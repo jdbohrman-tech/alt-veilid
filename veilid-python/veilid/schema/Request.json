@@ -469,20 +469,23 @@
         {
           "type": "object",
           "required": [
-            "count",
-            "expiration",
             "key",
-            "rc_op",
-            "subkeys"
+            "rc_op"
           ],
           "properties": {
             "count": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "uint32",
               "minimum": 0.0
             },
             "expiration": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "key": {
               "type": "string"
@@ -494,7 +497,10 @@
               ]
             },
             "subkeys": {
-              "type": "array",
+              "type": [
+                "array",
+                "null"
+              ],
               "items": {
                 "type": "array",
                 "items": [
@@ -519,8 +525,7 @@
           "type": "object",
           "required": [
             "key",
-            "rc_op",
-            "subkeys"
+            "rc_op"
           ],
           "properties": {
             "key": {
@@ -533,7 +538,10 @@
               ]
             },
             "subkeys": {
-              "type": "array",
+              "type": [
+                "array",
+                "null"
+              ],
               "items": {
                 "type": "array",
                 "items": [
@@ -558,9 +566,7 @@
           "type": "object",
           "required": [
             "key",
-            "rc_op",
-            "scope",
-            "subkeys"
+            "rc_op"
           ],
           "properties": {
             "key": {
@@ -573,10 +579,18 @@
               ]
             },
             "scope": {
-              "$ref": "#/definitions/DHTReportScope"
+              "default": "Local",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/DHTReportScope"
+                }
+              ]
             },
             "subkeys": {
-              "type": "array",
+              "type": [
+                "array",
+                "null"
+              ],
               "items": {
                 "type": "array",
                 "items": [

@@ -1,6 +1,8 @@
 use super::*;
 use crate::storage_manager::{SignedValueData, SignedValueDescriptor};
 
+impl_veilid_log_facility!("rpc");
+
 #[derive(Clone, Debug)]
 pub struct GetValueAnswer {
     pub value: Option<SignedValueData>,
@@ -78,7 +80,7 @@ impl RPCProcessor {
             crypto_kind: vcrypto.kind(),
         });
 
-        veilid_log!(self debug "{}", debug_string);
+        veilid_log!(self debug target: "dht", "{}", debug_string);
 
         let waitable_reply = network_result_try!(
             self.question(dest.clone(), question, Some(question_context))
@@ -128,13 +130,13 @@ impl RPCProcessor {
                 dest
             );
 
-            veilid_log!(self debug "{}", debug_string_answer);
+            veilid_log!(self debug target: "dht", "{}", debug_string_answer);
 
             let peer_ids: Vec<String> = peers
                 .iter()
                 .filter_map(|p| p.node_ids().get(key.kind).map(|k| k.to_string()))
                 .collect();
-            veilid_log!(self debug "Peers: {:#?}", peer_ids);
+            veilid_log!(self debug target: "dht", "Peers: {:#?}", peer_ids);
         }
 
         // Validate peers returned are, in fact, closer to the key than the node we sent this to
@@ -228,7 +230,7 @@ impl RPCProcessor {
                 msg.header.direct_sender_node_id()
             );
 
-            veilid_log!(self debug "{}", debug_string);
+            veilid_log!(self debug target: "dht", "{}", debug_string);
         }
 
         // See if we would have accepted this as a set
@@ -278,7 +280,7 @@ impl RPCProcessor {
                 msg.header.direct_sender_node_id()
             );
 
-            veilid_log!(self debug "{}", debug_string_answer);
+            veilid_log!(self debug target: "dht", "{}", debug_string_answer);
         }
 
         // Make GetValue answer

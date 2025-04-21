@@ -92,17 +92,17 @@ class RoutingContext(ABC):
     async def watch_dht_values(
         self,
         key: types.TypedKey,
-        subkeys: list[tuple[types.ValueSubkey, types.ValueSubkey]],
-        expiration: types.Timestamp = 0,
+        subkeys: list[tuple[types.ValueSubkey, types.ValueSubkey]] = [],
+        expiration: types.Timestamp = types.Timestamp(0),
         count: int = 0xFFFFFFFF,
-    ) -> types.Timestamp:
+    ) -> bool:
         pass
 
     @abstractmethod
     async def cancel_dht_watch(
         self,
         key: types.TypedKey,
-        subkeys: list[tuple[types.ValueSubkey, types.ValueSubkey]],
+        subkeys: list[tuple[types.ValueSubkey, types.ValueSubkey]] = [],
     ) -> bool:
         pass
 

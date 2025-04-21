@@ -353,8 +353,8 @@ struct OperationSetValueA @0x9378d0732dc95be2 {
 
 struct OperationWatchValueQ @0xf9a5a6c547b9b228 {
     key                     @0  :TypedKey;              # key for value to watch
-    subkeys                 @1  :List(SubkeyRange);     # subkey range to watch (up to 512 subranges), if empty this implies 0..=UINT32_MAX
-    expiration              @2  :UInt64;                # requested timestamp when this watch will expire in usec since epoch (can be return less, 0 for max)
+    subkeys                 @1  :List(SubkeyRange);     # subkey range to watch (up to 512 subranges). An empty range here should not be specified unless cancelling a watch (count=0).
+    expiration              @2  :UInt64;                # requested timestamp when this watch will expire in usec since epoch (watch can return less, 0 for max)
     count                   @3  :UInt32;                # requested number of changes to watch for (0 = cancel, 1 = single shot, 2+ = counter, UINT32_MAX = continuous)
     watchId                 @4  :UInt64;                # if 0, request a new watch. if >0, existing watch id 
     watcher                 @5  :PublicKey;             # the watcher performing the watch, can be the owner or a schema member, or a generated anonymous watch keypair

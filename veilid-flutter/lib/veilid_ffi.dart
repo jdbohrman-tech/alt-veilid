@@ -294,10 +294,11 @@ Future<T> processFuturePlain<T>(Future<dynamic> future) async =>
                 'Unexpected async return message type: ${list[0]}');
           }
       }
+      // Any errors at all from Veilid need to be caught
       // ignore: inference_failure_on_untyped_parameter
-    }).catchError((e) {
+    }).catchError((e, s) {
       // Wrap all other errors in VeilidAPIExceptionInternal
-      throw VeilidAPIExceptionInternal(e.toString());
+      throw VeilidAPIExceptionInternal('$e\nStack Trace:\n$s');
     }, test: (e) => e is! VeilidAPIException);
 
 Future<T> processFutureJson<T>(
@@ -332,10 +333,11 @@ Future<T> processFutureJson<T>(
                 'Unexpected async return message type: ${list[0]}');
           }
       }
+      // Any errors at all from Veilid need to be caught
       // ignore: inference_failure_on_untyped_parameter
-    }).catchError((e) {
+    }).catchError((e, s) {
       // Wrap all other errors in VeilidAPIExceptionInternal
-      throw VeilidAPIExceptionInternal(e.toString());
+      throw VeilidAPIExceptionInternal('$e\nStack Trace:\n$s');
     }, test: (e) => e is! VeilidAPIException);
 
 Future<T?> processFutureOptJson<T>(
@@ -372,10 +374,11 @@ Future<T?> processFutureOptJson<T>(
                 'Unexpected async return message type: ${list[0]}');
           }
       }
+      // Any errors at all from Veilid need to be caught
       // ignore: inference_failure_on_untyped_parameter
-    }).catchError((e) {
+    }).catchError((e, s) {
       // Wrap all other errors in VeilidAPIExceptionInternal
-      throw VeilidAPIExceptionInternal(e.toString());
+      throw VeilidAPIExceptionInternal('$e\nStack Trace:\n$s');
     }, test: (e) => e is! VeilidAPIException);
 
 Future<void> processFutureVoid(Future<dynamic> future) async =>
@@ -414,10 +417,11 @@ Future<void> processFutureVoid(Future<dynamic> future) async =>
                 'Unexpected async return message type: ${list[0]}');
           }
       }
+      // Any errors at all from Veilid need to be caught
       // ignore: inference_failure_on_untyped_parameter
-    }).catchError((e) {
+    }).catchError((e, s) {
       // Wrap all other errors in VeilidAPIExceptionInternal
-      throw VeilidAPIExceptionInternal(e.toString());
+      throw VeilidAPIExceptionInternal('$e\nStack Trace:\n$s');
     }, test: (e) => e is! VeilidAPIException);
 
 Future<Stream<T>> processFutureStream<T>(
@@ -457,10 +461,11 @@ Future<Stream<T>> processFutureStream<T>(
                 'Unexpected async return message type: ${list[0]}');
           }
       }
+      // Any errors at all from Veilid need to be caught
       // ignore: inference_failure_on_untyped_parameter
-    }).catchError((e) {
+    }).catchError((e, s) {
       // Wrap all other errors in VeilidAPIExceptionInternal
-      throw VeilidAPIExceptionInternal(e.toString());
+      throw VeilidAPIExceptionInternal('$e\nStack Trace:\n$s');
     }, test: (e) => e is! VeilidAPIException);
 
 Stream<T> processStreamJson<T>(
@@ -703,7 +708,7 @@ class VeilidRoutingContextFFI extends VeilidRoutingContext {
   }
 
   @override
-  Future<Timestamp> watchDHTValues(TypedKey key,
+  Future<bool> watchDHTValues(TypedKey key,
       {List<ValueSubkeyRange>? subkeys,
       Timestamp? expiration,
       int? count}) async {
@@ -720,9 +725,8 @@ class VeilidRoutingContextFFI extends VeilidRoutingContext {
     final sendPort = recvPort.sendPort;
     _ctx.ffi._routingContextWatchDHTValues(sendPort.nativePort, _ctx.id!,
         nativeKey, nativeSubkeys, nativeExpiration, count);
-    final actualExpiration = Timestamp(
-        value: BigInt.from(await processFuturePlain<int>(recvPort.first)));
-    return actualExpiration;
+    final active = await processFuturePlain<bool>(recvPort.first);
+    return active;
   }
 
   @override
@@ -738,8 +742,8 @@ class VeilidRoutingContextFFI extends VeilidRoutingContext {
     final sendPort = recvPort.sendPort;
     _ctx.ffi._routingContextCancelDHTWatch(
         sendPort.nativePort, _ctx.id!, nativeKey, nativeSubkeys);
-    final cancelled = await processFuturePlain<bool>(recvPort.first);
-    return cancelled;
+    final active = await processFuturePlain<bool>(recvPort.first);
+    return active;
   }
 
   @override

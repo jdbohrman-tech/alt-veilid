@@ -28,9 +28,9 @@ struct WorkItem {
 
 #[derive(Debug)]
 struct WorkItemResult {
-    key: TypedKey,
+    record_key: TypedKey,
     written_subkeys: ValueSubkeyRangeSet,
-    fanout_results: Vec<(ValueSubkey, FanoutResult)>,
+    fanout_results: Vec<(ValueSubkeyRangeSet, FanoutResult)>,
 }
 
 impl StorageManager {
@@ -74,7 +74,7 @@ impl StorageManager {
                 while let Ok(Ok(res)) = res_rx.recv_async().timeout_at(stop_token.clone()).await {
                     match res {
                         Ok(result) => {
-                            let partial = result.fanout_result.kind.is_partial();
+                            let partial = result.fanout_result.kind.is_incomplete();
                             // Skip partial results in offline subkey write mode
                             if partial {
                                 continue;
@@ -90,7 +90,7 @@ impl StorageManager {
                                     key,
                                     subkey,
                                     result.signed_value_data.clone(),
-                                    WatchUpdateMode::UpdateAll,
+                                    InboundWatchUpdateMode::UpdateAll,
                                 )
                                 .await?;
                             }
@@ -121,7 +121,7 @@ impl StorageManager {
         work_item: WorkItem,
     ) -> EyreResult<WorkItemResult> {
         let mut written_subkeys = ValueSubkeyRangeSet::new();
-        let mut fanout_results = Vec::<(ValueSubkey, FanoutResult)>::new();
+        let mut fanout_results = Vec::<(ValueSubkeyRangeSet, FanoutResult)>::new();
 
         for subkey in work_item.subkeys.iter() {
             if poll!(stop_token.clone()).is_ready() {
@@ -155,11 +155,11 @@ impl StorageManager {
             if !was_offline {
                 written_subkeys.insert(subkey);
             }
-            fanout_results.push((subkey, result.fanout_result));
+            fanout_results.push((ValueSubkeyRangeSet::single(subkey), result.fanout_result));
         }
 
         Ok(WorkItemResult {
-            key: work_item.key,
+            record_key: work_item.key,
             written_subkeys,
             fanout_results,
         })
@@ -192,7 +192,7 @@ impl StorageManager {
         veilid_log!(self debug "Offline write result: {:?}", result);
 
         // Get the offline subkey write record
-        match inner.offline_subkey_writes.entry(result.key) {
+        match inner.offline_subkey_writes.entry(result.record_key) {
             std::collections::hash_map::Entry::Occupied(mut o) => {
                 let finished = {
                     let osw = o.get_mut();
@@ -208,20 +208,24 @@ impl StorageManager {
                     osw.subkeys.is_empty()
                 };
                 if finished {
-                    veilid_log!(self debug "Offline write finished key {}", result.key);
+                    veilid_log!(self debug "Offline write finished key {}", result.record_key);
                     o.remove();
                 }
             }
             std::collections::hash_map::Entry::Vacant(_) => {
-                veilid_log!(self warn "offline write work items should always be on offline_subkey_writes entries that exist: ignoring key {}", result.key);
+                veilid_log!(self warn "offline write work items should always be on offline_subkey_writes entries that exist: ignoring key {}", result.record_key);
             }
         }
 
         // Keep the list of nodes that returned a value for later reference
+        let crypto = self.crypto();
+        let vcrypto = crypto.get(result.record_key.kind).unwrap();
+
         Self::process_fanout_results_inner(
             &mut inner,
-            result.key,
-            result.fanout_results.iter().map(|x| (x.0, &x.1)),
+            &vcrypto,
+            result.record_key,
+            result.fanout_results.into_iter().map(|x| (x.0, x.1)),
             true,
             consensus_count,
         );

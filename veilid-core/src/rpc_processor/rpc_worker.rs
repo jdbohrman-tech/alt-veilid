@@ -3,6 +3,8 @@ use stop_token::future::FutureExt as _;
 
 use super::*;
 
+impl_veilid_log_facility!("rpc");
+
 #[derive(Debug)]
 pub(super) enum RPCWorkerRequestKind {
     Message { message_encoded: MessageEncoded },

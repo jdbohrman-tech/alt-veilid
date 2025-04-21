@@ -691,10 +691,7 @@ impl ConnectionManager {
 
     fn spawn_reconnector(&self, dial_info: DialInfo) {
         let this = self.clone();
-        self.arc.reconnection_processor.add(
-            Box::pin(futures_util::stream::once(async { dial_info })),
-            move |dial_info| {
-                let this = this.clone();
+        self.arc.reconnection_processor.add_future(
                 Box::pin(async move {
                     match this.get_or_create_connection(dial_info.clone()).await {
                         Ok(NetworkResult::Value(conn)) => {
@@ -706,15 +703,11 @@ impl ConnectionManager {
                         Err(e) => {
                             veilid_log!(this debug "Reconnection error to {}: {}", dial_info, e);
                         }
-                    }
-                    false
-                })
-            },
-        );
+                    };
+                }));
     }
 
     pub fn debug_print(&self) -> String {
-        //let inner = self.arc.inner.lock();
         format!(
             "Connection Table:\n\n{}",
             self.arc.connection_table.debug_print_table()

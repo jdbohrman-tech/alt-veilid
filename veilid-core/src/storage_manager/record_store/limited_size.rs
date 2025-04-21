@@ -125,7 +125,7 @@ impl<T: PrimInt + Unsigned + fmt::Display + fmt::Debug> LimitedSize<T> {
                     return Err(LimitError::OverLimit);
                 }
             }
-            veilid_log!(self debug "Commit ({}): {} => {}", self.description, self.value, uncommitted_value);
+            veilid_log!(self trace "Commit ({}): {} => {}", self.description, self.value, uncommitted_value);
             self.uncommitted_value = None;
             self.value = uncommitted_value;
         }
@@ -134,7 +134,7 @@ impl<T: PrimInt + Unsigned + fmt::Display + fmt::Debug> LimitedSize<T> {
 
     pub fn rollback(&mut self) -> T {
         if let Some(uv) = self.uncommitted_value.take() {
-            veilid_log!(self debug "Rollback ({}): {} (drop {})", self.description, self.value, uv);
+            veilid_log!(self trace "Rollback ({}): {} (drop {})", self.description, self.value, uv);
         }
         self.value
     }

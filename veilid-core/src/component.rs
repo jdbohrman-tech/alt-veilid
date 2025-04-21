@@ -105,6 +105,7 @@ impl VeilidComponentRegistry {
         self.namespace
     }
 
+    #[allow(dead_code)]
     pub fn program_name(&self) -> &'static str {
         self.program_name
     }
@@ -293,7 +294,7 @@ impl VeilidComponentRegistryAccessor for VeilidComponentRegistry {
 ////////////////////////////////////////////////////////////////////
 
 macro_rules! impl_veilid_component_registry_accessor {
-    ($struct_name:ident) => {
+    ($struct_name:ty) => {
         impl VeilidComponentRegistryAccessor for $struct_name {
             fn registry(&self) -> VeilidComponentRegistry {
                 self.registry.clone()
@@ -307,7 +308,7 @@ pub(crate) use impl_veilid_component_registry_accessor;
 /////////////////////////////////////////////////////////////////////
 
 macro_rules! impl_veilid_component {
-    ($component_name:ident) => {
+    ($component_name:ty) => {
         impl_veilid_component_registry_accessor!($component_name);
 
         impl VeilidComponent for $component_name {

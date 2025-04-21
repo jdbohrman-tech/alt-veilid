@@ -1,5 +1,7 @@
 use super::*;
 
+impl_veilid_log_facility!("rpc");
+
 impl RPCProcessor {
     #[instrument(level = "trace", target = "rpc", skip(self, msg), fields(msg.operation.op_id), ret, err)]
     pub(super) async fn process_start_tunnel_q(&self, msg: RPCMessage) -> RPCNetworkResult<()> {

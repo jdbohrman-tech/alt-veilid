@@ -76,19 +76,14 @@ class _MyAppState extends State<MyApp> with UiLoggy {
     switch (log.logLevel) {
       case VeilidLogLevel.error:
         loggy.error(log.message, error, stackTrace);
-        break;
       case VeilidLogLevel.warn:
         loggy.warning(log.message, error, stackTrace);
-        break;
       case VeilidLogLevel.info:
         loggy.info(log.message, error, stackTrace);
-        break;
       case VeilidLogLevel.debug:
         loggy.debug(log.message, error, stackTrace);
-        break;
       case VeilidLogLevel.trace:
         loggy.trace(log.message, error, stackTrace);
-        break;
     }
   }
 

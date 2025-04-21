@@ -173,7 +173,7 @@ impl ClientApiConnection {
             let mut inner = this.inner.lock();
             inner.request_sender = None;
         };
-        unord.push(system_boxed(recv_messages_future));
+        unord.push(pin_dyn_future!(recv_messages_future));
 
         // Requests send processor
         let send_requests_future = async move {
@@ -183,7 +183,7 @@ impl ClientApiConnection {
                 }
             }
         };
-        unord.push(system_boxed(send_requests_future));
+        unord.push(pin_dyn_future!(send_requests_future));
 
         // Request initial server state
         let capi = self.clone();

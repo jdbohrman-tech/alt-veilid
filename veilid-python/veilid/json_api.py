@@ -740,10 +740,10 @@ class _JsonRoutingContext(RoutingContext):
     async def watch_dht_values(
         self,
         key: TypedKey,
-        subkeys: list[tuple[ValueSubkey, ValueSubkey]],
-        expiration: Timestamp = 0,
+        subkeys: list[tuple[ValueSubkey, ValueSubkey]] = [],
+        expiration: Timestamp = Timestamp(0),
         count: int = 0xFFFFFFFF,
-    ) -> Timestamp:
+    ) -> bool:
         assert isinstance(key, TypedKey)
         assert isinstance(subkeys, list)
         for s in subkeys:
@@ -753,23 +753,22 @@ class _JsonRoutingContext(RoutingContext):
         assert isinstance(expiration, Timestamp)
         assert isinstance(count, int)
 
-        return Timestamp(
-            raise_api_result(
-                await self.api.send_ndjson_request(
-                    Operation.ROUTING_CONTEXT,
-                    validate=validate_rc_op,
-                    rc_id=self.rc_id,
-                    rc_op=RoutingContextOperation.WATCH_DHT_VALUES,
-                    key=key,
-                    subkeys=subkeys,
-                    expiration=str(expiration),
-                    count=count,
-                )
+        return raise_api_result(
+            await self.api.send_ndjson_request(
+                Operation.ROUTING_CONTEXT,
+                validate=validate_rc_op,
+                rc_id=self.rc_id,
+                rc_op=RoutingContextOperation.WATCH_DHT_VALUES,
+                key=key,
+                subkeys=subkeys,
+                expiration=str(expiration),
+                count=count,
             )
         )
 
+
     async def cancel_dht_watch(
-        self, key: TypedKey, subkeys: list[tuple[ValueSubkey, ValueSubkey]]
+        self, key: TypedKey, subkeys: list[tuple[ValueSubkey, ValueSubkey]] = []
     ) -> bool:
         assert isinstance(key, TypedKey)
         assert isinstance(subkeys, list)

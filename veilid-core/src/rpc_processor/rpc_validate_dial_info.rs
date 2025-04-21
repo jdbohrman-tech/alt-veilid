@@ -1,5 +1,7 @@
 use super::*;
 
+impl_veilid_log_facility!("rpc");
+
 impl RPCProcessor {
     // Can only be sent directly, not via relays or routes
     #[instrument(level = "trace", target = "rpc", skip(self), ret, err)]

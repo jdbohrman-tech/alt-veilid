@@ -4,6 +4,7 @@
 /// This store does not perform any validation on the schema, and all ValueRecordData passed in must have been previously validated.
 /// Uses an in-memory store for the records, backed by the TableStore. Subkey data is LRU cached and rotated out by a limits policy,
 /// and backed to the TableStore for persistence.
+mod inbound_watch;
 mod inspect_cache;
 mod keys;
 mod limited_size;
@@ -13,8 +14,9 @@ mod record;
 mod record_data;
 mod record_store_limits;
 mod remote_record_detail;
-mod watch;
 
+pub(super) use inbound_watch::*;
+pub use inbound_watch::{InboundWatchParameters, InboundWatchResult};
 pub(super) use inspect_cache::*;
 pub(super) use keys::*;
 pub(super) use limited_size::*;
@@ -23,8 +25,6 @@ pub(super) use opened_record::*;
 pub(super) use record::*;
 pub(super) use record_store_limits::*;
 pub(super) use remote_record_detail::*;
-pub(super) use watch::*;
-pub use watch::{WatchParameters, WatchResult};
 
 use super::*;
 use record_data::*;
@@ -75,7 +75,7 @@ where
     /// The list of records that have changed since last flush to disk (optimization for batched writes)
     changed_records: HashSet<RecordTableKey>,
     /// The list of records being watched for changes
-    watched_records: HashMap<RecordTableKey, WatchList>,
+    watched_records: HashMap<RecordTableKey, InboundWatchList>,
     /// The list of watched records that have changed values since last notification
     changed_watched_values: HashSet<RecordTableKey>,
     /// A mutex to ensure we handle this concurrently
@@ -680,12 +680,12 @@ where
         &mut self,
         key: TypedKey,
         subkey: ValueSubkey,
-        watch_update_mode: WatchUpdateMode,
+        watch_update_mode: InboundWatchUpdateMode,
     ) {
         let (do_update, opt_ignore_target) = match watch_update_mode {
-            WatchUpdateMode::NoUpdate => (false, None),
-            WatchUpdateMode::UpdateAll => (true, None),
-            WatchUpdateMode::ExcludeTarget(target) => (true, Some(target)),
+            InboundWatchUpdateMode::NoUpdate => (false, None),
+            InboundWatchUpdateMode::UpdateAll => (true, None),
+            InboundWatchUpdateMode::ExcludeTarget(target) => (true, Some(target)),
         };
         if !do_update {
             return;
@@ -720,7 +720,7 @@ where
         key: TypedKey,
         subkey: ValueSubkey,
         signed_value_data: Arc<SignedValueData>,
-        watch_update_mode: WatchUpdateMode,
+        watch_update_mode: InboundWatchUpdateMode,
     ) -> VeilidAPIResult<()> {
         // Check size limit for data
         if signed_value_data.value_data().data().len() > self.limits.max_subkey_size {
@@ -902,9 +902,9 @@ where
     pub async fn _change_existing_watch(
         &mut self,
         key: TypedKey,
-        params: WatchParameters,
+        params: InboundWatchParameters,
         watch_id: u64,
-    ) -> VeilidAPIResult<WatchResult> {
+    ) -> VeilidAPIResult<InboundWatchResult> {
         if params.count == 0 {
             apibail_internal!("cancel watch should not have gotten here");
         }
@@ -915,7 +915,7 @@ where
         let rtk = RecordTableKey { key };
         let Some(watch_list) = self.watched_records.get_mut(&rtk) else {
             // No watches, nothing to change
-            return Ok(WatchResult::Rejected);
+            return Ok(InboundWatchResult::Rejected);
         };
 
         // Check each watch to see if we have an exact match for the id to change
@@ -925,23 +925,23 @@ where
             if w.id == watch_id && w.params.watcher == params.watcher {
                 // Updating an existing watch
                 w.params = params;
-                return Ok(WatchResult::Changed {
+                return Ok(InboundWatchResult::Changed {
                     expiration: w.params.expiration,
                 });
             }
         }
 
         // No existing watch found
-        Ok(WatchResult::Rejected)
+        Ok(InboundWatchResult::Rejected)
     }
 
     #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub async fn _create_new_watch(
         &mut self,
         key: TypedKey,
-        params: WatchParameters,
+        params: InboundWatchParameters,
         member_check: Box<dyn Fn(PublicKey) -> bool + Send>,
-    ) -> VeilidAPIResult<WatchResult> {
+    ) -> VeilidAPIResult<InboundWatchResult> {
         // Generate a record-unique watch id > 0
         let rtk = RecordTableKey { key };
         let mut id = 0;
@@ -1001,7 +1001,7 @@ where
         // For anonymous, no more than one watch per target per record
         if target_watch_count > 0 {
             // Too many watches
-            return Ok(WatchResult::Rejected);
+            return Ok(InboundWatchResult::Rejected);
         }
 
         // Check watch table for limits
@@ -1011,18 +1011,18 @@ where
             self.limits.public_watch_limit
         };
         if watch_count >= watch_limit {
-            return Ok(WatchResult::Rejected);
+            return Ok(InboundWatchResult::Rejected);
         }
 
         // Ok this is an acceptable new watch, add it
         let watch_list = self.watched_records.entry(rtk).or_default();
         let expiration = params.expiration;
-        watch_list.watches.push(Watch {
+        watch_list.watches.push(InboundWatch {
             params,
             id,
             changed: ValueSubkeyRangeSet::new(),
         });
-        Ok(WatchResult::Created { id, expiration })
+        Ok(InboundWatchResult::Created { id, expiration })
     }
 
     /// Add or update an inbound record watch for changes
@@ -1030,17 +1030,17 @@ where
     pub async fn watch_record(
         &mut self,
         key: TypedKey,
-        mut params: WatchParameters,
+        mut params: InboundWatchParameters,
         opt_watch_id: Option<u64>,
-    ) -> VeilidAPIResult<WatchResult> {
+    ) -> VeilidAPIResult<InboundWatchResult> {
         // If count is zero then we're cancelling a watch completely
         if params.count == 0 {
             if let Some(watch_id) = opt_watch_id {
                 let cancelled = self.cancel_watch(key, watch_id, params.watcher).await?;
                 if cancelled {
-                    return Ok(WatchResult::Cancelled);
+                    return Ok(InboundWatchResult::Cancelled);
                 }
-                return Ok(WatchResult::Rejected);
+                return Ok(InboundWatchResult::Rejected);
             }
             apibail_internal!("shouldn't have let a None watch id get here");
         }
@@ -1058,10 +1058,10 @@ where
             if let Some(watch_id) = opt_watch_id {
                 let cancelled = self.cancel_watch(key, watch_id, params.watcher).await?;
                 if cancelled {
-                    return Ok(WatchResult::Cancelled);
+                    return Ok(InboundWatchResult::Cancelled);
                 }
             }
-            return Ok(WatchResult::Rejected);
+            return Ok(InboundWatchResult::Rejected);
         }
 
         // Make a closure to check for member vs anonymous
@@ -1071,7 +1071,7 @@ where
             Box::new(move |watcher| owner == watcher || schema.is_member(&watcher))
         }) else {
             // Record not found
-            return Ok(WatchResult::Rejected);
+            return Ok(InboundWatchResult::Rejected);
         };
 
         // Create or update depending on if a watch id is specified or not
@@ -1128,8 +1128,8 @@ where
     pub fn move_watches(
         &mut self,
         key: TypedKey,
-        in_watch: Option<(WatchList, bool)>,
-    ) -> Option<(WatchList, bool)> {
+        in_watch: Option<(InboundWatchList, bool)>,
+    ) -> Option<(InboundWatchList, bool)> {
         let rtk = RecordTableKey { key };
         let out = self.watched_records.remove(&rtk);
         if let Some(in_watch) = in_watch {

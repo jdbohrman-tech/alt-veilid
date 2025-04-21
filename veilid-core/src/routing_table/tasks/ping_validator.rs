@@ -236,7 +236,7 @@ impl RoutingTable {
         }
 
         // Get all the active watches from the storage manager
-        let watch_destinations = self.storage_manager().get_active_watch_nodes().await;
+        let watch_destinations = self.storage_manager().get_outbound_watch_nodes().await;
 
         for watch_destination in watch_destinations {
             let registry = self.registry();
