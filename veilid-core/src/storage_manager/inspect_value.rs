@@ -29,7 +29,9 @@ impl DescriptorInfo {
 struct SubkeySeqCount {
     /// The newest sequence number found for a subkey
     pub seq: ValueSeqNum,
-    /// The nodes that have returned the value so far (up to the consensus count)
+    /// The set of nodes that had the most recent value for this subkey
+    pub consensus_nodes: Vec<NodeRef>,
+    /// The set of nodes that had any value for this subkey
     pub value_nodes: Vec<NodeRef>,
 }
 
@@ -44,7 +46,7 @@ struct OutboundInspectValueContext {
 /// The result of the outbound_get_value operation
 pub(super) struct OutboundInspectValueResult {
     /// Fanout results for each subkey
-    pub fanout_results: Vec<FanoutResult>,
+    pub subkey_fanout_results: Vec<FanoutResult>,
     /// The inspection that was retrieved
     pub inspect_result: InspectResult,
 }
@@ -110,6 +112,7 @@ impl StorageManager {
                 .iter()
                 .map(|s| SubkeySeqCount {
                     seq: *s,
+                    consensus_nodes: vec![],
                     value_nodes: vec![],
                 })
                 .collect(),
@@ -120,55 +123,71 @@ impl StorageManager {
         let call_routine = {
             let context = context.clone();
             let registry = self.registry();
-            Arc::new(move |next_node: NodeRef| {
-                let context = context.clone();
-                let registry = registry.clone();
-                let opt_descriptor = local_inspect_result.opt_descriptor.clone();
-                let subkeys = subkeys.clone();
-                Box::pin(async move {
-                    let rpc_processor = registry.rpc_processor();
+            Arc::new(
+                move |next_node: NodeRef| -> PinBoxFutureStatic<FanoutCallResult> {
+                    let context = context.clone();
+                    let registry = registry.clone();
+                    let opt_descriptor = local_inspect_result.opt_descriptor.clone();
+                    let subkeys = subkeys.clone();
+                    Box::pin(async move {
+                        let rpc_processor = registry.rpc_processor();
 
-                    let iva = network_result_try!(
-                        rpc_processor
-                            .rpc_call_inspect_value(
-                                Destination::direct(next_node.routing_domain_filtered(routing_domain)).with_safety(safety_selection),
-                                key,
-                                subkeys.clone(),
-                                opt_descriptor.map(|x| (*x).clone()),
-                            )
-                            .await?
-                    );
-                    let answer = iva.answer;
+                        let iva = match
+                            rpc_processor
+                                .rpc_call_inspect_value(
+                                    Destination::direct(next_node.routing_domain_filtered(routing_domain)).with_safety(safety_selection),
+                                    key,
+                                    subkeys.clone(),
+                                    opt_descriptor.map(|x| (*x).clone()),
+                                )
+                                .await? {
+                            NetworkResult::Timeout => {
+                                return Ok(FanoutCallOutput{peer_info_list: vec![], disposition: FanoutCallDisposition::Timeout});
+                            }
+                            NetworkResult::ServiceUnavailable(_) |
+                            NetworkResult::NoConnection(_)  |
+                            NetworkResult::AlreadyExists(_) |
+                            NetworkResult::InvalidMessage(_) => {
+                                return Ok(FanoutCallOutput{peer_info_list: vec![], disposition: FanoutCallDisposition::Invalid});
+                            }
+                            NetworkResult::Value(v) => v
+                        };
 
-                    // Keep the descriptor if we got one. If we had a last_descriptor it will
-                    // already be validated by rpc_call_inspect_value
-                    if let Some(descriptor) = answer.descriptor {
-                        let mut ctx = context.lock();
-                        if ctx.opt_descriptor_info.is_none() {
-                            // Get the descriptor info. This also truncates the subkeys list to what can be returned from the network.
-                            let descriptor_info =
-                                match DescriptorInfo::new(Arc::new(descriptor.clone()), &subkeys) {
-                                    Ok(v) => v,
-                                    Err(e) => {
-                                        return Ok(NetworkResult::invalid_message(e));
-                                    }
-                                };
-                            ctx.opt_descriptor_info = Some(descriptor_info);
+                        let answer = iva.answer;
+
+                        // Keep the descriptor if we got one. If we had a last_descriptor it will
+                        // already be validated by rpc_call_inspect_value
+                        if let Some(descriptor) = answer.descriptor {
+                            let mut ctx = context.lock();
+                            if ctx.opt_descriptor_info.is_none() {
+                                // Get the descriptor info. This also truncates the subkeys list to what can be returned from the network.
+                                let descriptor_info =
+                                    match DescriptorInfo::new(Arc::new(descriptor.clone()), &subkeys) {
+                                        Ok(v) => v,
+                                        Err(e) => {
+                                            veilid_log!(registry debug target:"network_result", "InspectValue returned an invalid descriptor: {}", e);
+                                            return Ok(FanoutCallOutput{peer_info_list: vec![], disposition: FanoutCallDisposition::Invalid});
+                                        }
+                                    };
+                                ctx.opt_descriptor_info = Some(descriptor_info);
+                            }
                         }
-                    }
 
-                    // Keep the value if we got one and it is newer and it passes schema validation
-                    if !answer.seqs.is_empty() {
-                        veilid_log!(registry debug "Got seqs back: len={}", answer.seqs.len());
+                        // Keep the value if we got one and it is newer and it passes schema validation
+                        if answer.seqs.is_empty() {
+                            veilid_log!(registry debug target:"network_result", "InspectValue returned no seq, fanout call returned peers {}", answer.peers.len());
+                            return Ok(FanoutCallOutput{peer_info_list: answer.peers, disposition: FanoutCallDisposition::Rejected});
+                        }
+
+                        veilid_log!(registry debug target:"network_result", "Got seqs back: len={}", answer.seqs.len());
                         let mut ctx = context.lock();
 
                         // Ensure we have a schema and descriptor etc
                         let Some(descriptor_info) = &ctx.opt_descriptor_info else {
                             // Got a value but no descriptor for it
                             // Move to the next node
-                            return Ok(NetworkResult::invalid_message(
-                                "Got inspection with no descriptor",
-                            ));
+                            veilid_log!(registry debug target:"network_result", "InspectValue returned a value with no descriptor invalid descriptor");
+                            return Ok(FanoutCallOutput{peer_info_list: vec![], disposition: FanoutCallDisposition::Invalid});
                         };
 
                         // Get number of subkeys from schema and ensure we are getting the
@@ -177,11 +196,10 @@ impl StorageManager {
                         if answer.seqs.len() as u64 != descriptor_info.subkeys.len() as u64 {
                             // Not the right number of sequence numbers
                             // Move to the next node
-                            return Ok(NetworkResult::invalid_message(format!(
-                                "wrong number of seqs returned {} (wanted {})",
+                            veilid_log!(registry debug target:"network_result", "wrong number of seqs returned {} (wanted {})",
                                 answer.seqs.len(),
-                                descriptor_info.subkeys.len()
-                            )));
+                                descriptor_info.subkeys.len());
+                            return Ok(FanoutCallOutput{peer_info_list: vec![], disposition: FanoutCallDisposition::Invalid});
                         }
 
                         // If we have a prior seqs list, merge in the new seqs
@@ -192,18 +210,17 @@ impl StorageManager {
                                 .map(|s| SubkeySeqCount {
                                     seq: *s,
                                     // One node has shown us the newest sequence numbers so far
-                                    value_nodes: if *s == ValueSeqNum::MAX {
-                                        vec![]
-                                    } else {
-                                        vec![next_node.clone()]
-                                    },
+                                    consensus_nodes: vec![next_node.clone()],
+                                    value_nodes: vec![next_node.clone()],
                                 })
                                 .collect();
                         } else {
                             if ctx.seqcounts.len() != answer.seqs.len() {
-                                return Err(RPCError::internal(
-                                    "seqs list length should always be equal by now",
-                                ));
+                                veilid_log!(registry debug target:"network_result", "seqs list length should always be equal by now: {} (wanted {})",
+                                    answer.seqs.len(),
+                                    ctx.seqcounts.len());
+                                return Ok(FanoutCallOutput{peer_info_list: vec![], disposition: FanoutCallDisposition::Invalid});
+
                             }
                             for pair in ctx.seqcounts.iter_mut().zip(answer.seqs.iter()) {
                                 let ctx_seqcnt = pair.0;
@@ -212,7 +229,7 @@ impl StorageManager {
                                 // If we already have consensus for this subkey, don't bother updating it any more
                                 // While we may find a better sequence number if we keep looking, this does not mimic the behavior
                                 // of get and set unless we stop here
-                                if ctx_seqcnt.value_nodes.len() >= consensus_count {
+                                if ctx_seqcnt.consensus_nodes.len() >= consensus_count {
                                     continue;
                                 }
 
@@ -225,42 +242,45 @@ impl StorageManager {
                                     {
                                         // One node has shown us the latest sequence numbers so far
                                         ctx_seqcnt.seq = answer_seq;
-                                        ctx_seqcnt.value_nodes = vec![next_node.clone()];
+                                        ctx_seqcnt.consensus_nodes = vec![next_node.clone()];
                                     } else if answer_seq == ctx_seqcnt.seq {
                                         // Keep the nodes that showed us the latest values
-                                        ctx_seqcnt.value_nodes.push(next_node.clone());
+                                        ctx_seqcnt.consensus_nodes.push(next_node.clone());
                                     }
                                 }
+                                ctx_seqcnt.value_nodes.push(next_node.clone());
                             }
                         }
-                    }
 
-                    // Return peers if we have some
-                    veilid_log!(registry debug target:"network_result", "InspectValue fanout call returned peers {}", answer.peers.len());
 
-                    Ok(NetworkResult::value(FanoutCallOutput { peer_info_list: answer.peers}))
-                }.instrument(tracing::trace_span!("outbound_inspect_value fanout call"))) as PinBoxFuture<FanoutCallResult>
-            })
+                        // Return peers if we have some
+                        veilid_log!(registry debug target:"network_result", "InspectValue fanout call returned peers {}", answer.peers.len());
+
+                        // Inspect doesn't actually use the fanout queue consensus tracker
+                        Ok(FanoutCallOutput { peer_info_list: answer.peers, disposition: FanoutCallDisposition::Accepted})
+                    }.instrument(tracing::trace_span!("outbound_inspect_value fanout call"))) as PinBoxFuture<FanoutCallResult>
+                },
+            )
         };
 
         // Routine to call to check if we're done at each step
-
+        // For inspect, we are tracking consensus externally from the FanoutCall,
+        // for each subkey, rather than a single consensus, so the single fanoutresult
+        // that is passed in here is ignored in favor of our own per-subkey tracking
         let check_done = {
             let context = context.clone();
-            Arc::new(move |_closest_nodes: &[NodeRef]| {
+            Arc::new(move |_: &FanoutResult| {
                 // If we have reached sufficient consensus on all subkeys, return done
                 let ctx = context.lock();
                 let mut has_consensus = true;
                 for cs in ctx.seqcounts.iter() {
-                    if cs.value_nodes.len() < consensus_count {
+                    if cs.consensus_nodes.len() < consensus_count {
                         has_consensus = false;
                         break;
                     }
                 }
-                if !ctx.seqcounts.is_empty() && ctx.opt_descriptor_info.is_some() && has_consensus {
-                    return Some(());
-                }
-                None
+
+                !ctx.seqcounts.is_empty() && ctx.opt_descriptor_info.is_some() && has_consensus
             })
         };
 
@@ -271,46 +291,39 @@ impl StorageManager {
             key,
             key_count,
             fanout,
+            consensus_count,
             timeout_us,
             capability_fanout_node_info_filter(vec![CAP_DHT]),
             call_routine,
             check_done,
         );
 
-        let kind = match fanout_call.run(init_fanout_queue).await {
-            // If we don't finish in the timeout (too much time passed checking for consensus)
-            TimeoutOr::Timeout => FanoutResultKind::Timeout,
-            // If we finished with or without consensus (enough nodes returning the same value)
-            TimeoutOr::Value(Ok(Some(()))) => FanoutResultKind::Finished,
-            // If we ran out of nodes before getting consensus)
-            TimeoutOr::Value(Ok(None)) => FanoutResultKind::Exhausted,
-            // Failed
-            TimeoutOr::Value(Err(e)) => {
-                // If we finished with an error, return that
-                veilid_log!(self debug "InspectValue Fanout Error: {}", e);
-                return Err(e.into());
-            }
-        };
+        let fanout_result = fanout_call.run(init_fanout_queue).await?;
 
         let ctx = context.lock();
-        let mut fanout_results = vec![];
+        let mut subkey_fanout_results = vec![];
         for cs in &ctx.seqcounts {
-            let has_consensus = cs.value_nodes.len() >= consensus_count;
-            let fanout_result = FanoutResult {
+            let has_consensus = cs.consensus_nodes.len() >= consensus_count;
+            let subkey_fanout_result = FanoutResult {
                 kind: if has_consensus {
-                    FanoutResultKind::Finished
+                    FanoutResultKind::Consensus
                 } else {
-                    kind
+                    fanout_result.kind
                 },
+                consensus_nodes: cs.consensus_nodes.clone(),
                 value_nodes: cs.value_nodes.clone(),
             };
-            fanout_results.push(fanout_result);
+            subkey_fanout_results.push(subkey_fanout_result);
         }
 
-        veilid_log!(self debug "InspectValue Fanout ({:?}):\n{}", kind, debug_fanout_results(&fanout_results));
+        if subkey_fanout_results.len() == 1 {
+            veilid_log!(self debug "InspectValue Fanout: {:#}\n{:#}", fanout_result, subkey_fanout_results.first().unwrap());
+        } else {
+            veilid_log!(self debug "InspectValue Fanout: {:#}:\n{}", fanout_result, debug_fanout_results(&subkey_fanout_results));
+        }
 
         Ok(OutboundInspectValueResult {
-            fanout_results,
+            subkey_fanout_results,
             inspect_result: InspectResult {
                 subkeys: ctx
                     .opt_descriptor_info

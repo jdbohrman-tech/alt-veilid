@@ -1,5 +1,7 @@
 use super::*;
 
+impl_veilid_log_facility!("rpc");
+
 impl RPCProcessor {
     // Sends a unidirectional signal to a node
     // Can be sent via relays but not routes. For routed 'signal' like capabilities, use AppMessage.

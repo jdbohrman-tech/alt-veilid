@@ -589,7 +589,7 @@ impl RouterClient {
         let framed_reader = FramedRead::new(reader, BytesCodec);
         let framed_writer = FramedWrite::new(writer, BytesCodec);
 
-        let framed_writer_fut = system_boxed(async move {
+        let framed_writer_fut = Box::pin(async move {
             if let Err(e) = receiver
                 .into_stream()
                 .map(|command| {
@@ -603,7 +603,7 @@ impl RouterClient {
                 error!("{}", e);
             }
         });
-        let framed_reader_fut = system_boxed(async move {
+        let framed_reader_fut = Box::pin(async move {
             let fut = framed_reader.try_for_each(|x| async {
                 let x = x;
                 let evt = from_bytes::<ServerProcessorEvent>(&x)
@@ -631,7 +631,7 @@ impl RouterClient {
             .into_stream()
             .map(io::Result::<ServerProcessorEvent>::Ok);
 
-        let receiver_fut = system_boxed(async move {
+        let receiver_fut = Box::pin(async move {
             let fut =
                 receiver.try_for_each(|evt| Self::process_event(evt, router_op_waiter.clone()));
             if let Err(e) = fut.await {

@@ -113,7 +113,10 @@ impl DeferredStreamProcessor {
     /// * 'handler' is the callback to handle each item from the stream
     ///
     /// Returns 'true' if the stream was added for processing, and 'false' if the stream could not be added, possibly due to not being initialized.
-    pub fn add<T: Send + 'static, S: futures_util::Stream<Item = T> + Unpin + Send + 'static>(
+    pub fn add_stream<
+        T: Send + 'static,
+        S: futures_util::Stream<Item = T> + Unpin + Send + 'static,
+    >(
         &self,
         mut receiver: S,
         mut handler: impl FnMut(T) -> PinBoxFutureStatic<bool> + Send + 'static,
@@ -136,6 +139,24 @@ impl DeferredStreamProcessor {
             }
         });
         if dsc_tx.send(drp).is_err() {
+            return false;
+        }
+        true
+    }
+
+    /// Queue a single future to process in the background
+    pub fn add_future<F>(&self, fut: F) -> bool
+    where
+        F: Future<Output = ()> + Send + 'static,
+    {
+        let dsc_tx = {
+            let inner = self.inner.lock();
+            let Some(dsc_tx) = inner.opt_deferred_stream_channel.clone() else {
+                return false;
+            };
+            dsc_tx
+        };
+        if dsc_tx.send(Box::pin(fut)).is_err() {
             return false;
         }
         true

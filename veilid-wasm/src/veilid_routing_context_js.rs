@@ -344,17 +344,22 @@ impl VeilidRoutingContext {
     ///
     /// There is only one watch permitted per record. If a change to a watch is desired, the previous one will be overwritten.
     /// * `key` is the record key to watch. it must first be opened for reading or writing.
-    /// * `subkeys` is the the range of subkeys to watch. The range must not exceed 512 discrete non-overlapping or adjacent subranges. If no range is specified, this is equivalent to watching the entire range of subkeys.
-    /// * `expiration` is the desired timestamp of when to automatically terminate the watch, in microseconds. If this value is less than `network.rpc.timeout_ms` milliseconds in the future, this function will return an error immediately.
-    /// * `count` is the number of times the watch will be sent, maximum. A zero value here is equivalent to a cancellation.
+    /// * `subkeys`:
+    ///   - None: specifies watching the entire range of subkeys.
+    ///   - Some(range): is the the range of subkeys to watch. The range must not exceed 512 discrete non-overlapping or adjacent subranges. If no range is specified, this is equivalent to watching the entire range of subkeys.
+    /// * `expiration`:
+    ///   - None: specifies a watch with no expiration
+    ///   - Some(timestamp): the desired timestamp of when to automatically terminate the watch, in microseconds. If this value is less than `network.rpc.timeout_ms` milliseconds in the future, this function will return an error immediately.
+    /// * `count:
+    ///   - None: specifies a watch count of u32::MAX
+    ///   - Some(count): is the number of times the watch will be sent, maximum. A zero value here is equivalent to a cancellation.
     ///
-    /// Returns a timestamp of when the watch will expire. All watches are guaranteed to expire at some point in the future,
-    /// and the returned timestamp will be no later than the requested expiration, but -may- be before the requested expiration.
-    /// If the returned timestamp is zero it indicates that the watch creation or update has failed. In the case of a faild update, the watch is considered cancelled.
+    /// Returns Ok(true) if a watch is active for this record.
+    /// Returns Ok(false) if the entire watch has been cancelled.
     ///
     /// DHT watches are accepted with the following conditions:
-    /// * First-come first-served basis for arbitrary unauthenticated readers, up to network.dht.public_watch_limit per record
-    /// * If a member (either the owner or a SMPL schema member) has opened the key for writing (even if no writing is performed) then the watch will be signed and guaranteed network.dht.member_watch_limit per writer
+    /// * First-come first-served basis for arbitrary unauthenticated readers, up to network.dht.public_watch_limit per record.
+    /// * If a member (either the owner or a SMPL schema member) has opened the key for writing (even if no writing is performed) then the watch will be signed and guaranteed network.dht.member_watch_limit per writer.
     ///
     /// Members can be specified via the SMPL schema and do not need to allocate writable subkeys in order to offer a member watch capability.
     pub async fn watchDhtValues(
@@ -363,42 +368,38 @@ impl VeilidRoutingContext {
         subkeys: Option<ValueSubkeyRangeSet>,
         expiration: Option<String>,
         count: Option<u32>,
-    ) -> APIResult<String> {
+    ) -> APIResult<bool> {
         let key = TypedKey::from_str(&key)?;
-        let subkeys = subkeys.unwrap_or_default();
         let expiration = if let Some(expiration) = expiration {
-            veilid_core::Timestamp::new(
+            Some(veilid_core::Timestamp::new(
                 u64::from_str(&expiration).map_err(VeilidAPIError::generic)?,
-            )
+            ))
         } else {
-            veilid_core::Timestamp::default()
+            None
         };
-        let count = count.unwrap_or(u32::MAX);
-
         let routing_context = self.getRoutingContext()?;
         let res = routing_context
             .watch_dht_values(key, subkeys, expiration, count)
             .await?;
-        APIResult::Ok(res.as_u64().to_string())
+        APIResult::Ok(res)
     }
 
-    /// Cancels a watch early
+    /// Cancels a watch early.
     ///
     /// This is a convenience function that cancels watching all subkeys in a range. The subkeys specified here
-    /// are subtracted from the watched subkey range. If no range is specified, this is equivalent to cancelling the entire range of subkeys.
+    /// are subtracted from the currently-watched subkey range.
+    /// If no range is specified, this is equivalent to cancelling the entire range of subkeys.
     /// Only the subkey range is changed, the expiration and count remain the same.
     /// If no subkeys remain, the watch is entirely cancelled and will receive no more updates.
     ///
-    /// Returns true if there is any remaining watch for this record
-    /// Returns false if the entire watch has been cancelled
+    /// Returns Ok(true) if a watch is active for this record.
+    /// Returns Ok(false) if the entire watch has been cancelled.
     pub async fn cancelDhtWatch(
         &self,
         key: String,
         subkeys: Option<ValueSubkeyRangeSet>,
     ) -> APIResult<bool> {
         let key = TypedKey::from_str(&key)?;
-        let subkeys = subkeys.unwrap_or_default();
-
         let routing_context = self.getRoutingContext()?;
         let res = routing_context.cancel_dht_watch(key, subkeys).await?;
         APIResult::Ok(res)
@@ -450,7 +451,6 @@ impl VeilidRoutingContext {
         scope: Option<DHTReportScope>,
     ) -> APIResult<DHTRecordReport> {
         let key = TypedKey::from_str(&key)?;
-        let subkeys = subkeys.unwrap_or_default();
         let scope = scope.unwrap_or_default();
 
         let routing_context = self.getRoutingContext()?;

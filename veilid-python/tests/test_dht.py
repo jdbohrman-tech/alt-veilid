@@ -1,5 +1,4 @@
 # Routing context veilid tests
-
 from typing import Any, Awaitable, Callable, Optional
 import pytest
 import asyncio
@@ -7,7 +6,8 @@ import time
 import os
 
 import veilid
-from veilid import ValueSubkey
+from veilid import ValueSubkey, Timestamp, SafetySelection
+from veilid.types import VeilidJSONEncoder
 
 ##################################################################
 BOGUS_KEY = veilid.TypedKey.from_value(
@@ -86,8 +86,8 @@ async def test_set_get_dht_value(api_connection: veilid.VeilidAPI):
         vd4 = await rc.get_dht_value(rec.key, ValueSubkey(1), False)
         assert vd4 is None
 
-        print("vd2: {}", vd2.__dict__)
-        print("vd3: {}", vd3.__dict__)
+        #print("vd2: {}", vd2.__dict__)
+        #print("vd3: {}", vd3.__dict__)
 
         assert vd2 == vd3
 
@@ -245,8 +245,7 @@ async def test_open_writer_dht_value(api_connection: veilid.VeilidAPI):
         await rc.delete_dht_record(key)
 
 
-# @pytest.mark.skipif(os.getenv("INTEGRATION") != "1", reason="integration test requires two servers running")
-@pytest.mark.skip(reason = "don't work yet")
+@pytest.mark.skipif(os.getenv("INTEGRATION") != "1", reason="integration test requires two servers running")
 @pytest.mark.asyncio
 async def test_watch_dht_values():
 
@@ -256,112 +255,256 @@ async def test_watch_dht_values():
         if update.kind == veilid.VeilidUpdateKind.VALUE_CHANGE:
             await value_change_queue.put(update)
 
+    async def null_update_callback(update: veilid.VeilidUpdate):
+        pass
+
     try:
-        api = await veilid.api_connector(value_change_update_callback)
+        api0 = await veilid.api_connector(value_change_update_callback, 0)
     except veilid.VeilidConnectionError:
-        pytest.skip("Unable to connect to veilid-server.")
+        pytest.skip("Unable to connect to veilid-server 0.")
 
-    # Make two routing contexts, one with and one without safety
-    # So we can pretend to be a different node and get the watch updates
-    # Normally they would not get sent if the set comes from the same target
-    # as the watch's target
-    
-    # XXX: this logic doesn't work because our node still suppresses updates
-    # XXX: if the value hasn't changed in the local record store
-    rcWatch = await api.new_routing_context()
-    
-    rcSet = await (await api.new_routing_context()).with_safety(veilid.SafetySelection.unsafe())
-    async with rcWatch, rcSet:
-        # Make a DHT record
-        rec = await rcWatch.create_dht_record(veilid.DHTSchema.dflt(10))
+    try:
+        api1 = await veilid.api_connector(null_update_callback, 1)
+    except veilid.VeilidConnectionError:
+        pytest.skip("Unable to connect to veilid-server 1.")
 
-        # Set some subkey we care about
-        vd = await rcWatch.set_dht_value(rec.key, ValueSubkey(3), b"BLAH BLAH BLAH")
-        assert vd is None
+    async with api0, api1:
+        # purge local and remote record stores to ensure we start fresh
+        await api0.debug("record purge local")
+        await api0.debug("record purge remote")
+        await api1.debug("record purge local")
+        await api1.debug("record purge remote")
 
-        # Make a watch on that subkey
-        ts = await rcWatch.watch_dht_values(rec.key, [], 0, 0xFFFFFFFF)
-        assert ts != 0
+        # Clear the change queue if record purge cancels old watches
+        while True:
+            try:
+                upd = await asyncio.wait_for(value_change_queue.get(), timeout=3)
+            except asyncio.TimeoutError:
+                break
 
-        # Reopen without closing to change routing context and not lose watch
-        rec = await rcSet.open_dht_record(rec.key, rec.owner_key_pair())
-        
-        # Now set the subkey and trigger an update
-        vd = await rcSet.set_dht_value(rec.key, ValueSubkey(3), b"BLAH")
-        assert vd is None
-        
-        # Now we should NOT get an update because the update is the same as our local copy
-        update = None
-        try:
-            update = await asyncio.wait_for(value_change_queue.get(), timeout=5)
-        except asyncio.TimeoutError:
-            pass
-        assert update is None
+        # make routing contexts
+        rc0 = await api0.new_routing_context()
+        rc1 = await api1.new_routing_context()
+        async with rc0, rc1:
 
-        # Now set multiple subkeys and trigger an update
-        vd = await asyncio.gather(*[rcSet.set_dht_value(rec.key, ValueSubkey(3), b"BLAH BLAH"), rcSet.set_dht_value(rec.key, ValueSubkey(4), b"BZORT")])
-        assert vd == [None, None]
+            # Server 0: Make a DHT record
+            rec0 = await rc0.create_dht_record(veilid.DHTSchema.dflt(10))
 
-        # Wait for the update
-        upd = await asyncio.wait_for(value_change_queue.get(), timeout=5)
+            # Server 0: Set some subkey we care about
+            vd = await rc0.set_dht_value(rec0.key, ValueSubkey(3), b"BLAH")
+            assert vd is None
 
-        # Verify the update came back but we don't get a new value because the sequence number is the same
-        assert upd.detail.key == rec.key
-        assert upd.detail.count == 0xFFFFFFFD
-        assert upd.detail.subkeys == [(3, 4)]
-        assert upd.detail.value is None
+            await sync(rc0, [rec0])
 
-        # Reopen without closing to change routing context and not lose watch
-        rec = await rcWatch.open_dht_record(rec.key, rec.owner_key_pair())
+            # Server 0: Make a watch on all the subkeys
+            active = await rc0.watch_dht_values(rec0.key, [], Timestamp(0), 0xFFFFFFFF)
+            assert active
 
-        # Cancel some subkeys we don't care about
-        still_active = await rcWatch.cancel_dht_watch(rec.key, [(ValueSubkey(0), ValueSubkey(2))])
-        assert still_active
+            # Server 1: Open the subkey
+            rec1 = await rc1.open_dht_record(rec0.key, rec0.owner_key_pair())
 
-        # Reopen without closing to change routing context and not lose watch
-        rec = await rcSet.open_dht_record(rec.key, rec.owner_key_pair())
+            # Server 1: Now set the subkey and trigger an update
+            vd = await rc1.set_dht_value(rec1.key, ValueSubkey(3), b"BLAH")
+            assert vd is None
+            await sync(rc1, [rec1])
 
-        # Now set multiple subkeys and trigger an update
-        vd = await asyncio.gather(*[rcSet.set_dht_value(rec.key, ValueSubkey(3), b"BLAH BLAH BLAH"), rcSet.set_dht_value(rec.key, ValueSubkey(5), b"BZORT BZORT")])
-        assert vd == [None, None]
+            # Server 0: Now we should NOT get an update because the update is the same as our local copy
+            upd = None
+            try:
+                upd = await asyncio.wait_for(value_change_queue.get(), timeout=10)
+            except asyncio.TimeoutError:
+                pass
+            assert upd is None
 
-        # Wait for the update, this longer timeout seems to help the flaky check below
-        upd = await asyncio.wait_for(value_change_queue.get(), timeout=10)
+            # Server 1: Now set subkey and trigger an update
+            vd = await rc1.set_dht_value(rec1.key, ValueSubkey(3), b"BLAH BLAH")
+            assert vd is None
+            await sync(rc1, [rec1])
 
-        # Verify the update came back but we don't get a new value because the sequence number is the same
-        assert upd.detail.key == rec.key
+            # Server 0: Wait for the update
+            upd = await asyncio.wait_for(value_change_queue.get(), timeout=10)
 
-        # This check is flaky on slow connections and often fails with different counts
-        assert upd.detail.count == 0xFFFFFFFC
-        assert upd.detail.subkeys == [(3, 3), (5, 5)]
-        assert upd.detail.value is None
+            # Server 0: Verify the update came back with the first changed subkey's data
+            assert upd.detail.key == rec0.key
+            assert upd.detail.count == 0xFFFFFFFE
+            assert upd.detail.subkeys == [(3, 3)]
+            assert upd.detail.value.data == b"BLAH BLAH"
 
-        # Reopen without closing to change routing context and not lose watch
-        rec = await rcWatch.open_dht_record(rec.key, rec.owner_key_pair())
+            # Server 1: Now set subkey and trigger an update
+            vd = await rc1.set_dht_value(rec1.key, ValueSubkey(4), b"BZORT")
+            assert vd is None
+            await sync(rc1, [rec1])
 
-        # Now cancel the update
-        still_active = await rcWatch.cancel_dht_watch(rec.key, [(ValueSubkey(3), ValueSubkey(9))])
-        assert not still_active
+            # Server 0: Wait for the update
+            upd = await asyncio.wait_for(value_change_queue.get(), timeout=10)
 
-        # Reopen without closing to change routing context and not lose watch
-        rec = await rcSet.open_dht_record(rec.key, rec.owner_key_pair())
+            # Server 0: Verify the update came back with the first changed subkey's data
+            assert upd.detail.key == rec0.key
+            assert upd.detail.count == 0xFFFFFFFD
+            assert upd.detail.subkeys == [(4, 4)]
+            assert upd.detail.value.data == b"BZORT"
 
-        # Now set multiple subkeys
-        vd = await asyncio.gather(*[rcSet.set_dht_value(rec.key, ValueSubkey(3), b"BLAH BLAH BLAH BLAH"), rcSet.set_dht_value(rec.key, ValueSubkey(5), b"BZORT BZORT BZORT")])
-        assert vd == [None, None]
-        
-        # Now we should NOT get an update
-        update = None
-        try:
-            update = await asyncio.wait_for(value_change_queue.get(), timeout=5)
-        except asyncio.TimeoutError:
-            pass
-        assert update is None
+            # Server 0: Cancel some subkeys we don't care about
+            active = await rc0.cancel_dht_watch(rec0.key, [(ValueSubkey(0), ValueSubkey(3))])
+            assert active
 
-        # Clean up
-        await rcSet.close_dht_record(rec.key)
-        await rcSet.delete_dht_record(rec.key)
+            # Server 1: Now set multiple subkeys and trigger an update
+            vd = await asyncio.gather(*[rc1.set_dht_value(rec1.key, ValueSubkey(3), b"BLAH BLAH BLAH"), rc1.set_dht_value(rec1.key, ValueSubkey(4), b"BZORT BZORT")])
+            assert vd == [None, None]
+            await sync(rc1, [rec1])
 
+            # Server 0: Wait for the update
+            upd = await asyncio.wait_for(value_change_queue.get(), timeout=10)
+
+            # Server 0: Verify only one update came back
+            assert upd.detail.key == rec0.key
+            assert upd.detail.count == 0xFFFFFFFC
+            assert upd.detail.subkeys == [(4, 4)]
+            assert upd.detail.value.data == b"BZORT BZORT"
+
+            # Server 0: Now we should NOT get any other update
+            upd = None
+            try:
+                upd = await asyncio.wait_for(value_change_queue.get(), timeout=10)
+            except asyncio.TimeoutError:
+                pass
+            if upd is not None:
+                print(f"bad update: {VeilidJSONEncoder.dumps(upd)}")
+            assert upd is None
+
+            # Now cancel the update
+            active = await rc0.cancel_dht_watch(rec0.key, [(ValueSubkey(3), ValueSubkey(9))])
+            assert not active
+
+            # Server 0: Wait for the cancellation update
+            upd = await asyncio.wait_for(value_change_queue.get(), timeout=10)
+
+            # Server 0: Verify only one update came back
+            assert upd.detail.key == rec0.key
+            assert upd.detail.count == 0
+            assert upd.detail.subkeys == []
+            assert upd.detail.value is None
+
+            # Now set multiple subkeys
+            vd = await asyncio.gather(*[rc1.set_dht_value(rec1.key, ValueSubkey(3), b"BLAH BLAH BLAH BLAH"), rc1.set_dht_value(rec1.key, ValueSubkey(5), b"BZORT BZORT BZORT")])
+            assert vd == [None, None]
+            await sync(rc1, [rec1])
+
+            # Now we should NOT get an update
+            upd = None
+            try:
+                upd = await asyncio.wait_for(value_change_queue.get(), timeout=10)
+            except asyncio.TimeoutError:
+                pass
+            if upd is not None:
+                print(f"bad update: {VeilidJSONEncoder.dumps(upd)}")
+            assert upd is None
+
+            # Clean up
+            await rc1.close_dht_record(rec1.key)
+            await rc1.delete_dht_record(rec1.key)
+            await rc0.close_dht_record(rec0.key)
+            await rc0.delete_dht_record(rec0.key)
+
+
+@pytest.mark.skipif(os.getenv("INTEGRATION") != "1", reason="integration test requires two servers running")
+@pytest.mark.skipif(os.getenv("STRESS") != "1", reason="stress test takes a long time")
+@pytest.mark.asyncio
+async def test_watch_many_dht_values():
+
+    value_change_queue: asyncio.Queue[veilid.VeilidUpdate] = asyncio.Queue()
+
+    async def value_change_update_callback(update: veilid.VeilidUpdate):
+        if update.kind == veilid.VeilidUpdateKind.VALUE_CHANGE:
+            await value_change_queue.put(update)
+
+    async def null_update_callback(update: veilid.VeilidUpdate):
+        pass
+
+    try:
+        api0 = await veilid.api_connector(value_change_update_callback, 0)
+    except veilid.VeilidConnectionError:
+        pytest.skip("Unable to connect to veilid-server 0.")
+
+    try:
+        api1 = await veilid.api_connector(null_update_callback, 1)
+    except veilid.VeilidConnectionError:
+        pytest.skip("Unable to connect to veilid-server 1.")
+
+    async with api0, api1:
+        # purge local and remote record stores to ensure we start fresh
+        await api0.debug("record purge local")
+        await api0.debug("record purge remote")
+        await api1.debug("record purge local")
+        await api1.debug("record purge remote")
+
+        # make routing contexts
+        # unsafe version for debugging
+        rc0 = await (await api0.new_routing_context()).with_safety(SafetySelection.unsafe())
+        rc1 = await (await api1.new_routing_context()).with_safety(SafetySelection.unsafe())
+        # safe default version
+        # rc0 = await api0.new_routing_context()
+        # rc1 = await api1.new_routing_context()
+
+        async with rc0, rc1:
+
+            COUNT = 10
+            records = []
+
+            # Make and watch all records
+            for n in range(COUNT):
+                print(f"making record {n}")
+                # Server 0: Make a DHT record
+                records.append(await rc0.create_dht_record(veilid.DHTSchema.dflt(1)))
+
+                # Server 0: Set some subkey we care about
+                vd = await rc0.set_dht_value(records[n].key, ValueSubkey(0), b"BLAH")
+                assert vd is None
+
+                # Server 0: Make a watch on all the subkeys
+                active = await rc0.watch_dht_values(records[n].key, [], Timestamp(0), 0xFFFFFFFF)
+                assert active
+
+            # Open and set all records
+            missing_records = set()
+            for (n, record) in enumerate(records):
+                print(f"setting record {n}")
+
+                # Server 1: Open the subkey
+                _ignore = await rc1.open_dht_record(record.key, record.owner_key_pair())
+
+                # Server 1: Now set the subkey and trigger an update
+                vd = await rc1.set_dht_value(record.key, ValueSubkey(0), b"BLAH BLAH")
+                assert vd is None
+
+                missing_records.add(record.key)
+
+            # Server 0: Now we should get an update for every change
+            for n in range(len(records)):
+                print(f"waiting for change {n}")
+
+                # Server 0: Wait for the update
+                try:
+                    upd = await asyncio.wait_for(value_change_queue.get(), timeout=10)
+                    missing_records.remove(upd.detail.key)
+                except:
+                    # Dump which records didn't get updates
+                    for (m, record) in enumerate(records):
+                        if record.key not in missing_records:
+                            continue
+                        print(f"missing update for record {m}: {record}")
+                        info0 = await api0.debug(f"record info {record.key}")
+                        info1 = await api1.debug(f"record info {record.key}")
+                        print(f"from rc0: {info0}")
+                        print(f"from rc1: {info1}")
+                    raise
+
+            # Clean up
+            for record in records:
+                await rc1.close_dht_record(record.key)
+                await rc1.delete_dht_record(record.key)
+                await rc0.close_dht_record(record.key)
+                await rc0.delete_dht_record(record.key)
 
 @pytest.mark.asyncio
 async def test_inspect_dht_record(api_connection: veilid.VeilidAPI):
@@ -483,8 +626,6 @@ async def test_schema_limit_smpl(api_connection: veilid.VeilidAPI):
         TEST_DATA = b"A" * 31776
         COUNT = 33
         await _run_test_schema_limit(api_connection, open_record, COUNT, TEST_DATA)
-
-
 
 
 
@@ -702,21 +843,23 @@ async def test_dht_write_read_full_subkeys_local():
 
 
 async def sync(rc: veilid.RoutingContext, records: list[veilid.DHTRecordDescriptor]):
-    print('syncing records to the network')
     syncrecords = records.copy()
-    while len(syncrecords) > 0:
+    if len(syncrecords) == 0:
+        return
+    while True:
         donerecords = set()
         subkeysleft = 0
         for desc in records:
             rr = await rc.inspect_dht_record(desc.key, [])
             left = 0; [left := left + (x[1]-x[0]+1) for x in rr.offline_subkeys]
             if left == 0:
-                if veilid.ValueSeqNum.NONE not in rr.local_seqs:
-                    donerecords.add(desc)
+                donerecords.add(desc)
             else:
                 subkeysleft += left
         syncrecords = [x for x in syncrecords if x not in donerecords]
-        print(f'  {len(syncrecords)} records {subkeysleft} subkeys left')
+        if len(syncrecords) == 0:
+            break
+        print(f'  syncing {len(syncrecords)} records {subkeysleft} subkeys left')
         time.sleep(1)
 
 

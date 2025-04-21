@@ -39,6 +39,7 @@ impl<'a, N: NodeRefAccessorsTrait + NodeRefOperateTrait + fmt::Debug + fmt::Disp
         }
     }
 
+    #[expect(dead_code)]
     pub fn unlocked(&self) -> N {
         self.nr.clone()
     }

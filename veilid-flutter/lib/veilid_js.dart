@@ -24,14 +24,15 @@ dynamic convertUint8ListToJson(Uint8List data) => data.toList().jsify();
 Future<T> _wrapApiPromise<T>(Object p) => js_util
         .promiseToFuture<T>(p)
         .then((value) => value)
+        // Any errors at all from Veilid need to be caught
         // ignore: inference_failure_on_untyped_parameter
-        .catchError((e) {
+        .catchError((e, s) {
       try {
         final ex = VeilidAPIException.fromJson(jsonDecode(e as String));
         throw ex;
       } on Exception catch (_) {
         // Wrap all other errors in VeilidAPIExceptionInternal
-        throw VeilidAPIExceptionInternal(e.toString());
+        throw VeilidAPIExceptionInternal('$e\nStack Trace:\n$s');
       }
     });
 
@@ -206,7 +207,7 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
   }
 
   @override
-  Future<Timestamp> watchDHTValues(TypedKey key,
+  Future<bool> watchDHTValues(TypedKey key,
       {List<ValueSubkeyRange>? subkeys,
       Timestamp? expiration,
       int? count}) async {
@@ -215,7 +216,7 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
     count ??= 0xFFFFFFFF;
 
     final id = _ctx.requireId();
-    final ts = await _wrapApiPromise<String>(js_util.callMethod(
+    return _wrapApiPromise<bool>(js_util.callMethod(
         wasm, 'routing_context_watch_dht_values', [
       id,
       jsonEncode(key),
@@ -223,7 +224,6 @@ class VeilidRoutingContextJS extends VeilidRoutingContext {
       expiration.toString(),
       count
     ]));
-    return Timestamp.fromString(ts);
   }
 
   @override

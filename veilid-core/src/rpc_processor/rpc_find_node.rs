@@ -1,5 +1,7 @@
 use super::*;
 
+impl_veilid_log_facility!("rpc");
+
 impl RPCProcessor {
     /// Send FindNodeQ RPC request, receive FindNodeA answer
     /// Can be sent via all methods including relays

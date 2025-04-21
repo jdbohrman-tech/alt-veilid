@@ -59,6 +59,8 @@ class VeilidStateAttachment:
             j["attached_uptime"],
         )
 
+    def to_json(self) -> dict:
+        return self.__dict__
 
 
 class AnswerStats:
@@ -113,6 +115,9 @@ class AnswerStats:
             j["consecutive_lost_answers_average"],
             j["consecutive_lost_answers_minimum"],
         )
+
+    def to_json(self) -> dict:
+        return self.__dict__
 
 class RPCStats:
     messages_sent: int
@@ -172,6 +177,9 @@ class RPCStats:
             AnswerStats.from_json(j["answer_ordered"]),
         )
 
+    def to_json(self) -> dict:
+        return self.__dict__
+
 
 class LatencyStats:
     fastest: TimestampDuration
@@ -212,6 +220,9 @@ class LatencyStats:
             TimestampDuration(j["p90"]),
             TimestampDuration(j["p75"]),
         )
+
+    def to_json(self) -> dict:
+        return self.__dict__
 
 
 class TransferStats:
@@ -365,6 +376,9 @@ class PeerStats:
             StateStats.from_json(j["state"]),
         )
 
+    def to_json(self) -> dict:
+        return self.__dict__
+
 
 class PeerTableData:
     node_ids: list[str]
@@ -380,6 +394,9 @@ class PeerTableData:
     def from_json(cls, j: dict) -> Self:
         """JSON object hook"""
         return cls(j["node_ids"], j["peer_address"], PeerStats.from_json(j["peer_stats"]))
+
+    def to_json(self) -> dict:
+        return self.__dict__
 
 
 class VeilidStateNetwork:
@@ -410,6 +427,9 @@ class VeilidStateNetwork:
             [PeerTableData.from_json(peer) for peer in j["peers"]],
         )
 
+    def to_json(self) -> dict:
+        return self.__dict__
+
 
 class VeilidStateConfig:
     config: VeilidConfig
@@ -421,6 +441,9 @@ class VeilidStateConfig:
     def from_json(cls, j: dict) -> Self:
         """JSON object hook"""
         return cls(VeilidConfig.from_json(j["config"]))
+
+    def to_json(self) -> dict:
+        return self.__dict__
 
 
 class VeilidState:
@@ -447,6 +470,9 @@ class VeilidState:
             VeilidStateConfig.from_json(j["config"]),
         )
 
+    def to_json(self) -> dict:
+        return self.__dict__
+
 
 class VeilidLog:
     log_level: VeilidLogLevel
@@ -462,6 +488,9 @@ class VeilidLog:
     def from_json(cls, j: dict) -> Self:
         """JSON object hook"""
         return cls(VeilidLogLevel(j["log_level"]), j["message"], j["backtrace"])
+
+    def to_json(self) -> dict:
+        return self.__dict__
 
 
 class VeilidAppMessage:
@@ -482,6 +511,9 @@ class VeilidAppMessage:
             None if j["route_id"] is None else RouteId(j["route_id"]),
             urlsafe_b64decode_no_pad(j["message"]),
         )
+
+    def to_json(self) -> dict:
+        return self.__dict__
 
 
 class VeilidAppCall:
@@ -506,6 +538,9 @@ class VeilidAppCall:
             OperationId(j["call_id"]),
         )
 
+    def to_json(self) -> dict:
+        return self.__dict__
+
 
 class VeilidRouteChange:
     dead_routes: list[RouteId]
@@ -522,6 +557,9 @@ class VeilidRouteChange:
             [RouteId(route) for route in j["dead_routes"]],
             [RouteId(route) for route in j["dead_remote_routes"]],
         )
+
+    def to_json(self) -> dict:
+        return self.__dict__
 
 
 class VeilidValueChange:
@@ -545,6 +583,9 @@ class VeilidValueChange:
             j["count"],
             None if j["value"] is None else ValueData.from_json(j["value"]),
         )
+
+    def to_json(self) -> dict:
+        return self.__dict__
 
 
 class VeilidUpdateKind(StrEnum):
@@ -610,3 +651,6 @@ class VeilidUpdate:
             case _:
                 raise ValueError("Unknown VeilidUpdateKind")
         return cls(kind, detail)
+
+    def to_json(self) -> dict:
+        return self.__dict__

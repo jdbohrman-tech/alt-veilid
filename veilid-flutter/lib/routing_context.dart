@@ -301,7 +301,7 @@ abstract class VeilidRoutingContext {
       {bool forceRefresh = false});
   Future<ValueData?> setDHTValue(TypedKey key, int subkey, Uint8List data,
       {KeyPair? writer});
-  Future<Timestamp> watchDHTValues(TypedKey key,
+  Future<bool> watchDHTValues(TypedKey key,
       {List<ValueSubkeyRange>? subkeys, Timestamp? expiration, int? count});
   Future<bool> cancelDHTWatch(TypedKey key, {List<ValueSubkeyRange>? subkeys});
   Future<DHTRecordReport> inspectDHTRecord(TypedKey key,

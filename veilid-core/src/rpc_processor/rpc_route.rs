@@ -1,5 +1,7 @@
 use super::*;
 
+impl_veilid_log_facility!("rpc");
+
 impl RPCProcessor {
     #[instrument(level = "trace", target = "rpc", skip_all, err)]
     async fn process_route_safety_route_hop(

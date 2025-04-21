@@ -395,7 +395,7 @@ impl ClientApi {
         // Request receive processor future
         // Receives from socket and enqueues RequestLines
         // Completes when the connection is closed or there is a failure
-        unord.push(system_boxed(self.clone().receive_requests(
+        unord.push(pin_dyn_future!(self.clone().receive_requests(
             reader,
             requests_tx,
             responses_tx,
@@ -404,12 +404,14 @@ impl ClientApi {
         // Response send processor
         // Sends finished response strings out the socket
         // Completes when the responses channel is closed
-        unord.push(system_boxed(
-            self.clone().send_responses(responses_rx, writer),
-        ));
+        unord.push(pin_dyn_future!(self
+            .clone()
+            .send_responses(responses_rx, writer)));
 
         // Add future to process first request
-        unord.push(system_boxed(Self::next_request_line(requests_rx.clone())));
+        unord.push(pin_dyn_future!(Self::next_request_line(
+            requests_rx.clone()
+        )));
 
         // Send and receive until we're done or a stop is requested
         while let Ok(Some(r)) = unord.next().timeout_at(stop_token.clone()).await {
@@ -417,7 +419,9 @@ impl ClientApi {
             let request_line = match r {
                 Ok(Some(request_line)) => {
                     // Add future to process next request
-                    unord.push(system_boxed(Self::next_request_line(requests_rx.clone())));
+                    unord.push(pin_dyn_future!(Self::next_request_line(
+                        requests_rx.clone()
+                    )));
 
                     // Socket receive future returned something to process
                     request_line
@@ -434,9 +438,9 @@ impl ClientApi {
             };
 
             // Enqueue unordered future to process request line in parallel
-            unord.push(system_boxed(
-                self.clone().process_request_line(jrp.clone(), request_line),
-            ));
+            unord.push(pin_dyn_future!(self
+                .clone()
+                .process_request_line(jrp.clone(), request_line)));
         }
 
         // Stop sending updates

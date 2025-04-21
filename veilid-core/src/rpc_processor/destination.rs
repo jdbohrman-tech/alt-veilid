@@ -1,5 +1,7 @@
 use super::*;
 
+impl_veilid_log_facility!("rpc");
+
 /// Where to send an RPC message
 #[derive(Debug, Clone)]
 pub(crate) enum Destination {

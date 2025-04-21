@@ -81,7 +81,7 @@ describe('VeilidRoutingContext', () => {
         const dhtRecord = await routingContext.createDhtRecord({ kind: 'DFLT', o_cnt: 1 });
         expect(dhtRecord.key).toBeDefined();
         expect(dhtRecord.owner).toBeDefined();
-        expect(dhtRecord.owner_secret).toBeDefined(); 
+        expect(dhtRecord.owner_secret).toBeDefined();
         expect(dhtRecord.schema).toEqual({ kind: 'DFLT', o_cnt: 1 });
       });
 
@@ -236,9 +236,7 @@ describe('VeilidRoutingContext', () => {
           "0",
           0xFFFFFFFF,
         );
-        expect(watchValueRes).toBeDefined();
-        expect(watchValueRes).not.toEqual("");
-        expect(watchValueRes).not.toEqual("0");
+        expect(watchValueRes).toEqual(true);
 
         const cancelValueRes = await routingContext.cancelDhtWatch(
           dhtRecord.key,
@@ -261,9 +259,7 @@ describe('VeilidRoutingContext', () => {
         const watchValueRes = await routingContext.watchDhtValues(
           dhtRecord.key,
         );
-        expect(watchValueRes).toBeDefined();
-        expect(watchValueRes).not.toEqual("");
-        expect(watchValueRes).not.toEqual("0");
+        expect(watchValueRes).toEqual(true);
 
         const cancelValueRes = await routingContext.cancelDhtWatch(
           dhtRecord.key,

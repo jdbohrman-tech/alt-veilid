@@ -149,7 +149,6 @@ class DefaultVeilidFixture implements VeilidFixture {
           case AttachmentState.overAttached:
           case AttachmentState.fullyAttached:
             done = true;
-            break;
         }
       }
       if (done) {

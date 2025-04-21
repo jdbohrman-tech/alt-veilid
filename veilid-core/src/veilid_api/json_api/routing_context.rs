@@ -78,19 +78,20 @@ pub enum RoutingContextRequestOp {
     WatchDhtValues {
         #[schemars(with = "String")]
         key: TypedKey,
-        subkeys: ValueSubkeyRangeSet,
-        expiration: Timestamp,
-        count: u32,
+        subkeys: Option<ValueSubkeyRangeSet>,
+        expiration: Option<Timestamp>,
+        count: Option<u32>,
     },
     CancelDhtWatch {
         #[schemars(with = "String")]
         key: TypedKey,
-        subkeys: ValueSubkeyRangeSet,
+        subkeys: Option<ValueSubkeyRangeSet>,
     },
     InspectDhtRecord {
         #[schemars(with = "String")]
         key: TypedKey,
-        subkeys: ValueSubkeyRangeSet,
+        subkeys: Option<ValueSubkeyRangeSet>,
+        #[schemars(default)]
         scope: DHTReportScope,
     },
 }
@@ -149,7 +150,7 @@ pub enum RoutingContextResponseOp {
     },
     WatchDhtValues {
         #[serde(flatten)]
-        result: ApiResult<Timestamp>,
+        result: ApiResult<bool>,
     },
     CancelDhtWatch {
         #[serde(flatten)]

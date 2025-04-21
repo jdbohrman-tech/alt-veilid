@@ -379,40 +379,57 @@ impl RPCProcessor {
         }
 
         // Routine to call to generate fanout
+        let result = Arc::new(Mutex::new(Option::<NodeRef>::None));
+
         let registry = self.registry();
         let call_routine = Arc::new(move |next_node: NodeRef| {
             let registry = registry.clone();
             Box::pin(async move {
                 let this = registry.rpc_processor();
-                let v = network_result_try!(
-                    this.rpc_call_find_node(
+                match this
+                    .rpc_call_find_node(
                         Destination::direct(next_node.routing_domain_filtered(routing_domain))
                             .with_safety(safety_selection),
                         node_id,
                         vec![],
                     )
                     .await?
-                );
-                Ok(NetworkResult::value(FanoutCallOutput {
-                    peer_info_list: v.answer,
-                }))
+                {
+                    NetworkResult::Timeout => Ok(FanoutCallOutput {
+                        peer_info_list: vec![],
+                        disposition: FanoutCallDisposition::Timeout,
+                    }),
+                    NetworkResult::ServiceUnavailable(_)
+                    | NetworkResult::NoConnection(_)
+                    | NetworkResult::AlreadyExists(_)
+                    | NetworkResult::InvalidMessage(_) => Ok(FanoutCallOutput {
+                        peer_info_list: vec![],
+                        disposition: FanoutCallDisposition::Rejected,
+                    }),
+                    NetworkResult::Value(v) => Ok(FanoutCallOutput {
+                        peer_info_list: v.answer,
+                        disposition: FanoutCallDisposition::Accepted,
+                    }),
+                }
             }) as PinBoxFuture<FanoutCallResult>
         });
 
         // Routine to call to check if we're done at each step
-        let check_done = Arc::new(move |_: &[NodeRef]| {
+        let result2 = result.clone();
+        let check_done = Arc::new(move |_: &FanoutResult| -> bool {
             let Ok(Some(nr)) = routing_table.lookup_node_ref(node_id) else {
-                return None;
+                return false;
             };
 
             // ensure we have some dial info for the entry already,
             // and that the node is still alive
             // if not, we should keep looking for better info
             if nr.state(Timestamp::now()).is_alive() && nr.has_any_dial_info() {
-                return Some(nr);
+                *result2.lock() = Some(nr);
+                return true;
             }
 
-            None
+            false
         });
 
         // Call the fanout
@@ -422,13 +439,23 @@ impl RPCProcessor {
             node_id,
             count,
             fanout,
+            0,
             timeout_us,
             empty_fanout_node_info_filter(),
             call_routine,
             check_done,
         );
 
-        fanout_call.run(vec![]).await
+        match fanout_call.run(vec![]).await {
+            Ok(fanout_result) => {
+                if matches!(fanout_result.kind, FanoutResultKind::Timeout) {
+                    TimeoutOr::timeout()
+                } else {
+                    TimeoutOr::value(Ok(result.lock().take()))
+                }
+            }
+            Err(e) => TimeoutOr::value(Err(e)),
+        }
     }
 
     /// Search the DHT for a specific node corresponding to a key unless we

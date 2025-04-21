@@ -1,7 +1,8 @@
-pub mod check_active_watches;
-pub mod check_watched_records;
+pub mod check_inbound_watches;
+pub mod check_outbound_watches;
 pub mod flush_record_stores;
 pub mod offline_subkey_writes;
+pub mod save_metadata;
 pub mod send_value_changes;
 
 use super::*;
@@ -16,7 +17,9 @@ impl StorageManager {
             flush_record_stores_task,
             flush_record_stores_task_routine
         );
-
+        // Set save metadata task
+        veilid_log!(self debug "starting save metadata task");
+        impl_setup_task!(self, Self, save_metadata_task, save_metadata_task_routine);
         // Set offline subkey writes tick task
         veilid_log!(self debug "starting offline subkey writes task");
         impl_setup_task!(
@@ -40,8 +43,8 @@ impl StorageManager {
         impl_setup_task!(
             self,
             Self,
-            check_active_watches_task,
-            check_active_watches_task_routine
+            check_outbound_watches_task,
+            check_outbound_watches_task_routine
         );
 
         // Set check watched records tick task
@@ -49,8 +52,8 @@ impl StorageManager {
         impl_setup_task!(
             self,
             Self,
-            check_watched_records_task,
-            check_watched_records_task_routine
+            check_inbound_watches_task,
+            check_inbound_watches_task_routine
         );
     }
 
@@ -59,11 +62,14 @@ impl StorageManager {
         // Run the flush stores task
         self.flush_record_stores_task.tick().await?;
 
+        // Run the flush stores task
+        self.save_metadata_task.tick().await?;
+
         // Check active watches
-        self.check_active_watches_task.tick().await?;
+        self.check_outbound_watches_task.tick().await?;
 
         // Check watched records
-        self.check_watched_records_task.tick().await?;
+        self.check_inbound_watches_task.tick().await?;
 
         // Run online-only tasks
         if self.dht_is_online() {
@@ -81,11 +87,11 @@ impl StorageManager {
     #[instrument(level = "trace", target = "stor", skip_all)]
     pub(super) async fn cancel_tasks(&self) {
         veilid_log!(self debug "stopping check watched records task");
-        if let Err(e) = self.check_watched_records_task.stop().await {
+        if let Err(e) = self.check_inbound_watches_task.stop().await {
             veilid_log!(self warn "check_watched_records_task not stopped: {}", e);
         }
         veilid_log!(self debug "stopping check active watches task");
-        if let Err(e) = self.check_active_watches_task.stop().await {
+        if let Err(e) = self.check_outbound_watches_task.stop().await {
             veilid_log!(self warn "check_active_watches_task not stopped: {}", e);
         }
         veilid_log!(self debug "stopping send value changes task");

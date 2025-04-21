@@ -1,5 +1,7 @@
 use super::*;
 
+impl_veilid_log_facility!("rpc");
+
 impl RPCProcessor {
     // Sends a dht value change notification
     // Can be sent via all methods including relays and routes but never over a safety route
@@ -88,7 +90,7 @@ impl RPCProcessor {
                 msg.header.direct_sender_node_id(),
             );
 
-            veilid_log!(self debug "{}", debug_string_stmt);
+            veilid_log!(self debug target: "dht", "{}", debug_string_stmt);
         }
 
         // Save the subkey, creating a new record if necessary

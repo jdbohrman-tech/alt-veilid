@@ -352,7 +352,7 @@ impl NetworkConnection {
             };
             let timer = MutableFuture::new(new_timer());
 
-            unord.push(system_boxed(timer.clone().in_current_span()));
+            unord.push(pin_dyn_future!(timer.clone().in_current_span()));
 
             loop {
                 // Add another message sender future if necessary
@@ -386,7 +386,7 @@ impl NetworkConnection {
                             }
                         }
                     }.in_current_span());
-                    unord.push(system_boxed(sender_fut.in_current_span()));
+                    unord.push(pin_dyn_future!(sender_fut.in_current_span()));
                 }
 
                 // Add another message receiver future if necessary
@@ -445,7 +445,7 @@ impl NetworkConnection {
                             }
                         }.in_current_span());
 
-                    unord.push(system_boxed(receiver_fut.in_current_span()));
+                    unord.push(pin_dyn_future!(receiver_fut.in_current_span()));
                 }
 
                 // Process futures

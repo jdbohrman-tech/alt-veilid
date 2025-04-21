@@ -1,5 +1,7 @@
 use super::*;
 
+impl_veilid_log_facility!("rpc");
+
 impl RPCProcessor {
     // Sends a high level app request and wait for response
     // Can be sent via all methods including relays and routes
