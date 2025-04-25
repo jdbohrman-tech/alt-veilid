@@ -1,3 +1,23 @@
+**UNRELEASED**
+
+- *BREAKING API CHANGE*:
+  - watch_dht_values() now returns a bool rather than an expiration timestamp. Expiration renewal is now managed by veilid-core internally. Apps no longer need to renew watches!
+  - inspect_dht_record() and cancel_dht_watch() now take an Option<ValueSubkeyRangeSet> instead of just a ValueSubkeyRangeSet, to make things easier for automatic binding generation someday and to remove ambiguities about the semantics of the default empty set.
+  - DHTRecordReport now uses a Vec<Option<ValueSubkey>> for seq lists, rather than using the 'ValueSubkey::MAX' sentinel value (0xFFFFFFFF) to represent a missing subkey
+
+- veilid-core:
+  - Allow shutdown even if tables are closed
+  - New, more robust, watchvalue implementation
+  - Consensus is now counted from the nodes closest to the key, excluding attempts that have failed, but including new nodes that show up, requiring N out of the M closest nodes to have      succeeded and all have been attempted.
+  - Watching a node now also triggers an background inspection+valueget to detect if values have changed online
+  - Fanout queue disqualifaction for distance-based rejections reimplemented
+  - Local rehydration implemented. DHT record subkey data that does not have sufficient consensus online is re-pushed to keep it alive when records are opened.
+  - Direct bootstrap now filters out Relayed nodes correctly
+
+- veilid-python:
+  - Fix type assertion bug in watch_dht_values
+  - Update watchvalue integration tests
+
 **Changed in Veilid 0.4.4**
 
 - veilid-core:
