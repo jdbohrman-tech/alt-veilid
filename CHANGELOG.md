@@ -13,6 +13,12 @@
   - Fanout queue disqualifaction for distance-based rejections reimplemented
   - Local rehydration implemented. DHT record subkey data that does not have sufficient consensus online is re-pushed to keep it alive when records are opened.
   - Direct bootstrap now filters out Relayed nodes correctly
+  - Closed issue #400: https://gitlab.com/veilid/veilid/-/issues/400
+  - Closed issue #377: https://gitlab.com/veilid/veilid/-/issues/377
+
+- veilid-flutter:
+  - Bindings updated for API changes
+  - Corrosion version in cmake build for linux and windows updated to 0.5.1: https://gitlab.com/veilid/veilid/-/issues/447
 
 - veilid-python:
   - Fix type assertion bug in watch_dht_values
