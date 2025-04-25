@@ -2,6 +2,7 @@ pub mod check_inbound_watches;
 pub mod check_outbound_watches;
 pub mod flush_record_stores;
 pub mod offline_subkey_writes;
+pub mod rehydrate_records;
 pub mod save_metadata;
 pub mod send_value_changes;
 
@@ -55,6 +56,15 @@ impl StorageManager {
             check_inbound_watches_task,
             check_inbound_watches_task_routine
         );
+
+        // Set rehydrate records tick task
+        veilid_log!(self debug "starting rehydrate records task");
+        impl_setup_task!(
+            self,
+            Self,
+            rehydrate_records_task,
+            rehydrate_records_task_routine
+        );
     }
 
     #[instrument(parent = None, level = "trace", target = "stor", name = "StorageManager::tick", skip_all, err)]
@@ -76,6 +86,11 @@ impl StorageManager {
             // Run offline subkey writes task if there's work to be done
             if self.has_offline_subkey_writes().await {
                 self.offline_subkey_writes_task.tick().await?;
+            }
+
+            // Do requested rehydrations
+            if self.has_rehydration_requests().await {
+                self.rehydrate_records_task.tick().await?;
             }
 
             // Send value changed notifications
@@ -105,6 +120,10 @@ impl StorageManager {
         veilid_log!(self debug "stopping offline subkey writes task");
         if let Err(e) = self.offline_subkey_writes_task.stop().await {
             veilid_log!(self warn "offline_subkey_writes_task not stopped: {}", e);
+        }
+        veilid_log!(self debug "stopping record rehydration task");
+        if let Err(e) = self.rehydrate_records_task.stop().await {
+            veilid_log!(self warn "rehydrate_records_task not stopped: {}", e);
         }
     }
 }

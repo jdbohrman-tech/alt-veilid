@@ -899,44 +899,49 @@ impl RoutingTable {
                         return false;
                     }
 
-                    // does it have some dial info we need?
-                    let filter = |n: &NodeInfo| {
-                        let mut keep = false;
-                        // Bootstraps must have -only- inbound capable network class
-                        if !matches!(n.network_class(), NetworkClass::InboundCapable) {
+                    // Only nodes with direct publicinternet node info
+                    let Some(signed_node_info) = e.signed_node_info(RoutingDomain::PublicInternet)
+                    else {
+                        return false;
+                    };
+                    let SignedNodeInfo::Direct(signed_direct_node_info) = signed_node_info else {
+                        return false;
+                    };
+                    let node_info = signed_direct_node_info.node_info();
+
+                    // Bootstraps must have -only- inbound capable network class
+                    if !matches!(node_info.network_class(), NetworkClass::InboundCapable) {
+                        return false;
+                    }
+
+                    // Check for direct dialinfo and a good mix of protocol and address types
+                    let mut keep = false;
+                    for did in node_info.dial_info_detail_list() {
+                        // Bootstraps must have -only- direct dial info
+                        if !matches!(did.class, DialInfoClass::Direct) {
                             return false;
                         }
-                        for did in n.dial_info_detail_list() {
-                            // Bootstraps must have -only- direct dial info
-                            if !matches!(did.class, DialInfoClass::Direct) {
-                                return false;
-                            }
-                            if matches!(did.dial_info.address_type(), AddressType::IPV4) {
-                                for (n, protocol_type) in protocol_types.iter().enumerate() {
-                                    if nodes_proto_v4[n] < max_per_type
-                                        && did.dial_info.protocol_type() == *protocol_type
-                                    {
-                                        nodes_proto_v4[n] += 1;
-                                        keep = true;
-                                    }
+                        if matches!(did.dial_info.address_type(), AddressType::IPV4) {
+                            for (n, protocol_type) in protocol_types.iter().enumerate() {
+                                if nodes_proto_v4[n] < max_per_type
+                                    && did.dial_info.protocol_type() == *protocol_type
+                                {
+                                    nodes_proto_v4[n] += 1;
+                                    keep = true;
                                 }
-                            } else if matches!(did.dial_info.address_type(), AddressType::IPV6) {
-                                for (n, protocol_type) in protocol_types.iter().enumerate() {
-                                    if nodes_proto_v6[n] < max_per_type
-                                        && did.dial_info.protocol_type() == *protocol_type
-                                    {
-                                        nodes_proto_v6[n] += 1;
-                                        keep = true;
-                                    }
+                            }
+                        } else if matches!(did.dial_info.address_type(), AddressType::IPV6) {
+                            for (n, protocol_type) in protocol_types.iter().enumerate() {
+                                if nodes_proto_v6[n] < max_per_type
+                                    && did.dial_info.protocol_type() == *protocol_type
+                                {
+                                    nodes_proto_v6[n] += 1;
+                                    keep = true;
                                 }
                             }
                         }
-                        keep
-                    };
-
-                    e.node_info(RoutingDomain::PublicInternet)
-                        .map(filter)
-                        .unwrap_or(false)
+                    }
+                    keep
                 })
             },
         ) as RoutingTableEntryFilter;

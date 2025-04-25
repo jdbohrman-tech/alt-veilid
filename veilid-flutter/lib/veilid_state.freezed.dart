@@ -1,3 +1,4 @@
+// dart format width=80
 // coverage:ignore-file
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint
@@ -9,114 +10,60 @@ part of 'veilid_state.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// dart format off
 T _$identity<T>(T value) => value;
-
-final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
-
-LatencyStats _$LatencyStatsFromJson(Map<String, dynamic> json) {
-  return _LatencyStats.fromJson(json);
-}
 
 /// @nodoc
 mixin _$LatencyStats {
-  TimestampDuration get fastest => throw _privateConstructorUsedError;
-  TimestampDuration get average => throw _privateConstructorUsedError;
-  TimestampDuration get slowest => throw _privateConstructorUsedError;
-  TimestampDuration get tm90 => throw _privateConstructorUsedError;
-  TimestampDuration get tm75 => throw _privateConstructorUsedError;
-  TimestampDuration get p90 => throw _privateConstructorUsedError;
-  TimestampDuration get p75 => throw _privateConstructorUsedError;
-
-  /// Serializes this LatencyStats to a JSON map.
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+  TimestampDuration get fastest;
+  TimestampDuration get average;
+  TimestampDuration get slowest;
+  TimestampDuration get tm90;
+  TimestampDuration get tm75;
+  TimestampDuration get p90;
+  TimestampDuration get p75;
 
   /// Create a copy of LatencyStats
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
-  $LatencyStatsCopyWith<LatencyStats> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-abstract class $LatencyStatsCopyWith<$Res> {
-  factory $LatencyStatsCopyWith(
-          LatencyStats value, $Res Function(LatencyStats) then) =
-      _$LatencyStatsCopyWithImpl<$Res, LatencyStats>;
-  @useResult
-  $Res call(
-      {TimestampDuration fastest,
-      TimestampDuration average,
-      TimestampDuration slowest,
-      TimestampDuration tm90,
-      TimestampDuration tm75,
-      TimestampDuration p90,
-      TimestampDuration p75});
-}
-
-/// @nodoc
-class _$LatencyStatsCopyWithImpl<$Res, $Val extends LatencyStats>
-    implements $LatencyStatsCopyWith<$Res> {
-  _$LatencyStatsCopyWithImpl(this._value, this._then);
-
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
-
-  /// Create a copy of LatencyStats
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
+  $LatencyStatsCopyWith<LatencyStats> get copyWith =>
+      _$LatencyStatsCopyWithImpl<LatencyStats>(
+          this as LatencyStats, _$identity);
+
+  /// Serializes this LatencyStats to a JSON map.
+  Map<String, dynamic> toJson();
+
   @override
-  $Res call({
-    Object? fastest = null,
-    Object? average = null,
-    Object? slowest = null,
-    Object? tm90 = null,
-    Object? tm75 = null,
-    Object? p90 = null,
-    Object? p75 = null,
-  }) {
-    return _then(_value.copyWith(
-      fastest: null == fastest
-          ? _value.fastest
-          : fastest // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration,
-      average: null == average
-          ? _value.average
-          : average // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration,
-      slowest: null == slowest
-          ? _value.slowest
-          : slowest // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration,
-      tm90: null == tm90
-          ? _value.tm90
-          : tm90 // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration,
-      tm75: null == tm75
-          ? _value.tm75
-          : tm75 // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration,
-      p90: null == p90
-          ? _value.p90
-          : p90 // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration,
-      p75: null == p75
-          ? _value.p75
-          : p75 // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration,
-    ) as $Val);
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is LatencyStats &&
+            (identical(other.fastest, fastest) || other.fastest == fastest) &&
+            (identical(other.average, average) || other.average == average) &&
+            (identical(other.slowest, slowest) || other.slowest == slowest) &&
+            (identical(other.tm90, tm90) || other.tm90 == tm90) &&
+            (identical(other.tm75, tm75) || other.tm75 == tm75) &&
+            (identical(other.p90, p90) || other.p90 == p90) &&
+            (identical(other.p75, p75) || other.p75 == p75));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, fastest, average, slowest, tm90, tm75, p90, p75);
+
+  @override
+  String toString() {
+    return 'LatencyStats(fastest: $fastest, average: $average, slowest: $slowest, tm90: $tm90, tm75: $tm75, p90: $p90, p75: $p75)';
   }
 }
 
 /// @nodoc
-abstract class _$$LatencyStatsImplCopyWith<$Res>
-    implements $LatencyStatsCopyWith<$Res> {
-  factory _$$LatencyStatsImplCopyWith(
-          _$LatencyStatsImpl value, $Res Function(_$LatencyStatsImpl) then) =
-      __$$LatencyStatsImplCopyWithImpl<$Res>;
-  @override
+abstract mixin class $LatencyStatsCopyWith<$Res> {
+  factory $LatencyStatsCopyWith(
+          LatencyStats value, $Res Function(LatencyStats) _then) =
+      _$LatencyStatsCopyWithImpl;
   @useResult
   $Res call(
       {TimestampDuration fastest,
@@ -129,12 +76,11 @@ abstract class _$$LatencyStatsImplCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$LatencyStatsImplCopyWithImpl<$Res>
-    extends _$LatencyStatsCopyWithImpl<$Res, _$LatencyStatsImpl>
-    implements _$$LatencyStatsImplCopyWith<$Res> {
-  __$$LatencyStatsImplCopyWithImpl(
-      _$LatencyStatsImpl _value, $Res Function(_$LatencyStatsImpl) _then)
-      : super(_value, _then);
+class _$LatencyStatsCopyWithImpl<$Res> implements $LatencyStatsCopyWith<$Res> {
+  _$LatencyStatsCopyWithImpl(this._self, this._then);
+
+  final LatencyStats _self;
+  final $Res Function(LatencyStats) _then;
 
   /// Create a copy of LatencyStats
   /// with the given fields replaced by the non-null parameter values.
@@ -149,33 +95,33 @@ class __$$LatencyStatsImplCopyWithImpl<$Res>
     Object? p90 = null,
     Object? p75 = null,
   }) {
-    return _then(_$LatencyStatsImpl(
+    return _then(_self.copyWith(
       fastest: null == fastest
-          ? _value.fastest
+          ? _self.fastest
           : fastest // ignore: cast_nullable_to_non_nullable
               as TimestampDuration,
       average: null == average
-          ? _value.average
+          ? _self.average
           : average // ignore: cast_nullable_to_non_nullable
               as TimestampDuration,
       slowest: null == slowest
-          ? _value.slowest
+          ? _self.slowest
           : slowest // ignore: cast_nullable_to_non_nullable
               as TimestampDuration,
       tm90: null == tm90
-          ? _value.tm90
+          ? _self.tm90
           : tm90 // ignore: cast_nullable_to_non_nullable
               as TimestampDuration,
       tm75: null == tm75
-          ? _value.tm75
+          ? _self.tm75
           : tm75 // ignore: cast_nullable_to_non_nullable
               as TimestampDuration,
       p90: null == p90
-          ? _value.p90
+          ? _self.p90
           : p90 // ignore: cast_nullable_to_non_nullable
               as TimestampDuration,
       p75: null == p75
-          ? _value.p75
+          ? _self.p75
           : p75 // ignore: cast_nullable_to_non_nullable
               as TimestampDuration,
     ));
@@ -184,8 +130,8 @@ class __$$LatencyStatsImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$LatencyStatsImpl implements _LatencyStats {
-  const _$LatencyStatsImpl(
+class _LatencyStats implements LatencyStats {
+  const _LatencyStats(
       {required this.fastest,
       required this.average,
       required this.slowest,
@@ -193,9 +139,8 @@ class _$LatencyStatsImpl implements _LatencyStats {
       required this.tm75,
       required this.p90,
       required this.p75});
-
-  factory _$LatencyStatsImpl.fromJson(Map<String, dynamic> json) =>
-      _$$LatencyStatsImplFromJson(json);
+  factory _LatencyStats.fromJson(Map<String, dynamic> json) =>
+      _$LatencyStatsFromJson(json);
 
   @override
   final TimestampDuration fastest;
@@ -212,16 +157,26 @@ class _$LatencyStatsImpl implements _LatencyStats {
   @override
   final TimestampDuration p75;
 
+  /// Create a copy of LatencyStats
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  String toString() {
-    return 'LatencyStats(fastest: $fastest, average: $average, slowest: $slowest, tm90: $tm90, tm75: $tm75, p90: $p90, p75: $p75)';
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  _$LatencyStatsCopyWith<_LatencyStats> get copyWith =>
+      __$LatencyStatsCopyWithImpl<_LatencyStats>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$LatencyStatsToJson(
+      this,
+    );
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$LatencyStatsImpl &&
+            other is _LatencyStats &&
             (identical(other.fastest, fastest) || other.fastest == fastest) &&
             (identical(other.average, average) || other.average == average) &&
             (identical(other.slowest, slowest) || other.slowest == slowest) &&
@@ -236,210 +191,107 @@ class _$LatencyStatsImpl implements _LatencyStats {
   int get hashCode =>
       Object.hash(runtimeType, fastest, average, slowest, tm90, tm75, p90, p75);
 
-  /// Create a copy of LatencyStats
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  @pragma('vm:prefer-inline')
-  _$$LatencyStatsImplCopyWith<_$LatencyStatsImpl> get copyWith =>
-      __$$LatencyStatsImplCopyWithImpl<_$LatencyStatsImpl>(this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$LatencyStatsImplToJson(
-      this,
-    );
-  }
-}
-
-abstract class _LatencyStats implements LatencyStats {
-  const factory _LatencyStats(
-      {required final TimestampDuration fastest,
-      required final TimestampDuration average,
-      required final TimestampDuration slowest,
-      required final TimestampDuration tm90,
-      required final TimestampDuration tm75,
-      required final TimestampDuration p90,
-      required final TimestampDuration p75}) = _$LatencyStatsImpl;
-
-  factory _LatencyStats.fromJson(Map<String, dynamic> json) =
-      _$LatencyStatsImpl.fromJson;
-
-  @override
-  TimestampDuration get fastest;
-  @override
-  TimestampDuration get average;
-  @override
-  TimestampDuration get slowest;
-  @override
-  TimestampDuration get tm90;
-  @override
-  TimestampDuration get tm75;
-  @override
-  TimestampDuration get p90;
-  @override
-  TimestampDuration get p75;
-
-  /// Create a copy of LatencyStats
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$LatencyStatsImplCopyWith<_$LatencyStatsImpl> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-TransferStats _$TransferStatsFromJson(Map<String, dynamic> json) {
-  return _TransferStats.fromJson(json);
-}
-
-/// @nodoc
-mixin _$TransferStats {
-  BigInt get total => throw _privateConstructorUsedError;
-  BigInt get maximum => throw _privateConstructorUsedError;
-  BigInt get average => throw _privateConstructorUsedError;
-  BigInt get minimum => throw _privateConstructorUsedError;
-
-  /// Serializes this TransferStats to a JSON map.
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-
-  /// Create a copy of TransferStats
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  $TransferStatsCopyWith<TransferStats> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-abstract class $TransferStatsCopyWith<$Res> {
-  factory $TransferStatsCopyWith(
-          TransferStats value, $Res Function(TransferStats) then) =
-      _$TransferStatsCopyWithImpl<$Res, TransferStats>;
-  @useResult
-  $Res call({BigInt total, BigInt maximum, BigInt average, BigInt minimum});
-}
-
-/// @nodoc
-class _$TransferStatsCopyWithImpl<$Res, $Val extends TransferStats>
-    implements $TransferStatsCopyWith<$Res> {
-  _$TransferStatsCopyWithImpl(this._value, this._then);
-
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
-
-  /// Create a copy of TransferStats
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? total = null,
-    Object? maximum = null,
-    Object? average = null,
-    Object? minimum = null,
-  }) {
-    return _then(_value.copyWith(
-      total: null == total
-          ? _value.total
-          : total // ignore: cast_nullable_to_non_nullable
-              as BigInt,
-      maximum: null == maximum
-          ? _value.maximum
-          : maximum // ignore: cast_nullable_to_non_nullable
-              as BigInt,
-      average: null == average
-          ? _value.average
-          : average // ignore: cast_nullable_to_non_nullable
-              as BigInt,
-      minimum: null == minimum
-          ? _value.minimum
-          : minimum // ignore: cast_nullable_to_non_nullable
-              as BigInt,
-    ) as $Val);
+  String toString() {
+    return 'LatencyStats(fastest: $fastest, average: $average, slowest: $slowest, tm90: $tm90, tm75: $tm75, p90: $p90, p75: $p75)';
   }
 }
 
 /// @nodoc
-abstract class _$$TransferStatsImplCopyWith<$Res>
-    implements $TransferStatsCopyWith<$Res> {
-  factory _$$TransferStatsImplCopyWith(
-          _$TransferStatsImpl value, $Res Function(_$TransferStatsImpl) then) =
-      __$$TransferStatsImplCopyWithImpl<$Res>;
+abstract mixin class _$LatencyStatsCopyWith<$Res>
+    implements $LatencyStatsCopyWith<$Res> {
+  factory _$LatencyStatsCopyWith(
+          _LatencyStats value, $Res Function(_LatencyStats) _then) =
+      __$LatencyStatsCopyWithImpl;
   @override
   @useResult
-  $Res call({BigInt total, BigInt maximum, BigInt average, BigInt minimum});
+  $Res call(
+      {TimestampDuration fastest,
+      TimestampDuration average,
+      TimestampDuration slowest,
+      TimestampDuration tm90,
+      TimestampDuration tm75,
+      TimestampDuration p90,
+      TimestampDuration p75});
 }
 
 /// @nodoc
-class __$$TransferStatsImplCopyWithImpl<$Res>
-    extends _$TransferStatsCopyWithImpl<$Res, _$TransferStatsImpl>
-    implements _$$TransferStatsImplCopyWith<$Res> {
-  __$$TransferStatsImplCopyWithImpl(
-      _$TransferStatsImpl _value, $Res Function(_$TransferStatsImpl) _then)
-      : super(_value, _then);
+class __$LatencyStatsCopyWithImpl<$Res>
+    implements _$LatencyStatsCopyWith<$Res> {
+  __$LatencyStatsCopyWithImpl(this._self, this._then);
 
-  /// Create a copy of TransferStats
+  final _LatencyStats _self;
+  final $Res Function(_LatencyStats) _then;
+
+  /// Create a copy of LatencyStats
   /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
   @override
+  @pragma('vm:prefer-inline')
   $Res call({
-    Object? total = null,
-    Object? maximum = null,
+    Object? fastest = null,
     Object? average = null,
-    Object? minimum = null,
+    Object? slowest = null,
+    Object? tm90 = null,
+    Object? tm75 = null,
+    Object? p90 = null,
+    Object? p75 = null,
   }) {
-    return _then(_$TransferStatsImpl(
-      total: null == total
-          ? _value.total
-          : total // ignore: cast_nullable_to_non_nullable
-              as BigInt,
-      maximum: null == maximum
-          ? _value.maximum
-          : maximum // ignore: cast_nullable_to_non_nullable
-              as BigInt,
+    return _then(_LatencyStats(
+      fastest: null == fastest
+          ? _self.fastest
+          : fastest // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
       average: null == average
-          ? _value.average
+          ? _self.average
           : average // ignore: cast_nullable_to_non_nullable
-              as BigInt,
-      minimum: null == minimum
-          ? _value.minimum
-          : minimum // ignore: cast_nullable_to_non_nullable
-              as BigInt,
+              as TimestampDuration,
+      slowest: null == slowest
+          ? _self.slowest
+          : slowest // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      tm90: null == tm90
+          ? _self.tm90
+          : tm90 // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      tm75: null == tm75
+          ? _self.tm75
+          : tm75 // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      p90: null == p90
+          ? _self.p90
+          : p90 // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      p75: null == p75
+          ? _self.p75
+          : p75 // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
     ));
   }
 }
 
 /// @nodoc
-@JsonSerializable()
-class _$TransferStatsImpl implements _TransferStats {
-  const _$TransferStatsImpl(
-      {required this.total,
-      required this.maximum,
-      required this.average,
-      required this.minimum});
+mixin _$TransferStats {
+  BigInt get total;
+  BigInt get maximum;
+  BigInt get average;
+  BigInt get minimum;
 
-  factory _$TransferStatsImpl.fromJson(Map<String, dynamic> json) =>
-      _$$TransferStatsImplFromJson(json);
+  /// Create a copy of TransferStats
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $TransferStatsCopyWith<TransferStats> get copyWith =>
+      _$TransferStatsCopyWithImpl<TransferStats>(
+          this as TransferStats, _$identity);
 
-  @override
-  final BigInt total;
-  @override
-  final BigInt maximum;
-  @override
-  final BigInt average;
-  @override
-  final BigInt minimum;
-
-  @override
-  String toString() {
-    return 'TransferStats(total: $total, maximum: $maximum, average: $average, minimum: $minimum)';
-  }
+  /// Serializes this TransferStats to a JSON map.
+  Map<String, dynamic> toJson();
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$TransferStatsImpl &&
+            other is TransferStats &&
             (identical(other.total, total) || other.total == total) &&
             (identical(other.maximum, maximum) || other.maximum == maximum) &&
             (identical(other.average, average) || other.average == average) &&
@@ -451,199 +303,188 @@ class _$TransferStatsImpl implements _TransferStats {
   int get hashCode =>
       Object.hash(runtimeType, total, maximum, average, minimum);
 
-  /// Create a copy of TransferStats
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  @pragma('vm:prefer-inline')
-  _$$TransferStatsImplCopyWith<_$TransferStatsImpl> get copyWith =>
-      __$$TransferStatsImplCopyWithImpl<_$TransferStatsImpl>(this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$TransferStatsImplToJson(
-      this,
-    );
+  String toString() {
+    return 'TransferStats(total: $total, maximum: $maximum, average: $average, minimum: $minimum)';
   }
 }
 
-abstract class _TransferStats implements TransferStats {
-  const factory _TransferStats(
-      {required final BigInt total,
-      required final BigInt maximum,
-      required final BigInt average,
-      required final BigInt minimum}) = _$TransferStatsImpl;
+/// @nodoc
+abstract mixin class $TransferStatsCopyWith<$Res> {
+  factory $TransferStatsCopyWith(
+          TransferStats value, $Res Function(TransferStats) _then) =
+      _$TransferStatsCopyWithImpl;
+  @useResult
+  $Res call({BigInt total, BigInt maximum, BigInt average, BigInt minimum});
+}
 
-  factory _TransferStats.fromJson(Map<String, dynamic> json) =
-      _$TransferStatsImpl.fromJson;
+/// @nodoc
+class _$TransferStatsCopyWithImpl<$Res>
+    implements $TransferStatsCopyWith<$Res> {
+  _$TransferStatsCopyWithImpl(this._self, this._then);
 
-  @override
-  BigInt get total;
-  @override
-  BigInt get maximum;
-  @override
-  BigInt get average;
-  @override
-  BigInt get minimum;
+  final TransferStats _self;
+  final $Res Function(TransferStats) _then;
 
   /// Create a copy of TransferStats
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$TransferStatsImplCopyWith<_$TransferStatsImpl> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-TransferStatsDownUp _$TransferStatsDownUpFromJson(Map<String, dynamic> json) {
-  return _TransferStatsDownUp.fromJson(json);
-}
-
-/// @nodoc
-mixin _$TransferStatsDownUp {
-  TransferStats get down => throw _privateConstructorUsedError;
-  TransferStats get up => throw _privateConstructorUsedError;
-
-  /// Serializes this TransferStatsDownUp to a JSON map.
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-
-  /// Create a copy of TransferStatsDownUp
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  $TransferStatsDownUpCopyWith<TransferStatsDownUp> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-abstract class $TransferStatsDownUpCopyWith<$Res> {
-  factory $TransferStatsDownUpCopyWith(
-          TransferStatsDownUp value, $Res Function(TransferStatsDownUp) then) =
-      _$TransferStatsDownUpCopyWithImpl<$Res, TransferStatsDownUp>;
-  @useResult
-  $Res call({TransferStats down, TransferStats up});
-
-  $TransferStatsCopyWith<$Res> get down;
-  $TransferStatsCopyWith<$Res> get up;
-}
-
-/// @nodoc
-class _$TransferStatsDownUpCopyWithImpl<$Res, $Val extends TransferStatsDownUp>
-    implements $TransferStatsDownUpCopyWith<$Res> {
-  _$TransferStatsDownUpCopyWithImpl(this._value, this._then);
-
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
-
-  /// Create a copy of TransferStatsDownUp
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? down = null,
-    Object? up = null,
+    Object? total = null,
+    Object? maximum = null,
+    Object? average = null,
+    Object? minimum = null,
   }) {
-    return _then(_value.copyWith(
-      down: null == down
-          ? _value.down
-          : down // ignore: cast_nullable_to_non_nullable
-              as TransferStats,
-      up: null == up
-          ? _value.up
-          : up // ignore: cast_nullable_to_non_nullable
-              as TransferStats,
-    ) as $Val);
-  }
-
-  /// Create a copy of TransferStatsDownUp
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @pragma('vm:prefer-inline')
-  $TransferStatsCopyWith<$Res> get down {
-    return $TransferStatsCopyWith<$Res>(_value.down, (value) {
-      return _then(_value.copyWith(down: value) as $Val);
-    });
-  }
-
-  /// Create a copy of TransferStatsDownUp
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @pragma('vm:prefer-inline')
-  $TransferStatsCopyWith<$Res> get up {
-    return $TransferStatsCopyWith<$Res>(_value.up, (value) {
-      return _then(_value.copyWith(up: value) as $Val);
-    });
-  }
-}
-
-/// @nodoc
-abstract class _$$TransferStatsDownUpImplCopyWith<$Res>
-    implements $TransferStatsDownUpCopyWith<$Res> {
-  factory _$$TransferStatsDownUpImplCopyWith(_$TransferStatsDownUpImpl value,
-          $Res Function(_$TransferStatsDownUpImpl) then) =
-      __$$TransferStatsDownUpImplCopyWithImpl<$Res>;
-  @override
-  @useResult
-  $Res call({TransferStats down, TransferStats up});
-
-  @override
-  $TransferStatsCopyWith<$Res> get down;
-  @override
-  $TransferStatsCopyWith<$Res> get up;
-}
-
-/// @nodoc
-class __$$TransferStatsDownUpImplCopyWithImpl<$Res>
-    extends _$TransferStatsDownUpCopyWithImpl<$Res, _$TransferStatsDownUpImpl>
-    implements _$$TransferStatsDownUpImplCopyWith<$Res> {
-  __$$TransferStatsDownUpImplCopyWithImpl(_$TransferStatsDownUpImpl _value,
-      $Res Function(_$TransferStatsDownUpImpl) _then)
-      : super(_value, _then);
-
-  /// Create a copy of TransferStatsDownUp
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? down = null,
-    Object? up = null,
-  }) {
-    return _then(_$TransferStatsDownUpImpl(
-      down: null == down
-          ? _value.down
-          : down // ignore: cast_nullable_to_non_nullable
-              as TransferStats,
-      up: null == up
-          ? _value.up
-          : up // ignore: cast_nullable_to_non_nullable
-              as TransferStats,
+    return _then(_self.copyWith(
+      total: null == total
+          ? _self.total
+          : total // ignore: cast_nullable_to_non_nullable
+              as BigInt,
+      maximum: null == maximum
+          ? _self.maximum
+          : maximum // ignore: cast_nullable_to_non_nullable
+              as BigInt,
+      average: null == average
+          ? _self.average
+          : average // ignore: cast_nullable_to_non_nullable
+              as BigInt,
+      minimum: null == minimum
+          ? _self.minimum
+          : minimum // ignore: cast_nullable_to_non_nullable
+              as BigInt,
     ));
   }
 }
 
 /// @nodoc
 @JsonSerializable()
-class _$TransferStatsDownUpImpl implements _TransferStatsDownUp {
-  const _$TransferStatsDownUpImpl({required this.down, required this.up});
-
-  factory _$TransferStatsDownUpImpl.fromJson(Map<String, dynamic> json) =>
-      _$$TransferStatsDownUpImplFromJson(json);
-
-  @override
-  final TransferStats down;
-  @override
-  final TransferStats up;
+class _TransferStats implements TransferStats {
+  const _TransferStats(
+      {required this.total,
+      required this.maximum,
+      required this.average,
+      required this.minimum});
+  factory _TransferStats.fromJson(Map<String, dynamic> json) =>
+      _$TransferStatsFromJson(json);
 
   @override
-  String toString() {
-    return 'TransferStatsDownUp(down: $down, up: $up)';
+  final BigInt total;
+  @override
+  final BigInt maximum;
+  @override
+  final BigInt average;
+  @override
+  final BigInt minimum;
+
+  /// Create a copy of TransferStats
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  _$TransferStatsCopyWith<_TransferStats> get copyWith =>
+      __$TransferStatsCopyWithImpl<_TransferStats>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$TransferStatsToJson(
+      this,
+    );
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$TransferStatsDownUpImpl &&
+            other is _TransferStats &&
+            (identical(other.total, total) || other.total == total) &&
+            (identical(other.maximum, maximum) || other.maximum == maximum) &&
+            (identical(other.average, average) || other.average == average) &&
+            (identical(other.minimum, minimum) || other.minimum == minimum));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, total, maximum, average, minimum);
+
+  @override
+  String toString() {
+    return 'TransferStats(total: $total, maximum: $maximum, average: $average, minimum: $minimum)';
+  }
+}
+
+/// @nodoc
+abstract mixin class _$TransferStatsCopyWith<$Res>
+    implements $TransferStatsCopyWith<$Res> {
+  factory _$TransferStatsCopyWith(
+          _TransferStats value, $Res Function(_TransferStats) _then) =
+      __$TransferStatsCopyWithImpl;
+  @override
+  @useResult
+  $Res call({BigInt total, BigInt maximum, BigInt average, BigInt minimum});
+}
+
+/// @nodoc
+class __$TransferStatsCopyWithImpl<$Res>
+    implements _$TransferStatsCopyWith<$Res> {
+  __$TransferStatsCopyWithImpl(this._self, this._then);
+
+  final _TransferStats _self;
+  final $Res Function(_TransferStats) _then;
+
+  /// Create a copy of TransferStats
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? total = null,
+    Object? maximum = null,
+    Object? average = null,
+    Object? minimum = null,
+  }) {
+    return _then(_TransferStats(
+      total: null == total
+          ? _self.total
+          : total // ignore: cast_nullable_to_non_nullable
+              as BigInt,
+      maximum: null == maximum
+          ? _self.maximum
+          : maximum // ignore: cast_nullable_to_non_nullable
+              as BigInt,
+      average: null == average
+          ? _self.average
+          : average // ignore: cast_nullable_to_non_nullable
+              as BigInt,
+      minimum: null == minimum
+          ? _self.minimum
+          : minimum // ignore: cast_nullable_to_non_nullable
+              as BigInt,
+    ));
+  }
+}
+
+/// @nodoc
+mixin _$TransferStatsDownUp {
+  TransferStats get down;
+  TransferStats get up;
+
+  /// Create a copy of TransferStatsDownUp
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $TransferStatsDownUpCopyWith<TransferStatsDownUp> get copyWith =>
+      _$TransferStatsDownUpCopyWithImpl<TransferStatsDownUp>(
+          this as TransferStatsDownUp, _$identity);
+
+  /// Serializes this TransferStatsDownUp to a JSON map.
+  Map<String, dynamic> toJson();
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is TransferStatsDownUp &&
             (identical(other.down, down) || other.down == down) &&
             (identical(other.up, up) || other.up == up));
   }
@@ -652,251 +493,209 @@ class _$TransferStatsDownUpImpl implements _TransferStatsDownUp {
   @override
   int get hashCode => Object.hash(runtimeType, down, up);
 
-  /// Create a copy of TransferStatsDownUp
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  @pragma('vm:prefer-inline')
-  _$$TransferStatsDownUpImplCopyWith<_$TransferStatsDownUpImpl> get copyWith =>
-      __$$TransferStatsDownUpImplCopyWithImpl<_$TransferStatsDownUpImpl>(
-          this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$TransferStatsDownUpImplToJson(
-      this,
-    );
+  String toString() {
+    return 'TransferStatsDownUp(down: $down, up: $up)';
   }
 }
 
-abstract class _TransferStatsDownUp implements TransferStatsDownUp {
-  const factory _TransferStatsDownUp(
-      {required final TransferStats down,
-      required final TransferStats up}) = _$TransferStatsDownUpImpl;
+/// @nodoc
+abstract mixin class $TransferStatsDownUpCopyWith<$Res> {
+  factory $TransferStatsDownUpCopyWith(
+          TransferStatsDownUp value, $Res Function(TransferStatsDownUp) _then) =
+      _$TransferStatsDownUpCopyWithImpl;
+  @useResult
+  $Res call({TransferStats down, TransferStats up});
 
-  factory _TransferStatsDownUp.fromJson(Map<String, dynamic> json) =
-      _$TransferStatsDownUpImpl.fromJson;
+  $TransferStatsCopyWith<$Res> get down;
+  $TransferStatsCopyWith<$Res> get up;
+}
 
-  @override
-  TransferStats get down;
-  @override
-  TransferStats get up;
+/// @nodoc
+class _$TransferStatsDownUpCopyWithImpl<$Res>
+    implements $TransferStatsDownUpCopyWith<$Res> {
+  _$TransferStatsDownUpCopyWithImpl(this._self, this._then);
+
+  final TransferStatsDownUp _self;
+  final $Res Function(TransferStatsDownUp) _then;
 
   /// Create a copy of TransferStatsDownUp
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$TransferStatsDownUpImplCopyWith<_$TransferStatsDownUpImpl> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-StateStats _$StateStatsFromJson(Map<String, dynamic> json) {
-  return _StateStats.fromJson(json);
-}
-
-/// @nodoc
-mixin _$StateStats {
-  TimestampDuration get span => throw _privateConstructorUsedError;
-  TimestampDuration get reliable => throw _privateConstructorUsedError;
-  TimestampDuration get unreliable => throw _privateConstructorUsedError;
-  TimestampDuration get dead => throw _privateConstructorUsedError;
-  TimestampDuration get punished => throw _privateConstructorUsedError;
-  StateReasonStats get reason => throw _privateConstructorUsedError;
-
-  /// Serializes this StateStats to a JSON map.
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-
-  /// Create a copy of StateStats
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  $StateStatsCopyWith<StateStats> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-abstract class $StateStatsCopyWith<$Res> {
-  factory $StateStatsCopyWith(
-          StateStats value, $Res Function(StateStats) then) =
-      _$StateStatsCopyWithImpl<$Res, StateStats>;
-  @useResult
-  $Res call(
-      {TimestampDuration span,
-      TimestampDuration reliable,
-      TimestampDuration unreliable,
-      TimestampDuration dead,
-      TimestampDuration punished,
-      StateReasonStats reason});
-
-  $StateReasonStatsCopyWith<$Res> get reason;
-}
-
-/// @nodoc
-class _$StateStatsCopyWithImpl<$Res, $Val extends StateStats>
-    implements $StateStatsCopyWith<$Res> {
-  _$StateStatsCopyWithImpl(this._value, this._then);
-
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
-
-  /// Create a copy of StateStats
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? span = null,
-    Object? reliable = null,
-    Object? unreliable = null,
-    Object? dead = null,
-    Object? punished = null,
-    Object? reason = null,
+    Object? down = null,
+    Object? up = null,
   }) {
-    return _then(_value.copyWith(
-      span: null == span
-          ? _value.span
-          : span // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration,
-      reliable: null == reliable
-          ? _value.reliable
-          : reliable // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration,
-      unreliable: null == unreliable
-          ? _value.unreliable
-          : unreliable // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration,
-      dead: null == dead
-          ? _value.dead
-          : dead // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration,
-      punished: null == punished
-          ? _value.punished
-          : punished // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration,
-      reason: null == reason
-          ? _value.reason
-          : reason // ignore: cast_nullable_to_non_nullable
-              as StateReasonStats,
-    ) as $Val);
+    return _then(_self.copyWith(
+      down: null == down
+          ? _self.down
+          : down // ignore: cast_nullable_to_non_nullable
+              as TransferStats,
+      up: null == up
+          ? _self.up
+          : up // ignore: cast_nullable_to_non_nullable
+              as TransferStats,
+    ));
   }
 
-  /// Create a copy of StateStats
+  /// Create a copy of TransferStatsDownUp
   /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
-  $StateReasonStatsCopyWith<$Res> get reason {
-    return $StateReasonStatsCopyWith<$Res>(_value.reason, (value) {
-      return _then(_value.copyWith(reason: value) as $Val);
+  $TransferStatsCopyWith<$Res> get down {
+    return $TransferStatsCopyWith<$Res>(_self.down, (value) {
+      return _then(_self.copyWith(down: value));
+    });
+  }
+
+  /// Create a copy of TransferStatsDownUp
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $TransferStatsCopyWith<$Res> get up {
+    return $TransferStatsCopyWith<$Res>(_self.up, (value) {
+      return _then(_self.copyWith(up: value));
     });
   }
 }
 
 /// @nodoc
-abstract class _$$StateStatsImplCopyWith<$Res>
-    implements $StateStatsCopyWith<$Res> {
-  factory _$$StateStatsImplCopyWith(
-          _$StateStatsImpl value, $Res Function(_$StateStatsImpl) then) =
-      __$$StateStatsImplCopyWithImpl<$Res>;
-  @override
-  @useResult
-  $Res call(
-      {TimestampDuration span,
-      TimestampDuration reliable,
-      TimestampDuration unreliable,
-      TimestampDuration dead,
-      TimestampDuration punished,
-      StateReasonStats reason});
-
-  @override
-  $StateReasonStatsCopyWith<$Res> get reason;
-}
-
-/// @nodoc
-class __$$StateStatsImplCopyWithImpl<$Res>
-    extends _$StateStatsCopyWithImpl<$Res, _$StateStatsImpl>
-    implements _$$StateStatsImplCopyWith<$Res> {
-  __$$StateStatsImplCopyWithImpl(
-      _$StateStatsImpl _value, $Res Function(_$StateStatsImpl) _then)
-      : super(_value, _then);
-
-  /// Create a copy of StateStats
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? span = null,
-    Object? reliable = null,
-    Object? unreliable = null,
-    Object? dead = null,
-    Object? punished = null,
-    Object? reason = null,
-  }) {
-    return _then(_$StateStatsImpl(
-      span: null == span
-          ? _value.span
-          : span // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration,
-      reliable: null == reliable
-          ? _value.reliable
-          : reliable // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration,
-      unreliable: null == unreliable
-          ? _value.unreliable
-          : unreliable // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration,
-      dead: null == dead
-          ? _value.dead
-          : dead // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration,
-      punished: null == punished
-          ? _value.punished
-          : punished // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration,
-      reason: null == reason
-          ? _value.reason
-          : reason // ignore: cast_nullable_to_non_nullable
-              as StateReasonStats,
-    ));
-  }
-}
-
-/// @nodoc
 @JsonSerializable()
-class _$StateStatsImpl implements _StateStats {
-  const _$StateStatsImpl(
-      {required this.span,
-      required this.reliable,
-      required this.unreliable,
-      required this.dead,
-      required this.punished,
-      required this.reason});
-
-  factory _$StateStatsImpl.fromJson(Map<String, dynamic> json) =>
-      _$$StateStatsImplFromJson(json);
+class _TransferStatsDownUp implements TransferStatsDownUp {
+  const _TransferStatsDownUp({required this.down, required this.up});
+  factory _TransferStatsDownUp.fromJson(Map<String, dynamic> json) =>
+      _$TransferStatsDownUpFromJson(json);
 
   @override
-  final TimestampDuration span;
+  final TransferStats down;
   @override
-  final TimestampDuration reliable;
+  final TransferStats up;
+
+  /// Create a copy of TransferStatsDownUp
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  final TimestampDuration unreliable;
-  @override
-  final TimestampDuration dead;
-  @override
-  final TimestampDuration punished;
-  @override
-  final StateReasonStats reason;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  _$TransferStatsDownUpCopyWith<_TransferStatsDownUp> get copyWith =>
+      __$TransferStatsDownUpCopyWithImpl<_TransferStatsDownUp>(
+          this, _$identity);
 
   @override
-  String toString() {
-    return 'StateStats(span: $span, reliable: $reliable, unreliable: $unreliable, dead: $dead, punished: $punished, reason: $reason)';
+  Map<String, dynamic> toJson() {
+    return _$TransferStatsDownUpToJson(
+      this,
+    );
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$StateStatsImpl &&
+            other is _TransferStatsDownUp &&
+            (identical(other.down, down) || other.down == down) &&
+            (identical(other.up, up) || other.up == up));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(runtimeType, down, up);
+
+  @override
+  String toString() {
+    return 'TransferStatsDownUp(down: $down, up: $up)';
+  }
+}
+
+/// @nodoc
+abstract mixin class _$TransferStatsDownUpCopyWith<$Res>
+    implements $TransferStatsDownUpCopyWith<$Res> {
+  factory _$TransferStatsDownUpCopyWith(_TransferStatsDownUp value,
+          $Res Function(_TransferStatsDownUp) _then) =
+      __$TransferStatsDownUpCopyWithImpl;
+  @override
+  @useResult
+  $Res call({TransferStats down, TransferStats up});
+
+  @override
+  $TransferStatsCopyWith<$Res> get down;
+  @override
+  $TransferStatsCopyWith<$Res> get up;
+}
+
+/// @nodoc
+class __$TransferStatsDownUpCopyWithImpl<$Res>
+    implements _$TransferStatsDownUpCopyWith<$Res> {
+  __$TransferStatsDownUpCopyWithImpl(this._self, this._then);
+
+  final _TransferStatsDownUp _self;
+  final $Res Function(_TransferStatsDownUp) _then;
+
+  /// Create a copy of TransferStatsDownUp
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? down = null,
+    Object? up = null,
+  }) {
+    return _then(_TransferStatsDownUp(
+      down: null == down
+          ? _self.down
+          : down // ignore: cast_nullable_to_non_nullable
+              as TransferStats,
+      up: null == up
+          ? _self.up
+          : up // ignore: cast_nullable_to_non_nullable
+              as TransferStats,
+    ));
+  }
+
+  /// Create a copy of TransferStatsDownUp
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $TransferStatsCopyWith<$Res> get down {
+    return $TransferStatsCopyWith<$Res>(_self.down, (value) {
+      return _then(_self.copyWith(down: value));
+    });
+  }
+
+  /// Create a copy of TransferStatsDownUp
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $TransferStatsCopyWith<$Res> get up {
+    return $TransferStatsCopyWith<$Res>(_self.up, (value) {
+      return _then(_self.copyWith(up: value));
+    });
+  }
+}
+
+/// @nodoc
+mixin _$StateStats {
+  TimestampDuration get span;
+  TimestampDuration get reliable;
+  TimestampDuration get unreliable;
+  TimestampDuration get dead;
+  TimestampDuration get punished;
+  StateReasonStats get reason;
+
+  /// Create a copy of StateStats
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $StateStatsCopyWith<StateStats> get copyWith =>
+      _$StateStatsCopyWithImpl<StateStats>(this as StateStats, _$identity);
+
+  /// Serializes this StateStats to a JSON map.
+  Map<String, dynamic> toJson();
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is StateStats &&
             (identical(other.span, span) || other.span == span) &&
             (identical(other.reliable, reliable) ||
                 other.reliable == reliable) &&
@@ -913,266 +712,259 @@ class _$StateStatsImpl implements _StateStats {
   int get hashCode => Object.hash(
       runtimeType, span, reliable, unreliable, dead, punished, reason);
 
-  /// Create a copy of StateStats
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  @pragma('vm:prefer-inline')
-  _$$StateStatsImplCopyWith<_$StateStatsImpl> get copyWith =>
-      __$$StateStatsImplCopyWithImpl<_$StateStatsImpl>(this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$StateStatsImplToJson(
-      this,
-    );
-  }
-}
-
-abstract class _StateStats implements StateStats {
-  const factory _StateStats(
-      {required final TimestampDuration span,
-      required final TimestampDuration reliable,
-      required final TimestampDuration unreliable,
-      required final TimestampDuration dead,
-      required final TimestampDuration punished,
-      required final StateReasonStats reason}) = _$StateStatsImpl;
-
-  factory _StateStats.fromJson(Map<String, dynamic> json) =
-      _$StateStatsImpl.fromJson;
-
-  @override
-  TimestampDuration get span;
-  @override
-  TimestampDuration get reliable;
-  @override
-  TimestampDuration get unreliable;
-  @override
-  TimestampDuration get dead;
-  @override
-  TimestampDuration get punished;
-  @override
-  StateReasonStats get reason;
-
-  /// Create a copy of StateStats
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$StateStatsImplCopyWith<_$StateStatsImpl> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-StateReasonStats _$StateReasonStatsFromJson(Map<String, dynamic> json) {
-  return _StateReasonStats.fromJson(json);
-}
-
-/// @nodoc
-mixin _$StateReasonStats {
-  TimestampDuration get canNotSend => throw _privateConstructorUsedError;
-  TimestampDuration get tooManyLostAnswers =>
-      throw _privateConstructorUsedError;
-  TimestampDuration get noPingResponse => throw _privateConstructorUsedError;
-  TimestampDuration get failedToSend => throw _privateConstructorUsedError;
-  TimestampDuration get lostAnswers => throw _privateConstructorUsedError;
-  TimestampDuration get notSeenConsecutively =>
-      throw _privateConstructorUsedError;
-  TimestampDuration get inUnreliablePingSpan =>
-      throw _privateConstructorUsedError;
-
-  /// Serializes this StateReasonStats to a JSON map.
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-
-  /// Create a copy of StateReasonStats
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  $StateReasonStatsCopyWith<StateReasonStats> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-abstract class $StateReasonStatsCopyWith<$Res> {
-  factory $StateReasonStatsCopyWith(
-          StateReasonStats value, $Res Function(StateReasonStats) then) =
-      _$StateReasonStatsCopyWithImpl<$Res, StateReasonStats>;
-  @useResult
-  $Res call(
-      {TimestampDuration canNotSend,
-      TimestampDuration tooManyLostAnswers,
-      TimestampDuration noPingResponse,
-      TimestampDuration failedToSend,
-      TimestampDuration lostAnswers,
-      TimestampDuration notSeenConsecutively,
-      TimestampDuration inUnreliablePingSpan});
-}
-
-/// @nodoc
-class _$StateReasonStatsCopyWithImpl<$Res, $Val extends StateReasonStats>
-    implements $StateReasonStatsCopyWith<$Res> {
-  _$StateReasonStatsCopyWithImpl(this._value, this._then);
-
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
-
-  /// Create a copy of StateReasonStats
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? canNotSend = null,
-    Object? tooManyLostAnswers = null,
-    Object? noPingResponse = null,
-    Object? failedToSend = null,
-    Object? lostAnswers = null,
-    Object? notSeenConsecutively = null,
-    Object? inUnreliablePingSpan = null,
-  }) {
-    return _then(_value.copyWith(
-      canNotSend: null == canNotSend
-          ? _value.canNotSend
-          : canNotSend // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration,
-      tooManyLostAnswers: null == tooManyLostAnswers
-          ? _value.tooManyLostAnswers
-          : tooManyLostAnswers // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration,
-      noPingResponse: null == noPingResponse
-          ? _value.noPingResponse
-          : noPingResponse // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration,
-      failedToSend: null == failedToSend
-          ? _value.failedToSend
-          : failedToSend // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration,
-      lostAnswers: null == lostAnswers
-          ? _value.lostAnswers
-          : lostAnswers // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration,
-      notSeenConsecutively: null == notSeenConsecutively
-          ? _value.notSeenConsecutively
-          : notSeenConsecutively // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration,
-      inUnreliablePingSpan: null == inUnreliablePingSpan
-          ? _value.inUnreliablePingSpan
-          : inUnreliablePingSpan // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration,
-    ) as $Val);
+  String toString() {
+    return 'StateStats(span: $span, reliable: $reliable, unreliable: $unreliable, dead: $dead, punished: $punished, reason: $reason)';
   }
 }
 
 /// @nodoc
-abstract class _$$StateReasonStatsImplCopyWith<$Res>
-    implements $StateReasonStatsCopyWith<$Res> {
-  factory _$$StateReasonStatsImplCopyWith(_$StateReasonStatsImpl value,
-          $Res Function(_$StateReasonStatsImpl) then) =
-      __$$StateReasonStatsImplCopyWithImpl<$Res>;
-  @override
+abstract mixin class $StateStatsCopyWith<$Res> {
+  factory $StateStatsCopyWith(
+          StateStats value, $Res Function(StateStats) _then) =
+      _$StateStatsCopyWithImpl;
   @useResult
   $Res call(
-      {TimestampDuration canNotSend,
-      TimestampDuration tooManyLostAnswers,
-      TimestampDuration noPingResponse,
-      TimestampDuration failedToSend,
-      TimestampDuration lostAnswers,
-      TimestampDuration notSeenConsecutively,
-      TimestampDuration inUnreliablePingSpan});
+      {TimestampDuration span,
+      TimestampDuration reliable,
+      TimestampDuration unreliable,
+      TimestampDuration dead,
+      TimestampDuration punished,
+      StateReasonStats reason});
+
+  $StateReasonStatsCopyWith<$Res> get reason;
 }
 
 /// @nodoc
-class __$$StateReasonStatsImplCopyWithImpl<$Res>
-    extends _$StateReasonStatsCopyWithImpl<$Res, _$StateReasonStatsImpl>
-    implements _$$StateReasonStatsImplCopyWith<$Res> {
-  __$$StateReasonStatsImplCopyWithImpl(_$StateReasonStatsImpl _value,
-      $Res Function(_$StateReasonStatsImpl) _then)
-      : super(_value, _then);
+class _$StateStatsCopyWithImpl<$Res> implements $StateStatsCopyWith<$Res> {
+  _$StateStatsCopyWithImpl(this._self, this._then);
 
-  /// Create a copy of StateReasonStats
+  final StateStats _self;
+  final $Res Function(StateStats) _then;
+
+  /// Create a copy of StateStats
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? canNotSend = null,
-    Object? tooManyLostAnswers = null,
-    Object? noPingResponse = null,
-    Object? failedToSend = null,
-    Object? lostAnswers = null,
-    Object? notSeenConsecutively = null,
-    Object? inUnreliablePingSpan = null,
+    Object? span = null,
+    Object? reliable = null,
+    Object? unreliable = null,
+    Object? dead = null,
+    Object? punished = null,
+    Object? reason = null,
   }) {
-    return _then(_$StateReasonStatsImpl(
-      canNotSend: null == canNotSend
-          ? _value.canNotSend
-          : canNotSend // ignore: cast_nullable_to_non_nullable
+    return _then(_self.copyWith(
+      span: null == span
+          ? _self.span
+          : span // ignore: cast_nullable_to_non_nullable
               as TimestampDuration,
-      tooManyLostAnswers: null == tooManyLostAnswers
-          ? _value.tooManyLostAnswers
-          : tooManyLostAnswers // ignore: cast_nullable_to_non_nullable
+      reliable: null == reliable
+          ? _self.reliable
+          : reliable // ignore: cast_nullable_to_non_nullable
               as TimestampDuration,
-      noPingResponse: null == noPingResponse
-          ? _value.noPingResponse
-          : noPingResponse // ignore: cast_nullable_to_non_nullable
+      unreliable: null == unreliable
+          ? _self.unreliable
+          : unreliable // ignore: cast_nullable_to_non_nullable
               as TimestampDuration,
-      failedToSend: null == failedToSend
-          ? _value.failedToSend
-          : failedToSend // ignore: cast_nullable_to_non_nullable
+      dead: null == dead
+          ? _self.dead
+          : dead // ignore: cast_nullable_to_non_nullable
               as TimestampDuration,
-      lostAnswers: null == lostAnswers
-          ? _value.lostAnswers
-          : lostAnswers // ignore: cast_nullable_to_non_nullable
+      punished: null == punished
+          ? _self.punished
+          : punished // ignore: cast_nullable_to_non_nullable
               as TimestampDuration,
-      notSeenConsecutively: null == notSeenConsecutively
-          ? _value.notSeenConsecutively
-          : notSeenConsecutively // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration,
-      inUnreliablePingSpan: null == inUnreliablePingSpan
-          ? _value.inUnreliablePingSpan
-          : inUnreliablePingSpan // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration,
+      reason: null == reason
+          ? _self.reason
+          : reason // ignore: cast_nullable_to_non_nullable
+              as StateReasonStats,
     ));
+  }
+
+  /// Create a copy of StateStats
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $StateReasonStatsCopyWith<$Res> get reason {
+    return $StateReasonStatsCopyWith<$Res>(_self.reason, (value) {
+      return _then(_self.copyWith(reason: value));
+    });
   }
 }
 
 /// @nodoc
 @JsonSerializable()
-class _$StateReasonStatsImpl implements _StateReasonStats {
-  const _$StateReasonStatsImpl(
-      {required this.canNotSend,
-      required this.tooManyLostAnswers,
-      required this.noPingResponse,
-      required this.failedToSend,
-      required this.lostAnswers,
-      required this.notSeenConsecutively,
-      required this.inUnreliablePingSpan});
-
-  factory _$StateReasonStatsImpl.fromJson(Map<String, dynamic> json) =>
-      _$$StateReasonStatsImplFromJson(json);
+class _StateStats implements StateStats {
+  const _StateStats(
+      {required this.span,
+      required this.reliable,
+      required this.unreliable,
+      required this.dead,
+      required this.punished,
+      required this.reason});
+  factory _StateStats.fromJson(Map<String, dynamic> json) =>
+      _$StateStatsFromJson(json);
 
   @override
-  final TimestampDuration canNotSend;
+  final TimestampDuration span;
   @override
-  final TimestampDuration tooManyLostAnswers;
+  final TimestampDuration reliable;
   @override
-  final TimestampDuration noPingResponse;
+  final TimestampDuration unreliable;
   @override
-  final TimestampDuration failedToSend;
+  final TimestampDuration dead;
   @override
-  final TimestampDuration lostAnswers;
+  final TimestampDuration punished;
   @override
-  final TimestampDuration notSeenConsecutively;
+  final StateReasonStats reason;
+
+  /// Create a copy of StateStats
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  final TimestampDuration inUnreliablePingSpan;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  _$StateStatsCopyWith<_StateStats> get copyWith =>
+      __$StateStatsCopyWithImpl<_StateStats>(this, _$identity);
 
   @override
-  String toString() {
-    return 'StateReasonStats(canNotSend: $canNotSend, tooManyLostAnswers: $tooManyLostAnswers, noPingResponse: $noPingResponse, failedToSend: $failedToSend, lostAnswers: $lostAnswers, notSeenConsecutively: $notSeenConsecutively, inUnreliablePingSpan: $inUnreliablePingSpan)';
+  Map<String, dynamic> toJson() {
+    return _$StateStatsToJson(
+      this,
+    );
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$StateReasonStatsImpl &&
+            other is _StateStats &&
+            (identical(other.span, span) || other.span == span) &&
+            (identical(other.reliable, reliable) ||
+                other.reliable == reliable) &&
+            (identical(other.unreliable, unreliable) ||
+                other.unreliable == unreliable) &&
+            (identical(other.dead, dead) || other.dead == dead) &&
+            (identical(other.punished, punished) ||
+                other.punished == punished) &&
+            (identical(other.reason, reason) || other.reason == reason));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+      runtimeType, span, reliable, unreliable, dead, punished, reason);
+
+  @override
+  String toString() {
+    return 'StateStats(span: $span, reliable: $reliable, unreliable: $unreliable, dead: $dead, punished: $punished, reason: $reason)';
+  }
+}
+
+/// @nodoc
+abstract mixin class _$StateStatsCopyWith<$Res>
+    implements $StateStatsCopyWith<$Res> {
+  factory _$StateStatsCopyWith(
+          _StateStats value, $Res Function(_StateStats) _then) =
+      __$StateStatsCopyWithImpl;
+  @override
+  @useResult
+  $Res call(
+      {TimestampDuration span,
+      TimestampDuration reliable,
+      TimestampDuration unreliable,
+      TimestampDuration dead,
+      TimestampDuration punished,
+      StateReasonStats reason});
+
+  @override
+  $StateReasonStatsCopyWith<$Res> get reason;
+}
+
+/// @nodoc
+class __$StateStatsCopyWithImpl<$Res> implements _$StateStatsCopyWith<$Res> {
+  __$StateStatsCopyWithImpl(this._self, this._then);
+
+  final _StateStats _self;
+  final $Res Function(_StateStats) _then;
+
+  /// Create a copy of StateStats
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? span = null,
+    Object? reliable = null,
+    Object? unreliable = null,
+    Object? dead = null,
+    Object? punished = null,
+    Object? reason = null,
+  }) {
+    return _then(_StateStats(
+      span: null == span
+          ? _self.span
+          : span // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      reliable: null == reliable
+          ? _self.reliable
+          : reliable // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      unreliable: null == unreliable
+          ? _self.unreliable
+          : unreliable // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      dead: null == dead
+          ? _self.dead
+          : dead // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      punished: null == punished
+          ? _self.punished
+          : punished // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      reason: null == reason
+          ? _self.reason
+          : reason // ignore: cast_nullable_to_non_nullable
+              as StateReasonStats,
+    ));
+  }
+
+  /// Create a copy of StateStats
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $StateReasonStatsCopyWith<$Res> get reason {
+    return $StateReasonStatsCopyWith<$Res>(_self.reason, (value) {
+      return _then(_self.copyWith(reason: value));
+    });
+  }
+}
+
+/// @nodoc
+mixin _$StateReasonStats {
+  TimestampDuration get canNotSend;
+  TimestampDuration get tooManyLostAnswers;
+  TimestampDuration get noPingResponse;
+  TimestampDuration get failedToSend;
+  TimestampDuration get lostAnswers;
+  TimestampDuration get notSeenConsecutively;
+  TimestampDuration get inUnreliablePingSpan;
+
+  /// Create a copy of StateReasonStats
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $StateReasonStatsCopyWith<StateReasonStats> get copyWith =>
+      _$StateReasonStatsCopyWithImpl<StateReasonStats>(
+          this as StateReasonStats, _$identity);
+
+  /// Serializes this StateReasonStats to a JSON map.
+  Map<String, dynamic> toJson();
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is StateReasonStats &&
             (identical(other.canNotSend, canNotSend) ||
                 other.canNotSend == canNotSend) &&
             (identical(other.tooManyLostAnswers, tooManyLostAnswers) ||
@@ -1201,316 +993,265 @@ class _$StateReasonStatsImpl implements _StateReasonStats {
       notSeenConsecutively,
       inUnreliablePingSpan);
 
-  /// Create a copy of StateReasonStats
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  @pragma('vm:prefer-inline')
-  _$$StateReasonStatsImplCopyWith<_$StateReasonStatsImpl> get copyWith =>
-      __$$StateReasonStatsImplCopyWithImpl<_$StateReasonStatsImpl>(
-          this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$StateReasonStatsImplToJson(
-      this,
-    );
-  }
-}
-
-abstract class _StateReasonStats implements StateReasonStats {
-  const factory _StateReasonStats(
-          {required final TimestampDuration canNotSend,
-          required final TimestampDuration tooManyLostAnswers,
-          required final TimestampDuration noPingResponse,
-          required final TimestampDuration failedToSend,
-          required final TimestampDuration lostAnswers,
-          required final TimestampDuration notSeenConsecutively,
-          required final TimestampDuration inUnreliablePingSpan}) =
-      _$StateReasonStatsImpl;
-
-  factory _StateReasonStats.fromJson(Map<String, dynamic> json) =
-      _$StateReasonStatsImpl.fromJson;
-
-  @override
-  TimestampDuration get canNotSend;
-  @override
-  TimestampDuration get tooManyLostAnswers;
-  @override
-  TimestampDuration get noPingResponse;
-  @override
-  TimestampDuration get failedToSend;
-  @override
-  TimestampDuration get lostAnswers;
-  @override
-  TimestampDuration get notSeenConsecutively;
-  @override
-  TimestampDuration get inUnreliablePingSpan;
-
-  /// Create a copy of StateReasonStats
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$StateReasonStatsImplCopyWith<_$StateReasonStatsImpl> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-AnswerStats _$AnswerStatsFromJson(Map<String, dynamic> json) {
-  return _AnswerStats.fromJson(json);
-}
-
-/// @nodoc
-mixin _$AnswerStats {
-  TimestampDuration get span => throw _privateConstructorUsedError;
-  int get questions => throw _privateConstructorUsedError;
-  int get answers => throw _privateConstructorUsedError;
-  int get lostAnswers => throw _privateConstructorUsedError;
-  int get consecutiveAnswersMaximum => throw _privateConstructorUsedError;
-  int get consecutiveAnswersAverage => throw _privateConstructorUsedError;
-  int get consecutiveAnswersMinimum => throw _privateConstructorUsedError;
-  int get consecutiveLostAnswersMaximum => throw _privateConstructorUsedError;
-  int get consecutiveLostAnswersAverage => throw _privateConstructorUsedError;
-  int get consecutiveLostAnswersMinimum => throw _privateConstructorUsedError;
-
-  /// Serializes this AnswerStats to a JSON map.
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-
-  /// Create a copy of AnswerStats
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  $AnswerStatsCopyWith<AnswerStats> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-abstract class $AnswerStatsCopyWith<$Res> {
-  factory $AnswerStatsCopyWith(
-          AnswerStats value, $Res Function(AnswerStats) then) =
-      _$AnswerStatsCopyWithImpl<$Res, AnswerStats>;
-  @useResult
-  $Res call(
-      {TimestampDuration span,
-      int questions,
-      int answers,
-      int lostAnswers,
-      int consecutiveAnswersMaximum,
-      int consecutiveAnswersAverage,
-      int consecutiveAnswersMinimum,
-      int consecutiveLostAnswersMaximum,
-      int consecutiveLostAnswersAverage,
-      int consecutiveLostAnswersMinimum});
-}
-
-/// @nodoc
-class _$AnswerStatsCopyWithImpl<$Res, $Val extends AnswerStats>
-    implements $AnswerStatsCopyWith<$Res> {
-  _$AnswerStatsCopyWithImpl(this._value, this._then);
-
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
-
-  /// Create a copy of AnswerStats
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? span = null,
-    Object? questions = null,
-    Object? answers = null,
-    Object? lostAnswers = null,
-    Object? consecutiveAnswersMaximum = null,
-    Object? consecutiveAnswersAverage = null,
-    Object? consecutiveAnswersMinimum = null,
-    Object? consecutiveLostAnswersMaximum = null,
-    Object? consecutiveLostAnswersAverage = null,
-    Object? consecutiveLostAnswersMinimum = null,
-  }) {
-    return _then(_value.copyWith(
-      span: null == span
-          ? _value.span
-          : span // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration,
-      questions: null == questions
-          ? _value.questions
-          : questions // ignore: cast_nullable_to_non_nullable
-              as int,
-      answers: null == answers
-          ? _value.answers
-          : answers // ignore: cast_nullable_to_non_nullable
-              as int,
-      lostAnswers: null == lostAnswers
-          ? _value.lostAnswers
-          : lostAnswers // ignore: cast_nullable_to_non_nullable
-              as int,
-      consecutiveAnswersMaximum: null == consecutiveAnswersMaximum
-          ? _value.consecutiveAnswersMaximum
-          : consecutiveAnswersMaximum // ignore: cast_nullable_to_non_nullable
-              as int,
-      consecutiveAnswersAverage: null == consecutiveAnswersAverage
-          ? _value.consecutiveAnswersAverage
-          : consecutiveAnswersAverage // ignore: cast_nullable_to_non_nullable
-              as int,
-      consecutiveAnswersMinimum: null == consecutiveAnswersMinimum
-          ? _value.consecutiveAnswersMinimum
-          : consecutiveAnswersMinimum // ignore: cast_nullable_to_non_nullable
-              as int,
-      consecutiveLostAnswersMaximum: null == consecutiveLostAnswersMaximum
-          ? _value.consecutiveLostAnswersMaximum
-          : consecutiveLostAnswersMaximum // ignore: cast_nullable_to_non_nullable
-              as int,
-      consecutiveLostAnswersAverage: null == consecutiveLostAnswersAverage
-          ? _value.consecutiveLostAnswersAverage
-          : consecutiveLostAnswersAverage // ignore: cast_nullable_to_non_nullable
-              as int,
-      consecutiveLostAnswersMinimum: null == consecutiveLostAnswersMinimum
-          ? _value.consecutiveLostAnswersMinimum
-          : consecutiveLostAnswersMinimum // ignore: cast_nullable_to_non_nullable
-              as int,
-    ) as $Val);
+  String toString() {
+    return 'StateReasonStats(canNotSend: $canNotSend, tooManyLostAnswers: $tooManyLostAnswers, noPingResponse: $noPingResponse, failedToSend: $failedToSend, lostAnswers: $lostAnswers, notSeenConsecutively: $notSeenConsecutively, inUnreliablePingSpan: $inUnreliablePingSpan)';
   }
 }
 
 /// @nodoc
-abstract class _$$AnswerStatsImplCopyWith<$Res>
-    implements $AnswerStatsCopyWith<$Res> {
-  factory _$$AnswerStatsImplCopyWith(
-          _$AnswerStatsImpl value, $Res Function(_$AnswerStatsImpl) then) =
-      __$$AnswerStatsImplCopyWithImpl<$Res>;
-  @override
+abstract mixin class $StateReasonStatsCopyWith<$Res> {
+  factory $StateReasonStatsCopyWith(
+          StateReasonStats value, $Res Function(StateReasonStats) _then) =
+      _$StateReasonStatsCopyWithImpl;
   @useResult
   $Res call(
-      {TimestampDuration span,
-      int questions,
-      int answers,
-      int lostAnswers,
-      int consecutiveAnswersMaximum,
-      int consecutiveAnswersAverage,
-      int consecutiveAnswersMinimum,
-      int consecutiveLostAnswersMaximum,
-      int consecutiveLostAnswersAverage,
-      int consecutiveLostAnswersMinimum});
+      {TimestampDuration canNotSend,
+      TimestampDuration tooManyLostAnswers,
+      TimestampDuration noPingResponse,
+      TimestampDuration failedToSend,
+      TimestampDuration lostAnswers,
+      TimestampDuration notSeenConsecutively,
+      TimestampDuration inUnreliablePingSpan});
 }
 
 /// @nodoc
-class __$$AnswerStatsImplCopyWithImpl<$Res>
-    extends _$AnswerStatsCopyWithImpl<$Res, _$AnswerStatsImpl>
-    implements _$$AnswerStatsImplCopyWith<$Res> {
-  __$$AnswerStatsImplCopyWithImpl(
-      _$AnswerStatsImpl _value, $Res Function(_$AnswerStatsImpl) _then)
-      : super(_value, _then);
+class _$StateReasonStatsCopyWithImpl<$Res>
+    implements $StateReasonStatsCopyWith<$Res> {
+  _$StateReasonStatsCopyWithImpl(this._self, this._then);
 
-  /// Create a copy of AnswerStats
+  final StateReasonStats _self;
+  final $Res Function(StateReasonStats) _then;
+
+  /// Create a copy of StateReasonStats
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? span = null,
-    Object? questions = null,
-    Object? answers = null,
+    Object? canNotSend = null,
+    Object? tooManyLostAnswers = null,
+    Object? noPingResponse = null,
+    Object? failedToSend = null,
     Object? lostAnswers = null,
-    Object? consecutiveAnswersMaximum = null,
-    Object? consecutiveAnswersAverage = null,
-    Object? consecutiveAnswersMinimum = null,
-    Object? consecutiveLostAnswersMaximum = null,
-    Object? consecutiveLostAnswersAverage = null,
-    Object? consecutiveLostAnswersMinimum = null,
+    Object? notSeenConsecutively = null,
+    Object? inUnreliablePingSpan = null,
   }) {
-    return _then(_$AnswerStatsImpl(
-      span: null == span
-          ? _value.span
-          : span // ignore: cast_nullable_to_non_nullable
+    return _then(_self.copyWith(
+      canNotSend: null == canNotSend
+          ? _self.canNotSend
+          : canNotSend // ignore: cast_nullable_to_non_nullable
               as TimestampDuration,
-      questions: null == questions
-          ? _value.questions
-          : questions // ignore: cast_nullable_to_non_nullable
-              as int,
-      answers: null == answers
-          ? _value.answers
-          : answers // ignore: cast_nullable_to_non_nullable
-              as int,
+      tooManyLostAnswers: null == tooManyLostAnswers
+          ? _self.tooManyLostAnswers
+          : tooManyLostAnswers // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      noPingResponse: null == noPingResponse
+          ? _self.noPingResponse
+          : noPingResponse // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      failedToSend: null == failedToSend
+          ? _self.failedToSend
+          : failedToSend // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
       lostAnswers: null == lostAnswers
-          ? _value.lostAnswers
+          ? _self.lostAnswers
           : lostAnswers // ignore: cast_nullable_to_non_nullable
-              as int,
-      consecutiveAnswersMaximum: null == consecutiveAnswersMaximum
-          ? _value.consecutiveAnswersMaximum
-          : consecutiveAnswersMaximum // ignore: cast_nullable_to_non_nullable
-              as int,
-      consecutiveAnswersAverage: null == consecutiveAnswersAverage
-          ? _value.consecutiveAnswersAverage
-          : consecutiveAnswersAverage // ignore: cast_nullable_to_non_nullable
-              as int,
-      consecutiveAnswersMinimum: null == consecutiveAnswersMinimum
-          ? _value.consecutiveAnswersMinimum
-          : consecutiveAnswersMinimum // ignore: cast_nullable_to_non_nullable
-              as int,
-      consecutiveLostAnswersMaximum: null == consecutiveLostAnswersMaximum
-          ? _value.consecutiveLostAnswersMaximum
-          : consecutiveLostAnswersMaximum // ignore: cast_nullable_to_non_nullable
-              as int,
-      consecutiveLostAnswersAverage: null == consecutiveLostAnswersAverage
-          ? _value.consecutiveLostAnswersAverage
-          : consecutiveLostAnswersAverage // ignore: cast_nullable_to_non_nullable
-              as int,
-      consecutiveLostAnswersMinimum: null == consecutiveLostAnswersMinimum
-          ? _value.consecutiveLostAnswersMinimum
-          : consecutiveLostAnswersMinimum // ignore: cast_nullable_to_non_nullable
-              as int,
+              as TimestampDuration,
+      notSeenConsecutively: null == notSeenConsecutively
+          ? _self.notSeenConsecutively
+          : notSeenConsecutively // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      inUnreliablePingSpan: null == inUnreliablePingSpan
+          ? _self.inUnreliablePingSpan
+          : inUnreliablePingSpan // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
     ));
   }
 }
 
 /// @nodoc
 @JsonSerializable()
-class _$AnswerStatsImpl implements _AnswerStats {
-  const _$AnswerStatsImpl(
-      {required this.span,
-      required this.questions,
-      required this.answers,
+class _StateReasonStats implements StateReasonStats {
+  const _StateReasonStats(
+      {required this.canNotSend,
+      required this.tooManyLostAnswers,
+      required this.noPingResponse,
+      required this.failedToSend,
       required this.lostAnswers,
-      required this.consecutiveAnswersMaximum,
-      required this.consecutiveAnswersAverage,
-      required this.consecutiveAnswersMinimum,
-      required this.consecutiveLostAnswersMaximum,
-      required this.consecutiveLostAnswersAverage,
-      required this.consecutiveLostAnswersMinimum});
-
-  factory _$AnswerStatsImpl.fromJson(Map<String, dynamic> json) =>
-      _$$AnswerStatsImplFromJson(json);
+      required this.notSeenConsecutively,
+      required this.inUnreliablePingSpan});
+  factory _StateReasonStats.fromJson(Map<String, dynamic> json) =>
+      _$StateReasonStatsFromJson(json);
 
   @override
-  final TimestampDuration span;
+  final TimestampDuration canNotSend;
   @override
-  final int questions;
+  final TimestampDuration tooManyLostAnswers;
   @override
-  final int answers;
+  final TimestampDuration noPingResponse;
   @override
-  final int lostAnswers;
+  final TimestampDuration failedToSend;
   @override
-  final int consecutiveAnswersMaximum;
+  final TimestampDuration lostAnswers;
   @override
-  final int consecutiveAnswersAverage;
+  final TimestampDuration notSeenConsecutively;
   @override
-  final int consecutiveAnswersMinimum;
+  final TimestampDuration inUnreliablePingSpan;
+
+  /// Create a copy of StateReasonStats
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  final int consecutiveLostAnswersMaximum;
-  @override
-  final int consecutiveLostAnswersAverage;
-  @override
-  final int consecutiveLostAnswersMinimum;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  _$StateReasonStatsCopyWith<_StateReasonStats> get copyWith =>
+      __$StateReasonStatsCopyWithImpl<_StateReasonStats>(this, _$identity);
 
   @override
-  String toString() {
-    return 'AnswerStats(span: $span, questions: $questions, answers: $answers, lostAnswers: $lostAnswers, consecutiveAnswersMaximum: $consecutiveAnswersMaximum, consecutiveAnswersAverage: $consecutiveAnswersAverage, consecutiveAnswersMinimum: $consecutiveAnswersMinimum, consecutiveLostAnswersMaximum: $consecutiveLostAnswersMaximum, consecutiveLostAnswersAverage: $consecutiveLostAnswersAverage, consecutiveLostAnswersMinimum: $consecutiveLostAnswersMinimum)';
+  Map<String, dynamic> toJson() {
+    return _$StateReasonStatsToJson(
+      this,
+    );
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$AnswerStatsImpl &&
+            other is _StateReasonStats &&
+            (identical(other.canNotSend, canNotSend) ||
+                other.canNotSend == canNotSend) &&
+            (identical(other.tooManyLostAnswers, tooManyLostAnswers) ||
+                other.tooManyLostAnswers == tooManyLostAnswers) &&
+            (identical(other.noPingResponse, noPingResponse) ||
+                other.noPingResponse == noPingResponse) &&
+            (identical(other.failedToSend, failedToSend) ||
+                other.failedToSend == failedToSend) &&
+            (identical(other.lostAnswers, lostAnswers) ||
+                other.lostAnswers == lostAnswers) &&
+            (identical(other.notSeenConsecutively, notSeenConsecutively) ||
+                other.notSeenConsecutively == notSeenConsecutively) &&
+            (identical(other.inUnreliablePingSpan, inUnreliablePingSpan) ||
+                other.inUnreliablePingSpan == inUnreliablePingSpan));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+      runtimeType,
+      canNotSend,
+      tooManyLostAnswers,
+      noPingResponse,
+      failedToSend,
+      lostAnswers,
+      notSeenConsecutively,
+      inUnreliablePingSpan);
+
+  @override
+  String toString() {
+    return 'StateReasonStats(canNotSend: $canNotSend, tooManyLostAnswers: $tooManyLostAnswers, noPingResponse: $noPingResponse, failedToSend: $failedToSend, lostAnswers: $lostAnswers, notSeenConsecutively: $notSeenConsecutively, inUnreliablePingSpan: $inUnreliablePingSpan)';
+  }
+}
+
+/// @nodoc
+abstract mixin class _$StateReasonStatsCopyWith<$Res>
+    implements $StateReasonStatsCopyWith<$Res> {
+  factory _$StateReasonStatsCopyWith(
+          _StateReasonStats value, $Res Function(_StateReasonStats) _then) =
+      __$StateReasonStatsCopyWithImpl;
+  @override
+  @useResult
+  $Res call(
+      {TimestampDuration canNotSend,
+      TimestampDuration tooManyLostAnswers,
+      TimestampDuration noPingResponse,
+      TimestampDuration failedToSend,
+      TimestampDuration lostAnswers,
+      TimestampDuration notSeenConsecutively,
+      TimestampDuration inUnreliablePingSpan});
+}
+
+/// @nodoc
+class __$StateReasonStatsCopyWithImpl<$Res>
+    implements _$StateReasonStatsCopyWith<$Res> {
+  __$StateReasonStatsCopyWithImpl(this._self, this._then);
+
+  final _StateReasonStats _self;
+  final $Res Function(_StateReasonStats) _then;
+
+  /// Create a copy of StateReasonStats
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? canNotSend = null,
+    Object? tooManyLostAnswers = null,
+    Object? noPingResponse = null,
+    Object? failedToSend = null,
+    Object? lostAnswers = null,
+    Object? notSeenConsecutively = null,
+    Object? inUnreliablePingSpan = null,
+  }) {
+    return _then(_StateReasonStats(
+      canNotSend: null == canNotSend
+          ? _self.canNotSend
+          : canNotSend // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      tooManyLostAnswers: null == tooManyLostAnswers
+          ? _self.tooManyLostAnswers
+          : tooManyLostAnswers // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      noPingResponse: null == noPingResponse
+          ? _self.noPingResponse
+          : noPingResponse // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      failedToSend: null == failedToSend
+          ? _self.failedToSend
+          : failedToSend // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      lostAnswers: null == lostAnswers
+          ? _self.lostAnswers
+          : lostAnswers // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      notSeenConsecutively: null == notSeenConsecutively
+          ? _self.notSeenConsecutively
+          : notSeenConsecutively // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      inUnreliablePingSpan: null == inUnreliablePingSpan
+          ? _self.inUnreliablePingSpan
+          : inUnreliablePingSpan // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+    ));
+  }
+}
+
+/// @nodoc
+mixin _$AnswerStats {
+  TimestampDuration get span;
+  int get questions;
+  int get answers;
+  int get lostAnswers;
+  int get consecutiveAnswersMaximum;
+  int get consecutiveAnswersAverage;
+  int get consecutiveAnswersMinimum;
+  int get consecutiveLostAnswersMaximum;
+  int get consecutiveLostAnswersAverage;
+  int get consecutiveLostAnswersMinimum;
+
+  /// Create a copy of AnswerStats
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $AnswerStatsCopyWith<AnswerStats> get copyWith =>
+      _$AnswerStatsCopyWithImpl<AnswerStats>(this as AnswerStats, _$identity);
+
+  /// Serializes this AnswerStats to a JSON map.
+  Map<String, dynamic> toJson();
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is AnswerStats &&
             (identical(other.span, span) || other.span == span) &&
             (identical(other.questions, questions) ||
                 other.questions == questions) &&
@@ -1555,366 +1296,325 @@ class _$AnswerStatsImpl implements _AnswerStats {
       consecutiveLostAnswersAverage,
       consecutiveLostAnswersMinimum);
 
-  /// Create a copy of AnswerStats
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  @pragma('vm:prefer-inline')
-  _$$AnswerStatsImplCopyWith<_$AnswerStatsImpl> get copyWith =>
-      __$$AnswerStatsImplCopyWithImpl<_$AnswerStatsImpl>(this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$AnswerStatsImplToJson(
-      this,
-    );
+  String toString() {
+    return 'AnswerStats(span: $span, questions: $questions, answers: $answers, lostAnswers: $lostAnswers, consecutiveAnswersMaximum: $consecutiveAnswersMaximum, consecutiveAnswersAverage: $consecutiveAnswersAverage, consecutiveAnswersMinimum: $consecutiveAnswersMinimum, consecutiveLostAnswersMaximum: $consecutiveLostAnswersMaximum, consecutiveLostAnswersAverage: $consecutiveLostAnswersAverage, consecutiveLostAnswersMinimum: $consecutiveLostAnswersMinimum)';
   }
 }
 
-abstract class _AnswerStats implements AnswerStats {
-  const factory _AnswerStats(
-      {required final TimestampDuration span,
-      required final int questions,
-      required final int answers,
-      required final int lostAnswers,
-      required final int consecutiveAnswersMaximum,
-      required final int consecutiveAnswersAverage,
-      required final int consecutiveAnswersMinimum,
-      required final int consecutiveLostAnswersMaximum,
-      required final int consecutiveLostAnswersAverage,
-      required final int consecutiveLostAnswersMinimum}) = _$AnswerStatsImpl;
-
-  factory _AnswerStats.fromJson(Map<String, dynamic> json) =
-      _$AnswerStatsImpl.fromJson;
-
-  @override
-  TimestampDuration get span;
-  @override
-  int get questions;
-  @override
-  int get answers;
-  @override
-  int get lostAnswers;
-  @override
-  int get consecutiveAnswersMaximum;
-  @override
-  int get consecutiveAnswersAverage;
-  @override
-  int get consecutiveAnswersMinimum;
-  @override
-  int get consecutiveLostAnswersMaximum;
-  @override
-  int get consecutiveLostAnswersAverage;
-  @override
-  int get consecutiveLostAnswersMinimum;
-
-  /// Create a copy of AnswerStats
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$AnswerStatsImplCopyWith<_$AnswerStatsImpl> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-RPCStats _$RPCStatsFromJson(Map<String, dynamic> json) {
-  return _RPCStats.fromJson(json);
-}
-
 /// @nodoc
-mixin _$RPCStats {
-  int get messagesSent => throw _privateConstructorUsedError;
-  int get messagesRcvd => throw _privateConstructorUsedError;
-  int get questionsInFlight => throw _privateConstructorUsedError;
-  Timestamp? get lastQuestionTs => throw _privateConstructorUsedError;
-  Timestamp? get lastSeenTs => throw _privateConstructorUsedError;
-  Timestamp? get firstConsecutiveSeenTs => throw _privateConstructorUsedError;
-  int get recentLostAnswersUnordered => throw _privateConstructorUsedError;
-  int get recentLostAnswersOrdered => throw _privateConstructorUsedError;
-  int get failedToSend => throw _privateConstructorUsedError;
-  AnswerStats get answerUnordered => throw _privateConstructorUsedError;
-  AnswerStats get answerOrdered => throw _privateConstructorUsedError;
-
-  /// Serializes this RPCStats to a JSON map.
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-
-  /// Create a copy of RPCStats
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  $RPCStatsCopyWith<RPCStats> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-abstract class $RPCStatsCopyWith<$Res> {
-  factory $RPCStatsCopyWith(RPCStats value, $Res Function(RPCStats) then) =
-      _$RPCStatsCopyWithImpl<$Res, RPCStats>;
+abstract mixin class $AnswerStatsCopyWith<$Res> {
+  factory $AnswerStatsCopyWith(
+          AnswerStats value, $Res Function(AnswerStats) _then) =
+      _$AnswerStatsCopyWithImpl;
   @useResult
   $Res call(
-      {int messagesSent,
-      int messagesRcvd,
-      int questionsInFlight,
-      Timestamp? lastQuestionTs,
-      Timestamp? lastSeenTs,
-      Timestamp? firstConsecutiveSeenTs,
-      int recentLostAnswersUnordered,
-      int recentLostAnswersOrdered,
-      int failedToSend,
-      AnswerStats answerUnordered,
-      AnswerStats answerOrdered});
-
-  $AnswerStatsCopyWith<$Res> get answerUnordered;
-  $AnswerStatsCopyWith<$Res> get answerOrdered;
+      {TimestampDuration span,
+      int questions,
+      int answers,
+      int lostAnswers,
+      int consecutiveAnswersMaximum,
+      int consecutiveAnswersAverage,
+      int consecutiveAnswersMinimum,
+      int consecutiveLostAnswersMaximum,
+      int consecutiveLostAnswersAverage,
+      int consecutiveLostAnswersMinimum});
 }
 
 /// @nodoc
-class _$RPCStatsCopyWithImpl<$Res, $Val extends RPCStats>
-    implements $RPCStatsCopyWith<$Res> {
-  _$RPCStatsCopyWithImpl(this._value, this._then);
+class _$AnswerStatsCopyWithImpl<$Res> implements $AnswerStatsCopyWith<$Res> {
+  _$AnswerStatsCopyWithImpl(this._self, this._then);
 
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
+  final AnswerStats _self;
+  final $Res Function(AnswerStats) _then;
 
-  /// Create a copy of RPCStats
+  /// Create a copy of AnswerStats
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? messagesSent = null,
-    Object? messagesRcvd = null,
-    Object? questionsInFlight = null,
-    Object? lastQuestionTs = freezed,
-    Object? lastSeenTs = freezed,
-    Object? firstConsecutiveSeenTs = freezed,
-    Object? recentLostAnswersUnordered = null,
-    Object? recentLostAnswersOrdered = null,
-    Object? failedToSend = null,
-    Object? answerUnordered = null,
-    Object? answerOrdered = null,
+    Object? span = null,
+    Object? questions = null,
+    Object? answers = null,
+    Object? lostAnswers = null,
+    Object? consecutiveAnswersMaximum = null,
+    Object? consecutiveAnswersAverage = null,
+    Object? consecutiveAnswersMinimum = null,
+    Object? consecutiveLostAnswersMaximum = null,
+    Object? consecutiveLostAnswersAverage = null,
+    Object? consecutiveLostAnswersMinimum = null,
   }) {
-    return _then(_value.copyWith(
-      messagesSent: null == messagesSent
-          ? _value.messagesSent
-          : messagesSent // ignore: cast_nullable_to_non_nullable
+    return _then(_self.copyWith(
+      span: null == span
+          ? _self.span
+          : span // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      questions: null == questions
+          ? _self.questions
+          : questions // ignore: cast_nullable_to_non_nullable
               as int,
-      messagesRcvd: null == messagesRcvd
-          ? _value.messagesRcvd
-          : messagesRcvd // ignore: cast_nullable_to_non_nullable
+      answers: null == answers
+          ? _self.answers
+          : answers // ignore: cast_nullable_to_non_nullable
               as int,
-      questionsInFlight: null == questionsInFlight
-          ? _value.questionsInFlight
-          : questionsInFlight // ignore: cast_nullable_to_non_nullable
+      lostAnswers: null == lostAnswers
+          ? _self.lostAnswers
+          : lostAnswers // ignore: cast_nullable_to_non_nullable
               as int,
-      lastQuestionTs: freezed == lastQuestionTs
-          ? _value.lastQuestionTs
-          : lastQuestionTs // ignore: cast_nullable_to_non_nullable
-              as Timestamp?,
-      lastSeenTs: freezed == lastSeenTs
-          ? _value.lastSeenTs
-          : lastSeenTs // ignore: cast_nullable_to_non_nullable
-              as Timestamp?,
-      firstConsecutiveSeenTs: freezed == firstConsecutiveSeenTs
-          ? _value.firstConsecutiveSeenTs
-          : firstConsecutiveSeenTs // ignore: cast_nullable_to_non_nullable
-              as Timestamp?,
-      recentLostAnswersUnordered: null == recentLostAnswersUnordered
-          ? _value.recentLostAnswersUnordered
-          : recentLostAnswersUnordered // ignore: cast_nullable_to_non_nullable
+      consecutiveAnswersMaximum: null == consecutiveAnswersMaximum
+          ? _self.consecutiveAnswersMaximum
+          : consecutiveAnswersMaximum // ignore: cast_nullable_to_non_nullable
               as int,
-      recentLostAnswersOrdered: null == recentLostAnswersOrdered
-          ? _value.recentLostAnswersOrdered
-          : recentLostAnswersOrdered // ignore: cast_nullable_to_non_nullable
+      consecutiveAnswersAverage: null == consecutiveAnswersAverage
+          ? _self.consecutiveAnswersAverage
+          : consecutiveAnswersAverage // ignore: cast_nullable_to_non_nullable
               as int,
-      failedToSend: null == failedToSend
-          ? _value.failedToSend
-          : failedToSend // ignore: cast_nullable_to_non_nullable
+      consecutiveAnswersMinimum: null == consecutiveAnswersMinimum
+          ? _self.consecutiveAnswersMinimum
+          : consecutiveAnswersMinimum // ignore: cast_nullable_to_non_nullable
               as int,
-      answerUnordered: null == answerUnordered
-          ? _value.answerUnordered
-          : answerUnordered // ignore: cast_nullable_to_non_nullable
-              as AnswerStats,
-      answerOrdered: null == answerOrdered
-          ? _value.answerOrdered
-          : answerOrdered // ignore: cast_nullable_to_non_nullable
-              as AnswerStats,
-    ) as $Val);
-  }
-
-  /// Create a copy of RPCStats
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @pragma('vm:prefer-inline')
-  $AnswerStatsCopyWith<$Res> get answerUnordered {
-    return $AnswerStatsCopyWith<$Res>(_value.answerUnordered, (value) {
-      return _then(_value.copyWith(answerUnordered: value) as $Val);
-    });
-  }
-
-  /// Create a copy of RPCStats
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @pragma('vm:prefer-inline')
-  $AnswerStatsCopyWith<$Res> get answerOrdered {
-    return $AnswerStatsCopyWith<$Res>(_value.answerOrdered, (value) {
-      return _then(_value.copyWith(answerOrdered: value) as $Val);
-    });
-  }
-}
-
-/// @nodoc
-abstract class _$$RPCStatsImplCopyWith<$Res>
-    implements $RPCStatsCopyWith<$Res> {
-  factory _$$RPCStatsImplCopyWith(
-          _$RPCStatsImpl value, $Res Function(_$RPCStatsImpl) then) =
-      __$$RPCStatsImplCopyWithImpl<$Res>;
-  @override
-  @useResult
-  $Res call(
-      {int messagesSent,
-      int messagesRcvd,
-      int questionsInFlight,
-      Timestamp? lastQuestionTs,
-      Timestamp? lastSeenTs,
-      Timestamp? firstConsecutiveSeenTs,
-      int recentLostAnswersUnordered,
-      int recentLostAnswersOrdered,
-      int failedToSend,
-      AnswerStats answerUnordered,
-      AnswerStats answerOrdered});
-
-  @override
-  $AnswerStatsCopyWith<$Res> get answerUnordered;
-  @override
-  $AnswerStatsCopyWith<$Res> get answerOrdered;
-}
-
-/// @nodoc
-class __$$RPCStatsImplCopyWithImpl<$Res>
-    extends _$RPCStatsCopyWithImpl<$Res, _$RPCStatsImpl>
-    implements _$$RPCStatsImplCopyWith<$Res> {
-  __$$RPCStatsImplCopyWithImpl(
-      _$RPCStatsImpl _value, $Res Function(_$RPCStatsImpl) _then)
-      : super(_value, _then);
-
-  /// Create a copy of RPCStats
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? messagesSent = null,
-    Object? messagesRcvd = null,
-    Object? questionsInFlight = null,
-    Object? lastQuestionTs = freezed,
-    Object? lastSeenTs = freezed,
-    Object? firstConsecutiveSeenTs = freezed,
-    Object? recentLostAnswersUnordered = null,
-    Object? recentLostAnswersOrdered = null,
-    Object? failedToSend = null,
-    Object? answerUnordered = null,
-    Object? answerOrdered = null,
-  }) {
-    return _then(_$RPCStatsImpl(
-      messagesSent: null == messagesSent
-          ? _value.messagesSent
-          : messagesSent // ignore: cast_nullable_to_non_nullable
+      consecutiveLostAnswersMaximum: null == consecutiveLostAnswersMaximum
+          ? _self.consecutiveLostAnswersMaximum
+          : consecutiveLostAnswersMaximum // ignore: cast_nullable_to_non_nullable
               as int,
-      messagesRcvd: null == messagesRcvd
-          ? _value.messagesRcvd
-          : messagesRcvd // ignore: cast_nullable_to_non_nullable
+      consecutiveLostAnswersAverage: null == consecutiveLostAnswersAverage
+          ? _self.consecutiveLostAnswersAverage
+          : consecutiveLostAnswersAverage // ignore: cast_nullable_to_non_nullable
               as int,
-      questionsInFlight: null == questionsInFlight
-          ? _value.questionsInFlight
-          : questionsInFlight // ignore: cast_nullable_to_non_nullable
+      consecutiveLostAnswersMinimum: null == consecutiveLostAnswersMinimum
+          ? _self.consecutiveLostAnswersMinimum
+          : consecutiveLostAnswersMinimum // ignore: cast_nullable_to_non_nullable
               as int,
-      lastQuestionTs: freezed == lastQuestionTs
-          ? _value.lastQuestionTs
-          : lastQuestionTs // ignore: cast_nullable_to_non_nullable
-              as Timestamp?,
-      lastSeenTs: freezed == lastSeenTs
-          ? _value.lastSeenTs
-          : lastSeenTs // ignore: cast_nullable_to_non_nullable
-              as Timestamp?,
-      firstConsecutiveSeenTs: freezed == firstConsecutiveSeenTs
-          ? _value.firstConsecutiveSeenTs
-          : firstConsecutiveSeenTs // ignore: cast_nullable_to_non_nullable
-              as Timestamp?,
-      recentLostAnswersUnordered: null == recentLostAnswersUnordered
-          ? _value.recentLostAnswersUnordered
-          : recentLostAnswersUnordered // ignore: cast_nullable_to_non_nullable
-              as int,
-      recentLostAnswersOrdered: null == recentLostAnswersOrdered
-          ? _value.recentLostAnswersOrdered
-          : recentLostAnswersOrdered // ignore: cast_nullable_to_non_nullable
-              as int,
-      failedToSend: null == failedToSend
-          ? _value.failedToSend
-          : failedToSend // ignore: cast_nullable_to_non_nullable
-              as int,
-      answerUnordered: null == answerUnordered
-          ? _value.answerUnordered
-          : answerUnordered // ignore: cast_nullable_to_non_nullable
-              as AnswerStats,
-      answerOrdered: null == answerOrdered
-          ? _value.answerOrdered
-          : answerOrdered // ignore: cast_nullable_to_non_nullable
-              as AnswerStats,
     ));
   }
 }
 
 /// @nodoc
 @JsonSerializable()
-class _$RPCStatsImpl implements _RPCStats {
-  const _$RPCStatsImpl(
-      {required this.messagesSent,
-      required this.messagesRcvd,
-      required this.questionsInFlight,
-      required this.lastQuestionTs,
-      required this.lastSeenTs,
-      required this.firstConsecutiveSeenTs,
-      required this.recentLostAnswersUnordered,
-      required this.recentLostAnswersOrdered,
-      required this.failedToSend,
-      required this.answerUnordered,
-      required this.answerOrdered});
-
-  factory _$RPCStatsImpl.fromJson(Map<String, dynamic> json) =>
-      _$$RPCStatsImplFromJson(json);
+class _AnswerStats implements AnswerStats {
+  const _AnswerStats(
+      {required this.span,
+      required this.questions,
+      required this.answers,
+      required this.lostAnswers,
+      required this.consecutiveAnswersMaximum,
+      required this.consecutiveAnswersAverage,
+      required this.consecutiveAnswersMinimum,
+      required this.consecutiveLostAnswersMaximum,
+      required this.consecutiveLostAnswersAverage,
+      required this.consecutiveLostAnswersMinimum});
+  factory _AnswerStats.fromJson(Map<String, dynamic> json) =>
+      _$AnswerStatsFromJson(json);
 
   @override
-  final int messagesSent;
+  final TimestampDuration span;
   @override
-  final int messagesRcvd;
+  final int questions;
   @override
-  final int questionsInFlight;
+  final int answers;
   @override
-  final Timestamp? lastQuestionTs;
+  final int lostAnswers;
   @override
-  final Timestamp? lastSeenTs;
+  final int consecutiveAnswersMaximum;
   @override
-  final Timestamp? firstConsecutiveSeenTs;
+  final int consecutiveAnswersAverage;
   @override
-  final int recentLostAnswersUnordered;
+  final int consecutiveAnswersMinimum;
   @override
-  final int recentLostAnswersOrdered;
+  final int consecutiveLostAnswersMaximum;
   @override
-  final int failedToSend;
+  final int consecutiveLostAnswersAverage;
   @override
-  final AnswerStats answerUnordered;
+  final int consecutiveLostAnswersMinimum;
+
+  /// Create a copy of AnswerStats
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  final AnswerStats answerOrdered;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  _$AnswerStatsCopyWith<_AnswerStats> get copyWith =>
+      __$AnswerStatsCopyWithImpl<_AnswerStats>(this, _$identity);
 
   @override
-  String toString() {
-    return 'RPCStats(messagesSent: $messagesSent, messagesRcvd: $messagesRcvd, questionsInFlight: $questionsInFlight, lastQuestionTs: $lastQuestionTs, lastSeenTs: $lastSeenTs, firstConsecutiveSeenTs: $firstConsecutiveSeenTs, recentLostAnswersUnordered: $recentLostAnswersUnordered, recentLostAnswersOrdered: $recentLostAnswersOrdered, failedToSend: $failedToSend, answerUnordered: $answerUnordered, answerOrdered: $answerOrdered)';
+  Map<String, dynamic> toJson() {
+    return _$AnswerStatsToJson(
+      this,
+    );
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$RPCStatsImpl &&
+            other is _AnswerStats &&
+            (identical(other.span, span) || other.span == span) &&
+            (identical(other.questions, questions) ||
+                other.questions == questions) &&
+            (identical(other.answers, answers) || other.answers == answers) &&
+            (identical(other.lostAnswers, lostAnswers) ||
+                other.lostAnswers == lostAnswers) &&
+            (identical(other.consecutiveAnswersMaximum,
+                    consecutiveAnswersMaximum) ||
+                other.consecutiveAnswersMaximum == consecutiveAnswersMaximum) &&
+            (identical(other.consecutiveAnswersAverage,
+                    consecutiveAnswersAverage) ||
+                other.consecutiveAnswersAverage == consecutiveAnswersAverage) &&
+            (identical(other.consecutiveAnswersMinimum,
+                    consecutiveAnswersMinimum) ||
+                other.consecutiveAnswersMinimum == consecutiveAnswersMinimum) &&
+            (identical(other.consecutiveLostAnswersMaximum,
+                    consecutiveLostAnswersMaximum) ||
+                other.consecutiveLostAnswersMaximum ==
+                    consecutiveLostAnswersMaximum) &&
+            (identical(other.consecutiveLostAnswersAverage,
+                    consecutiveLostAnswersAverage) ||
+                other.consecutiveLostAnswersAverage ==
+                    consecutiveLostAnswersAverage) &&
+            (identical(other.consecutiveLostAnswersMinimum,
+                    consecutiveLostAnswersMinimum) ||
+                other.consecutiveLostAnswersMinimum ==
+                    consecutiveLostAnswersMinimum));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+      runtimeType,
+      span,
+      questions,
+      answers,
+      lostAnswers,
+      consecutiveAnswersMaximum,
+      consecutiveAnswersAverage,
+      consecutiveAnswersMinimum,
+      consecutiveLostAnswersMaximum,
+      consecutiveLostAnswersAverage,
+      consecutiveLostAnswersMinimum);
+
+  @override
+  String toString() {
+    return 'AnswerStats(span: $span, questions: $questions, answers: $answers, lostAnswers: $lostAnswers, consecutiveAnswersMaximum: $consecutiveAnswersMaximum, consecutiveAnswersAverage: $consecutiveAnswersAverage, consecutiveAnswersMinimum: $consecutiveAnswersMinimum, consecutiveLostAnswersMaximum: $consecutiveLostAnswersMaximum, consecutiveLostAnswersAverage: $consecutiveLostAnswersAverage, consecutiveLostAnswersMinimum: $consecutiveLostAnswersMinimum)';
+  }
+}
+
+/// @nodoc
+abstract mixin class _$AnswerStatsCopyWith<$Res>
+    implements $AnswerStatsCopyWith<$Res> {
+  factory _$AnswerStatsCopyWith(
+          _AnswerStats value, $Res Function(_AnswerStats) _then) =
+      __$AnswerStatsCopyWithImpl;
+  @override
+  @useResult
+  $Res call(
+      {TimestampDuration span,
+      int questions,
+      int answers,
+      int lostAnswers,
+      int consecutiveAnswersMaximum,
+      int consecutiveAnswersAverage,
+      int consecutiveAnswersMinimum,
+      int consecutiveLostAnswersMaximum,
+      int consecutiveLostAnswersAverage,
+      int consecutiveLostAnswersMinimum});
+}
+
+/// @nodoc
+class __$AnswerStatsCopyWithImpl<$Res> implements _$AnswerStatsCopyWith<$Res> {
+  __$AnswerStatsCopyWithImpl(this._self, this._then);
+
+  final _AnswerStats _self;
+  final $Res Function(_AnswerStats) _then;
+
+  /// Create a copy of AnswerStats
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? span = null,
+    Object? questions = null,
+    Object? answers = null,
+    Object? lostAnswers = null,
+    Object? consecutiveAnswersMaximum = null,
+    Object? consecutiveAnswersAverage = null,
+    Object? consecutiveAnswersMinimum = null,
+    Object? consecutiveLostAnswersMaximum = null,
+    Object? consecutiveLostAnswersAverage = null,
+    Object? consecutiveLostAnswersMinimum = null,
+  }) {
+    return _then(_AnswerStats(
+      span: null == span
+          ? _self.span
+          : span // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      questions: null == questions
+          ? _self.questions
+          : questions // ignore: cast_nullable_to_non_nullable
+              as int,
+      answers: null == answers
+          ? _self.answers
+          : answers // ignore: cast_nullable_to_non_nullable
+              as int,
+      lostAnswers: null == lostAnswers
+          ? _self.lostAnswers
+          : lostAnswers // ignore: cast_nullable_to_non_nullable
+              as int,
+      consecutiveAnswersMaximum: null == consecutiveAnswersMaximum
+          ? _self.consecutiveAnswersMaximum
+          : consecutiveAnswersMaximum // ignore: cast_nullable_to_non_nullable
+              as int,
+      consecutiveAnswersAverage: null == consecutiveAnswersAverage
+          ? _self.consecutiveAnswersAverage
+          : consecutiveAnswersAverage // ignore: cast_nullable_to_non_nullable
+              as int,
+      consecutiveAnswersMinimum: null == consecutiveAnswersMinimum
+          ? _self.consecutiveAnswersMinimum
+          : consecutiveAnswersMinimum // ignore: cast_nullable_to_non_nullable
+              as int,
+      consecutiveLostAnswersMaximum: null == consecutiveLostAnswersMaximum
+          ? _self.consecutiveLostAnswersMaximum
+          : consecutiveLostAnswersMaximum // ignore: cast_nullable_to_non_nullable
+              as int,
+      consecutiveLostAnswersAverage: null == consecutiveLostAnswersAverage
+          ? _self.consecutiveLostAnswersAverage
+          : consecutiveLostAnswersAverage // ignore: cast_nullable_to_non_nullable
+              as int,
+      consecutiveLostAnswersMinimum: null == consecutiveLostAnswersMinimum
+          ? _self.consecutiveLostAnswersMinimum
+          : consecutiveLostAnswersMinimum // ignore: cast_nullable_to_non_nullable
+              as int,
+    ));
+  }
+}
+
+/// @nodoc
+mixin _$RPCStats {
+  int get messagesSent;
+  int get messagesRcvd;
+  int get questionsInFlight;
+  Timestamp? get lastQuestionTs;
+  Timestamp? get lastSeenTs;
+  Timestamp? get firstConsecutiveSeenTs;
+  int get recentLostAnswersUnordered;
+  int get recentLostAnswersOrdered;
+  int get failedToSend;
+  AnswerStats get answerUnordered;
+  AnswerStats get answerOrdered;
+
+  /// Create a copy of RPCStats
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $RPCStatsCopyWith<RPCStats> get copyWith =>
+      _$RPCStatsCopyWithImpl<RPCStats>(this as RPCStats, _$identity);
+
+  /// Serializes this RPCStats to a JSON map.
+  Map<String, dynamic> toJson();
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is RPCStats &&
             (identical(other.messagesSent, messagesSent) ||
                 other.messagesSent == messagesSent) &&
             (identical(other.messagesRcvd, messagesRcvd) ||
@@ -1958,303 +1658,379 @@ class _$RPCStatsImpl implements _RPCStats {
       answerUnordered,
       answerOrdered);
 
-  /// Create a copy of RPCStats
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  @pragma('vm:prefer-inline')
-  _$$RPCStatsImplCopyWith<_$RPCStatsImpl> get copyWith =>
-      __$$RPCStatsImplCopyWithImpl<_$RPCStatsImpl>(this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$RPCStatsImplToJson(
-      this,
-    );
+  String toString() {
+    return 'RPCStats(messagesSent: $messagesSent, messagesRcvd: $messagesRcvd, questionsInFlight: $questionsInFlight, lastQuestionTs: $lastQuestionTs, lastSeenTs: $lastSeenTs, firstConsecutiveSeenTs: $firstConsecutiveSeenTs, recentLostAnswersUnordered: $recentLostAnswersUnordered, recentLostAnswersOrdered: $recentLostAnswersOrdered, failedToSend: $failedToSend, answerUnordered: $answerUnordered, answerOrdered: $answerOrdered)';
   }
 }
 
-abstract class _RPCStats implements RPCStats {
-  const factory _RPCStats(
-      {required final int messagesSent,
-      required final int messagesRcvd,
-      required final int questionsInFlight,
-      required final Timestamp? lastQuestionTs,
-      required final Timestamp? lastSeenTs,
-      required final Timestamp? firstConsecutiveSeenTs,
-      required final int recentLostAnswersUnordered,
-      required final int recentLostAnswersOrdered,
-      required final int failedToSend,
-      required final AnswerStats answerUnordered,
-      required final AnswerStats answerOrdered}) = _$RPCStatsImpl;
-
-  factory _RPCStats.fromJson(Map<String, dynamic> json) =
-      _$RPCStatsImpl.fromJson;
-
-  @override
-  int get messagesSent;
-  @override
-  int get messagesRcvd;
-  @override
-  int get questionsInFlight;
-  @override
-  Timestamp? get lastQuestionTs;
-  @override
-  Timestamp? get lastSeenTs;
-  @override
-  Timestamp? get firstConsecutiveSeenTs;
-  @override
-  int get recentLostAnswersUnordered;
-  @override
-  int get recentLostAnswersOrdered;
-  @override
-  int get failedToSend;
-  @override
-  AnswerStats get answerUnordered;
-  @override
-  AnswerStats get answerOrdered;
-
-  /// Create a copy of RPCStats
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$RPCStatsImplCopyWith<_$RPCStatsImpl> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-PeerStats _$PeerStatsFromJson(Map<String, dynamic> json) {
-  return _PeerStats.fromJson(json);
-}
-
 /// @nodoc
-mixin _$PeerStats {
-  Timestamp get timeAdded => throw _privateConstructorUsedError;
-  RPCStats get rpcStats => throw _privateConstructorUsedError;
-  TransferStatsDownUp get transfer => throw _privateConstructorUsedError;
-  StateStats get state => throw _privateConstructorUsedError;
-  LatencyStats? get latency => throw _privateConstructorUsedError;
-
-  /// Serializes this PeerStats to a JSON map.
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-
-  /// Create a copy of PeerStats
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  $PeerStatsCopyWith<PeerStats> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-abstract class $PeerStatsCopyWith<$Res> {
-  factory $PeerStatsCopyWith(PeerStats value, $Res Function(PeerStats) then) =
-      _$PeerStatsCopyWithImpl<$Res, PeerStats>;
+abstract mixin class $RPCStatsCopyWith<$Res> {
+  factory $RPCStatsCopyWith(RPCStats value, $Res Function(RPCStats) _then) =
+      _$RPCStatsCopyWithImpl;
   @useResult
   $Res call(
-      {Timestamp timeAdded,
-      RPCStats rpcStats,
-      TransferStatsDownUp transfer,
-      StateStats state,
-      LatencyStats? latency});
+      {int messagesSent,
+      int messagesRcvd,
+      int questionsInFlight,
+      Timestamp? lastQuestionTs,
+      Timestamp? lastSeenTs,
+      Timestamp? firstConsecutiveSeenTs,
+      int recentLostAnswersUnordered,
+      int recentLostAnswersOrdered,
+      int failedToSend,
+      AnswerStats answerUnordered,
+      AnswerStats answerOrdered});
 
-  $RPCStatsCopyWith<$Res> get rpcStats;
-  $TransferStatsDownUpCopyWith<$Res> get transfer;
-  $StateStatsCopyWith<$Res> get state;
-  $LatencyStatsCopyWith<$Res>? get latency;
+  $AnswerStatsCopyWith<$Res> get answerUnordered;
+  $AnswerStatsCopyWith<$Res> get answerOrdered;
 }
 
 /// @nodoc
-class _$PeerStatsCopyWithImpl<$Res, $Val extends PeerStats>
-    implements $PeerStatsCopyWith<$Res> {
-  _$PeerStatsCopyWithImpl(this._value, this._then);
+class _$RPCStatsCopyWithImpl<$Res> implements $RPCStatsCopyWith<$Res> {
+  _$RPCStatsCopyWithImpl(this._self, this._then);
 
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
+  final RPCStats _self;
+  final $Res Function(RPCStats) _then;
 
-  /// Create a copy of PeerStats
+  /// Create a copy of RPCStats
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? timeAdded = null,
-    Object? rpcStats = null,
-    Object? transfer = null,
-    Object? state = null,
-    Object? latency = freezed,
+    Object? messagesSent = null,
+    Object? messagesRcvd = null,
+    Object? questionsInFlight = null,
+    Object? lastQuestionTs = freezed,
+    Object? lastSeenTs = freezed,
+    Object? firstConsecutiveSeenTs = freezed,
+    Object? recentLostAnswersUnordered = null,
+    Object? recentLostAnswersOrdered = null,
+    Object? failedToSend = null,
+    Object? answerUnordered = null,
+    Object? answerOrdered = null,
   }) {
-    return _then(_value.copyWith(
-      timeAdded: null == timeAdded
-          ? _value.timeAdded
-          : timeAdded // ignore: cast_nullable_to_non_nullable
-              as Timestamp,
-      rpcStats: null == rpcStats
-          ? _value.rpcStats
-          : rpcStats // ignore: cast_nullable_to_non_nullable
-              as RPCStats,
-      transfer: null == transfer
-          ? _value.transfer
-          : transfer // ignore: cast_nullable_to_non_nullable
-              as TransferStatsDownUp,
-      state: null == state
-          ? _value.state
-          : state // ignore: cast_nullable_to_non_nullable
-              as StateStats,
-      latency: freezed == latency
-          ? _value.latency
-          : latency // ignore: cast_nullable_to_non_nullable
-              as LatencyStats?,
-    ) as $Val);
-  }
-
-  /// Create a copy of PeerStats
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @pragma('vm:prefer-inline')
-  $RPCStatsCopyWith<$Res> get rpcStats {
-    return $RPCStatsCopyWith<$Res>(_value.rpcStats, (value) {
-      return _then(_value.copyWith(rpcStats: value) as $Val);
-    });
-  }
-
-  /// Create a copy of PeerStats
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @pragma('vm:prefer-inline')
-  $TransferStatsDownUpCopyWith<$Res> get transfer {
-    return $TransferStatsDownUpCopyWith<$Res>(_value.transfer, (value) {
-      return _then(_value.copyWith(transfer: value) as $Val);
-    });
-  }
-
-  /// Create a copy of PeerStats
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @pragma('vm:prefer-inline')
-  $StateStatsCopyWith<$Res> get state {
-    return $StateStatsCopyWith<$Res>(_value.state, (value) {
-      return _then(_value.copyWith(state: value) as $Val);
-    });
-  }
-
-  /// Create a copy of PeerStats
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @pragma('vm:prefer-inline')
-  $LatencyStatsCopyWith<$Res>? get latency {
-    if (_value.latency == null) {
-      return null;
-    }
-
-    return $LatencyStatsCopyWith<$Res>(_value.latency!, (value) {
-      return _then(_value.copyWith(latency: value) as $Val);
-    });
-  }
-}
-
-/// @nodoc
-abstract class _$$PeerStatsImplCopyWith<$Res>
-    implements $PeerStatsCopyWith<$Res> {
-  factory _$$PeerStatsImplCopyWith(
-          _$PeerStatsImpl value, $Res Function(_$PeerStatsImpl) then) =
-      __$$PeerStatsImplCopyWithImpl<$Res>;
-  @override
-  @useResult
-  $Res call(
-      {Timestamp timeAdded,
-      RPCStats rpcStats,
-      TransferStatsDownUp transfer,
-      StateStats state,
-      LatencyStats? latency});
-
-  @override
-  $RPCStatsCopyWith<$Res> get rpcStats;
-  @override
-  $TransferStatsDownUpCopyWith<$Res> get transfer;
-  @override
-  $StateStatsCopyWith<$Res> get state;
-  @override
-  $LatencyStatsCopyWith<$Res>? get latency;
-}
-
-/// @nodoc
-class __$$PeerStatsImplCopyWithImpl<$Res>
-    extends _$PeerStatsCopyWithImpl<$Res, _$PeerStatsImpl>
-    implements _$$PeerStatsImplCopyWith<$Res> {
-  __$$PeerStatsImplCopyWithImpl(
-      _$PeerStatsImpl _value, $Res Function(_$PeerStatsImpl) _then)
-      : super(_value, _then);
-
-  /// Create a copy of PeerStats
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? timeAdded = null,
-    Object? rpcStats = null,
-    Object? transfer = null,
-    Object? state = null,
-    Object? latency = freezed,
-  }) {
-    return _then(_$PeerStatsImpl(
-      timeAdded: null == timeAdded
-          ? _value.timeAdded
-          : timeAdded // ignore: cast_nullable_to_non_nullable
-              as Timestamp,
-      rpcStats: null == rpcStats
-          ? _value.rpcStats
-          : rpcStats // ignore: cast_nullable_to_non_nullable
-              as RPCStats,
-      transfer: null == transfer
-          ? _value.transfer
-          : transfer // ignore: cast_nullable_to_non_nullable
-              as TransferStatsDownUp,
-      state: null == state
-          ? _value.state
-          : state // ignore: cast_nullable_to_non_nullable
-              as StateStats,
-      latency: freezed == latency
-          ? _value.latency
-          : latency // ignore: cast_nullable_to_non_nullable
-              as LatencyStats?,
+    return _then(_self.copyWith(
+      messagesSent: null == messagesSent
+          ? _self.messagesSent
+          : messagesSent // ignore: cast_nullable_to_non_nullable
+              as int,
+      messagesRcvd: null == messagesRcvd
+          ? _self.messagesRcvd
+          : messagesRcvd // ignore: cast_nullable_to_non_nullable
+              as int,
+      questionsInFlight: null == questionsInFlight
+          ? _self.questionsInFlight
+          : questionsInFlight // ignore: cast_nullable_to_non_nullable
+              as int,
+      lastQuestionTs: freezed == lastQuestionTs
+          ? _self.lastQuestionTs
+          : lastQuestionTs // ignore: cast_nullable_to_non_nullable
+              as Timestamp?,
+      lastSeenTs: freezed == lastSeenTs
+          ? _self.lastSeenTs
+          : lastSeenTs // ignore: cast_nullable_to_non_nullable
+              as Timestamp?,
+      firstConsecutiveSeenTs: freezed == firstConsecutiveSeenTs
+          ? _self.firstConsecutiveSeenTs
+          : firstConsecutiveSeenTs // ignore: cast_nullable_to_non_nullable
+              as Timestamp?,
+      recentLostAnswersUnordered: null == recentLostAnswersUnordered
+          ? _self.recentLostAnswersUnordered
+          : recentLostAnswersUnordered // ignore: cast_nullable_to_non_nullable
+              as int,
+      recentLostAnswersOrdered: null == recentLostAnswersOrdered
+          ? _self.recentLostAnswersOrdered
+          : recentLostAnswersOrdered // ignore: cast_nullable_to_non_nullable
+              as int,
+      failedToSend: null == failedToSend
+          ? _self.failedToSend
+          : failedToSend // ignore: cast_nullable_to_non_nullable
+              as int,
+      answerUnordered: null == answerUnordered
+          ? _self.answerUnordered
+          : answerUnordered // ignore: cast_nullable_to_non_nullable
+              as AnswerStats,
+      answerOrdered: null == answerOrdered
+          ? _self.answerOrdered
+          : answerOrdered // ignore: cast_nullable_to_non_nullable
+              as AnswerStats,
     ));
+  }
+
+  /// Create a copy of RPCStats
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $AnswerStatsCopyWith<$Res> get answerUnordered {
+    return $AnswerStatsCopyWith<$Res>(_self.answerUnordered, (value) {
+      return _then(_self.copyWith(answerUnordered: value));
+    });
+  }
+
+  /// Create a copy of RPCStats
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $AnswerStatsCopyWith<$Res> get answerOrdered {
+    return $AnswerStatsCopyWith<$Res>(_self.answerOrdered, (value) {
+      return _then(_self.copyWith(answerOrdered: value));
+    });
   }
 }
 
 /// @nodoc
 @JsonSerializable()
-class _$PeerStatsImpl implements _PeerStats {
-  const _$PeerStatsImpl(
-      {required this.timeAdded,
-      required this.rpcStats,
-      required this.transfer,
-      required this.state,
-      this.latency});
-
-  factory _$PeerStatsImpl.fromJson(Map<String, dynamic> json) =>
-      _$$PeerStatsImplFromJson(json);
-
-  @override
-  final Timestamp timeAdded;
-  @override
-  final RPCStats rpcStats;
-  @override
-  final TransferStatsDownUp transfer;
-  @override
-  final StateStats state;
-  @override
-  final LatencyStats? latency;
+class _RPCStats implements RPCStats {
+  const _RPCStats(
+      {required this.messagesSent,
+      required this.messagesRcvd,
+      required this.questionsInFlight,
+      required this.lastQuestionTs,
+      required this.lastSeenTs,
+      required this.firstConsecutiveSeenTs,
+      required this.recentLostAnswersUnordered,
+      required this.recentLostAnswersOrdered,
+      required this.failedToSend,
+      required this.answerUnordered,
+      required this.answerOrdered});
+  factory _RPCStats.fromJson(Map<String, dynamic> json) =>
+      _$RPCStatsFromJson(json);
 
   @override
-  String toString() {
-    return 'PeerStats(timeAdded: $timeAdded, rpcStats: $rpcStats, transfer: $transfer, state: $state, latency: $latency)';
+  final int messagesSent;
+  @override
+  final int messagesRcvd;
+  @override
+  final int questionsInFlight;
+  @override
+  final Timestamp? lastQuestionTs;
+  @override
+  final Timestamp? lastSeenTs;
+  @override
+  final Timestamp? firstConsecutiveSeenTs;
+  @override
+  final int recentLostAnswersUnordered;
+  @override
+  final int recentLostAnswersOrdered;
+  @override
+  final int failedToSend;
+  @override
+  final AnswerStats answerUnordered;
+  @override
+  final AnswerStats answerOrdered;
+
+  /// Create a copy of RPCStats
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  _$RPCStatsCopyWith<_RPCStats> get copyWith =>
+      __$RPCStatsCopyWithImpl<_RPCStats>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$RPCStatsToJson(
+      this,
+    );
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$PeerStatsImpl &&
+            other is _RPCStats &&
+            (identical(other.messagesSent, messagesSent) ||
+                other.messagesSent == messagesSent) &&
+            (identical(other.messagesRcvd, messagesRcvd) ||
+                other.messagesRcvd == messagesRcvd) &&
+            (identical(other.questionsInFlight, questionsInFlight) ||
+                other.questionsInFlight == questionsInFlight) &&
+            (identical(other.lastQuestionTs, lastQuestionTs) ||
+                other.lastQuestionTs == lastQuestionTs) &&
+            (identical(other.lastSeenTs, lastSeenTs) ||
+                other.lastSeenTs == lastSeenTs) &&
+            (identical(other.firstConsecutiveSeenTs, firstConsecutiveSeenTs) ||
+                other.firstConsecutiveSeenTs == firstConsecutiveSeenTs) &&
+            (identical(other.recentLostAnswersUnordered,
+                    recentLostAnswersUnordered) ||
+                other.recentLostAnswersUnordered ==
+                    recentLostAnswersUnordered) &&
+            (identical(
+                    other.recentLostAnswersOrdered, recentLostAnswersOrdered) ||
+                other.recentLostAnswersOrdered == recentLostAnswersOrdered) &&
+            (identical(other.failedToSend, failedToSend) ||
+                other.failedToSend == failedToSend) &&
+            (identical(other.answerUnordered, answerUnordered) ||
+                other.answerUnordered == answerUnordered) &&
+            (identical(other.answerOrdered, answerOrdered) ||
+                other.answerOrdered == answerOrdered));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+      runtimeType,
+      messagesSent,
+      messagesRcvd,
+      questionsInFlight,
+      lastQuestionTs,
+      lastSeenTs,
+      firstConsecutiveSeenTs,
+      recentLostAnswersUnordered,
+      recentLostAnswersOrdered,
+      failedToSend,
+      answerUnordered,
+      answerOrdered);
+
+  @override
+  String toString() {
+    return 'RPCStats(messagesSent: $messagesSent, messagesRcvd: $messagesRcvd, questionsInFlight: $questionsInFlight, lastQuestionTs: $lastQuestionTs, lastSeenTs: $lastSeenTs, firstConsecutiveSeenTs: $firstConsecutiveSeenTs, recentLostAnswersUnordered: $recentLostAnswersUnordered, recentLostAnswersOrdered: $recentLostAnswersOrdered, failedToSend: $failedToSend, answerUnordered: $answerUnordered, answerOrdered: $answerOrdered)';
+  }
+}
+
+/// @nodoc
+abstract mixin class _$RPCStatsCopyWith<$Res>
+    implements $RPCStatsCopyWith<$Res> {
+  factory _$RPCStatsCopyWith(_RPCStats value, $Res Function(_RPCStats) _then) =
+      __$RPCStatsCopyWithImpl;
+  @override
+  @useResult
+  $Res call(
+      {int messagesSent,
+      int messagesRcvd,
+      int questionsInFlight,
+      Timestamp? lastQuestionTs,
+      Timestamp? lastSeenTs,
+      Timestamp? firstConsecutiveSeenTs,
+      int recentLostAnswersUnordered,
+      int recentLostAnswersOrdered,
+      int failedToSend,
+      AnswerStats answerUnordered,
+      AnswerStats answerOrdered});
+
+  @override
+  $AnswerStatsCopyWith<$Res> get answerUnordered;
+  @override
+  $AnswerStatsCopyWith<$Res> get answerOrdered;
+}
+
+/// @nodoc
+class __$RPCStatsCopyWithImpl<$Res> implements _$RPCStatsCopyWith<$Res> {
+  __$RPCStatsCopyWithImpl(this._self, this._then);
+
+  final _RPCStats _self;
+  final $Res Function(_RPCStats) _then;
+
+  /// Create a copy of RPCStats
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? messagesSent = null,
+    Object? messagesRcvd = null,
+    Object? questionsInFlight = null,
+    Object? lastQuestionTs = freezed,
+    Object? lastSeenTs = freezed,
+    Object? firstConsecutiveSeenTs = freezed,
+    Object? recentLostAnswersUnordered = null,
+    Object? recentLostAnswersOrdered = null,
+    Object? failedToSend = null,
+    Object? answerUnordered = null,
+    Object? answerOrdered = null,
+  }) {
+    return _then(_RPCStats(
+      messagesSent: null == messagesSent
+          ? _self.messagesSent
+          : messagesSent // ignore: cast_nullable_to_non_nullable
+              as int,
+      messagesRcvd: null == messagesRcvd
+          ? _self.messagesRcvd
+          : messagesRcvd // ignore: cast_nullable_to_non_nullable
+              as int,
+      questionsInFlight: null == questionsInFlight
+          ? _self.questionsInFlight
+          : questionsInFlight // ignore: cast_nullable_to_non_nullable
+              as int,
+      lastQuestionTs: freezed == lastQuestionTs
+          ? _self.lastQuestionTs
+          : lastQuestionTs // ignore: cast_nullable_to_non_nullable
+              as Timestamp?,
+      lastSeenTs: freezed == lastSeenTs
+          ? _self.lastSeenTs
+          : lastSeenTs // ignore: cast_nullable_to_non_nullable
+              as Timestamp?,
+      firstConsecutiveSeenTs: freezed == firstConsecutiveSeenTs
+          ? _self.firstConsecutiveSeenTs
+          : firstConsecutiveSeenTs // ignore: cast_nullable_to_non_nullable
+              as Timestamp?,
+      recentLostAnswersUnordered: null == recentLostAnswersUnordered
+          ? _self.recentLostAnswersUnordered
+          : recentLostAnswersUnordered // ignore: cast_nullable_to_non_nullable
+              as int,
+      recentLostAnswersOrdered: null == recentLostAnswersOrdered
+          ? _self.recentLostAnswersOrdered
+          : recentLostAnswersOrdered // ignore: cast_nullable_to_non_nullable
+              as int,
+      failedToSend: null == failedToSend
+          ? _self.failedToSend
+          : failedToSend // ignore: cast_nullable_to_non_nullable
+              as int,
+      answerUnordered: null == answerUnordered
+          ? _self.answerUnordered
+          : answerUnordered // ignore: cast_nullable_to_non_nullable
+              as AnswerStats,
+      answerOrdered: null == answerOrdered
+          ? _self.answerOrdered
+          : answerOrdered // ignore: cast_nullable_to_non_nullable
+              as AnswerStats,
+    ));
+  }
+
+  /// Create a copy of RPCStats
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $AnswerStatsCopyWith<$Res> get answerUnordered {
+    return $AnswerStatsCopyWith<$Res>(_self.answerUnordered, (value) {
+      return _then(_self.copyWith(answerUnordered: value));
+    });
+  }
+
+  /// Create a copy of RPCStats
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $AnswerStatsCopyWith<$Res> get answerOrdered {
+    return $AnswerStatsCopyWith<$Res>(_self.answerOrdered, (value) {
+      return _then(_self.copyWith(answerOrdered: value));
+    });
+  }
+}
+
+/// @nodoc
+mixin _$PeerStats {
+  Timestamp get timeAdded;
+  RPCStats get rpcStats;
+  TransferStatsDownUp get transfer;
+  StateStats get state;
+  LatencyStats? get latency;
+
+  /// Create a copy of PeerStats
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $PeerStatsCopyWith<PeerStats> get copyWith =>
+      _$PeerStatsCopyWithImpl<PeerStats>(this as PeerStats, _$identity);
+
+  /// Serializes this PeerStats to a JSON map.
+  Map<String, dynamic> toJson();
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is PeerStats &&
             (identical(other.timeAdded, timeAdded) ||
                 other.timeAdded == timeAdded) &&
             (identical(other.rpcStats, rpcStats) ||
@@ -2270,78 +2046,338 @@ class _$PeerStatsImpl implements _PeerStats {
   int get hashCode =>
       Object.hash(runtimeType, timeAdded, rpcStats, transfer, state, latency);
 
-  /// Create a copy of PeerStats
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  @pragma('vm:prefer-inline')
-  _$$PeerStatsImplCopyWith<_$PeerStatsImpl> get copyWith =>
-      __$$PeerStatsImplCopyWithImpl<_$PeerStatsImpl>(this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$PeerStatsImplToJson(
-      this,
-    );
+  String toString() {
+    return 'PeerStats(timeAdded: $timeAdded, rpcStats: $rpcStats, transfer: $transfer, state: $state, latency: $latency)';
   }
 }
 
-abstract class _PeerStats implements PeerStats {
-  const factory _PeerStats(
-      {required final Timestamp timeAdded,
-      required final RPCStats rpcStats,
-      required final TransferStatsDownUp transfer,
-      required final StateStats state,
-      final LatencyStats? latency}) = _$PeerStatsImpl;
+/// @nodoc
+abstract mixin class $PeerStatsCopyWith<$Res> {
+  factory $PeerStatsCopyWith(PeerStats value, $Res Function(PeerStats) _then) =
+      _$PeerStatsCopyWithImpl;
+  @useResult
+  $Res call(
+      {Timestamp timeAdded,
+      RPCStats rpcStats,
+      TransferStatsDownUp transfer,
+      StateStats state,
+      LatencyStats? latency});
 
-  factory _PeerStats.fromJson(Map<String, dynamic> json) =
-      _$PeerStatsImpl.fromJson;
+  $RPCStatsCopyWith<$Res> get rpcStats;
+  $TransferStatsDownUpCopyWith<$Res> get transfer;
+  $StateStatsCopyWith<$Res> get state;
+  $LatencyStatsCopyWith<$Res>? get latency;
+}
+
+/// @nodoc
+class _$PeerStatsCopyWithImpl<$Res> implements $PeerStatsCopyWith<$Res> {
+  _$PeerStatsCopyWithImpl(this._self, this._then);
+
+  final PeerStats _self;
+  final $Res Function(PeerStats) _then;
+
+  /// Create a copy of PeerStats
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? timeAdded = null,
+    Object? rpcStats = null,
+    Object? transfer = null,
+    Object? state = null,
+    Object? latency = freezed,
+  }) {
+    return _then(_self.copyWith(
+      timeAdded: null == timeAdded
+          ? _self.timeAdded
+          : timeAdded // ignore: cast_nullable_to_non_nullable
+              as Timestamp,
+      rpcStats: null == rpcStats
+          ? _self.rpcStats
+          : rpcStats // ignore: cast_nullable_to_non_nullable
+              as RPCStats,
+      transfer: null == transfer
+          ? _self.transfer
+          : transfer // ignore: cast_nullable_to_non_nullable
+              as TransferStatsDownUp,
+      state: null == state
+          ? _self.state
+          : state // ignore: cast_nullable_to_non_nullable
+              as StateStats,
+      latency: freezed == latency
+          ? _self.latency
+          : latency // ignore: cast_nullable_to_non_nullable
+              as LatencyStats?,
+    ));
+  }
+
+  /// Create a copy of PeerStats
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $RPCStatsCopyWith<$Res> get rpcStats {
+    return $RPCStatsCopyWith<$Res>(_self.rpcStats, (value) {
+      return _then(_self.copyWith(rpcStats: value));
+    });
+  }
+
+  /// Create a copy of PeerStats
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $TransferStatsDownUpCopyWith<$Res> get transfer {
+    return $TransferStatsDownUpCopyWith<$Res>(_self.transfer, (value) {
+      return _then(_self.copyWith(transfer: value));
+    });
+  }
+
+  /// Create a copy of PeerStats
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $StateStatsCopyWith<$Res> get state {
+    return $StateStatsCopyWith<$Res>(_self.state, (value) {
+      return _then(_self.copyWith(state: value));
+    });
+  }
+
+  /// Create a copy of PeerStats
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $LatencyStatsCopyWith<$Res>? get latency {
+    if (_self.latency == null) {
+      return null;
+    }
+
+    return $LatencyStatsCopyWith<$Res>(_self.latency!, (value) {
+      return _then(_self.copyWith(latency: value));
+    });
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _PeerStats implements PeerStats {
+  const _PeerStats(
+      {required this.timeAdded,
+      required this.rpcStats,
+      required this.transfer,
+      required this.state,
+      this.latency});
+  factory _PeerStats.fromJson(Map<String, dynamic> json) =>
+      _$PeerStatsFromJson(json);
 
   @override
-  Timestamp get timeAdded;
+  final Timestamp timeAdded;
   @override
-  RPCStats get rpcStats;
+  final RPCStats rpcStats;
   @override
-  TransferStatsDownUp get transfer;
+  final TransferStatsDownUp transfer;
   @override
-  StateStats get state;
+  final StateStats state;
   @override
-  LatencyStats? get latency;
+  final LatencyStats? latency;
 
   /// Create a copy of PeerStats
   /// with the given fields replaced by the non-null parameter values.
   @override
   @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$PeerStatsImplCopyWith<_$PeerStatsImpl> get copyWith =>
-      throw _privateConstructorUsedError;
+  @pragma('vm:prefer-inline')
+  _$PeerStatsCopyWith<_PeerStats> get copyWith =>
+      __$PeerStatsCopyWithImpl<_PeerStats>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$PeerStatsToJson(
+      this,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _PeerStats &&
+            (identical(other.timeAdded, timeAdded) ||
+                other.timeAdded == timeAdded) &&
+            (identical(other.rpcStats, rpcStats) ||
+                other.rpcStats == rpcStats) &&
+            (identical(other.transfer, transfer) ||
+                other.transfer == transfer) &&
+            (identical(other.state, state) || other.state == state) &&
+            (identical(other.latency, latency) || other.latency == latency));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, timeAdded, rpcStats, transfer, state, latency);
+
+  @override
+  String toString() {
+    return 'PeerStats(timeAdded: $timeAdded, rpcStats: $rpcStats, transfer: $transfer, state: $state, latency: $latency)';
+  }
 }
 
-PeerTableData _$PeerTableDataFromJson(Map<String, dynamic> json) {
-  return _PeerTableData.fromJson(json);
+/// @nodoc
+abstract mixin class _$PeerStatsCopyWith<$Res>
+    implements $PeerStatsCopyWith<$Res> {
+  factory _$PeerStatsCopyWith(
+          _PeerStats value, $Res Function(_PeerStats) _then) =
+      __$PeerStatsCopyWithImpl;
+  @override
+  @useResult
+  $Res call(
+      {Timestamp timeAdded,
+      RPCStats rpcStats,
+      TransferStatsDownUp transfer,
+      StateStats state,
+      LatencyStats? latency});
+
+  @override
+  $RPCStatsCopyWith<$Res> get rpcStats;
+  @override
+  $TransferStatsDownUpCopyWith<$Res> get transfer;
+  @override
+  $StateStatsCopyWith<$Res> get state;
+  @override
+  $LatencyStatsCopyWith<$Res>? get latency;
+}
+
+/// @nodoc
+class __$PeerStatsCopyWithImpl<$Res> implements _$PeerStatsCopyWith<$Res> {
+  __$PeerStatsCopyWithImpl(this._self, this._then);
+
+  final _PeerStats _self;
+  final $Res Function(_PeerStats) _then;
+
+  /// Create a copy of PeerStats
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? timeAdded = null,
+    Object? rpcStats = null,
+    Object? transfer = null,
+    Object? state = null,
+    Object? latency = freezed,
+  }) {
+    return _then(_PeerStats(
+      timeAdded: null == timeAdded
+          ? _self.timeAdded
+          : timeAdded // ignore: cast_nullable_to_non_nullable
+              as Timestamp,
+      rpcStats: null == rpcStats
+          ? _self.rpcStats
+          : rpcStats // ignore: cast_nullable_to_non_nullable
+              as RPCStats,
+      transfer: null == transfer
+          ? _self.transfer
+          : transfer // ignore: cast_nullable_to_non_nullable
+              as TransferStatsDownUp,
+      state: null == state
+          ? _self.state
+          : state // ignore: cast_nullable_to_non_nullable
+              as StateStats,
+      latency: freezed == latency
+          ? _self.latency
+          : latency // ignore: cast_nullable_to_non_nullable
+              as LatencyStats?,
+    ));
+  }
+
+  /// Create a copy of PeerStats
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $RPCStatsCopyWith<$Res> get rpcStats {
+    return $RPCStatsCopyWith<$Res>(_self.rpcStats, (value) {
+      return _then(_self.copyWith(rpcStats: value));
+    });
+  }
+
+  /// Create a copy of PeerStats
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $TransferStatsDownUpCopyWith<$Res> get transfer {
+    return $TransferStatsDownUpCopyWith<$Res>(_self.transfer, (value) {
+      return _then(_self.copyWith(transfer: value));
+    });
+  }
+
+  /// Create a copy of PeerStats
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $StateStatsCopyWith<$Res> get state {
+    return $StateStatsCopyWith<$Res>(_self.state, (value) {
+      return _then(_self.copyWith(state: value));
+    });
+  }
+
+  /// Create a copy of PeerStats
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $LatencyStatsCopyWith<$Res>? get latency {
+    if (_self.latency == null) {
+      return null;
+    }
+
+    return $LatencyStatsCopyWith<$Res>(_self.latency!, (value) {
+      return _then(_self.copyWith(latency: value));
+    });
+  }
 }
 
 /// @nodoc
 mixin _$PeerTableData {
-  List<Typed<FixedEncodedString43>> get nodeIds =>
-      throw _privateConstructorUsedError;
-  String get peerAddress => throw _privateConstructorUsedError;
-  PeerStats get peerStats => throw _privateConstructorUsedError;
-
-  /// Serializes this PeerTableData to a JSON map.
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+  List<TypedKey> get nodeIds;
+  String get peerAddress;
+  PeerStats get peerStats;
 
   /// Create a copy of PeerTableData
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
   $PeerTableDataCopyWith<PeerTableData> get copyWith =>
-      throw _privateConstructorUsedError;
+      _$PeerTableDataCopyWithImpl<PeerTableData>(
+          this as PeerTableData, _$identity);
+
+  /// Serializes this PeerTableData to a JSON map.
+  Map<String, dynamic> toJson();
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is PeerTableData &&
+            const DeepCollectionEquality().equals(other.nodeIds, nodeIds) &&
+            (identical(other.peerAddress, peerAddress) ||
+                other.peerAddress == peerAddress) &&
+            (identical(other.peerStats, peerStats) ||
+                other.peerStats == peerStats));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(runtimeType,
+      const DeepCollectionEquality().hash(nodeIds), peerAddress, peerStats);
+
+  @override
+  String toString() {
+    return 'PeerTableData(nodeIds: $nodeIds, peerAddress: $peerAddress, peerStats: $peerStats)';
+  }
 }
 
 /// @nodoc
-abstract class $PeerTableDataCopyWith<$Res> {
+abstract mixin class $PeerTableDataCopyWith<$Res> {
   factory $PeerTableDataCopyWith(
-          PeerTableData value, $Res Function(PeerTableData) then) =
-      _$PeerTableDataCopyWithImpl<$Res, PeerTableData>;
+          PeerTableData value, $Res Function(PeerTableData) _then) =
+      _$PeerTableDataCopyWithImpl;
   @useResult
   $Res call(
       {List<Typed<FixedEncodedString43>> nodeIds,
@@ -2352,14 +2388,12 @@ abstract class $PeerTableDataCopyWith<$Res> {
 }
 
 /// @nodoc
-class _$PeerTableDataCopyWithImpl<$Res, $Val extends PeerTableData>
+class _$PeerTableDataCopyWithImpl<$Res>
     implements $PeerTableDataCopyWith<$Res> {
-  _$PeerTableDataCopyWithImpl(this._value, this._then);
+  _$PeerTableDataCopyWithImpl(this._self, this._then);
 
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
+  final PeerTableData _self;
+  final $Res Function(PeerTableData) _then;
 
   /// Create a copy of PeerTableData
   /// with the given fields replaced by the non-null parameter values.
@@ -2370,20 +2404,20 @@ class _$PeerTableDataCopyWithImpl<$Res, $Val extends PeerTableData>
     Object? peerAddress = null,
     Object? peerStats = null,
   }) {
-    return _then(_value.copyWith(
+    return _then(_self.copyWith(
       nodeIds: null == nodeIds
-          ? _value.nodeIds
+          ? _self.nodeIds!
           : nodeIds // ignore: cast_nullable_to_non_nullable
               as List<Typed<FixedEncodedString43>>,
       peerAddress: null == peerAddress
-          ? _value.peerAddress
+          ? _self.peerAddress
           : peerAddress // ignore: cast_nullable_to_non_nullable
               as String,
       peerStats: null == peerStats
-          ? _value.peerStats
+          ? _self.peerStats
           : peerStats // ignore: cast_nullable_to_non_nullable
               as PeerStats,
-    ) as $Val);
+    ));
   }
 
   /// Create a copy of PeerTableData
@@ -2391,74 +2425,22 @@ class _$PeerTableDataCopyWithImpl<$Res, $Val extends PeerTableData>
   @override
   @pragma('vm:prefer-inline')
   $PeerStatsCopyWith<$Res> get peerStats {
-    return $PeerStatsCopyWith<$Res>(_value.peerStats, (value) {
-      return _then(_value.copyWith(peerStats: value) as $Val);
+    return $PeerStatsCopyWith<$Res>(_self.peerStats, (value) {
+      return _then(_self.copyWith(peerStats: value));
     });
   }
 }
 
 /// @nodoc
-abstract class _$$PeerTableDataImplCopyWith<$Res>
-    implements $PeerTableDataCopyWith<$Res> {
-  factory _$$PeerTableDataImplCopyWith(
-          _$PeerTableDataImpl value, $Res Function(_$PeerTableDataImpl) then) =
-      __$$PeerTableDataImplCopyWithImpl<$Res>;
-  @override
-  @useResult
-  $Res call(
-      {List<Typed<FixedEncodedString43>> nodeIds,
-      String peerAddress,
-      PeerStats peerStats});
-
-  @override
-  $PeerStatsCopyWith<$Res> get peerStats;
-}
-
-/// @nodoc
-class __$$PeerTableDataImplCopyWithImpl<$Res>
-    extends _$PeerTableDataCopyWithImpl<$Res, _$PeerTableDataImpl>
-    implements _$$PeerTableDataImplCopyWith<$Res> {
-  __$$PeerTableDataImplCopyWithImpl(
-      _$PeerTableDataImpl _value, $Res Function(_$PeerTableDataImpl) _then)
-      : super(_value, _then);
-
-  /// Create a copy of PeerTableData
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? nodeIds = null,
-    Object? peerAddress = null,
-    Object? peerStats = null,
-  }) {
-    return _then(_$PeerTableDataImpl(
-      nodeIds: null == nodeIds
-          ? _value._nodeIds
-          : nodeIds // ignore: cast_nullable_to_non_nullable
-              as List<Typed<FixedEncodedString43>>,
-      peerAddress: null == peerAddress
-          ? _value.peerAddress
-          : peerAddress // ignore: cast_nullable_to_non_nullable
-              as String,
-      peerStats: null == peerStats
-          ? _value.peerStats
-          : peerStats // ignore: cast_nullable_to_non_nullable
-              as PeerStats,
-    ));
-  }
-}
-
-/// @nodoc
 @JsonSerializable()
-class _$PeerTableDataImpl implements _PeerTableData {
-  const _$PeerTableDataImpl(
+class _PeerTableData implements PeerTableData {
+  const _PeerTableData(
       {required final List<Typed<FixedEncodedString43>> nodeIds,
       required this.peerAddress,
       required this.peerStats})
       : _nodeIds = nodeIds;
-
-  factory _$PeerTableDataImpl.fromJson(Map<String, dynamic> json) =>
-      _$$PeerTableDataImplFromJson(json);
+  factory _PeerTableData.fromJson(Map<String, dynamic> json) =>
+      _$PeerTableDataFromJson(json);
 
   final List<Typed<FixedEncodedString43>> _nodeIds;
   @override
@@ -2473,16 +2455,26 @@ class _$PeerTableDataImpl implements _PeerTableData {
   @override
   final PeerStats peerStats;
 
+  /// Create a copy of PeerTableData
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  String toString() {
-    return 'PeerTableData(nodeIds: $nodeIds, peerAddress: $peerAddress, peerStats: $peerStats)';
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  _$PeerTableDataCopyWith<_PeerTableData> get copyWith =>
+      __$PeerTableDataCopyWithImpl<_PeerTableData>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$PeerTableDataToJson(
+      this,
+    );
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$PeerTableDataImpl &&
+            other is _PeerTableData &&
             const DeepCollectionEquality().equals(other._nodeIds, _nodeIds) &&
             (identical(other.peerAddress, peerAddress) ||
                 other.peerAddress == peerAddress) &&
@@ -2495,44 +2487,71 @@ class _$PeerTableDataImpl implements _PeerTableData {
   int get hashCode => Object.hash(runtimeType,
       const DeepCollectionEquality().hash(_nodeIds), peerAddress, peerStats);
 
-  /// Create a copy of PeerTableData
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  @pragma('vm:prefer-inline')
-  _$$PeerTableDataImplCopyWith<_$PeerTableDataImpl> get copyWith =>
-      __$$PeerTableDataImplCopyWithImpl<_$PeerTableDataImpl>(this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$PeerTableDataImplToJson(
-      this,
-    );
+  String toString() {
+    return 'PeerTableData(nodeIds: $nodeIds, peerAddress: $peerAddress, peerStats: $peerStats)';
   }
 }
 
-abstract class _PeerTableData implements PeerTableData {
-  const factory _PeerTableData(
-      {required final List<Typed<FixedEncodedString43>> nodeIds,
-      required final String peerAddress,
-      required final PeerStats peerStats}) = _$PeerTableDataImpl;
+/// @nodoc
+abstract mixin class _$PeerTableDataCopyWith<$Res>
+    implements $PeerTableDataCopyWith<$Res> {
+  factory _$PeerTableDataCopyWith(
+          _PeerTableData value, $Res Function(_PeerTableData) _then) =
+      __$PeerTableDataCopyWithImpl;
+  @override
+  @useResult
+  $Res call(
+      {List<Typed<FixedEncodedString43>> nodeIds,
+      String peerAddress,
+      PeerStats peerStats});
 
-  factory _PeerTableData.fromJson(Map<String, dynamic> json) =
-      _$PeerTableDataImpl.fromJson;
+  @override
+  $PeerStatsCopyWith<$Res> get peerStats;
+}
 
-  @override
-  List<Typed<FixedEncodedString43>> get nodeIds;
-  @override
-  String get peerAddress;
-  @override
-  PeerStats get peerStats;
+/// @nodoc
+class __$PeerTableDataCopyWithImpl<$Res>
+    implements _$PeerTableDataCopyWith<$Res> {
+  __$PeerTableDataCopyWithImpl(this._self, this._then);
+
+  final _PeerTableData _self;
+  final $Res Function(_PeerTableData) _then;
 
   /// Create a copy of PeerTableData
   /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$PeerTableDataImplCopyWith<_$PeerTableDataImpl> get copyWith =>
-      throw _privateConstructorUsedError;
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? nodeIds = null,
+    Object? peerAddress = null,
+    Object? peerStats = null,
+  }) {
+    return _then(_PeerTableData(
+      nodeIds: null == nodeIds
+          ? _self._nodeIds
+          : nodeIds // ignore: cast_nullable_to_non_nullable
+              as List<Typed<FixedEncodedString43>>,
+      peerAddress: null == peerAddress
+          ? _self.peerAddress
+          : peerAddress // ignore: cast_nullable_to_non_nullable
+              as String,
+      peerStats: null == peerStats
+          ? _self.peerStats
+          : peerStats // ignore: cast_nullable_to_non_nullable
+              as PeerStats,
+    ));
+  }
+
+  /// Create a copy of PeerTableData
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $PeerStatsCopyWith<$Res> get peerStats {
+    return $PeerStatsCopyWith<$Res>(_self.peerStats, (value) {
+      return _then(_self.copyWith(peerStats: value));
+    });
+  }
 }
 
 VeilidUpdate _$VeilidUpdateFromJson(Map<String, dynamic> json) {
@@ -2562,245 +2581,68 @@ VeilidUpdate _$VeilidUpdateFromJson(Map<String, dynamic> json) {
 
 /// @nodoc
 mixin _$VeilidUpdate {
-  @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function(
-            VeilidLogLevel logLevel, String message, String? backtrace)
-        log,
-    required TResult Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)
-        appMessage,
-    required TResult Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            String callId,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)
-        appCall,
-    required TResult Function(
-            AttachmentState state,
-            bool publicInternetReady,
-            bool localNetworkReady,
-            TimestampDuration uptime,
-            TimestampDuration? attachedUptime)
-        attachment,
-    required TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
-            List<PeerTableData> peers)
-        network,
-    required TResult Function(VeilidConfig config) config,
-    required TResult Function(
-            List<String> deadRoutes, List<String> deadRemoteRoutes)
-        routeChange,
-    required TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData? value)
-        valueChange,
-  }) =>
-      throw _privateConstructorUsedError;
-  @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(
-            VeilidLogLevel logLevel, String message, String? backtrace)?
-        log,
-    TResult? Function(@Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            Typed<FixedEncodedString43>? sender, String? routeId)?
-        appMessage,
-    TResult? Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            String callId,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)?
-        appCall,
-    TResult? Function(
-            AttachmentState state,
-            bool publicInternetReady,
-            bool localNetworkReady,
-            TimestampDuration uptime,
-            TimestampDuration? attachedUptime)?
-        attachment,
-    TResult? Function(bool started, BigInt bpsDown, BigInt bpsUp,
-            List<PeerTableData> peers)?
-        network,
-    TResult? Function(VeilidConfig config)? config,
-    TResult? Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
-        routeChange,
-    TResult? Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData? value)?
-        valueChange,
-  }) =>
-      throw _privateConstructorUsedError;
-  @optionalTypeArgs
-  TResult maybeWhen<TResult extends Object?>({
-    TResult Function(
-            VeilidLogLevel logLevel, String message, String? backtrace)?
-        log,
-    TResult Function(@Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            Typed<FixedEncodedString43>? sender, String? routeId)?
-        appMessage,
-    TResult Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            String callId,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)?
-        appCall,
-    TResult Function(
-            AttachmentState state,
-            bool publicInternetReady,
-            bool localNetworkReady,
-            TimestampDuration uptime,
-            TimestampDuration? attachedUptime)?
-        attachment,
-    TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
-            List<PeerTableData> peers)?
-        network,
-    TResult Function(VeilidConfig config)? config,
-    TResult Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
-        routeChange,
-    TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData? value)?
-        valueChange,
-    required TResult orElse(),
-  }) =>
-      throw _privateConstructorUsedError;
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(VeilidLog value) log,
-    required TResult Function(VeilidAppMessage value) appMessage,
-    required TResult Function(VeilidAppCall value) appCall,
-    required TResult Function(VeilidUpdateAttachment value) attachment,
-    required TResult Function(VeilidUpdateNetwork value) network,
-    required TResult Function(VeilidUpdateConfig value) config,
-    required TResult Function(VeilidUpdateRouteChange value) routeChange,
-    required TResult Function(VeilidUpdateValueChange value) valueChange,
-  }) =>
-      throw _privateConstructorUsedError;
-  @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult? Function(VeilidLog value)? log,
-    TResult? Function(VeilidAppMessage value)? appMessage,
-    TResult? Function(VeilidAppCall value)? appCall,
-    TResult? Function(VeilidUpdateAttachment value)? attachment,
-    TResult? Function(VeilidUpdateNetwork value)? network,
-    TResult? Function(VeilidUpdateConfig value)? config,
-    TResult? Function(VeilidUpdateRouteChange value)? routeChange,
-    TResult? Function(VeilidUpdateValueChange value)? valueChange,
-  }) =>
-      throw _privateConstructorUsedError;
-  @optionalTypeArgs
-  TResult maybeMap<TResult extends Object?>({
-    TResult Function(VeilidLog value)? log,
-    TResult Function(VeilidAppMessage value)? appMessage,
-    TResult Function(VeilidAppCall value)? appCall,
-    TResult Function(VeilidUpdateAttachment value)? attachment,
-    TResult Function(VeilidUpdateNetwork value)? network,
-    TResult Function(VeilidUpdateConfig value)? config,
-    TResult Function(VeilidUpdateRouteChange value)? routeChange,
-    TResult Function(VeilidUpdateValueChange value)? valueChange,
-    required TResult orElse(),
-  }) =>
-      throw _privateConstructorUsedError;
-
   /// Serializes this VeilidUpdate to a JSON map.
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-}
+  Map<String, dynamic> toJson();
 
-/// @nodoc
-abstract class $VeilidUpdateCopyWith<$Res> {
-  factory $VeilidUpdateCopyWith(
-          VeilidUpdate value, $Res Function(VeilidUpdate) then) =
-      _$VeilidUpdateCopyWithImpl<$Res, VeilidUpdate>;
-}
-
-/// @nodoc
-class _$VeilidUpdateCopyWithImpl<$Res, $Val extends VeilidUpdate>
-    implements $VeilidUpdateCopyWith<$Res> {
-  _$VeilidUpdateCopyWithImpl(this._value, this._then);
-
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
-
-  /// Create a copy of VeilidUpdate
-  /// with the given fields replaced by the non-null parameter values.
-}
-
-/// @nodoc
-abstract class _$$VeilidLogImplCopyWith<$Res> {
-  factory _$$VeilidLogImplCopyWith(
-          _$VeilidLogImpl value, $Res Function(_$VeilidLogImpl) then) =
-      __$$VeilidLogImplCopyWithImpl<$Res>;
-  @useResult
-  $Res call({VeilidLogLevel logLevel, String message, String? backtrace});
-}
-
-/// @nodoc
-class __$$VeilidLogImplCopyWithImpl<$Res>
-    extends _$VeilidUpdateCopyWithImpl<$Res, _$VeilidLogImpl>
-    implements _$$VeilidLogImplCopyWith<$Res> {
-  __$$VeilidLogImplCopyWithImpl(
-      _$VeilidLogImpl _value, $Res Function(_$VeilidLogImpl) _then)
-      : super(_value, _then);
-
-  /// Create a copy of VeilidUpdate
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
   @override
-  $Res call({
-    Object? logLevel = null,
-    Object? message = null,
-    Object? backtrace = freezed,
-  }) {
-    return _then(_$VeilidLogImpl(
-      logLevel: null == logLevel
-          ? _value.logLevel
-          : logLevel // ignore: cast_nullable_to_non_nullable
-              as VeilidLogLevel,
-      message: null == message
-          ? _value.message
-          : message // ignore: cast_nullable_to_non_nullable
-              as String,
-      backtrace: freezed == backtrace
-          ? _value.backtrace
-          : backtrace // ignore: cast_nullable_to_non_nullable
-              as String?,
-    ));
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType && other is VeilidUpdate);
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => runtimeType.hashCode;
+
+  @override
+  String toString() {
+    return 'VeilidUpdate()';
   }
 }
 
 /// @nodoc
+class $VeilidUpdateCopyWith<$Res> {
+  $VeilidUpdateCopyWith(VeilidUpdate _, $Res Function(VeilidUpdate) __);
+}
+
+/// @nodoc
 @JsonSerializable()
-class _$VeilidLogImpl implements VeilidLog {
-  const _$VeilidLogImpl(
+class VeilidLog implements VeilidUpdate {
+  const VeilidLog(
       {required this.logLevel,
       required this.message,
       this.backtrace,
       final String? $type})
       : $type = $type ?? 'Log';
+  factory VeilidLog.fromJson(Map<String, dynamic> json) =>
+      _$VeilidLogFromJson(json);
 
-  factory _$VeilidLogImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidLogImplFromJson(json);
-
-  @override
   final VeilidLogLevel logLevel;
-  @override
   final String message;
-  @override
   final String? backtrace;
 
   @JsonKey(name: 'kind')
   final String $type;
 
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $VeilidLogCopyWith<VeilidLog> get copyWith =>
+      _$VeilidLogCopyWithImpl<VeilidLog>(this, _$identity);
+
   @override
-  String toString() {
-    return 'VeilidUpdate.log(logLevel: $logLevel, message: $message, backtrace: $backtrace)';
+  Map<String, dynamic> toJson() {
+    return _$VeilidLogToJson(
+      this,
+    );
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidLogImpl &&
+            other is VeilidLog &&
             (identical(other.logLevel, logLevel) ||
                 other.logLevel == logLevel) &&
             (identical(other.message, message) || other.message == message) &&
@@ -2812,244 +2654,48 @@ class _$VeilidLogImpl implements VeilidLog {
   @override
   int get hashCode => Object.hash(runtimeType, logLevel, message, backtrace);
 
-  /// Create a copy of VeilidUpdate
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  @pragma('vm:prefer-inline')
-  _$$VeilidLogImplCopyWith<_$VeilidLogImpl> get copyWith =>
-      __$$VeilidLogImplCopyWithImpl<_$VeilidLogImpl>(this, _$identity);
-
-  @override
-  @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function(
-            VeilidLogLevel logLevel, String message, String? backtrace)
-        log,
-    required TResult Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)
-        appMessage,
-    required TResult Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            String callId,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)
-        appCall,
-    required TResult Function(
-            AttachmentState state,
-            bool publicInternetReady,
-            bool localNetworkReady,
-            TimestampDuration uptime,
-            TimestampDuration? attachedUptime)
-        attachment,
-    required TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
-            List<PeerTableData> peers)
-        network,
-    required TResult Function(VeilidConfig config) config,
-    required TResult Function(
-            List<String> deadRoutes, List<String> deadRemoteRoutes)
-        routeChange,
-    required TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData? value)
-        valueChange,
-  }) {
-    return log(logLevel, message, backtrace);
+  String toString() {
+    return 'VeilidUpdate.log(logLevel: $logLevel, message: $message, backtrace: $backtrace)';
   }
-
-  @override
-  @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(
-            VeilidLogLevel logLevel, String message, String? backtrace)?
-        log,
-    TResult? Function(@Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            Typed<FixedEncodedString43>? sender, String? routeId)?
-        appMessage,
-    TResult? Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            String callId,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)?
-        appCall,
-    TResult? Function(
-            AttachmentState state,
-            bool publicInternetReady,
-            bool localNetworkReady,
-            TimestampDuration uptime,
-            TimestampDuration? attachedUptime)?
-        attachment,
-    TResult? Function(bool started, BigInt bpsDown, BigInt bpsUp,
-            List<PeerTableData> peers)?
-        network,
-    TResult? Function(VeilidConfig config)? config,
-    TResult? Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
-        routeChange,
-    TResult? Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData? value)?
-        valueChange,
-  }) {
-    return log?.call(logLevel, message, backtrace);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeWhen<TResult extends Object?>({
-    TResult Function(
-            VeilidLogLevel logLevel, String message, String? backtrace)?
-        log,
-    TResult Function(@Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            Typed<FixedEncodedString43>? sender, String? routeId)?
-        appMessage,
-    TResult Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            String callId,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)?
-        appCall,
-    TResult Function(
-            AttachmentState state,
-            bool publicInternetReady,
-            bool localNetworkReady,
-            TimestampDuration uptime,
-            TimestampDuration? attachedUptime)?
-        attachment,
-    TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
-            List<PeerTableData> peers)?
-        network,
-    TResult Function(VeilidConfig config)? config,
-    TResult Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
-        routeChange,
-    TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData? value)?
-        valueChange,
-    required TResult orElse(),
-  }) {
-    if (log != null) {
-      return log(logLevel, message, backtrace);
-    }
-    return orElse();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(VeilidLog value) log,
-    required TResult Function(VeilidAppMessage value) appMessage,
-    required TResult Function(VeilidAppCall value) appCall,
-    required TResult Function(VeilidUpdateAttachment value) attachment,
-    required TResult Function(VeilidUpdateNetwork value) network,
-    required TResult Function(VeilidUpdateConfig value) config,
-    required TResult Function(VeilidUpdateRouteChange value) routeChange,
-    required TResult Function(VeilidUpdateValueChange value) valueChange,
-  }) {
-    return log(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult? Function(VeilidLog value)? log,
-    TResult? Function(VeilidAppMessage value)? appMessage,
-    TResult? Function(VeilidAppCall value)? appCall,
-    TResult? Function(VeilidUpdateAttachment value)? attachment,
-    TResult? Function(VeilidUpdateNetwork value)? network,
-    TResult? Function(VeilidUpdateConfig value)? config,
-    TResult? Function(VeilidUpdateRouteChange value)? routeChange,
-    TResult? Function(VeilidUpdateValueChange value)? valueChange,
-  }) {
-    return log?.call(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeMap<TResult extends Object?>({
-    TResult Function(VeilidLog value)? log,
-    TResult Function(VeilidAppMessage value)? appMessage,
-    TResult Function(VeilidAppCall value)? appCall,
-    TResult Function(VeilidUpdateAttachment value)? attachment,
-    TResult Function(VeilidUpdateNetwork value)? network,
-    TResult Function(VeilidUpdateConfig value)? config,
-    TResult Function(VeilidUpdateRouteChange value)? routeChange,
-    TResult Function(VeilidUpdateValueChange value)? valueChange,
-    required TResult orElse(),
-  }) {
-    if (log != null) {
-      return log(this);
-    }
-    return orElse();
-  }
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$VeilidLogImplToJson(
-      this,
-    );
-  }
-}
-
-abstract class VeilidLog implements VeilidUpdate {
-  const factory VeilidLog(
-      {required final VeilidLogLevel logLevel,
-      required final String message,
-      final String? backtrace}) = _$VeilidLogImpl;
-
-  factory VeilidLog.fromJson(Map<String, dynamic> json) =
-      _$VeilidLogImpl.fromJson;
-
-  VeilidLogLevel get logLevel;
-  String get message;
-  String? get backtrace;
-
-  /// Create a copy of VeilidUpdate
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$VeilidLogImplCopyWith<_$VeilidLogImpl> get copyWith =>
-      throw _privateConstructorUsedError;
 }
 
 /// @nodoc
-abstract class _$$VeilidAppMessageImplCopyWith<$Res> {
-  factory _$$VeilidAppMessageImplCopyWith(_$VeilidAppMessageImpl value,
-          $Res Function(_$VeilidAppMessageImpl) then) =
-      __$$VeilidAppMessageImplCopyWithImpl<$Res>;
+abstract mixin class $VeilidLogCopyWith<$Res>
+    implements $VeilidUpdateCopyWith<$Res> {
+  factory $VeilidLogCopyWith(VeilidLog value, $Res Function(VeilidLog) _then) =
+      _$VeilidLogCopyWithImpl;
   @useResult
-  $Res call(
-      {@Uint8ListJsonConverter.jsIsArray() Uint8List message,
-      Typed<FixedEncodedString43>? sender,
-      String? routeId});
+  $Res call({VeilidLogLevel logLevel, String message, String? backtrace});
 }
 
 /// @nodoc
-class __$$VeilidAppMessageImplCopyWithImpl<$Res>
-    extends _$VeilidUpdateCopyWithImpl<$Res, _$VeilidAppMessageImpl>
-    implements _$$VeilidAppMessageImplCopyWith<$Res> {
-  __$$VeilidAppMessageImplCopyWithImpl(_$VeilidAppMessageImpl _value,
-      $Res Function(_$VeilidAppMessageImpl) _then)
-      : super(_value, _then);
+class _$VeilidLogCopyWithImpl<$Res> implements $VeilidLogCopyWith<$Res> {
+  _$VeilidLogCopyWithImpl(this._self, this._then);
+
+  final VeilidLog _self;
+  final $Res Function(VeilidLog) _then;
 
   /// Create a copy of VeilidUpdate
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
-  @override
   $Res call({
+    Object? logLevel = null,
     Object? message = null,
-    Object? sender = freezed,
-    Object? routeId = freezed,
+    Object? backtrace = freezed,
   }) {
-    return _then(_$VeilidAppMessageImpl(
+    return _then(VeilidLog(
+      logLevel: null == logLevel
+          ? _self.logLevel
+          : logLevel // ignore: cast_nullable_to_non_nullable
+              as VeilidLogLevel,
       message: null == message
-          ? _value.message
+          ? _self.message
           : message // ignore: cast_nullable_to_non_nullable
-              as Uint8List,
-      sender: freezed == sender
-          ? _value.sender
-          : sender // ignore: cast_nullable_to_non_nullable
-              as Typed<FixedEncodedString43>?,
-      routeId: freezed == routeId
-          ? _value.routeId
-          : routeId // ignore: cast_nullable_to_non_nullable
+              as String,
+      backtrace: freezed == backtrace
+          ? _self.backtrace
+          : backtrace // ignore: cast_nullable_to_non_nullable
               as String?,
     ));
   }
@@ -3057,38 +2703,43 @@ class __$$VeilidAppMessageImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidAppMessageImpl implements VeilidAppMessage {
-  const _$VeilidAppMessageImpl(
+class VeilidAppMessage implements VeilidUpdate {
+  const VeilidAppMessage(
       {@Uint8ListJsonConverter.jsIsArray() required this.message,
       this.sender,
       this.routeId,
       final String? $type})
       : $type = $type ?? 'AppMessage';
+  factory VeilidAppMessage.fromJson(Map<String, dynamic> json) =>
+      _$VeilidAppMessageFromJson(json);
 
-  factory _$VeilidAppMessageImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidAppMessageImplFromJson(json);
-
-  @override
   @Uint8ListJsonConverter.jsIsArray()
   final Uint8List message;
-  @override
   final Typed<FixedEncodedString43>? sender;
-  @override
   final String? routeId;
 
   @JsonKey(name: 'kind')
   final String $type;
 
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $VeilidAppMessageCopyWith<VeilidAppMessage> get copyWith =>
+      _$VeilidAppMessageCopyWithImpl<VeilidAppMessage>(this, _$identity);
+
   @override
-  String toString() {
-    return 'VeilidUpdate.appMessage(message: $message, sender: $sender, routeId: $routeId)';
+  Map<String, dynamic> toJson() {
+    return _$VeilidAppMessageToJson(
+      this,
+    );
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidAppMessageImpl &&
+            other is VeilidAppMessage &&
             const DeepCollectionEquality().equals(other.message, message) &&
             (identical(other.sender, sender) || other.sender == sender) &&
             (identical(other.routeId, routeId) || other.routeId == routeId));
@@ -3099,251 +2750,52 @@ class _$VeilidAppMessageImpl implements VeilidAppMessage {
   int get hashCode => Object.hash(runtimeType,
       const DeepCollectionEquality().hash(message), sender, routeId);
 
-  /// Create a copy of VeilidUpdate
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  @pragma('vm:prefer-inline')
-  _$$VeilidAppMessageImplCopyWith<_$VeilidAppMessageImpl> get copyWith =>
-      __$$VeilidAppMessageImplCopyWithImpl<_$VeilidAppMessageImpl>(
-          this, _$identity);
-
-  @override
-  @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function(
-            VeilidLogLevel logLevel, String message, String? backtrace)
-        log,
-    required TResult Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)
-        appMessage,
-    required TResult Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            String callId,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)
-        appCall,
-    required TResult Function(
-            AttachmentState state,
-            bool publicInternetReady,
-            bool localNetworkReady,
-            TimestampDuration uptime,
-            TimestampDuration? attachedUptime)
-        attachment,
-    required TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
-            List<PeerTableData> peers)
-        network,
-    required TResult Function(VeilidConfig config) config,
-    required TResult Function(
-            List<String> deadRoutes, List<String> deadRemoteRoutes)
-        routeChange,
-    required TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData? value)
-        valueChange,
-  }) {
-    return appMessage(message, sender, routeId);
+  String toString() {
+    return 'VeilidUpdate.appMessage(message: $message, sender: $sender, routeId: $routeId)';
   }
-
-  @override
-  @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(
-            VeilidLogLevel logLevel, String message, String? backtrace)?
-        log,
-    TResult? Function(@Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            Typed<FixedEncodedString43>? sender, String? routeId)?
-        appMessage,
-    TResult? Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            String callId,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)?
-        appCall,
-    TResult? Function(
-            AttachmentState state,
-            bool publicInternetReady,
-            bool localNetworkReady,
-            TimestampDuration uptime,
-            TimestampDuration? attachedUptime)?
-        attachment,
-    TResult? Function(bool started, BigInt bpsDown, BigInt bpsUp,
-            List<PeerTableData> peers)?
-        network,
-    TResult? Function(VeilidConfig config)? config,
-    TResult? Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
-        routeChange,
-    TResult? Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData? value)?
-        valueChange,
-  }) {
-    return appMessage?.call(message, sender, routeId);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeWhen<TResult extends Object?>({
-    TResult Function(
-            VeilidLogLevel logLevel, String message, String? backtrace)?
-        log,
-    TResult Function(@Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            Typed<FixedEncodedString43>? sender, String? routeId)?
-        appMessage,
-    TResult Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            String callId,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)?
-        appCall,
-    TResult Function(
-            AttachmentState state,
-            bool publicInternetReady,
-            bool localNetworkReady,
-            TimestampDuration uptime,
-            TimestampDuration? attachedUptime)?
-        attachment,
-    TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
-            List<PeerTableData> peers)?
-        network,
-    TResult Function(VeilidConfig config)? config,
-    TResult Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
-        routeChange,
-    TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData? value)?
-        valueChange,
-    required TResult orElse(),
-  }) {
-    if (appMessage != null) {
-      return appMessage(message, sender, routeId);
-    }
-    return orElse();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(VeilidLog value) log,
-    required TResult Function(VeilidAppMessage value) appMessage,
-    required TResult Function(VeilidAppCall value) appCall,
-    required TResult Function(VeilidUpdateAttachment value) attachment,
-    required TResult Function(VeilidUpdateNetwork value) network,
-    required TResult Function(VeilidUpdateConfig value) config,
-    required TResult Function(VeilidUpdateRouteChange value) routeChange,
-    required TResult Function(VeilidUpdateValueChange value) valueChange,
-  }) {
-    return appMessage(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult? Function(VeilidLog value)? log,
-    TResult? Function(VeilidAppMessage value)? appMessage,
-    TResult? Function(VeilidAppCall value)? appCall,
-    TResult? Function(VeilidUpdateAttachment value)? attachment,
-    TResult? Function(VeilidUpdateNetwork value)? network,
-    TResult? Function(VeilidUpdateConfig value)? config,
-    TResult? Function(VeilidUpdateRouteChange value)? routeChange,
-    TResult? Function(VeilidUpdateValueChange value)? valueChange,
-  }) {
-    return appMessage?.call(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeMap<TResult extends Object?>({
-    TResult Function(VeilidLog value)? log,
-    TResult Function(VeilidAppMessage value)? appMessage,
-    TResult Function(VeilidAppCall value)? appCall,
-    TResult Function(VeilidUpdateAttachment value)? attachment,
-    TResult Function(VeilidUpdateNetwork value)? network,
-    TResult Function(VeilidUpdateConfig value)? config,
-    TResult Function(VeilidUpdateRouteChange value)? routeChange,
-    TResult Function(VeilidUpdateValueChange value)? valueChange,
-    required TResult orElse(),
-  }) {
-    if (appMessage != null) {
-      return appMessage(this);
-    }
-    return orElse();
-  }
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$VeilidAppMessageImplToJson(
-      this,
-    );
-  }
-}
-
-abstract class VeilidAppMessage implements VeilidUpdate {
-  const factory VeilidAppMessage(
-      {@Uint8ListJsonConverter.jsIsArray() required final Uint8List message,
-      final Typed<FixedEncodedString43>? sender,
-      final String? routeId}) = _$VeilidAppMessageImpl;
-
-  factory VeilidAppMessage.fromJson(Map<String, dynamic> json) =
-      _$VeilidAppMessageImpl.fromJson;
-
-  @Uint8ListJsonConverter.jsIsArray()
-  Uint8List get message;
-  Typed<FixedEncodedString43>? get sender;
-  String? get routeId;
-
-  /// Create a copy of VeilidUpdate
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$VeilidAppMessageImplCopyWith<_$VeilidAppMessageImpl> get copyWith =>
-      throw _privateConstructorUsedError;
 }
 
 /// @nodoc
-abstract class _$$VeilidAppCallImplCopyWith<$Res> {
-  factory _$$VeilidAppCallImplCopyWith(
-          _$VeilidAppCallImpl value, $Res Function(_$VeilidAppCallImpl) then) =
-      __$$VeilidAppCallImplCopyWithImpl<$Res>;
+abstract mixin class $VeilidAppMessageCopyWith<$Res>
+    implements $VeilidUpdateCopyWith<$Res> {
+  factory $VeilidAppMessageCopyWith(
+          VeilidAppMessage value, $Res Function(VeilidAppMessage) _then) =
+      _$VeilidAppMessageCopyWithImpl;
   @useResult
   $Res call(
       {@Uint8ListJsonConverter.jsIsArray() Uint8List message,
-      String callId,
       Typed<FixedEncodedString43>? sender,
       String? routeId});
 }
 
 /// @nodoc
-class __$$VeilidAppCallImplCopyWithImpl<$Res>
-    extends _$VeilidUpdateCopyWithImpl<$Res, _$VeilidAppCallImpl>
-    implements _$$VeilidAppCallImplCopyWith<$Res> {
-  __$$VeilidAppCallImplCopyWithImpl(
-      _$VeilidAppCallImpl _value, $Res Function(_$VeilidAppCallImpl) _then)
-      : super(_value, _then);
+class _$VeilidAppMessageCopyWithImpl<$Res>
+    implements $VeilidAppMessageCopyWith<$Res> {
+  _$VeilidAppMessageCopyWithImpl(this._self, this._then);
+
+  final VeilidAppMessage _self;
+  final $Res Function(VeilidAppMessage) _then;
 
   /// Create a copy of VeilidUpdate
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
-  @override
   $Res call({
     Object? message = null,
-    Object? callId = null,
     Object? sender = freezed,
     Object? routeId = freezed,
   }) {
-    return _then(_$VeilidAppCallImpl(
+    return _then(VeilidAppMessage(
       message: null == message
-          ? _value.message
+          ? _self.message
           : message // ignore: cast_nullable_to_non_nullable
               as Uint8List,
-      callId: null == callId
-          ? _value.callId
-          : callId // ignore: cast_nullable_to_non_nullable
-              as String,
       sender: freezed == sender
-          ? _value.sender
+          ? _self.sender
           : sender // ignore: cast_nullable_to_non_nullable
               as Typed<FixedEncodedString43>?,
       routeId: freezed == routeId
-          ? _value.routeId
+          ? _self.routeId
           : routeId // ignore: cast_nullable_to_non_nullable
               as String?,
     ));
@@ -3352,41 +2804,45 @@ class __$$VeilidAppCallImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidAppCallImpl implements VeilidAppCall {
-  const _$VeilidAppCallImpl(
+class VeilidAppCall implements VeilidUpdate {
+  const VeilidAppCall(
       {@Uint8ListJsonConverter.jsIsArray() required this.message,
       required this.callId,
       this.sender,
       this.routeId,
       final String? $type})
       : $type = $type ?? 'AppCall';
+  factory VeilidAppCall.fromJson(Map<String, dynamic> json) =>
+      _$VeilidAppCallFromJson(json);
 
-  factory _$VeilidAppCallImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidAppCallImplFromJson(json);
-
-  @override
   @Uint8ListJsonConverter.jsIsArray()
   final Uint8List message;
-  @override
   final String callId;
-  @override
   final Typed<FixedEncodedString43>? sender;
-  @override
   final String? routeId;
 
   @JsonKey(name: 'kind')
   final String $type;
 
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $VeilidAppCallCopyWith<VeilidAppCall> get copyWith =>
+      _$VeilidAppCallCopyWithImpl<VeilidAppCall>(this, _$identity);
+
   @override
-  String toString() {
-    return 'VeilidUpdate.appCall(message: $message, callId: $callId, sender: $sender, routeId: $routeId)';
+  Map<String, dynamic> toJson() {
+    return _$VeilidAppCallToJson(
+      this,
+    );
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidAppCallImpl &&
+            other is VeilidAppCall &&
             const DeepCollectionEquality().equals(other.message, message) &&
             (identical(other.callId, callId) || other.callId == callId) &&
             (identical(other.sender, sender) || other.sender == sender) &&
@@ -3398,270 +2854,68 @@ class _$VeilidAppCallImpl implements VeilidAppCall {
   int get hashCode => Object.hash(runtimeType,
       const DeepCollectionEquality().hash(message), callId, sender, routeId);
 
-  /// Create a copy of VeilidUpdate
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  @pragma('vm:prefer-inline')
-  _$$VeilidAppCallImplCopyWith<_$VeilidAppCallImpl> get copyWith =>
-      __$$VeilidAppCallImplCopyWithImpl<_$VeilidAppCallImpl>(this, _$identity);
-
-  @override
-  @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function(
-            VeilidLogLevel logLevel, String message, String? backtrace)
-        log,
-    required TResult Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)
-        appMessage,
-    required TResult Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            String callId,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)
-        appCall,
-    required TResult Function(
-            AttachmentState state,
-            bool publicInternetReady,
-            bool localNetworkReady,
-            TimestampDuration uptime,
-            TimestampDuration? attachedUptime)
-        attachment,
-    required TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
-            List<PeerTableData> peers)
-        network,
-    required TResult Function(VeilidConfig config) config,
-    required TResult Function(
-            List<String> deadRoutes, List<String> deadRemoteRoutes)
-        routeChange,
-    required TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData? value)
-        valueChange,
-  }) {
-    return appCall(message, callId, sender, routeId);
+  String toString() {
+    return 'VeilidUpdate.appCall(message: $message, callId: $callId, sender: $sender, routeId: $routeId)';
   }
-
-  @override
-  @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(
-            VeilidLogLevel logLevel, String message, String? backtrace)?
-        log,
-    TResult? Function(@Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            Typed<FixedEncodedString43>? sender, String? routeId)?
-        appMessage,
-    TResult? Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            String callId,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)?
-        appCall,
-    TResult? Function(
-            AttachmentState state,
-            bool publicInternetReady,
-            bool localNetworkReady,
-            TimestampDuration uptime,
-            TimestampDuration? attachedUptime)?
-        attachment,
-    TResult? Function(bool started, BigInt bpsDown, BigInt bpsUp,
-            List<PeerTableData> peers)?
-        network,
-    TResult? Function(VeilidConfig config)? config,
-    TResult? Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
-        routeChange,
-    TResult? Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData? value)?
-        valueChange,
-  }) {
-    return appCall?.call(message, callId, sender, routeId);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeWhen<TResult extends Object?>({
-    TResult Function(
-            VeilidLogLevel logLevel, String message, String? backtrace)?
-        log,
-    TResult Function(@Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            Typed<FixedEncodedString43>? sender, String? routeId)?
-        appMessage,
-    TResult Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            String callId,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)?
-        appCall,
-    TResult Function(
-            AttachmentState state,
-            bool publicInternetReady,
-            bool localNetworkReady,
-            TimestampDuration uptime,
-            TimestampDuration? attachedUptime)?
-        attachment,
-    TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
-            List<PeerTableData> peers)?
-        network,
-    TResult Function(VeilidConfig config)? config,
-    TResult Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
-        routeChange,
-    TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData? value)?
-        valueChange,
-    required TResult orElse(),
-  }) {
-    if (appCall != null) {
-      return appCall(message, callId, sender, routeId);
-    }
-    return orElse();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(VeilidLog value) log,
-    required TResult Function(VeilidAppMessage value) appMessage,
-    required TResult Function(VeilidAppCall value) appCall,
-    required TResult Function(VeilidUpdateAttachment value) attachment,
-    required TResult Function(VeilidUpdateNetwork value) network,
-    required TResult Function(VeilidUpdateConfig value) config,
-    required TResult Function(VeilidUpdateRouteChange value) routeChange,
-    required TResult Function(VeilidUpdateValueChange value) valueChange,
-  }) {
-    return appCall(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult? Function(VeilidLog value)? log,
-    TResult? Function(VeilidAppMessage value)? appMessage,
-    TResult? Function(VeilidAppCall value)? appCall,
-    TResult? Function(VeilidUpdateAttachment value)? attachment,
-    TResult? Function(VeilidUpdateNetwork value)? network,
-    TResult? Function(VeilidUpdateConfig value)? config,
-    TResult? Function(VeilidUpdateRouteChange value)? routeChange,
-    TResult? Function(VeilidUpdateValueChange value)? valueChange,
-  }) {
-    return appCall?.call(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeMap<TResult extends Object?>({
-    TResult Function(VeilidLog value)? log,
-    TResult Function(VeilidAppMessage value)? appMessage,
-    TResult Function(VeilidAppCall value)? appCall,
-    TResult Function(VeilidUpdateAttachment value)? attachment,
-    TResult Function(VeilidUpdateNetwork value)? network,
-    TResult Function(VeilidUpdateConfig value)? config,
-    TResult Function(VeilidUpdateRouteChange value)? routeChange,
-    TResult Function(VeilidUpdateValueChange value)? valueChange,
-    required TResult orElse(),
-  }) {
-    if (appCall != null) {
-      return appCall(this);
-    }
-    return orElse();
-  }
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$VeilidAppCallImplToJson(
-      this,
-    );
-  }
-}
-
-abstract class VeilidAppCall implements VeilidUpdate {
-  const factory VeilidAppCall(
-      {@Uint8ListJsonConverter.jsIsArray() required final Uint8List message,
-      required final String callId,
-      final Typed<FixedEncodedString43>? sender,
-      final String? routeId}) = _$VeilidAppCallImpl;
-
-  factory VeilidAppCall.fromJson(Map<String, dynamic> json) =
-      _$VeilidAppCallImpl.fromJson;
-
-  @Uint8ListJsonConverter.jsIsArray()
-  Uint8List get message;
-  String get callId;
-  Typed<FixedEncodedString43>? get sender;
-  String? get routeId;
-
-  /// Create a copy of VeilidUpdate
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$VeilidAppCallImplCopyWith<_$VeilidAppCallImpl> get copyWith =>
-      throw _privateConstructorUsedError;
 }
 
 /// @nodoc
-abstract class _$$VeilidUpdateAttachmentImplCopyWith<$Res> {
-  factory _$$VeilidUpdateAttachmentImplCopyWith(
-          _$VeilidUpdateAttachmentImpl value,
-          $Res Function(_$VeilidUpdateAttachmentImpl) then) =
-      __$$VeilidUpdateAttachmentImplCopyWithImpl<$Res>;
+abstract mixin class $VeilidAppCallCopyWith<$Res>
+    implements $VeilidUpdateCopyWith<$Res> {
+  factory $VeilidAppCallCopyWith(
+          VeilidAppCall value, $Res Function(VeilidAppCall) _then) =
+      _$VeilidAppCallCopyWithImpl;
   @useResult
   $Res call(
-      {AttachmentState state,
-      bool publicInternetReady,
-      bool localNetworkReady,
-      TimestampDuration uptime,
-      TimestampDuration? attachedUptime});
+      {@Uint8ListJsonConverter.jsIsArray() Uint8List message,
+      String callId,
+      Typed<FixedEncodedString43>? sender,
+      String? routeId});
 }
 
 /// @nodoc
-class __$$VeilidUpdateAttachmentImplCopyWithImpl<$Res>
-    extends _$VeilidUpdateCopyWithImpl<$Res, _$VeilidUpdateAttachmentImpl>
-    implements _$$VeilidUpdateAttachmentImplCopyWith<$Res> {
-  __$$VeilidUpdateAttachmentImplCopyWithImpl(
-      _$VeilidUpdateAttachmentImpl _value,
-      $Res Function(_$VeilidUpdateAttachmentImpl) _then)
-      : super(_value, _then);
+class _$VeilidAppCallCopyWithImpl<$Res>
+    implements $VeilidAppCallCopyWith<$Res> {
+  _$VeilidAppCallCopyWithImpl(this._self, this._then);
+
+  final VeilidAppCall _self;
+  final $Res Function(VeilidAppCall) _then;
 
   /// Create a copy of VeilidUpdate
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
-  @override
   $Res call({
-    Object? state = null,
-    Object? publicInternetReady = null,
-    Object? localNetworkReady = null,
-    Object? uptime = null,
-    Object? attachedUptime = freezed,
+    Object? message = null,
+    Object? callId = null,
+    Object? sender = freezed,
+    Object? routeId = freezed,
   }) {
-    return _then(_$VeilidUpdateAttachmentImpl(
-      state: null == state
-          ? _value.state
-          : state // ignore: cast_nullable_to_non_nullable
-              as AttachmentState,
-      publicInternetReady: null == publicInternetReady
-          ? _value.publicInternetReady
-          : publicInternetReady // ignore: cast_nullable_to_non_nullable
-              as bool,
-      localNetworkReady: null == localNetworkReady
-          ? _value.localNetworkReady
-          : localNetworkReady // ignore: cast_nullable_to_non_nullable
-              as bool,
-      uptime: null == uptime
-          ? _value.uptime
-          : uptime // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration,
-      attachedUptime: freezed == attachedUptime
-          ? _value.attachedUptime
-          : attachedUptime // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration?,
+    return _then(VeilidAppCall(
+      message: null == message
+          ? _self.message
+          : message // ignore: cast_nullable_to_non_nullable
+              as Uint8List,
+      callId: null == callId
+          ? _self.callId
+          : callId // ignore: cast_nullable_to_non_nullable
+              as String,
+      sender: freezed == sender
+          ? _self.sender
+          : sender // ignore: cast_nullable_to_non_nullable
+              as Typed<FixedEncodedString43>?,
+      routeId: freezed == routeId
+          ? _self.routeId
+          : routeId // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidUpdateAttachmentImpl implements VeilidUpdateAttachment {
-  const _$VeilidUpdateAttachmentImpl(
+class VeilidUpdateAttachment implements VeilidUpdate {
+  const VeilidUpdateAttachment(
       {required this.state,
       required this.publicInternetReady,
       required this.localNetworkReady,
@@ -3669,34 +2923,38 @@ class _$VeilidUpdateAttachmentImpl implements VeilidUpdateAttachment {
       required this.attachedUptime,
       final String? $type})
       : $type = $type ?? 'Attachment';
+  factory VeilidUpdateAttachment.fromJson(Map<String, dynamic> json) =>
+      _$VeilidUpdateAttachmentFromJson(json);
 
-  factory _$VeilidUpdateAttachmentImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidUpdateAttachmentImplFromJson(json);
-
-  @override
   final AttachmentState state;
-  @override
   final bool publicInternetReady;
-  @override
   final bool localNetworkReady;
-  @override
   final TimestampDuration uptime;
-  @override
   final TimestampDuration? attachedUptime;
 
   @JsonKey(name: 'kind')
   final String $type;
 
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $VeilidUpdateAttachmentCopyWith<VeilidUpdateAttachment> get copyWith =>
+      _$VeilidUpdateAttachmentCopyWithImpl<VeilidUpdateAttachment>(
+          this, _$identity);
+
   @override
-  String toString() {
-    return 'VeilidUpdate.attachment(state: $state, publicInternetReady: $publicInternetReady, localNetworkReady: $localNetworkReady, uptime: $uptime, attachedUptime: $attachedUptime)';
+  Map<String, dynamic> toJson() {
+    return _$VeilidUpdateAttachmentToJson(
+      this,
+    );
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidUpdateAttachmentImpl &&
+            other is VeilidUpdateAttachment &&
             (identical(other.state, state) || other.state == state) &&
             (identical(other.publicInternetReady, publicInternetReady) ||
                 other.publicInternetReady == publicInternetReady) &&
@@ -3712,265 +2970,74 @@ class _$VeilidUpdateAttachmentImpl implements VeilidUpdateAttachment {
   int get hashCode => Object.hash(runtimeType, state, publicInternetReady,
       localNetworkReady, uptime, attachedUptime);
 
-  /// Create a copy of VeilidUpdate
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  @pragma('vm:prefer-inline')
-  _$$VeilidUpdateAttachmentImplCopyWith<_$VeilidUpdateAttachmentImpl>
-      get copyWith => __$$VeilidUpdateAttachmentImplCopyWithImpl<
-          _$VeilidUpdateAttachmentImpl>(this, _$identity);
-
-  @override
-  @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function(
-            VeilidLogLevel logLevel, String message, String? backtrace)
-        log,
-    required TResult Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)
-        appMessage,
-    required TResult Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            String callId,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)
-        appCall,
-    required TResult Function(
-            AttachmentState state,
-            bool publicInternetReady,
-            bool localNetworkReady,
-            TimestampDuration uptime,
-            TimestampDuration? attachedUptime)
-        attachment,
-    required TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
-            List<PeerTableData> peers)
-        network,
-    required TResult Function(VeilidConfig config) config,
-    required TResult Function(
-            List<String> deadRoutes, List<String> deadRemoteRoutes)
-        routeChange,
-    required TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData? value)
-        valueChange,
-  }) {
-    return attachment(
-        state, publicInternetReady, localNetworkReady, uptime, attachedUptime);
+  String toString() {
+    return 'VeilidUpdate.attachment(state: $state, publicInternetReady: $publicInternetReady, localNetworkReady: $localNetworkReady, uptime: $uptime, attachedUptime: $attachedUptime)';
   }
-
-  @override
-  @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(
-            VeilidLogLevel logLevel, String message, String? backtrace)?
-        log,
-    TResult? Function(@Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            Typed<FixedEncodedString43>? sender, String? routeId)?
-        appMessage,
-    TResult? Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            String callId,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)?
-        appCall,
-    TResult? Function(
-            AttachmentState state,
-            bool publicInternetReady,
-            bool localNetworkReady,
-            TimestampDuration uptime,
-            TimestampDuration? attachedUptime)?
-        attachment,
-    TResult? Function(bool started, BigInt bpsDown, BigInt bpsUp,
-            List<PeerTableData> peers)?
-        network,
-    TResult? Function(VeilidConfig config)? config,
-    TResult? Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
-        routeChange,
-    TResult? Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData? value)?
-        valueChange,
-  }) {
-    return attachment?.call(
-        state, publicInternetReady, localNetworkReady, uptime, attachedUptime);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeWhen<TResult extends Object?>({
-    TResult Function(
-            VeilidLogLevel logLevel, String message, String? backtrace)?
-        log,
-    TResult Function(@Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            Typed<FixedEncodedString43>? sender, String? routeId)?
-        appMessage,
-    TResult Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            String callId,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)?
-        appCall,
-    TResult Function(
-            AttachmentState state,
-            bool publicInternetReady,
-            bool localNetworkReady,
-            TimestampDuration uptime,
-            TimestampDuration? attachedUptime)?
-        attachment,
-    TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
-            List<PeerTableData> peers)?
-        network,
-    TResult Function(VeilidConfig config)? config,
-    TResult Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
-        routeChange,
-    TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData? value)?
-        valueChange,
-    required TResult orElse(),
-  }) {
-    if (attachment != null) {
-      return attachment(state, publicInternetReady, localNetworkReady, uptime,
-          attachedUptime);
-    }
-    return orElse();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(VeilidLog value) log,
-    required TResult Function(VeilidAppMessage value) appMessage,
-    required TResult Function(VeilidAppCall value) appCall,
-    required TResult Function(VeilidUpdateAttachment value) attachment,
-    required TResult Function(VeilidUpdateNetwork value) network,
-    required TResult Function(VeilidUpdateConfig value) config,
-    required TResult Function(VeilidUpdateRouteChange value) routeChange,
-    required TResult Function(VeilidUpdateValueChange value) valueChange,
-  }) {
-    return attachment(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult? Function(VeilidLog value)? log,
-    TResult? Function(VeilidAppMessage value)? appMessage,
-    TResult? Function(VeilidAppCall value)? appCall,
-    TResult? Function(VeilidUpdateAttachment value)? attachment,
-    TResult? Function(VeilidUpdateNetwork value)? network,
-    TResult? Function(VeilidUpdateConfig value)? config,
-    TResult? Function(VeilidUpdateRouteChange value)? routeChange,
-    TResult? Function(VeilidUpdateValueChange value)? valueChange,
-  }) {
-    return attachment?.call(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeMap<TResult extends Object?>({
-    TResult Function(VeilidLog value)? log,
-    TResult Function(VeilidAppMessage value)? appMessage,
-    TResult Function(VeilidAppCall value)? appCall,
-    TResult Function(VeilidUpdateAttachment value)? attachment,
-    TResult Function(VeilidUpdateNetwork value)? network,
-    TResult Function(VeilidUpdateConfig value)? config,
-    TResult Function(VeilidUpdateRouteChange value)? routeChange,
-    TResult Function(VeilidUpdateValueChange value)? valueChange,
-    required TResult orElse(),
-  }) {
-    if (attachment != null) {
-      return attachment(this);
-    }
-    return orElse();
-  }
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$VeilidUpdateAttachmentImplToJson(
-      this,
-    );
-  }
-}
-
-abstract class VeilidUpdateAttachment implements VeilidUpdate {
-  const factory VeilidUpdateAttachment(
-          {required final AttachmentState state,
-          required final bool publicInternetReady,
-          required final bool localNetworkReady,
-          required final TimestampDuration uptime,
-          required final TimestampDuration? attachedUptime}) =
-      _$VeilidUpdateAttachmentImpl;
-
-  factory VeilidUpdateAttachment.fromJson(Map<String, dynamic> json) =
-      _$VeilidUpdateAttachmentImpl.fromJson;
-
-  AttachmentState get state;
-  bool get publicInternetReady;
-  bool get localNetworkReady;
-  TimestampDuration get uptime;
-  TimestampDuration? get attachedUptime;
-
-  /// Create a copy of VeilidUpdate
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$VeilidUpdateAttachmentImplCopyWith<_$VeilidUpdateAttachmentImpl>
-      get copyWith => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
-abstract class _$$VeilidUpdateNetworkImplCopyWith<$Res> {
-  factory _$$VeilidUpdateNetworkImplCopyWith(_$VeilidUpdateNetworkImpl value,
-          $Res Function(_$VeilidUpdateNetworkImpl) then) =
-      __$$VeilidUpdateNetworkImplCopyWithImpl<$Res>;
+abstract mixin class $VeilidUpdateAttachmentCopyWith<$Res>
+    implements $VeilidUpdateCopyWith<$Res> {
+  factory $VeilidUpdateAttachmentCopyWith(VeilidUpdateAttachment value,
+          $Res Function(VeilidUpdateAttachment) _then) =
+      _$VeilidUpdateAttachmentCopyWithImpl;
   @useResult
   $Res call(
-      {bool started, BigInt bpsDown, BigInt bpsUp, List<PeerTableData> peers});
+      {AttachmentState state,
+      bool publicInternetReady,
+      bool localNetworkReady,
+      TimestampDuration uptime,
+      TimestampDuration? attachedUptime});
 }
 
 /// @nodoc
-class __$$VeilidUpdateNetworkImplCopyWithImpl<$Res>
-    extends _$VeilidUpdateCopyWithImpl<$Res, _$VeilidUpdateNetworkImpl>
-    implements _$$VeilidUpdateNetworkImplCopyWith<$Res> {
-  __$$VeilidUpdateNetworkImplCopyWithImpl(_$VeilidUpdateNetworkImpl _value,
-      $Res Function(_$VeilidUpdateNetworkImpl) _then)
-      : super(_value, _then);
+class _$VeilidUpdateAttachmentCopyWithImpl<$Res>
+    implements $VeilidUpdateAttachmentCopyWith<$Res> {
+  _$VeilidUpdateAttachmentCopyWithImpl(this._self, this._then);
+
+  final VeilidUpdateAttachment _self;
+  final $Res Function(VeilidUpdateAttachment) _then;
 
   /// Create a copy of VeilidUpdate
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
-  @override
   $Res call({
-    Object? started = null,
-    Object? bpsDown = null,
-    Object? bpsUp = null,
-    Object? peers = null,
+    Object? state = null,
+    Object? publicInternetReady = null,
+    Object? localNetworkReady = null,
+    Object? uptime = null,
+    Object? attachedUptime = freezed,
   }) {
-    return _then(_$VeilidUpdateNetworkImpl(
-      started: null == started
-          ? _value.started
-          : started // ignore: cast_nullable_to_non_nullable
+    return _then(VeilidUpdateAttachment(
+      state: null == state
+          ? _self.state
+          : state // ignore: cast_nullable_to_non_nullable
+              as AttachmentState,
+      publicInternetReady: null == publicInternetReady
+          ? _self.publicInternetReady
+          : publicInternetReady // ignore: cast_nullable_to_non_nullable
               as bool,
-      bpsDown: null == bpsDown
-          ? _value.bpsDown
-          : bpsDown // ignore: cast_nullable_to_non_nullable
-              as BigInt,
-      bpsUp: null == bpsUp
-          ? _value.bpsUp
-          : bpsUp // ignore: cast_nullable_to_non_nullable
-              as BigInt,
-      peers: null == peers
-          ? _value._peers
-          : peers // ignore: cast_nullable_to_non_nullable
-              as List<PeerTableData>,
+      localNetworkReady: null == localNetworkReady
+          ? _self.localNetworkReady
+          : localNetworkReady // ignore: cast_nullable_to_non_nullable
+              as bool,
+      uptime: null == uptime
+          ? _self.uptime
+          : uptime // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      attachedUptime: freezed == attachedUptime
+          ? _self.attachedUptime
+          : attachedUptime // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration?,
     ));
   }
 }
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidUpdateNetworkImpl implements VeilidUpdateNetwork {
-  const _$VeilidUpdateNetworkImpl(
+class VeilidUpdateNetwork implements VeilidUpdate {
+  const VeilidUpdateNetwork(
       {required this.started,
       required this.bpsDown,
       required this.bpsUp,
@@ -3978,18 +3045,13 @@ class _$VeilidUpdateNetworkImpl implements VeilidUpdateNetwork {
       final String? $type})
       : _peers = peers,
         $type = $type ?? 'Network';
+  factory VeilidUpdateNetwork.fromJson(Map<String, dynamic> json) =>
+      _$VeilidUpdateNetworkFromJson(json);
 
-  factory _$VeilidUpdateNetworkImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidUpdateNetworkImplFromJson(json);
-
-  @override
   final bool started;
-  @override
   final BigInt bpsDown;
-  @override
   final BigInt bpsUp;
   final List<PeerTableData> _peers;
-  @override
   List<PeerTableData> get peers {
     if (_peers is EqualUnmodifiableListView) return _peers;
     // ignore: implicit_dynamic_type
@@ -3999,16 +3061,25 @@ class _$VeilidUpdateNetworkImpl implements VeilidUpdateNetwork {
   @JsonKey(name: 'kind')
   final String $type;
 
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $VeilidUpdateNetworkCopyWith<VeilidUpdateNetwork> get copyWith =>
+      _$VeilidUpdateNetworkCopyWithImpl<VeilidUpdateNetwork>(this, _$identity);
+
   @override
-  String toString() {
-    return 'VeilidUpdate.network(started: $started, bpsDown: $bpsDown, bpsUp: $bpsUp, peers: $peers)';
+  Map<String, dynamic> toJson() {
+    return _$VeilidUpdateNetworkToJson(
+      this,
+    );
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidUpdateNetworkImpl &&
+            other is VeilidUpdateNetwork &&
             (identical(other.started, started) || other.started == started) &&
             (identical(other.bpsDown, bpsDown) || other.bpsDown == bpsDown) &&
             (identical(other.bpsUp, bpsUp) || other.bpsUp == bpsUp) &&
@@ -4020,211 +3091,112 @@ class _$VeilidUpdateNetworkImpl implements VeilidUpdateNetwork {
   int get hashCode => Object.hash(runtimeType, started, bpsDown, bpsUp,
       const DeepCollectionEquality().hash(_peers));
 
-  /// Create a copy of VeilidUpdate
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  @pragma('vm:prefer-inline')
-  _$$VeilidUpdateNetworkImplCopyWith<_$VeilidUpdateNetworkImpl> get copyWith =>
-      __$$VeilidUpdateNetworkImplCopyWithImpl<_$VeilidUpdateNetworkImpl>(
-          this, _$identity);
-
-  @override
-  @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function(
-            VeilidLogLevel logLevel, String message, String? backtrace)
-        log,
-    required TResult Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)
-        appMessage,
-    required TResult Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            String callId,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)
-        appCall,
-    required TResult Function(
-            AttachmentState state,
-            bool publicInternetReady,
-            bool localNetworkReady,
-            TimestampDuration uptime,
-            TimestampDuration? attachedUptime)
-        attachment,
-    required TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
-            List<PeerTableData> peers)
-        network,
-    required TResult Function(VeilidConfig config) config,
-    required TResult Function(
-            List<String> deadRoutes, List<String> deadRemoteRoutes)
-        routeChange,
-    required TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData? value)
-        valueChange,
-  }) {
-    return network(started, bpsDown, bpsUp, peers);
+  String toString() {
+    return 'VeilidUpdate.network(started: $started, bpsDown: $bpsDown, bpsUp: $bpsUp, peers: $peers)';
   }
-
-  @override
-  @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(
-            VeilidLogLevel logLevel, String message, String? backtrace)?
-        log,
-    TResult? Function(@Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            Typed<FixedEncodedString43>? sender, String? routeId)?
-        appMessage,
-    TResult? Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            String callId,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)?
-        appCall,
-    TResult? Function(
-            AttachmentState state,
-            bool publicInternetReady,
-            bool localNetworkReady,
-            TimestampDuration uptime,
-            TimestampDuration? attachedUptime)?
-        attachment,
-    TResult? Function(bool started, BigInt bpsDown, BigInt bpsUp,
-            List<PeerTableData> peers)?
-        network,
-    TResult? Function(VeilidConfig config)? config,
-    TResult? Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
-        routeChange,
-    TResult? Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData? value)?
-        valueChange,
-  }) {
-    return network?.call(started, bpsDown, bpsUp, peers);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeWhen<TResult extends Object?>({
-    TResult Function(
-            VeilidLogLevel logLevel, String message, String? backtrace)?
-        log,
-    TResult Function(@Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            Typed<FixedEncodedString43>? sender, String? routeId)?
-        appMessage,
-    TResult Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            String callId,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)?
-        appCall,
-    TResult Function(
-            AttachmentState state,
-            bool publicInternetReady,
-            bool localNetworkReady,
-            TimestampDuration uptime,
-            TimestampDuration? attachedUptime)?
-        attachment,
-    TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
-            List<PeerTableData> peers)?
-        network,
-    TResult Function(VeilidConfig config)? config,
-    TResult Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
-        routeChange,
-    TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData? value)?
-        valueChange,
-    required TResult orElse(),
-  }) {
-    if (network != null) {
-      return network(started, bpsDown, bpsUp, peers);
-    }
-    return orElse();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(VeilidLog value) log,
-    required TResult Function(VeilidAppMessage value) appMessage,
-    required TResult Function(VeilidAppCall value) appCall,
-    required TResult Function(VeilidUpdateAttachment value) attachment,
-    required TResult Function(VeilidUpdateNetwork value) network,
-    required TResult Function(VeilidUpdateConfig value) config,
-    required TResult Function(VeilidUpdateRouteChange value) routeChange,
-    required TResult Function(VeilidUpdateValueChange value) valueChange,
-  }) {
-    return network(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult? Function(VeilidLog value)? log,
-    TResult? Function(VeilidAppMessage value)? appMessage,
-    TResult? Function(VeilidAppCall value)? appCall,
-    TResult? Function(VeilidUpdateAttachment value)? attachment,
-    TResult? Function(VeilidUpdateNetwork value)? network,
-    TResult? Function(VeilidUpdateConfig value)? config,
-    TResult? Function(VeilidUpdateRouteChange value)? routeChange,
-    TResult? Function(VeilidUpdateValueChange value)? valueChange,
-  }) {
-    return network?.call(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeMap<TResult extends Object?>({
-    TResult Function(VeilidLog value)? log,
-    TResult Function(VeilidAppMessage value)? appMessage,
-    TResult Function(VeilidAppCall value)? appCall,
-    TResult Function(VeilidUpdateAttachment value)? attachment,
-    TResult Function(VeilidUpdateNetwork value)? network,
-    TResult Function(VeilidUpdateConfig value)? config,
-    TResult Function(VeilidUpdateRouteChange value)? routeChange,
-    TResult Function(VeilidUpdateValueChange value)? valueChange,
-    required TResult orElse(),
-  }) {
-    if (network != null) {
-      return network(this);
-    }
-    return orElse();
-  }
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$VeilidUpdateNetworkImplToJson(
-      this,
-    );
-  }
-}
-
-abstract class VeilidUpdateNetwork implements VeilidUpdate {
-  const factory VeilidUpdateNetwork(
-      {required final bool started,
-      required final BigInt bpsDown,
-      required final BigInt bpsUp,
-      required final List<PeerTableData> peers}) = _$VeilidUpdateNetworkImpl;
-
-  factory VeilidUpdateNetwork.fromJson(Map<String, dynamic> json) =
-      _$VeilidUpdateNetworkImpl.fromJson;
-
-  bool get started;
-  BigInt get bpsDown;
-  BigInt get bpsUp;
-  List<PeerTableData> get peers;
-
-  /// Create a copy of VeilidUpdate
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$VeilidUpdateNetworkImplCopyWith<_$VeilidUpdateNetworkImpl> get copyWith =>
-      throw _privateConstructorUsedError;
 }
 
 /// @nodoc
-abstract class _$$VeilidUpdateConfigImplCopyWith<$Res> {
-  factory _$$VeilidUpdateConfigImplCopyWith(_$VeilidUpdateConfigImpl value,
-          $Res Function(_$VeilidUpdateConfigImpl) then) =
-      __$$VeilidUpdateConfigImplCopyWithImpl<$Res>;
+abstract mixin class $VeilidUpdateNetworkCopyWith<$Res>
+    implements $VeilidUpdateCopyWith<$Res> {
+  factory $VeilidUpdateNetworkCopyWith(
+          VeilidUpdateNetwork value, $Res Function(VeilidUpdateNetwork) _then) =
+      _$VeilidUpdateNetworkCopyWithImpl;
+  @useResult
+  $Res call(
+      {bool started, BigInt bpsDown, BigInt bpsUp, List<PeerTableData> peers});
+}
+
+/// @nodoc
+class _$VeilidUpdateNetworkCopyWithImpl<$Res>
+    implements $VeilidUpdateNetworkCopyWith<$Res> {
+  _$VeilidUpdateNetworkCopyWithImpl(this._self, this._then);
+
+  final VeilidUpdateNetwork _self;
+  final $Res Function(VeilidUpdateNetwork) _then;
+
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? started = null,
+    Object? bpsDown = null,
+    Object? bpsUp = null,
+    Object? peers = null,
+  }) {
+    return _then(VeilidUpdateNetwork(
+      started: null == started
+          ? _self.started
+          : started // ignore: cast_nullable_to_non_nullable
+              as bool,
+      bpsDown: null == bpsDown
+          ? _self.bpsDown
+          : bpsDown // ignore: cast_nullable_to_non_nullable
+              as BigInt,
+      bpsUp: null == bpsUp
+          ? _self.bpsUp
+          : bpsUp // ignore: cast_nullable_to_non_nullable
+              as BigInt,
+      peers: null == peers
+          ? _self._peers
+          : peers // ignore: cast_nullable_to_non_nullable
+              as List<PeerTableData>,
+    ));
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class VeilidUpdateConfig implements VeilidUpdate {
+  const VeilidUpdateConfig({required this.config, final String? $type})
+      : $type = $type ?? 'Config';
+  factory VeilidUpdateConfig.fromJson(Map<String, dynamic> json) =>
+      _$VeilidUpdateConfigFromJson(json);
+
+  final VeilidConfig config;
+
+  @JsonKey(name: 'kind')
+  final String $type;
+
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $VeilidUpdateConfigCopyWith<VeilidUpdateConfig> get copyWith =>
+      _$VeilidUpdateConfigCopyWithImpl<VeilidUpdateConfig>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$VeilidUpdateConfigToJson(
+      this,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is VeilidUpdateConfig &&
+            (identical(other.config, config) || other.config == config));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(runtimeType, config);
+
+  @override
+  String toString() {
+    return 'VeilidUpdate.config(config: $config)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $VeilidUpdateConfigCopyWith<$Res>
+    implements $VeilidUpdateCopyWith<$Res> {
+  factory $VeilidUpdateConfigCopyWith(
+          VeilidUpdateConfig value, $Res Function(VeilidUpdateConfig) _then) =
+      _$VeilidUpdateConfigCopyWithImpl;
   @useResult
   $Res call({VeilidConfig config});
 
@@ -4232,23 +3204,22 @@ abstract class _$$VeilidUpdateConfigImplCopyWith<$Res> {
 }
 
 /// @nodoc
-class __$$VeilidUpdateConfigImplCopyWithImpl<$Res>
-    extends _$VeilidUpdateCopyWithImpl<$Res, _$VeilidUpdateConfigImpl>
-    implements _$$VeilidUpdateConfigImplCopyWith<$Res> {
-  __$$VeilidUpdateConfigImplCopyWithImpl(_$VeilidUpdateConfigImpl _value,
-      $Res Function(_$VeilidUpdateConfigImpl) _then)
-      : super(_value, _then);
+class _$VeilidUpdateConfigCopyWithImpl<$Res>
+    implements $VeilidUpdateConfigCopyWith<$Res> {
+  _$VeilidUpdateConfigCopyWithImpl(this._self, this._then);
+
+  final VeilidUpdateConfig _self;
+  final $Res Function(VeilidUpdateConfig) _then;
 
   /// Create a copy of VeilidUpdate
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
-  @override
   $Res call({
     Object? config = null,
   }) {
-    return _then(_$VeilidUpdateConfigImpl(
+    return _then(VeilidUpdateConfig(
       config: null == config
-          ? _value.config
+          ? _self.config
           : config // ignore: cast_nullable_to_non_nullable
               as VeilidConfig,
     ));
@@ -4259,294 +3230,26 @@ class __$$VeilidUpdateConfigImplCopyWithImpl<$Res>
   @override
   @pragma('vm:prefer-inline')
   $VeilidConfigCopyWith<$Res> get config {
-    return $VeilidConfigCopyWith<$Res>(_value.config, (value) {
-      return _then(_value.copyWith(config: value));
+    return $VeilidConfigCopyWith<$Res>(_self.config, (value) {
+      return _then(_self.copyWith(config: value));
     });
   }
 }
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidUpdateConfigImpl implements VeilidUpdateConfig {
-  const _$VeilidUpdateConfigImpl({required this.config, final String? $type})
-      : $type = $type ?? 'Config';
-
-  factory _$VeilidUpdateConfigImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidUpdateConfigImplFromJson(json);
-
-  @override
-  final VeilidConfig config;
-
-  @JsonKey(name: 'kind')
-  final String $type;
-
-  @override
-  String toString() {
-    return 'VeilidUpdate.config(config: $config)';
-  }
-
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$VeilidUpdateConfigImpl &&
-            (identical(other.config, config) || other.config == config));
-  }
-
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @override
-  int get hashCode => Object.hash(runtimeType, config);
-
-  /// Create a copy of VeilidUpdate
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @override
-  @pragma('vm:prefer-inline')
-  _$$VeilidUpdateConfigImplCopyWith<_$VeilidUpdateConfigImpl> get copyWith =>
-      __$$VeilidUpdateConfigImplCopyWithImpl<_$VeilidUpdateConfigImpl>(
-          this, _$identity);
-
-  @override
-  @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function(
-            VeilidLogLevel logLevel, String message, String? backtrace)
-        log,
-    required TResult Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)
-        appMessage,
-    required TResult Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            String callId,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)
-        appCall,
-    required TResult Function(
-            AttachmentState state,
-            bool publicInternetReady,
-            bool localNetworkReady,
-            TimestampDuration uptime,
-            TimestampDuration? attachedUptime)
-        attachment,
-    required TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
-            List<PeerTableData> peers)
-        network,
-    required TResult Function(VeilidConfig config) config,
-    required TResult Function(
-            List<String> deadRoutes, List<String> deadRemoteRoutes)
-        routeChange,
-    required TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData? value)
-        valueChange,
-  }) {
-    return config(this.config);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(
-            VeilidLogLevel logLevel, String message, String? backtrace)?
-        log,
-    TResult? Function(@Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            Typed<FixedEncodedString43>? sender, String? routeId)?
-        appMessage,
-    TResult? Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            String callId,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)?
-        appCall,
-    TResult? Function(
-            AttachmentState state,
-            bool publicInternetReady,
-            bool localNetworkReady,
-            TimestampDuration uptime,
-            TimestampDuration? attachedUptime)?
-        attachment,
-    TResult? Function(bool started, BigInt bpsDown, BigInt bpsUp,
-            List<PeerTableData> peers)?
-        network,
-    TResult? Function(VeilidConfig config)? config,
-    TResult? Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
-        routeChange,
-    TResult? Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData? value)?
-        valueChange,
-  }) {
-    return config?.call(this.config);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeWhen<TResult extends Object?>({
-    TResult Function(
-            VeilidLogLevel logLevel, String message, String? backtrace)?
-        log,
-    TResult Function(@Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            Typed<FixedEncodedString43>? sender, String? routeId)?
-        appMessage,
-    TResult Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            String callId,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)?
-        appCall,
-    TResult Function(
-            AttachmentState state,
-            bool publicInternetReady,
-            bool localNetworkReady,
-            TimestampDuration uptime,
-            TimestampDuration? attachedUptime)?
-        attachment,
-    TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
-            List<PeerTableData> peers)?
-        network,
-    TResult Function(VeilidConfig config)? config,
-    TResult Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
-        routeChange,
-    TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData? value)?
-        valueChange,
-    required TResult orElse(),
-  }) {
-    if (config != null) {
-      return config(this.config);
-    }
-    return orElse();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(VeilidLog value) log,
-    required TResult Function(VeilidAppMessage value) appMessage,
-    required TResult Function(VeilidAppCall value) appCall,
-    required TResult Function(VeilidUpdateAttachment value) attachment,
-    required TResult Function(VeilidUpdateNetwork value) network,
-    required TResult Function(VeilidUpdateConfig value) config,
-    required TResult Function(VeilidUpdateRouteChange value) routeChange,
-    required TResult Function(VeilidUpdateValueChange value) valueChange,
-  }) {
-    return config(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult? Function(VeilidLog value)? log,
-    TResult? Function(VeilidAppMessage value)? appMessage,
-    TResult? Function(VeilidAppCall value)? appCall,
-    TResult? Function(VeilidUpdateAttachment value)? attachment,
-    TResult? Function(VeilidUpdateNetwork value)? network,
-    TResult? Function(VeilidUpdateConfig value)? config,
-    TResult? Function(VeilidUpdateRouteChange value)? routeChange,
-    TResult? Function(VeilidUpdateValueChange value)? valueChange,
-  }) {
-    return config?.call(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeMap<TResult extends Object?>({
-    TResult Function(VeilidLog value)? log,
-    TResult Function(VeilidAppMessage value)? appMessage,
-    TResult Function(VeilidAppCall value)? appCall,
-    TResult Function(VeilidUpdateAttachment value)? attachment,
-    TResult Function(VeilidUpdateNetwork value)? network,
-    TResult Function(VeilidUpdateConfig value)? config,
-    TResult Function(VeilidUpdateRouteChange value)? routeChange,
-    TResult Function(VeilidUpdateValueChange value)? valueChange,
-    required TResult orElse(),
-  }) {
-    if (config != null) {
-      return config(this);
-    }
-    return orElse();
-  }
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$VeilidUpdateConfigImplToJson(
-      this,
-    );
-  }
-}
-
-abstract class VeilidUpdateConfig implements VeilidUpdate {
-  const factory VeilidUpdateConfig({required final VeilidConfig config}) =
-      _$VeilidUpdateConfigImpl;
-
-  factory VeilidUpdateConfig.fromJson(Map<String, dynamic> json) =
-      _$VeilidUpdateConfigImpl.fromJson;
-
-  VeilidConfig get config;
-
-  /// Create a copy of VeilidUpdate
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$VeilidUpdateConfigImplCopyWith<_$VeilidUpdateConfigImpl> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-abstract class _$$VeilidUpdateRouteChangeImplCopyWith<$Res> {
-  factory _$$VeilidUpdateRouteChangeImplCopyWith(
-          _$VeilidUpdateRouteChangeImpl value,
-          $Res Function(_$VeilidUpdateRouteChangeImpl) then) =
-      __$$VeilidUpdateRouteChangeImplCopyWithImpl<$Res>;
-  @useResult
-  $Res call({List<String> deadRoutes, List<String> deadRemoteRoutes});
-}
-
-/// @nodoc
-class __$$VeilidUpdateRouteChangeImplCopyWithImpl<$Res>
-    extends _$VeilidUpdateCopyWithImpl<$Res, _$VeilidUpdateRouteChangeImpl>
-    implements _$$VeilidUpdateRouteChangeImplCopyWith<$Res> {
-  __$$VeilidUpdateRouteChangeImplCopyWithImpl(
-      _$VeilidUpdateRouteChangeImpl _value,
-      $Res Function(_$VeilidUpdateRouteChangeImpl) _then)
-      : super(_value, _then);
-
-  /// Create a copy of VeilidUpdate
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? deadRoutes = null,
-    Object? deadRemoteRoutes = null,
-  }) {
-    return _then(_$VeilidUpdateRouteChangeImpl(
-      deadRoutes: null == deadRoutes
-          ? _value._deadRoutes
-          : deadRoutes // ignore: cast_nullable_to_non_nullable
-              as List<String>,
-      deadRemoteRoutes: null == deadRemoteRoutes
-          ? _value._deadRemoteRoutes
-          : deadRemoteRoutes // ignore: cast_nullable_to_non_nullable
-              as List<String>,
-    ));
-  }
-}
-
-/// @nodoc
-@JsonSerializable()
-class _$VeilidUpdateRouteChangeImpl implements VeilidUpdateRouteChange {
-  const _$VeilidUpdateRouteChangeImpl(
+class VeilidUpdateRouteChange implements VeilidUpdate {
+  const VeilidUpdateRouteChange(
       {required final List<String> deadRoutes,
       required final List<String> deadRemoteRoutes,
       final String? $type})
       : _deadRoutes = deadRoutes,
         _deadRemoteRoutes = deadRemoteRoutes,
         $type = $type ?? 'RouteChange';
-
-  factory _$VeilidUpdateRouteChangeImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidUpdateRouteChangeImplFromJson(json);
+  factory VeilidUpdateRouteChange.fromJson(Map<String, dynamic> json) =>
+      _$VeilidUpdateRouteChangeFromJson(json);
 
   final List<String> _deadRoutes;
-  @override
   List<String> get deadRoutes {
     if (_deadRoutes is EqualUnmodifiableListView) return _deadRoutes;
     // ignore: implicit_dynamic_type
@@ -4554,7 +3257,6 @@ class _$VeilidUpdateRouteChangeImpl implements VeilidUpdateRouteChange {
   }
 
   final List<String> _deadRemoteRoutes;
-  @override
   List<String> get deadRemoteRoutes {
     if (_deadRemoteRoutes is EqualUnmodifiableListView)
       return _deadRemoteRoutes;
@@ -4565,16 +3267,26 @@ class _$VeilidUpdateRouteChangeImpl implements VeilidUpdateRouteChange {
   @JsonKey(name: 'kind')
   final String $type;
 
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $VeilidUpdateRouteChangeCopyWith<VeilidUpdateRouteChange> get copyWith =>
+      _$VeilidUpdateRouteChangeCopyWithImpl<VeilidUpdateRouteChange>(
+          this, _$identity);
+
   @override
-  String toString() {
-    return 'VeilidUpdate.routeChange(deadRoutes: $deadRoutes, deadRemoteRoutes: $deadRemoteRoutes)';
+  Map<String, dynamic> toJson() {
+    return _$VeilidUpdateRouteChangeToJson(
+      this,
+    );
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidUpdateRouteChangeImpl &&
+            other is VeilidUpdateRouteChange &&
             const DeepCollectionEquality()
                 .equals(other._deadRoutes, _deadRoutes) &&
             const DeepCollectionEquality()
@@ -4588,277 +3300,54 @@ class _$VeilidUpdateRouteChangeImpl implements VeilidUpdateRouteChange {
       const DeepCollectionEquality().hash(_deadRoutes),
       const DeepCollectionEquality().hash(_deadRemoteRoutes));
 
-  /// Create a copy of VeilidUpdate
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  @pragma('vm:prefer-inline')
-  _$$VeilidUpdateRouteChangeImplCopyWith<_$VeilidUpdateRouteChangeImpl>
-      get copyWith => __$$VeilidUpdateRouteChangeImplCopyWithImpl<
-          _$VeilidUpdateRouteChangeImpl>(this, _$identity);
-
-  @override
-  @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function(
-            VeilidLogLevel logLevel, String message, String? backtrace)
-        log,
-    required TResult Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)
-        appMessage,
-    required TResult Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            String callId,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)
-        appCall,
-    required TResult Function(
-            AttachmentState state,
-            bool publicInternetReady,
-            bool localNetworkReady,
-            TimestampDuration uptime,
-            TimestampDuration? attachedUptime)
-        attachment,
-    required TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
-            List<PeerTableData> peers)
-        network,
-    required TResult Function(VeilidConfig config) config,
-    required TResult Function(
-            List<String> deadRoutes, List<String> deadRemoteRoutes)
-        routeChange,
-    required TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData? value)
-        valueChange,
-  }) {
-    return routeChange(deadRoutes, deadRemoteRoutes);
+  String toString() {
+    return 'VeilidUpdate.routeChange(deadRoutes: $deadRoutes, deadRemoteRoutes: $deadRemoteRoutes)';
   }
-
-  @override
-  @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(
-            VeilidLogLevel logLevel, String message, String? backtrace)?
-        log,
-    TResult? Function(@Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            Typed<FixedEncodedString43>? sender, String? routeId)?
-        appMessage,
-    TResult? Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            String callId,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)?
-        appCall,
-    TResult? Function(
-            AttachmentState state,
-            bool publicInternetReady,
-            bool localNetworkReady,
-            TimestampDuration uptime,
-            TimestampDuration? attachedUptime)?
-        attachment,
-    TResult? Function(bool started, BigInt bpsDown, BigInt bpsUp,
-            List<PeerTableData> peers)?
-        network,
-    TResult? Function(VeilidConfig config)? config,
-    TResult? Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
-        routeChange,
-    TResult? Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData? value)?
-        valueChange,
-  }) {
-    return routeChange?.call(deadRoutes, deadRemoteRoutes);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeWhen<TResult extends Object?>({
-    TResult Function(
-            VeilidLogLevel logLevel, String message, String? backtrace)?
-        log,
-    TResult Function(@Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            Typed<FixedEncodedString43>? sender, String? routeId)?
-        appMessage,
-    TResult Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            String callId,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)?
-        appCall,
-    TResult Function(
-            AttachmentState state,
-            bool publicInternetReady,
-            bool localNetworkReady,
-            TimestampDuration uptime,
-            TimestampDuration? attachedUptime)?
-        attachment,
-    TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
-            List<PeerTableData> peers)?
-        network,
-    TResult Function(VeilidConfig config)? config,
-    TResult Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
-        routeChange,
-    TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData? value)?
-        valueChange,
-    required TResult orElse(),
-  }) {
-    if (routeChange != null) {
-      return routeChange(deadRoutes, deadRemoteRoutes);
-    }
-    return orElse();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(VeilidLog value) log,
-    required TResult Function(VeilidAppMessage value) appMessage,
-    required TResult Function(VeilidAppCall value) appCall,
-    required TResult Function(VeilidUpdateAttachment value) attachment,
-    required TResult Function(VeilidUpdateNetwork value) network,
-    required TResult Function(VeilidUpdateConfig value) config,
-    required TResult Function(VeilidUpdateRouteChange value) routeChange,
-    required TResult Function(VeilidUpdateValueChange value) valueChange,
-  }) {
-    return routeChange(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult? Function(VeilidLog value)? log,
-    TResult? Function(VeilidAppMessage value)? appMessage,
-    TResult? Function(VeilidAppCall value)? appCall,
-    TResult? Function(VeilidUpdateAttachment value)? attachment,
-    TResult? Function(VeilidUpdateNetwork value)? network,
-    TResult? Function(VeilidUpdateConfig value)? config,
-    TResult? Function(VeilidUpdateRouteChange value)? routeChange,
-    TResult? Function(VeilidUpdateValueChange value)? valueChange,
-  }) {
-    return routeChange?.call(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeMap<TResult extends Object?>({
-    TResult Function(VeilidLog value)? log,
-    TResult Function(VeilidAppMessage value)? appMessage,
-    TResult Function(VeilidAppCall value)? appCall,
-    TResult Function(VeilidUpdateAttachment value)? attachment,
-    TResult Function(VeilidUpdateNetwork value)? network,
-    TResult Function(VeilidUpdateConfig value)? config,
-    TResult Function(VeilidUpdateRouteChange value)? routeChange,
-    TResult Function(VeilidUpdateValueChange value)? valueChange,
-    required TResult orElse(),
-  }) {
-    if (routeChange != null) {
-      return routeChange(this);
-    }
-    return orElse();
-  }
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$VeilidUpdateRouteChangeImplToJson(
-      this,
-    );
-  }
-}
-
-abstract class VeilidUpdateRouteChange implements VeilidUpdate {
-  const factory VeilidUpdateRouteChange(
-          {required final List<String> deadRoutes,
-          required final List<String> deadRemoteRoutes}) =
-      _$VeilidUpdateRouteChangeImpl;
-
-  factory VeilidUpdateRouteChange.fromJson(Map<String, dynamic> json) =
-      _$VeilidUpdateRouteChangeImpl.fromJson;
-
-  List<String> get deadRoutes;
-  List<String> get deadRemoteRoutes;
-
-  /// Create a copy of VeilidUpdate
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$VeilidUpdateRouteChangeImplCopyWith<_$VeilidUpdateRouteChangeImpl>
-      get copyWith => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
-abstract class _$$VeilidUpdateValueChangeImplCopyWith<$Res> {
-  factory _$$VeilidUpdateValueChangeImplCopyWith(
-          _$VeilidUpdateValueChangeImpl value,
-          $Res Function(_$VeilidUpdateValueChangeImpl) then) =
-      __$$VeilidUpdateValueChangeImplCopyWithImpl<$Res>;
+abstract mixin class $VeilidUpdateRouteChangeCopyWith<$Res>
+    implements $VeilidUpdateCopyWith<$Res> {
+  factory $VeilidUpdateRouteChangeCopyWith(VeilidUpdateRouteChange value,
+          $Res Function(VeilidUpdateRouteChange) _then) =
+      _$VeilidUpdateRouteChangeCopyWithImpl;
   @useResult
-  $Res call(
-      {Typed<FixedEncodedString43> key,
-      List<ValueSubkeyRange> subkeys,
-      int count,
-      ValueData? value});
-
-  $ValueDataCopyWith<$Res>? get value;
+  $Res call({List<String> deadRoutes, List<String> deadRemoteRoutes});
 }
 
 /// @nodoc
-class __$$VeilidUpdateValueChangeImplCopyWithImpl<$Res>
-    extends _$VeilidUpdateCopyWithImpl<$Res, _$VeilidUpdateValueChangeImpl>
-    implements _$$VeilidUpdateValueChangeImplCopyWith<$Res> {
-  __$$VeilidUpdateValueChangeImplCopyWithImpl(
-      _$VeilidUpdateValueChangeImpl _value,
-      $Res Function(_$VeilidUpdateValueChangeImpl) _then)
-      : super(_value, _then);
+class _$VeilidUpdateRouteChangeCopyWithImpl<$Res>
+    implements $VeilidUpdateRouteChangeCopyWith<$Res> {
+  _$VeilidUpdateRouteChangeCopyWithImpl(this._self, this._then);
+
+  final VeilidUpdateRouteChange _self;
+  final $Res Function(VeilidUpdateRouteChange) _then;
 
   /// Create a copy of VeilidUpdate
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
-  @override
   $Res call({
-    Object? key = null,
-    Object? subkeys = null,
-    Object? count = null,
-    Object? value = freezed,
+    Object? deadRoutes = null,
+    Object? deadRemoteRoutes = null,
   }) {
-    return _then(_$VeilidUpdateValueChangeImpl(
-      key: null == key
-          ? _value.key
-          : key // ignore: cast_nullable_to_non_nullable
-              as Typed<FixedEncodedString43>,
-      subkeys: null == subkeys
-          ? _value._subkeys
-          : subkeys // ignore: cast_nullable_to_non_nullable
-              as List<ValueSubkeyRange>,
-      count: null == count
-          ? _value.count
-          : count // ignore: cast_nullable_to_non_nullable
-              as int,
-      value: freezed == value
-          ? _value.value
-          : value // ignore: cast_nullable_to_non_nullable
-              as ValueData?,
+    return _then(VeilidUpdateRouteChange(
+      deadRoutes: null == deadRoutes
+          ? _self._deadRoutes
+          : deadRoutes // ignore: cast_nullable_to_non_nullable
+              as List<String>,
+      deadRemoteRoutes: null == deadRemoteRoutes
+          ? _self._deadRemoteRoutes
+          : deadRemoteRoutes // ignore: cast_nullable_to_non_nullable
+              as List<String>,
     ));
-  }
-
-  /// Create a copy of VeilidUpdate
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @pragma('vm:prefer-inline')
-  $ValueDataCopyWith<$Res>? get value {
-    if (_value.value == null) {
-      return null;
-    }
-
-    return $ValueDataCopyWith<$Res>(_value.value!, (value) {
-      return _then(_value.copyWith(value: value));
-    });
   }
 }
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidUpdateValueChangeImpl implements VeilidUpdateValueChange {
-  const _$VeilidUpdateValueChangeImpl(
+class VeilidUpdateValueChange implements VeilidUpdate {
+  const VeilidUpdateValueChange(
       {required this.key,
       required final List<ValueSubkeyRange> subkeys,
       required this.count,
@@ -4866,38 +3355,43 @@ class _$VeilidUpdateValueChangeImpl implements VeilidUpdateValueChange {
       final String? $type})
       : _subkeys = subkeys,
         $type = $type ?? 'ValueChange';
+  factory VeilidUpdateValueChange.fromJson(Map<String, dynamic> json) =>
+      _$VeilidUpdateValueChangeFromJson(json);
 
-  factory _$VeilidUpdateValueChangeImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidUpdateValueChangeImplFromJson(json);
-
-  @override
   final Typed<FixedEncodedString43> key;
   final List<ValueSubkeyRange> _subkeys;
-  @override
   List<ValueSubkeyRange> get subkeys {
     if (_subkeys is EqualUnmodifiableListView) return _subkeys;
     // ignore: implicit_dynamic_type
     return EqualUnmodifiableListView(_subkeys);
   }
 
-  @override
   final int count;
-  @override
   final ValueData? value;
 
   @JsonKey(name: 'kind')
   final String $type;
 
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $VeilidUpdateValueChangeCopyWith<VeilidUpdateValueChange> get copyWith =>
+      _$VeilidUpdateValueChangeCopyWithImpl<VeilidUpdateValueChange>(
+          this, _$identity);
+
   @override
-  String toString() {
-    return 'VeilidUpdate.valueChange(key: $key, subkeys: $subkeys, count: $count, value: $value)';
+  Map<String, dynamic> toJson() {
+    return _$VeilidUpdateValueChangeToJson(
+      this,
+    );
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidUpdateValueChangeImpl &&
+            other is VeilidUpdateValueChange &&
             (identical(other.key, key) || other.key == key) &&
             const DeepCollectionEquality().equals(other._subkeys, _subkeys) &&
             (identical(other.count, count) || other.count == count) &&
@@ -4909,386 +3403,104 @@ class _$VeilidUpdateValueChangeImpl implements VeilidUpdateValueChange {
   int get hashCode => Object.hash(runtimeType, key,
       const DeepCollectionEquality().hash(_subkeys), count, value);
 
+  @override
+  String toString() {
+    return 'VeilidUpdate.valueChange(key: $key, subkeys: $subkeys, count: $count, value: $value)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $VeilidUpdateValueChangeCopyWith<$Res>
+    implements $VeilidUpdateCopyWith<$Res> {
+  factory $VeilidUpdateValueChangeCopyWith(VeilidUpdateValueChange value,
+          $Res Function(VeilidUpdateValueChange) _then) =
+      _$VeilidUpdateValueChangeCopyWithImpl;
+  @useResult
+  $Res call(
+      {Typed<FixedEncodedString43> key,
+      List<ValueSubkeyRange> subkeys,
+      int count,
+      ValueData? value});
+
+  $ValueDataCopyWith<$Res>? get value;
+}
+
+/// @nodoc
+class _$VeilidUpdateValueChangeCopyWithImpl<$Res>
+    implements $VeilidUpdateValueChangeCopyWith<$Res> {
+  _$VeilidUpdateValueChangeCopyWithImpl(this._self, this._then);
+
+  final VeilidUpdateValueChange _self;
+  final $Res Function(VeilidUpdateValueChange) _then;
+
   /// Create a copy of VeilidUpdate
   /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? key = null,
+    Object? subkeys = null,
+    Object? count = null,
+    Object? value = freezed,
+  }) {
+    return _then(VeilidUpdateValueChange(
+      key: null == key
+          ? _self.key
+          : key // ignore: cast_nullable_to_non_nullable
+              as Typed<FixedEncodedString43>,
+      subkeys: null == subkeys
+          ? _self._subkeys
+          : subkeys // ignore: cast_nullable_to_non_nullable
+              as List<ValueSubkeyRange>,
+      count: null == count
+          ? _self.count
+          : count // ignore: cast_nullable_to_non_nullable
+              as int,
+      value: freezed == value
+          ? _self.value
+          : value // ignore: cast_nullable_to_non_nullable
+              as ValueData?,
+    ));
+  }
+
+  /// Create a copy of VeilidUpdate
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
-  _$$VeilidUpdateValueChangeImplCopyWith<_$VeilidUpdateValueChangeImpl>
-      get copyWith => __$$VeilidUpdateValueChangeImplCopyWithImpl<
-          _$VeilidUpdateValueChangeImpl>(this, _$identity);
-
-  @override
-  @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function(
-            VeilidLogLevel logLevel, String message, String? backtrace)
-        log,
-    required TResult Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)
-        appMessage,
-    required TResult Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            String callId,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)
-        appCall,
-    required TResult Function(
-            AttachmentState state,
-            bool publicInternetReady,
-            bool localNetworkReady,
-            TimestampDuration uptime,
-            TimestampDuration? attachedUptime)
-        attachment,
-    required TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
-            List<PeerTableData> peers)
-        network,
-    required TResult Function(VeilidConfig config) config,
-    required TResult Function(
-            List<String> deadRoutes, List<String> deadRemoteRoutes)
-        routeChange,
-    required TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData? value)
-        valueChange,
-  }) {
-    return valueChange(key, subkeys, count, value);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(
-            VeilidLogLevel logLevel, String message, String? backtrace)?
-        log,
-    TResult? Function(@Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            Typed<FixedEncodedString43>? sender, String? routeId)?
-        appMessage,
-    TResult? Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            String callId,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)?
-        appCall,
-    TResult? Function(
-            AttachmentState state,
-            bool publicInternetReady,
-            bool localNetworkReady,
-            TimestampDuration uptime,
-            TimestampDuration? attachedUptime)?
-        attachment,
-    TResult? Function(bool started, BigInt bpsDown, BigInt bpsUp,
-            List<PeerTableData> peers)?
-        network,
-    TResult? Function(VeilidConfig config)? config,
-    TResult? Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
-        routeChange,
-    TResult? Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData? value)?
-        valueChange,
-  }) {
-    return valueChange?.call(key, subkeys, count, value);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeWhen<TResult extends Object?>({
-    TResult Function(
-            VeilidLogLevel logLevel, String message, String? backtrace)?
-        log,
-    TResult Function(@Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            Typed<FixedEncodedString43>? sender, String? routeId)?
-        appMessage,
-    TResult Function(
-            @Uint8ListJsonConverter.jsIsArray() Uint8List message,
-            String callId,
-            Typed<FixedEncodedString43>? sender,
-            String? routeId)?
-        appCall,
-    TResult Function(
-            AttachmentState state,
-            bool publicInternetReady,
-            bool localNetworkReady,
-            TimestampDuration uptime,
-            TimestampDuration? attachedUptime)?
-        attachment,
-    TResult Function(bool started, BigInt bpsDown, BigInt bpsUp,
-            List<PeerTableData> peers)?
-        network,
-    TResult Function(VeilidConfig config)? config,
-    TResult Function(List<String> deadRoutes, List<String> deadRemoteRoutes)?
-        routeChange,
-    TResult Function(Typed<FixedEncodedString43> key,
-            List<ValueSubkeyRange> subkeys, int count, ValueData? value)?
-        valueChange,
-    required TResult orElse(),
-  }) {
-    if (valueChange != null) {
-      return valueChange(key, subkeys, count, value);
+  $ValueDataCopyWith<$Res>? get value {
+    if (_self.value == null) {
+      return null;
     }
-    return orElse();
+
+    return $ValueDataCopyWith<$Res>(_self.value!, (value) {
+      return _then(_self.copyWith(value: value));
+    });
   }
-
-  @override
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(VeilidLog value) log,
-    required TResult Function(VeilidAppMessage value) appMessage,
-    required TResult Function(VeilidAppCall value) appCall,
-    required TResult Function(VeilidUpdateAttachment value) attachment,
-    required TResult Function(VeilidUpdateNetwork value) network,
-    required TResult Function(VeilidUpdateConfig value) config,
-    required TResult Function(VeilidUpdateRouteChange value) routeChange,
-    required TResult Function(VeilidUpdateValueChange value) valueChange,
-  }) {
-    return valueChange(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult? Function(VeilidLog value)? log,
-    TResult? Function(VeilidAppMessage value)? appMessage,
-    TResult? Function(VeilidAppCall value)? appCall,
-    TResult? Function(VeilidUpdateAttachment value)? attachment,
-    TResult? Function(VeilidUpdateNetwork value)? network,
-    TResult? Function(VeilidUpdateConfig value)? config,
-    TResult? Function(VeilidUpdateRouteChange value)? routeChange,
-    TResult? Function(VeilidUpdateValueChange value)? valueChange,
-  }) {
-    return valueChange?.call(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeMap<TResult extends Object?>({
-    TResult Function(VeilidLog value)? log,
-    TResult Function(VeilidAppMessage value)? appMessage,
-    TResult Function(VeilidAppCall value)? appCall,
-    TResult Function(VeilidUpdateAttachment value)? attachment,
-    TResult Function(VeilidUpdateNetwork value)? network,
-    TResult Function(VeilidUpdateConfig value)? config,
-    TResult Function(VeilidUpdateRouteChange value)? routeChange,
-    TResult Function(VeilidUpdateValueChange value)? valueChange,
-    required TResult orElse(),
-  }) {
-    if (valueChange != null) {
-      return valueChange(this);
-    }
-    return orElse();
-  }
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$VeilidUpdateValueChangeImplToJson(
-      this,
-    );
-  }
-}
-
-abstract class VeilidUpdateValueChange implements VeilidUpdate {
-  const factory VeilidUpdateValueChange(
-      {required final Typed<FixedEncodedString43> key,
-      required final List<ValueSubkeyRange> subkeys,
-      required final int count,
-      required final ValueData? value}) = _$VeilidUpdateValueChangeImpl;
-
-  factory VeilidUpdateValueChange.fromJson(Map<String, dynamic> json) =
-      _$VeilidUpdateValueChangeImpl.fromJson;
-
-  Typed<FixedEncodedString43> get key;
-  List<ValueSubkeyRange> get subkeys;
-  int get count;
-  ValueData? get value;
-
-  /// Create a copy of VeilidUpdate
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$VeilidUpdateValueChangeImplCopyWith<_$VeilidUpdateValueChangeImpl>
-      get copyWith => throw _privateConstructorUsedError;
-}
-
-VeilidStateAttachment _$VeilidStateAttachmentFromJson(
-    Map<String, dynamic> json) {
-  return _VeilidStateAttachment.fromJson(json);
 }
 
 /// @nodoc
 mixin _$VeilidStateAttachment {
-  AttachmentState get state => throw _privateConstructorUsedError;
-  bool get publicInternetReady => throw _privateConstructorUsedError;
-  bool get localNetworkReady => throw _privateConstructorUsedError;
-  TimestampDuration get uptime => throw _privateConstructorUsedError;
-  TimestampDuration? get attachedUptime => throw _privateConstructorUsedError;
-
-  /// Serializes this VeilidStateAttachment to a JSON map.
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+  AttachmentState get state;
+  bool get publicInternetReady;
+  bool get localNetworkReady;
+  TimestampDuration get uptime;
+  TimestampDuration? get attachedUptime;
 
   /// Create a copy of VeilidStateAttachment
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
   $VeilidStateAttachmentCopyWith<VeilidStateAttachment> get copyWith =>
-      throw _privateConstructorUsedError;
-}
+      _$VeilidStateAttachmentCopyWithImpl<VeilidStateAttachment>(
+          this as VeilidStateAttachment, _$identity);
 
-/// @nodoc
-abstract class $VeilidStateAttachmentCopyWith<$Res> {
-  factory $VeilidStateAttachmentCopyWith(VeilidStateAttachment value,
-          $Res Function(VeilidStateAttachment) then) =
-      _$VeilidStateAttachmentCopyWithImpl<$Res, VeilidStateAttachment>;
-  @useResult
-  $Res call(
-      {AttachmentState state,
-      bool publicInternetReady,
-      bool localNetworkReady,
-      TimestampDuration uptime,
-      TimestampDuration? attachedUptime});
-}
-
-/// @nodoc
-class _$VeilidStateAttachmentCopyWithImpl<$Res,
-        $Val extends VeilidStateAttachment>
-    implements $VeilidStateAttachmentCopyWith<$Res> {
-  _$VeilidStateAttachmentCopyWithImpl(this._value, this._then);
-
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
-
-  /// Create a copy of VeilidStateAttachment
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? state = null,
-    Object? publicInternetReady = null,
-    Object? localNetworkReady = null,
-    Object? uptime = null,
-    Object? attachedUptime = freezed,
-  }) {
-    return _then(_value.copyWith(
-      state: null == state
-          ? _value.state
-          : state // ignore: cast_nullable_to_non_nullable
-              as AttachmentState,
-      publicInternetReady: null == publicInternetReady
-          ? _value.publicInternetReady
-          : publicInternetReady // ignore: cast_nullable_to_non_nullable
-              as bool,
-      localNetworkReady: null == localNetworkReady
-          ? _value.localNetworkReady
-          : localNetworkReady // ignore: cast_nullable_to_non_nullable
-              as bool,
-      uptime: null == uptime
-          ? _value.uptime
-          : uptime // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration,
-      attachedUptime: freezed == attachedUptime
-          ? _value.attachedUptime
-          : attachedUptime // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration?,
-    ) as $Val);
-  }
-}
-
-/// @nodoc
-abstract class _$$VeilidStateAttachmentImplCopyWith<$Res>
-    implements $VeilidStateAttachmentCopyWith<$Res> {
-  factory _$$VeilidStateAttachmentImplCopyWith(
-          _$VeilidStateAttachmentImpl value,
-          $Res Function(_$VeilidStateAttachmentImpl) then) =
-      __$$VeilidStateAttachmentImplCopyWithImpl<$Res>;
-  @override
-  @useResult
-  $Res call(
-      {AttachmentState state,
-      bool publicInternetReady,
-      bool localNetworkReady,
-      TimestampDuration uptime,
-      TimestampDuration? attachedUptime});
-}
-
-/// @nodoc
-class __$$VeilidStateAttachmentImplCopyWithImpl<$Res>
-    extends _$VeilidStateAttachmentCopyWithImpl<$Res,
-        _$VeilidStateAttachmentImpl>
-    implements _$$VeilidStateAttachmentImplCopyWith<$Res> {
-  __$$VeilidStateAttachmentImplCopyWithImpl(_$VeilidStateAttachmentImpl _value,
-      $Res Function(_$VeilidStateAttachmentImpl) _then)
-      : super(_value, _then);
-
-  /// Create a copy of VeilidStateAttachment
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? state = null,
-    Object? publicInternetReady = null,
-    Object? localNetworkReady = null,
-    Object? uptime = null,
-    Object? attachedUptime = freezed,
-  }) {
-    return _then(_$VeilidStateAttachmentImpl(
-      state: null == state
-          ? _value.state
-          : state // ignore: cast_nullable_to_non_nullable
-              as AttachmentState,
-      publicInternetReady: null == publicInternetReady
-          ? _value.publicInternetReady
-          : publicInternetReady // ignore: cast_nullable_to_non_nullable
-              as bool,
-      localNetworkReady: null == localNetworkReady
-          ? _value.localNetworkReady
-          : localNetworkReady // ignore: cast_nullable_to_non_nullable
-              as bool,
-      uptime: null == uptime
-          ? _value.uptime
-          : uptime // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration,
-      attachedUptime: freezed == attachedUptime
-          ? _value.attachedUptime
-          : attachedUptime // ignore: cast_nullable_to_non_nullable
-              as TimestampDuration?,
-    ));
-  }
-}
-
-/// @nodoc
-@JsonSerializable()
-class _$VeilidStateAttachmentImpl implements _VeilidStateAttachment {
-  const _$VeilidStateAttachmentImpl(
-      {required this.state,
-      required this.publicInternetReady,
-      required this.localNetworkReady,
-      required this.uptime,
-      required this.attachedUptime});
-
-  factory _$VeilidStateAttachmentImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidStateAttachmentImplFromJson(json);
-
-  @override
-  final AttachmentState state;
-  @override
-  final bool publicInternetReady;
-  @override
-  final bool localNetworkReady;
-  @override
-  final TimestampDuration uptime;
-  @override
-  final TimestampDuration? attachedUptime;
-
-  @override
-  String toString() {
-    return 'VeilidStateAttachment(state: $state, publicInternetReady: $publicInternetReady, localNetworkReady: $localNetworkReady, uptime: $uptime, attachedUptime: $attachedUptime)';
-  }
+  /// Serializes this VeilidStateAttachment to a JSON map.
+  Map<String, dynamic> toJson();
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidStateAttachmentImpl &&
+            other is VeilidStateAttachment &&
             (identical(other.state, state) || other.state == state) &&
             (identical(other.publicInternetReady, publicInternetReady) ||
                 other.publicInternetReady == publicInternetReady) &&
@@ -5304,145 +3516,252 @@ class _$VeilidStateAttachmentImpl implements _VeilidStateAttachment {
   int get hashCode => Object.hash(runtimeType, state, publicInternetReady,
       localNetworkReady, uptime, attachedUptime);
 
-  /// Create a copy of VeilidStateAttachment
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  @pragma('vm:prefer-inline')
-  _$$VeilidStateAttachmentImplCopyWith<_$VeilidStateAttachmentImpl>
-      get copyWith => __$$VeilidStateAttachmentImplCopyWithImpl<
-          _$VeilidStateAttachmentImpl>(this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$VeilidStateAttachmentImplToJson(
-      this,
-    );
+  String toString() {
+    return 'VeilidStateAttachment(state: $state, publicInternetReady: $publicInternetReady, localNetworkReady: $localNetworkReady, uptime: $uptime, attachedUptime: $attachedUptime)';
   }
 }
 
-abstract class _VeilidStateAttachment implements VeilidStateAttachment {
-  const factory _VeilidStateAttachment(
-          {required final AttachmentState state,
-          required final bool publicInternetReady,
-          required final bool localNetworkReady,
-          required final TimestampDuration uptime,
-          required final TimestampDuration? attachedUptime}) =
-      _$VeilidStateAttachmentImpl;
+/// @nodoc
+abstract mixin class $VeilidStateAttachmentCopyWith<$Res> {
+  factory $VeilidStateAttachmentCopyWith(VeilidStateAttachment value,
+          $Res Function(VeilidStateAttachment) _then) =
+      _$VeilidStateAttachmentCopyWithImpl;
+  @useResult
+  $Res call(
+      {AttachmentState state,
+      bool publicInternetReady,
+      bool localNetworkReady,
+      TimestampDuration uptime,
+      TimestampDuration? attachedUptime});
+}
 
-  factory _VeilidStateAttachment.fromJson(Map<String, dynamic> json) =
-      _$VeilidStateAttachmentImpl.fromJson;
+/// @nodoc
+class _$VeilidStateAttachmentCopyWithImpl<$Res>
+    implements $VeilidStateAttachmentCopyWith<$Res> {
+  _$VeilidStateAttachmentCopyWithImpl(this._self, this._then);
+
+  final VeilidStateAttachment _self;
+  final $Res Function(VeilidStateAttachment) _then;
+
+  /// Create a copy of VeilidStateAttachment
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? state = null,
+    Object? publicInternetReady = null,
+    Object? localNetworkReady = null,
+    Object? uptime = null,
+    Object? attachedUptime = freezed,
+  }) {
+    return _then(_self.copyWith(
+      state: null == state
+          ? _self.state
+          : state // ignore: cast_nullable_to_non_nullable
+              as AttachmentState,
+      publicInternetReady: null == publicInternetReady
+          ? _self.publicInternetReady
+          : publicInternetReady // ignore: cast_nullable_to_non_nullable
+              as bool,
+      localNetworkReady: null == localNetworkReady
+          ? _self.localNetworkReady
+          : localNetworkReady // ignore: cast_nullable_to_non_nullable
+              as bool,
+      uptime: null == uptime
+          ? _self.uptime
+          : uptime // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      attachedUptime: freezed == attachedUptime
+          ? _self.attachedUptime
+          : attachedUptime // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration?,
+    ));
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _VeilidStateAttachment implements VeilidStateAttachment {
+  const _VeilidStateAttachment(
+      {required this.state,
+      required this.publicInternetReady,
+      required this.localNetworkReady,
+      required this.uptime,
+      required this.attachedUptime});
+  factory _VeilidStateAttachment.fromJson(Map<String, dynamic> json) =>
+      _$VeilidStateAttachmentFromJson(json);
 
   @override
-  AttachmentState get state;
+  final AttachmentState state;
   @override
-  bool get publicInternetReady;
+  final bool publicInternetReady;
   @override
-  bool get localNetworkReady;
+  final bool localNetworkReady;
   @override
-  TimestampDuration get uptime;
+  final TimestampDuration uptime;
   @override
-  TimestampDuration? get attachedUptime;
+  final TimestampDuration? attachedUptime;
 
   /// Create a copy of VeilidStateAttachment
   /// with the given fields replaced by the non-null parameter values.
   @override
   @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$VeilidStateAttachmentImplCopyWith<_$VeilidStateAttachmentImpl>
-      get copyWith => throw _privateConstructorUsedError;
+  @pragma('vm:prefer-inline')
+  _$VeilidStateAttachmentCopyWith<_VeilidStateAttachment> get copyWith =>
+      __$VeilidStateAttachmentCopyWithImpl<_VeilidStateAttachment>(
+          this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$VeilidStateAttachmentToJson(
+      this,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _VeilidStateAttachment &&
+            (identical(other.state, state) || other.state == state) &&
+            (identical(other.publicInternetReady, publicInternetReady) ||
+                other.publicInternetReady == publicInternetReady) &&
+            (identical(other.localNetworkReady, localNetworkReady) ||
+                other.localNetworkReady == localNetworkReady) &&
+            (identical(other.uptime, uptime) || other.uptime == uptime) &&
+            (identical(other.attachedUptime, attachedUptime) ||
+                other.attachedUptime == attachedUptime));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(runtimeType, state, publicInternetReady,
+      localNetworkReady, uptime, attachedUptime);
+
+  @override
+  String toString() {
+    return 'VeilidStateAttachment(state: $state, publicInternetReady: $publicInternetReady, localNetworkReady: $localNetworkReady, uptime: $uptime, attachedUptime: $attachedUptime)';
+  }
 }
 
-VeilidStateNetwork _$VeilidStateNetworkFromJson(Map<String, dynamic> json) {
-  return _VeilidStateNetwork.fromJson(json);
+/// @nodoc
+abstract mixin class _$VeilidStateAttachmentCopyWith<$Res>
+    implements $VeilidStateAttachmentCopyWith<$Res> {
+  factory _$VeilidStateAttachmentCopyWith(_VeilidStateAttachment value,
+          $Res Function(_VeilidStateAttachment) _then) =
+      __$VeilidStateAttachmentCopyWithImpl;
+  @override
+  @useResult
+  $Res call(
+      {AttachmentState state,
+      bool publicInternetReady,
+      bool localNetworkReady,
+      TimestampDuration uptime,
+      TimestampDuration? attachedUptime});
+}
+
+/// @nodoc
+class __$VeilidStateAttachmentCopyWithImpl<$Res>
+    implements _$VeilidStateAttachmentCopyWith<$Res> {
+  __$VeilidStateAttachmentCopyWithImpl(this._self, this._then);
+
+  final _VeilidStateAttachment _self;
+  final $Res Function(_VeilidStateAttachment) _then;
+
+  /// Create a copy of VeilidStateAttachment
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? state = null,
+    Object? publicInternetReady = null,
+    Object? localNetworkReady = null,
+    Object? uptime = null,
+    Object? attachedUptime = freezed,
+  }) {
+    return _then(_VeilidStateAttachment(
+      state: null == state
+          ? _self.state
+          : state // ignore: cast_nullable_to_non_nullable
+              as AttachmentState,
+      publicInternetReady: null == publicInternetReady
+          ? _self.publicInternetReady
+          : publicInternetReady // ignore: cast_nullable_to_non_nullable
+              as bool,
+      localNetworkReady: null == localNetworkReady
+          ? _self.localNetworkReady
+          : localNetworkReady // ignore: cast_nullable_to_non_nullable
+              as bool,
+      uptime: null == uptime
+          ? _self.uptime
+          : uptime // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration,
+      attachedUptime: freezed == attachedUptime
+          ? _self.attachedUptime
+          : attachedUptime // ignore: cast_nullable_to_non_nullable
+              as TimestampDuration?,
+    ));
+  }
 }
 
 /// @nodoc
 mixin _$VeilidStateNetwork {
-  bool get started => throw _privateConstructorUsedError;
-  BigInt get bpsDown => throw _privateConstructorUsedError;
-  BigInt get bpsUp => throw _privateConstructorUsedError;
-  List<PeerTableData> get peers => throw _privateConstructorUsedError;
-
-  /// Serializes this VeilidStateNetwork to a JSON map.
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+  bool get started;
+  BigInt get bpsDown;
+  BigInt get bpsUp;
+  List<PeerTableData> get peers;
 
   /// Create a copy of VeilidStateNetwork
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
-  $VeilidStateNetworkCopyWith<VeilidStateNetwork> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-abstract class $VeilidStateNetworkCopyWith<$Res> {
-  factory $VeilidStateNetworkCopyWith(
-          VeilidStateNetwork value, $Res Function(VeilidStateNetwork) then) =
-      _$VeilidStateNetworkCopyWithImpl<$Res, VeilidStateNetwork>;
-  @useResult
-  $Res call(
-      {bool started, BigInt bpsDown, BigInt bpsUp, List<PeerTableData> peers});
-}
-
-/// @nodoc
-class _$VeilidStateNetworkCopyWithImpl<$Res, $Val extends VeilidStateNetwork>
-    implements $VeilidStateNetworkCopyWith<$Res> {
-  _$VeilidStateNetworkCopyWithImpl(this._value, this._then);
-
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
-
-  /// Create a copy of VeilidStateNetwork
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
+  $VeilidStateNetworkCopyWith<VeilidStateNetwork> get copyWith =>
+      _$VeilidStateNetworkCopyWithImpl<VeilidStateNetwork>(
+          this as VeilidStateNetwork, _$identity);
+
+  /// Serializes this VeilidStateNetwork to a JSON map.
+  Map<String, dynamic> toJson();
+
   @override
-  $Res call({
-    Object? started = null,
-    Object? bpsDown = null,
-    Object? bpsUp = null,
-    Object? peers = null,
-  }) {
-    return _then(_value.copyWith(
-      started: null == started
-          ? _value.started
-          : started // ignore: cast_nullable_to_non_nullable
-              as bool,
-      bpsDown: null == bpsDown
-          ? _value.bpsDown
-          : bpsDown // ignore: cast_nullable_to_non_nullable
-              as BigInt,
-      bpsUp: null == bpsUp
-          ? _value.bpsUp
-          : bpsUp // ignore: cast_nullable_to_non_nullable
-              as BigInt,
-      peers: null == peers
-          ? _value.peers
-          : peers // ignore: cast_nullable_to_non_nullable
-              as List<PeerTableData>,
-    ) as $Val);
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is VeilidStateNetwork &&
+            (identical(other.started, started) || other.started == started) &&
+            (identical(other.bpsDown, bpsDown) || other.bpsDown == bpsDown) &&
+            (identical(other.bpsUp, bpsUp) || other.bpsUp == bpsUp) &&
+            const DeepCollectionEquality().equals(other.peers, peers));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(runtimeType, started, bpsDown, bpsUp,
+      const DeepCollectionEquality().hash(peers));
+
+  @override
+  String toString() {
+    return 'VeilidStateNetwork(started: $started, bpsDown: $bpsDown, bpsUp: $bpsUp, peers: $peers)';
   }
 }
 
 /// @nodoc
-abstract class _$$VeilidStateNetworkImplCopyWith<$Res>
-    implements $VeilidStateNetworkCopyWith<$Res> {
-  factory _$$VeilidStateNetworkImplCopyWith(_$VeilidStateNetworkImpl value,
-          $Res Function(_$VeilidStateNetworkImpl) then) =
-      __$$VeilidStateNetworkImplCopyWithImpl<$Res>;
-  @override
+abstract mixin class $VeilidStateNetworkCopyWith<$Res> {
+  factory $VeilidStateNetworkCopyWith(
+          VeilidStateNetwork value, $Res Function(VeilidStateNetwork) _then) =
+      _$VeilidStateNetworkCopyWithImpl;
   @useResult
   $Res call(
       {bool started, BigInt bpsDown, BigInt bpsUp, List<PeerTableData> peers});
 }
 
 /// @nodoc
-class __$$VeilidStateNetworkImplCopyWithImpl<$Res>
-    extends _$VeilidStateNetworkCopyWithImpl<$Res, _$VeilidStateNetworkImpl>
-    implements _$$VeilidStateNetworkImplCopyWith<$Res> {
-  __$$VeilidStateNetworkImplCopyWithImpl(_$VeilidStateNetworkImpl _value,
-      $Res Function(_$VeilidStateNetworkImpl) _then)
-      : super(_value, _then);
+class _$VeilidStateNetworkCopyWithImpl<$Res>
+    implements $VeilidStateNetworkCopyWith<$Res> {
+  _$VeilidStateNetworkCopyWithImpl(this._self, this._then);
+
+  final VeilidStateNetwork _self;
+  final $Res Function(VeilidStateNetwork) _then;
 
   /// Create a copy of VeilidStateNetwork
   /// with the given fields replaced by the non-null parameter values.
@@ -5454,21 +3773,21 @@ class __$$VeilidStateNetworkImplCopyWithImpl<$Res>
     Object? bpsUp = null,
     Object? peers = null,
   }) {
-    return _then(_$VeilidStateNetworkImpl(
+    return _then(_self.copyWith(
       started: null == started
-          ? _value.started
+          ? _self.started
           : started // ignore: cast_nullable_to_non_nullable
               as bool,
       bpsDown: null == bpsDown
-          ? _value.bpsDown
+          ? _self.bpsDown
           : bpsDown // ignore: cast_nullable_to_non_nullable
               as BigInt,
       bpsUp: null == bpsUp
-          ? _value.bpsUp
+          ? _self.bpsUp
           : bpsUp // ignore: cast_nullable_to_non_nullable
               as BigInt,
       peers: null == peers
-          ? _value._peers
+          ? _self.peers
           : peers // ignore: cast_nullable_to_non_nullable
               as List<PeerTableData>,
     ));
@@ -5477,16 +3796,15 @@ class __$$VeilidStateNetworkImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidStateNetworkImpl implements _VeilidStateNetwork {
-  const _$VeilidStateNetworkImpl(
+class _VeilidStateNetwork implements VeilidStateNetwork {
+  const _VeilidStateNetwork(
       {required this.started,
       required this.bpsDown,
       required this.bpsUp,
       required final List<PeerTableData> peers})
       : _peers = peers;
-
-  factory _$VeilidStateNetworkImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidStateNetworkImplFromJson(json);
+  factory _VeilidStateNetwork.fromJson(Map<String, dynamic> json) =>
+      _$VeilidStateNetworkFromJson(json);
 
   @override
   final bool started;
@@ -5502,16 +3820,26 @@ class _$VeilidStateNetworkImpl implements _VeilidStateNetwork {
     return EqualUnmodifiableListView(_peers);
   }
 
+  /// Create a copy of VeilidStateNetwork
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  String toString() {
-    return 'VeilidStateNetwork(started: $started, bpsDown: $bpsDown, bpsUp: $bpsUp, peers: $peers)';
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  _$VeilidStateNetworkCopyWith<_VeilidStateNetwork> get copyWith =>
+      __$VeilidStateNetworkCopyWithImpl<_VeilidStateNetwork>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$VeilidStateNetworkToJson(
+      this,
+    );
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidStateNetworkImpl &&
+            other is _VeilidStateNetwork &&
             (identical(other.started, started) || other.started == started) &&
             (identical(other.bpsDown, bpsDown) || other.bpsDown == bpsDown) &&
             (identical(other.bpsUp, bpsUp) || other.bpsUp == bpsUp) &&
@@ -5523,174 +3851,83 @@ class _$VeilidStateNetworkImpl implements _VeilidStateNetwork {
   int get hashCode => Object.hash(runtimeType, started, bpsDown, bpsUp,
       const DeepCollectionEquality().hash(_peers));
 
-  /// Create a copy of VeilidStateNetwork
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  @pragma('vm:prefer-inline')
-  _$$VeilidStateNetworkImplCopyWith<_$VeilidStateNetworkImpl> get copyWith =>
-      __$$VeilidStateNetworkImplCopyWithImpl<_$VeilidStateNetworkImpl>(
-          this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$VeilidStateNetworkImplToJson(
-      this,
-    );
+  String toString() {
+    return 'VeilidStateNetwork(started: $started, bpsDown: $bpsDown, bpsUp: $bpsUp, peers: $peers)';
   }
 }
 
-abstract class _VeilidStateNetwork implements VeilidStateNetwork {
-  const factory _VeilidStateNetwork(
-      {required final bool started,
-      required final BigInt bpsDown,
-      required final BigInt bpsUp,
-      required final List<PeerTableData> peers}) = _$VeilidStateNetworkImpl;
+/// @nodoc
+abstract mixin class _$VeilidStateNetworkCopyWith<$Res>
+    implements $VeilidStateNetworkCopyWith<$Res> {
+  factory _$VeilidStateNetworkCopyWith(
+          _VeilidStateNetwork value, $Res Function(_VeilidStateNetwork) _then) =
+      __$VeilidStateNetworkCopyWithImpl;
+  @override
+  @useResult
+  $Res call(
+      {bool started, BigInt bpsDown, BigInt bpsUp, List<PeerTableData> peers});
+}
 
-  factory _VeilidStateNetwork.fromJson(Map<String, dynamic> json) =
-      _$VeilidStateNetworkImpl.fromJson;
+/// @nodoc
+class __$VeilidStateNetworkCopyWithImpl<$Res>
+    implements _$VeilidStateNetworkCopyWith<$Res> {
+  __$VeilidStateNetworkCopyWithImpl(this._self, this._then);
 
-  @override
-  bool get started;
-  @override
-  BigInt get bpsDown;
-  @override
-  BigInt get bpsUp;
-  @override
-  List<PeerTableData> get peers;
+  final _VeilidStateNetwork _self;
+  final $Res Function(_VeilidStateNetwork) _then;
 
   /// Create a copy of VeilidStateNetwork
   /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$VeilidStateNetworkImplCopyWith<_$VeilidStateNetworkImpl> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-VeilidStateConfig _$VeilidStateConfigFromJson(Map<String, dynamic> json) {
-  return _VeilidStateConfig.fromJson(json);
-}
-
-/// @nodoc
-mixin _$VeilidStateConfig {
-  VeilidConfig get config => throw _privateConstructorUsedError;
-
-  /// Serializes this VeilidStateConfig to a JSON map.
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-
-  /// Create a copy of VeilidStateConfig
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  $VeilidStateConfigCopyWith<VeilidStateConfig> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-abstract class $VeilidStateConfigCopyWith<$Res> {
-  factory $VeilidStateConfigCopyWith(
-          VeilidStateConfig value, $Res Function(VeilidStateConfig) then) =
-      _$VeilidStateConfigCopyWithImpl<$Res, VeilidStateConfig>;
-  @useResult
-  $Res call({VeilidConfig config});
-
-  $VeilidConfigCopyWith<$Res> get config;
-}
-
-/// @nodoc
-class _$VeilidStateConfigCopyWithImpl<$Res, $Val extends VeilidStateConfig>
-    implements $VeilidStateConfigCopyWith<$Res> {
-  _$VeilidStateConfigCopyWithImpl(this._value, this._then);
-
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
-
-  /// Create a copy of VeilidStateConfig
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
-  @override
   $Res call({
-    Object? config = null,
+    Object? started = null,
+    Object? bpsDown = null,
+    Object? bpsUp = null,
+    Object? peers = null,
   }) {
-    return _then(_value.copyWith(
-      config: null == config
-          ? _value.config
-          : config // ignore: cast_nullable_to_non_nullable
-              as VeilidConfig,
-    ) as $Val);
-  }
-
-  /// Create a copy of VeilidStateConfig
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @pragma('vm:prefer-inline')
-  $VeilidConfigCopyWith<$Res> get config {
-    return $VeilidConfigCopyWith<$Res>(_value.config, (value) {
-      return _then(_value.copyWith(config: value) as $Val);
-    });
-  }
-}
-
-/// @nodoc
-abstract class _$$VeilidStateConfigImplCopyWith<$Res>
-    implements $VeilidStateConfigCopyWith<$Res> {
-  factory _$$VeilidStateConfigImplCopyWith(_$VeilidStateConfigImpl value,
-          $Res Function(_$VeilidStateConfigImpl) then) =
-      __$$VeilidStateConfigImplCopyWithImpl<$Res>;
-  @override
-  @useResult
-  $Res call({VeilidConfig config});
-
-  @override
-  $VeilidConfigCopyWith<$Res> get config;
-}
-
-/// @nodoc
-class __$$VeilidStateConfigImplCopyWithImpl<$Res>
-    extends _$VeilidStateConfigCopyWithImpl<$Res, _$VeilidStateConfigImpl>
-    implements _$$VeilidStateConfigImplCopyWith<$Res> {
-  __$$VeilidStateConfigImplCopyWithImpl(_$VeilidStateConfigImpl _value,
-      $Res Function(_$VeilidStateConfigImpl) _then)
-      : super(_value, _then);
-
-  /// Create a copy of VeilidStateConfig
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? config = null,
-  }) {
-    return _then(_$VeilidStateConfigImpl(
-      config: null == config
-          ? _value.config
-          : config // ignore: cast_nullable_to_non_nullable
-              as VeilidConfig,
+    return _then(_VeilidStateNetwork(
+      started: null == started
+          ? _self.started
+          : started // ignore: cast_nullable_to_non_nullable
+              as bool,
+      bpsDown: null == bpsDown
+          ? _self.bpsDown
+          : bpsDown // ignore: cast_nullable_to_non_nullable
+              as BigInt,
+      bpsUp: null == bpsUp
+          ? _self.bpsUp
+          : bpsUp // ignore: cast_nullable_to_non_nullable
+              as BigInt,
+      peers: null == peers
+          ? _self._peers
+          : peers // ignore: cast_nullable_to_non_nullable
+              as List<PeerTableData>,
     ));
   }
 }
 
 /// @nodoc
-@JsonSerializable()
-class _$VeilidStateConfigImpl implements _VeilidStateConfig {
-  const _$VeilidStateConfigImpl({required this.config});
+mixin _$VeilidStateConfig {
+  VeilidConfig get config;
 
-  factory _$VeilidStateConfigImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidStateConfigImplFromJson(json);
+  /// Create a copy of VeilidStateConfig
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $VeilidStateConfigCopyWith<VeilidStateConfig> get copyWith =>
+      _$VeilidStateConfigCopyWithImpl<VeilidStateConfig>(
+          this as VeilidStateConfig, _$identity);
 
-  @override
-  final VeilidConfig config;
-
-  @override
-  String toString() {
-    return 'VeilidStateConfig(config: $config)';
-  }
+  /// Serializes this VeilidStateConfig to a JSON map.
+  Map<String, dynamic> toJson();
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidStateConfigImpl &&
+            other is VeilidStateConfig &&
             (identical(other.config, config) || other.config == config));
   }
 
@@ -5698,224 +3935,169 @@ class _$VeilidStateConfigImpl implements _VeilidStateConfig {
   @override
   int get hashCode => Object.hash(runtimeType, config);
 
-  /// Create a copy of VeilidStateConfig
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  @pragma('vm:prefer-inline')
-  _$$VeilidStateConfigImplCopyWith<_$VeilidStateConfigImpl> get copyWith =>
-      __$$VeilidStateConfigImplCopyWithImpl<_$VeilidStateConfigImpl>(
-          this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$VeilidStateConfigImplToJson(
-      this,
-    );
+  String toString() {
+    return 'VeilidStateConfig(config: $config)';
   }
 }
 
-abstract class _VeilidStateConfig implements VeilidStateConfig {
-  const factory _VeilidStateConfig({required final VeilidConfig config}) =
-      _$VeilidStateConfigImpl;
+/// @nodoc
+abstract mixin class $VeilidStateConfigCopyWith<$Res> {
+  factory $VeilidStateConfigCopyWith(
+          VeilidStateConfig value, $Res Function(VeilidStateConfig) _then) =
+      _$VeilidStateConfigCopyWithImpl;
+  @useResult
+  $Res call({VeilidConfig config});
 
-  factory _VeilidStateConfig.fromJson(Map<String, dynamic> json) =
-      _$VeilidStateConfigImpl.fromJson;
+  $VeilidConfigCopyWith<$Res> get config;
+}
 
-  @override
-  VeilidConfig get config;
+/// @nodoc
+class _$VeilidStateConfigCopyWithImpl<$Res>
+    implements $VeilidStateConfigCopyWith<$Res> {
+  _$VeilidStateConfigCopyWithImpl(this._self, this._then);
+
+  final VeilidStateConfig _self;
+  final $Res Function(VeilidStateConfig) _then;
 
   /// Create a copy of VeilidStateConfig
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$VeilidStateConfigImplCopyWith<_$VeilidStateConfigImpl> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-VeilidState _$VeilidStateFromJson(Map<String, dynamic> json) {
-  return _VeilidState.fromJson(json);
-}
-
-/// @nodoc
-mixin _$VeilidState {
-  VeilidStateAttachment get attachment => throw _privateConstructorUsedError;
-  VeilidStateNetwork get network => throw _privateConstructorUsedError;
-  VeilidStateConfig get config => throw _privateConstructorUsedError;
-
-  /// Serializes this VeilidState to a JSON map.
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-
-  /// Create a copy of VeilidState
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  $VeilidStateCopyWith<VeilidState> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-abstract class $VeilidStateCopyWith<$Res> {
-  factory $VeilidStateCopyWith(
-          VeilidState value, $Res Function(VeilidState) then) =
-      _$VeilidStateCopyWithImpl<$Res, VeilidState>;
-  @useResult
-  $Res call(
-      {VeilidStateAttachment attachment,
-      VeilidStateNetwork network,
-      VeilidStateConfig config});
-
-  $VeilidStateAttachmentCopyWith<$Res> get attachment;
-  $VeilidStateNetworkCopyWith<$Res> get network;
-  $VeilidStateConfigCopyWith<$Res> get config;
-}
-
-/// @nodoc
-class _$VeilidStateCopyWithImpl<$Res, $Val extends VeilidState>
-    implements $VeilidStateCopyWith<$Res> {
-  _$VeilidStateCopyWithImpl(this._value, this._then);
-
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
-
-  /// Create a copy of VeilidState
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? attachment = null,
-    Object? network = null,
     Object? config = null,
   }) {
-    return _then(_value.copyWith(
-      attachment: null == attachment
-          ? _value.attachment
-          : attachment // ignore: cast_nullable_to_non_nullable
-              as VeilidStateAttachment,
-      network: null == network
-          ? _value.network
-          : network // ignore: cast_nullable_to_non_nullable
-              as VeilidStateNetwork,
+    return _then(_self.copyWith(
       config: null == config
-          ? _value.config
+          ? _self.config
           : config // ignore: cast_nullable_to_non_nullable
-              as VeilidStateConfig,
-    ) as $Val);
-  }
-
-  /// Create a copy of VeilidState
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @pragma('vm:prefer-inline')
-  $VeilidStateAttachmentCopyWith<$Res> get attachment {
-    return $VeilidStateAttachmentCopyWith<$Res>(_value.attachment, (value) {
-      return _then(_value.copyWith(attachment: value) as $Val);
-    });
-  }
-
-  /// Create a copy of VeilidState
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @pragma('vm:prefer-inline')
-  $VeilidStateNetworkCopyWith<$Res> get network {
-    return $VeilidStateNetworkCopyWith<$Res>(_value.network, (value) {
-      return _then(_value.copyWith(network: value) as $Val);
-    });
-  }
-
-  /// Create a copy of VeilidState
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @pragma('vm:prefer-inline')
-  $VeilidStateConfigCopyWith<$Res> get config {
-    return $VeilidStateConfigCopyWith<$Res>(_value.config, (value) {
-      return _then(_value.copyWith(config: value) as $Val);
-    });
-  }
-}
-
-/// @nodoc
-abstract class _$$VeilidStateImplCopyWith<$Res>
-    implements $VeilidStateCopyWith<$Res> {
-  factory _$$VeilidStateImplCopyWith(
-          _$VeilidStateImpl value, $Res Function(_$VeilidStateImpl) then) =
-      __$$VeilidStateImplCopyWithImpl<$Res>;
-  @override
-  @useResult
-  $Res call(
-      {VeilidStateAttachment attachment,
-      VeilidStateNetwork network,
-      VeilidStateConfig config});
-
-  @override
-  $VeilidStateAttachmentCopyWith<$Res> get attachment;
-  @override
-  $VeilidStateNetworkCopyWith<$Res> get network;
-  @override
-  $VeilidStateConfigCopyWith<$Res> get config;
-}
-
-/// @nodoc
-class __$$VeilidStateImplCopyWithImpl<$Res>
-    extends _$VeilidStateCopyWithImpl<$Res, _$VeilidStateImpl>
-    implements _$$VeilidStateImplCopyWith<$Res> {
-  __$$VeilidStateImplCopyWithImpl(
-      _$VeilidStateImpl _value, $Res Function(_$VeilidStateImpl) _then)
-      : super(_value, _then);
-
-  /// Create a copy of VeilidState
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? attachment = null,
-    Object? network = null,
-    Object? config = null,
-  }) {
-    return _then(_$VeilidStateImpl(
-      attachment: null == attachment
-          ? _value.attachment
-          : attachment // ignore: cast_nullable_to_non_nullable
-              as VeilidStateAttachment,
-      network: null == network
-          ? _value.network
-          : network // ignore: cast_nullable_to_non_nullable
-              as VeilidStateNetwork,
-      config: null == config
-          ? _value.config
-          : config // ignore: cast_nullable_to_non_nullable
-              as VeilidStateConfig,
+              as VeilidConfig,
     ));
+  }
+
+  /// Create a copy of VeilidStateConfig
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $VeilidConfigCopyWith<$Res> get config {
+    return $VeilidConfigCopyWith<$Res>(_self.config, (value) {
+      return _then(_self.copyWith(config: value));
+    });
   }
 }
 
 /// @nodoc
 @JsonSerializable()
-class _$VeilidStateImpl implements _VeilidState {
-  const _$VeilidStateImpl(
-      {required this.attachment, required this.network, required this.config});
-
-  factory _$VeilidStateImpl.fromJson(Map<String, dynamic> json) =>
-      _$$VeilidStateImplFromJson(json);
+class _VeilidStateConfig implements VeilidStateConfig {
+  const _VeilidStateConfig({required this.config});
+  factory _VeilidStateConfig.fromJson(Map<String, dynamic> json) =>
+      _$VeilidStateConfigFromJson(json);
 
   @override
-  final VeilidStateAttachment attachment;
+  final VeilidConfig config;
+
+  /// Create a copy of VeilidStateConfig
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  final VeilidStateNetwork network;
-  @override
-  final VeilidStateConfig config;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  _$VeilidStateConfigCopyWith<_VeilidStateConfig> get copyWith =>
+      __$VeilidStateConfigCopyWithImpl<_VeilidStateConfig>(this, _$identity);
 
   @override
-  String toString() {
-    return 'VeilidState(attachment: $attachment, network: $network, config: $config)';
+  Map<String, dynamic> toJson() {
+    return _$VeilidStateConfigToJson(
+      this,
+    );
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$VeilidStateImpl &&
+            other is _VeilidStateConfig &&
+            (identical(other.config, config) || other.config == config));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(runtimeType, config);
+
+  @override
+  String toString() {
+    return 'VeilidStateConfig(config: $config)';
+  }
+}
+
+/// @nodoc
+abstract mixin class _$VeilidStateConfigCopyWith<$Res>
+    implements $VeilidStateConfigCopyWith<$Res> {
+  factory _$VeilidStateConfigCopyWith(
+          _VeilidStateConfig value, $Res Function(_VeilidStateConfig) _then) =
+      __$VeilidStateConfigCopyWithImpl;
+  @override
+  @useResult
+  $Res call({VeilidConfig config});
+
+  @override
+  $VeilidConfigCopyWith<$Res> get config;
+}
+
+/// @nodoc
+class __$VeilidStateConfigCopyWithImpl<$Res>
+    implements _$VeilidStateConfigCopyWith<$Res> {
+  __$VeilidStateConfigCopyWithImpl(this._self, this._then);
+
+  final _VeilidStateConfig _self;
+  final $Res Function(_VeilidStateConfig) _then;
+
+  /// Create a copy of VeilidStateConfig
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? config = null,
+  }) {
+    return _then(_VeilidStateConfig(
+      config: null == config
+          ? _self.config
+          : config // ignore: cast_nullable_to_non_nullable
+              as VeilidConfig,
+    ));
+  }
+
+  /// Create a copy of VeilidStateConfig
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $VeilidConfigCopyWith<$Res> get config {
+    return $VeilidConfigCopyWith<$Res>(_self.config, (value) {
+      return _then(_self.copyWith(config: value));
+    });
+  }
+}
+
+/// @nodoc
+mixin _$VeilidState {
+  VeilidStateAttachment get attachment;
+  VeilidStateNetwork get network;
+  VeilidStateConfig get config;
+
+  /// Create a copy of VeilidState
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $VeilidStateCopyWith<VeilidState> get copyWith =>
+      _$VeilidStateCopyWithImpl<VeilidState>(this as VeilidState, _$identity);
+
+  /// Serializes this VeilidState to a JSON map.
+  Map<String, dynamic> toJson();
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is VeilidState &&
             (identical(other.attachment, attachment) ||
                 other.attachment == attachment) &&
             (identical(other.network, network) || other.network == network) &&
@@ -5926,42 +4108,224 @@ class _$VeilidStateImpl implements _VeilidState {
   @override
   int get hashCode => Object.hash(runtimeType, attachment, network, config);
 
-  /// Create a copy of VeilidState
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  @pragma('vm:prefer-inline')
-  _$$VeilidStateImplCopyWith<_$VeilidStateImpl> get copyWith =>
-      __$$VeilidStateImplCopyWithImpl<_$VeilidStateImpl>(this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$VeilidStateImplToJson(
-      this,
-    );
+  String toString() {
+    return 'VeilidState(attachment: $attachment, network: $network, config: $config)';
   }
 }
 
-abstract class _VeilidState implements VeilidState {
-  const factory _VeilidState(
-      {required final VeilidStateAttachment attachment,
-      required final VeilidStateNetwork network,
-      required final VeilidStateConfig config}) = _$VeilidStateImpl;
+/// @nodoc
+abstract mixin class $VeilidStateCopyWith<$Res> {
+  factory $VeilidStateCopyWith(
+          VeilidState value, $Res Function(VeilidState) _then) =
+      _$VeilidStateCopyWithImpl;
+  @useResult
+  $Res call(
+      {VeilidStateAttachment attachment,
+      VeilidStateNetwork network,
+      VeilidStateConfig config});
 
-  factory _VeilidState.fromJson(Map<String, dynamic> json) =
-      _$VeilidStateImpl.fromJson;
+  $VeilidStateAttachmentCopyWith<$Res> get attachment;
+  $VeilidStateNetworkCopyWith<$Res> get network;
+  $VeilidStateConfigCopyWith<$Res> get config;
+}
+
+/// @nodoc
+class _$VeilidStateCopyWithImpl<$Res> implements $VeilidStateCopyWith<$Res> {
+  _$VeilidStateCopyWithImpl(this._self, this._then);
+
+  final VeilidState _self;
+  final $Res Function(VeilidState) _then;
+
+  /// Create a copy of VeilidState
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? attachment = null,
+    Object? network = null,
+    Object? config = null,
+  }) {
+    return _then(_self.copyWith(
+      attachment: null == attachment
+          ? _self.attachment
+          : attachment // ignore: cast_nullable_to_non_nullable
+              as VeilidStateAttachment,
+      network: null == network
+          ? _self.network
+          : network // ignore: cast_nullable_to_non_nullable
+              as VeilidStateNetwork,
+      config: null == config
+          ? _self.config
+          : config // ignore: cast_nullable_to_non_nullable
+              as VeilidStateConfig,
+    ));
+  }
+
+  /// Create a copy of VeilidState
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $VeilidStateAttachmentCopyWith<$Res> get attachment {
+    return $VeilidStateAttachmentCopyWith<$Res>(_self.attachment, (value) {
+      return _then(_self.copyWith(attachment: value));
+    });
+  }
+
+  /// Create a copy of VeilidState
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $VeilidStateNetworkCopyWith<$Res> get network {
+    return $VeilidStateNetworkCopyWith<$Res>(_self.network, (value) {
+      return _then(_self.copyWith(network: value));
+    });
+  }
+
+  /// Create a copy of VeilidState
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $VeilidStateConfigCopyWith<$Res> get config {
+    return $VeilidStateConfigCopyWith<$Res>(_self.config, (value) {
+      return _then(_self.copyWith(config: value));
+    });
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _VeilidState implements VeilidState {
+  const _VeilidState(
+      {required this.attachment, required this.network, required this.config});
+  factory _VeilidState.fromJson(Map<String, dynamic> json) =>
+      _$VeilidStateFromJson(json);
 
   @override
-  VeilidStateAttachment get attachment;
+  final VeilidStateAttachment attachment;
   @override
-  VeilidStateNetwork get network;
+  final VeilidStateNetwork network;
   @override
-  VeilidStateConfig get config;
+  final VeilidStateConfig config;
 
   /// Create a copy of VeilidState
   /// with the given fields replaced by the non-null parameter values.
   @override
   @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$VeilidStateImplCopyWith<_$VeilidStateImpl> get copyWith =>
-      throw _privateConstructorUsedError;
+  @pragma('vm:prefer-inline')
+  _$VeilidStateCopyWith<_VeilidState> get copyWith =>
+      __$VeilidStateCopyWithImpl<_VeilidState>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$VeilidStateToJson(
+      this,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _VeilidState &&
+            (identical(other.attachment, attachment) ||
+                other.attachment == attachment) &&
+            (identical(other.network, network) || other.network == network) &&
+            (identical(other.config, config) || other.config == config));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(runtimeType, attachment, network, config);
+
+  @override
+  String toString() {
+    return 'VeilidState(attachment: $attachment, network: $network, config: $config)';
+  }
 }
+
+/// @nodoc
+abstract mixin class _$VeilidStateCopyWith<$Res>
+    implements $VeilidStateCopyWith<$Res> {
+  factory _$VeilidStateCopyWith(
+          _VeilidState value, $Res Function(_VeilidState) _then) =
+      __$VeilidStateCopyWithImpl;
+  @override
+  @useResult
+  $Res call(
+      {VeilidStateAttachment attachment,
+      VeilidStateNetwork network,
+      VeilidStateConfig config});
+
+  @override
+  $VeilidStateAttachmentCopyWith<$Res> get attachment;
+  @override
+  $VeilidStateNetworkCopyWith<$Res> get network;
+  @override
+  $VeilidStateConfigCopyWith<$Res> get config;
+}
+
+/// @nodoc
+class __$VeilidStateCopyWithImpl<$Res> implements _$VeilidStateCopyWith<$Res> {
+  __$VeilidStateCopyWithImpl(this._self, this._then);
+
+  final _VeilidState _self;
+  final $Res Function(_VeilidState) _then;
+
+  /// Create a copy of VeilidState
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? attachment = null,
+    Object? network = null,
+    Object? config = null,
+  }) {
+    return _then(_VeilidState(
+      attachment: null == attachment
+          ? _self.attachment
+          : attachment // ignore: cast_nullable_to_non_nullable
+              as VeilidStateAttachment,
+      network: null == network
+          ? _self.network
+          : network // ignore: cast_nullable_to_non_nullable
+              as VeilidStateNetwork,
+      config: null == config
+          ? _self.config
+          : config // ignore: cast_nullable_to_non_nullable
+              as VeilidStateConfig,
+    ));
+  }
+
+  /// Create a copy of VeilidState
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $VeilidStateAttachmentCopyWith<$Res> get attachment {
+    return $VeilidStateAttachmentCopyWith<$Res>(_self.attachment, (value) {
+      return _then(_self.copyWith(attachment: value));
+    });
+  }
+
+  /// Create a copy of VeilidState
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $VeilidStateNetworkCopyWith<$Res> get network {
+    return $VeilidStateNetworkCopyWith<$Res>(_self.network, (value) {
+      return _then(_self.copyWith(network: value));
+    });
+  }
+
+  /// Create a copy of VeilidState
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $VeilidStateConfigCopyWith<$Res> get config {
+    return $VeilidStateConfigCopyWith<$Res>(_self.config, (value) {
+      return _then(_self.copyWith(config: value));
+    });
+  }
+}
+
+// dart format on

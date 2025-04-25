@@ -14,6 +14,7 @@ Future<void> testRoutingContexts() async {
   {
     final rc = await Veilid.instance.routingContext();
     final rcp = rc.withDefaultSafety();
+    // More debuggable this way
     // ignore: cascade_invocations
     rcp.close();
     rc.close();
@@ -22,6 +23,7 @@ Future<void> testRoutingContexts() async {
   {
     final rc = await Veilid.instance.routingContext();
     final rcp = rc.withSequencing(Sequencing.ensureOrdered);
+    // More debuggable this way
     // ignore: cascade_invocations
     rcp.close();
     rc.close();
@@ -34,6 +36,7 @@ Future<void> testRoutingContexts() async {
             hopCount: 2,
             stability: Stability.lowLatency,
             sequencing: Sequencing.noPreference)));
+    // More debuggable this way
     // ignore: cascade_invocations
     rcp.close();
     rc.close();
@@ -42,6 +45,7 @@ Future<void> testRoutingContexts() async {
     final rc = await Veilid.instance.routingContext();
     final rcp = rc.withSafety(
         const SafetySelectionUnsafe(sequencing: Sequencing.preferOrdered));
+    // More debuggable this way
     // ignore: cascade_invocations
     rcp.close();
     rc.close();

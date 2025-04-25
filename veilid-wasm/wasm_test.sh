@@ -18,7 +18,7 @@ npm install
 original_tmpdir=$TMPDIR
 mkdir -p ~/tmp
 export TMPDIR=~/tmp
-npm run test:headless
+npm run test:headless -- $@
 export TMPDIR=$original_tmpdir
 
 popd &> /dev/null

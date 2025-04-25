@@ -17,7 +17,7 @@
   },
   "scripts": {
     "test": "wdio run ./wdio.conf.ts",
-    "test:headless": "WDIO_HEADLESS=true npm run test",
+    "test:headless": "WDIO_HEADLESS=true npm run test --",
     "start": "tsc && npm run test:headless"
   }
 }

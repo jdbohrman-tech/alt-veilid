@@ -128,11 +128,55 @@ pub struct GetResult {
 #[derive(Default, Clone, Debug)]
 pub struct InspectResult {
     /// The actual in-schema subkey range being reported on
-    pub subkeys: ValueSubkeyRangeSet,
+    subkeys: ValueSubkeyRangeSet,
     /// The sequence map
-    pub seqs: Vec<ValueSeqNum>,
+    seqs: Vec<Option<ValueSeqNum>>,
     /// The descriptor if we got a fresh one or empty if no descriptor was needed
-    pub opt_descriptor: Option<Arc<SignedValueDescriptor>>,
+    opt_descriptor: Option<Arc<SignedValueDescriptor>>,
+}
+
+impl InspectResult {
+    pub fn new(
+        registry_accessor: &impl VeilidComponentRegistryAccessor,
+        requested_subkeys: ValueSubkeyRangeSet,
+        log_context: &str,
+        subkeys: ValueSubkeyRangeSet,
+        seqs: Vec<Option<ValueSeqNum>>,
+        opt_descriptor: Option<Arc<SignedValueDescriptor>>,
+    ) -> VeilidAPIResult<Self> {
+        #[allow(clippy::unnecessary_cast)]
+        {
+            if subkeys.len() as u64 != seqs.len() as u64 {
+                veilid_log!(registry_accessor error "{}: mismatch between subkeys returned and sequence number list returned: {}!={}", log_context, subkeys.len(), seqs.len());
+                apibail_internal!("list length mismatch");
+            }
+        }
+        if !subkeys.is_subset(&requested_subkeys) {
+            veilid_log!(registry_accessor error "{}: more subkeys returned than requested: {} not a subset of {}", log_context, subkeys, requested_subkeys);
+            apibail_internal!("invalid subkeys returned");
+        }
+        Ok(InspectResult {
+            subkeys,
+            seqs,
+            opt_descriptor,
+        })
+    }
+
+    pub fn subkeys(&self) -> &ValueSubkeyRangeSet {
+        &self.subkeys
+    }
+    pub fn seqs(&self) -> &[Option<ValueSeqNum>] {
+        &self.seqs
+    }
+    pub fn seqs_mut(&mut self) -> &mut [Option<ValueSeqNum>] {
+        &mut self.seqs
+    }
+    pub fn opt_descriptor(&self) -> Option<Arc<SignedValueDescriptor>> {
+        self.opt_descriptor.clone()
+    }
+    pub fn drop_descriptor(&mut self) {
+        self.opt_descriptor = None;
+    }
 }
 
 impl<D> RecordStore<D>
@@ -822,18 +866,18 @@ where
     pub async fn inspect_record(
         &mut self,
         key: TypedKey,
-        subkeys: ValueSubkeyRangeSet,
+        subkeys: &ValueSubkeyRangeSet,
         want_descriptor: bool,
     ) -> VeilidAPIResult<Option<InspectResult>> {
         // Get record from index
-        let Some((subkeys, opt_descriptor)) = self.with_record(key, |record| {
+        let Some((schema_subkeys, opt_descriptor)) = self.with_record(key, |record| {
             // Get number of subkeys from schema and ensure we are getting the
             // right number of sequence numbers betwen that and what we asked for
-            let truncated_subkeys = record
+            let schema_subkeys = record
                 .schema()
-                .truncate_subkeys(&subkeys, Some(MAX_INSPECT_VALUE_A_SEQS_LEN));
+                .truncate_subkeys(subkeys, Some(MAX_INSPECT_VALUE_A_SEQS_LEN));
             (
-                truncated_subkeys,
+                schema_subkeys,
                 if want_descriptor {
                     Some(record.descriptor().clone())
                 } else {
@@ -846,56 +890,60 @@ where
         };
 
         // Check if we can return some subkeys
-        if subkeys.is_empty() {
-            apibail_invalid_argument!("subkeys set does not overlap schema", "subkeys", subkeys);
+        if schema_subkeys.is_empty() {
+            apibail_invalid_argument!(
+                "subkeys set does not overlap schema",
+                "subkeys",
+                schema_subkeys
+            );
         }
 
         // See if we have this inspection cached
-        if let Some(icv) = self.inspect_cache.get(&key, &subkeys) {
-            return Ok(Some(InspectResult {
-                subkeys,
-                seqs: icv.seqs,
+        if let Some(icv) = self.inspect_cache.get(&key, &schema_subkeys) {
+            return Ok(Some(InspectResult::new(
+                self,
+                subkeys.clone(),
+                "inspect_record",
+                schema_subkeys.clone(),
+                icv.seqs,
                 opt_descriptor,
-            }));
+            )?));
         }
 
         // Build sequence number list to return
         #[allow(clippy::unnecessary_cast)]
-        let mut seqs = Vec::with_capacity(subkeys.len() as usize);
-        for subkey in subkeys.iter() {
+        let mut seqs = Vec::with_capacity(schema_subkeys.len() as usize);
+        for subkey in schema_subkeys.iter() {
             let stk = SubkeyTableKey { key, subkey };
-            let seq = if let Some(record_data) = self.subkey_cache.peek(&stk) {
-                record_data.signed_value_data().value_data().seq()
+            let opt_seq = if let Some(record_data) = self.subkey_cache.peek(&stk) {
+                Some(record_data.signed_value_data().value_data().seq())
             } else {
                 // If not in cache, try to pull from table store if it is in our stored subkey set
                 // XXX: This would be better if it didn't have to pull the whole record data to get the seq.
-                if let Some(record_data) = self
-                    .subkey_table
+                self.subkey_table
                     .load_json::<RecordData>(0, &stk.bytes())
                     .await
                     .map_err(VeilidAPIError::internal)?
-                {
-                    record_data.signed_value_data().value_data().seq()
-                } else {
-                    // Subkey not written to
-                    ValueSubkey::MAX
-                }
+                    .map(|record_data| record_data.signed_value_data().value_data().seq())
             };
-            seqs.push(seq)
+            seqs.push(opt_seq)
         }
 
         // Save seqs cache
         self.inspect_cache.put(
             key,
-            subkeys.clone(),
+            schema_subkeys.clone(),
             InspectCacheL2Value { seqs: seqs.clone() },
         );
 
-        Ok(Some(InspectResult {
-            subkeys,
+        Ok(Some(InspectResult::new(
+            self,
+            subkeys.clone(),
+            "inspect_record",
+            schema_subkeys,
             seqs,
             opt_descriptor,
-        }))
+        )?))
     }
 
     #[instrument(level = "trace", target = "stor", skip_all, err)]
@@ -1242,7 +1290,7 @@ where
 
             changes.push(ValueChangedInfo {
                 target: evci.target,
-                key: evci.key,
+                record_key: evci.key,
                 subkeys: evci.subkeys,
                 count: evci.count,
                 watch_id: evci.watch_id,

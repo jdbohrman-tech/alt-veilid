@@ -133,7 +133,7 @@ impl OutboundWatchManager {
                 // Watch does not exist, add one if that's what is desired
                 if let Some(desired) = desired_watch {
                     self.outbound_watches
-                        .insert(record_key, OutboundWatch::new(desired));
+                        .insert(record_key, OutboundWatch::new(record_key, desired));
                 }
             }
         }

@@ -13,6 +13,8 @@ export type KeyPair = `${PublicKey}:${SecretKey}`;
 export type FourCC = "NONE" | "VLD0" | string;
 export type CryptoTyped<TCryptoKey extends string> = `${FourCC}:${TCryptoKey}`;
 export type CryptoTypedGroup<TCryptoKey extends string> = Array<CryptoTyped<TCryptoKey>>;
+
+export
 "#;
 
 #[wasm_bindgen]

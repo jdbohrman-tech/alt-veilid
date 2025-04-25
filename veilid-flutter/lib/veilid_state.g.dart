@@ -6,8 +6,8 @@ part of 'veilid_state.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$LatencyStatsImpl _$$LatencyStatsImplFromJson(Map<String, dynamic> json) =>
-    _$LatencyStatsImpl(
+_LatencyStats _$LatencyStatsFromJson(Map<String, dynamic> json) =>
+    _LatencyStats(
       fastest: TimestampDuration.fromJson(json['fastest']),
       average: TimestampDuration.fromJson(json['average']),
       slowest: TimestampDuration.fromJson(json['slowest']),
@@ -17,7 +17,7 @@ _$LatencyStatsImpl _$$LatencyStatsImplFromJson(Map<String, dynamic> json) =>
       p75: TimestampDuration.fromJson(json['p75']),
     );
 
-Map<String, dynamic> _$$LatencyStatsImplToJson(_$LatencyStatsImpl instance) =>
+Map<String, dynamic> _$LatencyStatsToJson(_LatencyStats instance) =>
     <String, dynamic>{
       'fastest': instance.fastest.toJson(),
       'average': instance.average.toJson(),
@@ -28,15 +28,15 @@ Map<String, dynamic> _$$LatencyStatsImplToJson(_$LatencyStatsImpl instance) =>
       'p75': instance.p75.toJson(),
     };
 
-_$TransferStatsImpl _$$TransferStatsImplFromJson(Map<String, dynamic> json) =>
-    _$TransferStatsImpl(
+_TransferStats _$TransferStatsFromJson(Map<String, dynamic> json) =>
+    _TransferStats(
       total: BigInt.parse(json['total'] as String),
       maximum: BigInt.parse(json['maximum'] as String),
       average: BigInt.parse(json['average'] as String),
       minimum: BigInt.parse(json['minimum'] as String),
     );
 
-Map<String, dynamic> _$$TransferStatsImplToJson(_$TransferStatsImpl instance) =>
+Map<String, dynamic> _$TransferStatsToJson(_TransferStats instance) =>
     <String, dynamic>{
       'total': instance.total.toString(),
       'maximum': instance.maximum.toString(),
@@ -44,22 +44,20 @@ Map<String, dynamic> _$$TransferStatsImplToJson(_$TransferStatsImpl instance) =>
       'minimum': instance.minimum.toString(),
     };
 
-_$TransferStatsDownUpImpl _$$TransferStatsDownUpImplFromJson(
-        Map<String, dynamic> json) =>
-    _$TransferStatsDownUpImpl(
+_TransferStatsDownUp _$TransferStatsDownUpFromJson(Map<String, dynamic> json) =>
+    _TransferStatsDownUp(
       down: TransferStats.fromJson(json['down']),
       up: TransferStats.fromJson(json['up']),
     );
 
-Map<String, dynamic> _$$TransferStatsDownUpImplToJson(
-        _$TransferStatsDownUpImpl instance) =>
+Map<String, dynamic> _$TransferStatsDownUpToJson(
+        _TransferStatsDownUp instance) =>
     <String, dynamic>{
       'down': instance.down.toJson(),
       'up': instance.up.toJson(),
     };
 
-_$StateStatsImpl _$$StateStatsImplFromJson(Map<String, dynamic> json) =>
-    _$StateStatsImpl(
+_StateStats _$StateStatsFromJson(Map<String, dynamic> json) => _StateStats(
       span: TimestampDuration.fromJson(json['span']),
       reliable: TimestampDuration.fromJson(json['reliable']),
       unreliable: TimestampDuration.fromJson(json['unreliable']),
@@ -68,7 +66,7 @@ _$StateStatsImpl _$$StateStatsImplFromJson(Map<String, dynamic> json) =>
       reason: StateReasonStats.fromJson(json['reason']),
     );
 
-Map<String, dynamic> _$$StateStatsImplToJson(_$StateStatsImpl instance) =>
+Map<String, dynamic> _$StateStatsToJson(_StateStats instance) =>
     <String, dynamic>{
       'span': instance.span.toJson(),
       'reliable': instance.reliable.toJson(),
@@ -78,9 +76,8 @@ Map<String, dynamic> _$$StateStatsImplToJson(_$StateStatsImpl instance) =>
       'reason': instance.reason.toJson(),
     };
 
-_$StateReasonStatsImpl _$$StateReasonStatsImplFromJson(
-        Map<String, dynamic> json) =>
-    _$StateReasonStatsImpl(
+_StateReasonStats _$StateReasonStatsFromJson(Map<String, dynamic> json) =>
+    _StateReasonStats(
       canNotSend: TimestampDuration.fromJson(json['can_not_send']),
       tooManyLostAnswers:
           TimestampDuration.fromJson(json['too_many_lost_answers']),
@@ -93,8 +90,7 @@ _$StateReasonStatsImpl _$$StateReasonStatsImplFromJson(
           TimestampDuration.fromJson(json['in_unreliable_ping_span']),
     );
 
-Map<String, dynamic> _$$StateReasonStatsImplToJson(
-        _$StateReasonStatsImpl instance) =>
+Map<String, dynamic> _$StateReasonStatsToJson(_StateReasonStats instance) =>
     <String, dynamic>{
       'can_not_send': instance.canNotSend.toJson(),
       'too_many_lost_answers': instance.tooManyLostAnswers.toJson(),
@@ -105,8 +101,7 @@ Map<String, dynamic> _$$StateReasonStatsImplToJson(
       'in_unreliable_ping_span': instance.inUnreliablePingSpan.toJson(),
     };
 
-_$AnswerStatsImpl _$$AnswerStatsImplFromJson(Map<String, dynamic> json) =>
-    _$AnswerStatsImpl(
+_AnswerStats _$AnswerStatsFromJson(Map<String, dynamic> json) => _AnswerStats(
       span: TimestampDuration.fromJson(json['span']),
       questions: (json['questions'] as num).toInt(),
       answers: (json['answers'] as num).toInt(),
@@ -125,7 +120,7 @@ _$AnswerStatsImpl _$$AnswerStatsImplFromJson(Map<String, dynamic> json) =>
           (json['consecutive_lost_answers_minimum'] as num).toInt(),
     );
 
-Map<String, dynamic> _$$AnswerStatsImplToJson(_$AnswerStatsImpl instance) =>
+Map<String, dynamic> _$AnswerStatsToJson(_AnswerStats instance) =>
     <String, dynamic>{
       'span': instance.span.toJson(),
       'questions': instance.questions,
@@ -142,8 +137,7 @@ Map<String, dynamic> _$$AnswerStatsImplToJson(_$AnswerStatsImpl instance) =>
           instance.consecutiveLostAnswersMinimum,
     };
 
-_$RPCStatsImpl _$$RPCStatsImplFromJson(Map<String, dynamic> json) =>
-    _$RPCStatsImpl(
+_RPCStats _$RPCStatsFromJson(Map<String, dynamic> json) => _RPCStats(
       messagesSent: (json['messages_sent'] as num).toInt(),
       messagesRcvd: (json['messages_rcvd'] as num).toInt(),
       questionsInFlight: (json['questions_in_flight'] as num).toInt(),
@@ -165,8 +159,7 @@ _$RPCStatsImpl _$$RPCStatsImplFromJson(Map<String, dynamic> json) =>
       answerOrdered: AnswerStats.fromJson(json['answer_ordered']),
     );
 
-Map<String, dynamic> _$$RPCStatsImplToJson(_$RPCStatsImpl instance) =>
-    <String, dynamic>{
+Map<String, dynamic> _$RPCStatsToJson(_RPCStats instance) => <String, dynamic>{
       'messages_sent': instance.messagesSent,
       'messages_rcvd': instance.messagesRcvd,
       'questions_in_flight': instance.questionsInFlight,
@@ -180,8 +173,7 @@ Map<String, dynamic> _$$RPCStatsImplToJson(_$RPCStatsImpl instance) =>
       'answer_ordered': instance.answerOrdered.toJson(),
     };
 
-_$PeerStatsImpl _$$PeerStatsImplFromJson(Map<String, dynamic> json) =>
-    _$PeerStatsImpl(
+_PeerStats _$PeerStatsFromJson(Map<String, dynamic> json) => _PeerStats(
       timeAdded: Timestamp.fromJson(json['time_added']),
       rpcStats: RPCStats.fromJson(json['rpc_stats']),
       transfer: TransferStatsDownUp.fromJson(json['transfer']),
@@ -191,7 +183,7 @@ _$PeerStatsImpl _$$PeerStatsImplFromJson(Map<String, dynamic> json) =>
           : LatencyStats.fromJson(json['latency']),
     );
 
-Map<String, dynamic> _$$PeerStatsImplToJson(_$PeerStatsImpl instance) =>
+Map<String, dynamic> _$PeerStatsToJson(_PeerStats instance) =>
     <String, dynamic>{
       'time_added': instance.timeAdded.toJson(),
       'rpc_stats': instance.rpcStats.toJson(),
@@ -200,8 +192,8 @@ Map<String, dynamic> _$$PeerStatsImplToJson(_$PeerStatsImpl instance) =>
       'latency': instance.latency?.toJson(),
     };
 
-_$PeerTableDataImpl _$$PeerTableDataImplFromJson(Map<String, dynamic> json) =>
-    _$PeerTableDataImpl(
+_PeerTableData _$PeerTableDataFromJson(Map<String, dynamic> json) =>
+    _PeerTableData(
       nodeIds: (json['node_ids'] as List<dynamic>)
           .map(Typed<FixedEncodedString43>.fromJson)
           .toList(),
@@ -209,32 +201,29 @@ _$PeerTableDataImpl _$$PeerTableDataImplFromJson(Map<String, dynamic> json) =>
       peerStats: PeerStats.fromJson(json['peer_stats']),
     );
 
-Map<String, dynamic> _$$PeerTableDataImplToJson(_$PeerTableDataImpl instance) =>
+Map<String, dynamic> _$PeerTableDataToJson(_PeerTableData instance) =>
     <String, dynamic>{
       'node_ids': instance.nodeIds.map((e) => e.toJson()).toList(),
       'peer_address': instance.peerAddress,
       'peer_stats': instance.peerStats.toJson(),
     };
 
-_$VeilidLogImpl _$$VeilidLogImplFromJson(Map<String, dynamic> json) =>
-    _$VeilidLogImpl(
+VeilidLog _$VeilidLogFromJson(Map<String, dynamic> json) => VeilidLog(
       logLevel: VeilidLogLevel.fromJson(json['log_level']),
       message: json['message'] as String,
       backtrace: json['backtrace'] as String?,
       $type: json['kind'] as String?,
     );
 
-Map<String, dynamic> _$$VeilidLogImplToJson(_$VeilidLogImpl instance) =>
-    <String, dynamic>{
+Map<String, dynamic> _$VeilidLogToJson(VeilidLog instance) => <String, dynamic>{
       'log_level': instance.logLevel.toJson(),
       'message': instance.message,
       'backtrace': instance.backtrace,
       'kind': instance.$type,
     };
 
-_$VeilidAppMessageImpl _$$VeilidAppMessageImplFromJson(
-        Map<String, dynamic> json) =>
-    _$VeilidAppMessageImpl(
+VeilidAppMessage _$VeilidAppMessageFromJson(Map<String, dynamic> json) =>
+    VeilidAppMessage(
       message:
           const Uint8ListJsonConverter.jsIsArray().fromJson(json['message']),
       sender: json['sender'] == null
@@ -244,8 +233,7 @@ _$VeilidAppMessageImpl _$$VeilidAppMessageImplFromJson(
       $type: json['kind'] as String?,
     );
 
-Map<String, dynamic> _$$VeilidAppMessageImplToJson(
-        _$VeilidAppMessageImpl instance) =>
+Map<String, dynamic> _$VeilidAppMessageToJson(VeilidAppMessage instance) =>
     <String, dynamic>{
       'message':
           const Uint8ListJsonConverter.jsIsArray().toJson(instance.message),
@@ -254,8 +242,8 @@ Map<String, dynamic> _$$VeilidAppMessageImplToJson(
       'kind': instance.$type,
     };
 
-_$VeilidAppCallImpl _$$VeilidAppCallImplFromJson(Map<String, dynamic> json) =>
-    _$VeilidAppCallImpl(
+VeilidAppCall _$VeilidAppCallFromJson(Map<String, dynamic> json) =>
+    VeilidAppCall(
       message:
           const Uint8ListJsonConverter.jsIsArray().fromJson(json['message']),
       callId: json['call_id'] as String,
@@ -266,7 +254,7 @@ _$VeilidAppCallImpl _$$VeilidAppCallImplFromJson(Map<String, dynamic> json) =>
       $type: json['kind'] as String?,
     );
 
-Map<String, dynamic> _$$VeilidAppCallImplToJson(_$VeilidAppCallImpl instance) =>
+Map<String, dynamic> _$VeilidAppCallToJson(VeilidAppCall instance) =>
     <String, dynamic>{
       'message':
           const Uint8ListJsonConverter.jsIsArray().toJson(instance.message),
@@ -276,9 +264,9 @@ Map<String, dynamic> _$$VeilidAppCallImplToJson(_$VeilidAppCallImpl instance) =>
       'kind': instance.$type,
     };
 
-_$VeilidUpdateAttachmentImpl _$$VeilidUpdateAttachmentImplFromJson(
+VeilidUpdateAttachment _$VeilidUpdateAttachmentFromJson(
         Map<String, dynamic> json) =>
-    _$VeilidUpdateAttachmentImpl(
+    VeilidUpdateAttachment(
       state: AttachmentState.fromJson(json['state']),
       publicInternetReady: json['public_internet_ready'] as bool,
       localNetworkReady: json['local_network_ready'] as bool,
@@ -289,8 +277,8 @@ _$VeilidUpdateAttachmentImpl _$$VeilidUpdateAttachmentImplFromJson(
       $type: json['kind'] as String?,
     );
 
-Map<String, dynamic> _$$VeilidUpdateAttachmentImplToJson(
-        _$VeilidUpdateAttachmentImpl instance) =>
+Map<String, dynamic> _$VeilidUpdateAttachmentToJson(
+        VeilidUpdateAttachment instance) =>
     <String, dynamic>{
       'state': instance.state.toJson(),
       'public_internet_ready': instance.publicInternetReady,
@@ -300,9 +288,8 @@ Map<String, dynamic> _$$VeilidUpdateAttachmentImplToJson(
       'kind': instance.$type,
     };
 
-_$VeilidUpdateNetworkImpl _$$VeilidUpdateNetworkImplFromJson(
-        Map<String, dynamic> json) =>
-    _$VeilidUpdateNetworkImpl(
+VeilidUpdateNetwork _$VeilidUpdateNetworkFromJson(Map<String, dynamic> json) =>
+    VeilidUpdateNetwork(
       started: json['started'] as bool,
       bpsDown: BigInt.parse(json['bps_down'] as String),
       bpsUp: BigInt.parse(json['bps_up'] as String),
@@ -311,8 +298,8 @@ _$VeilidUpdateNetworkImpl _$$VeilidUpdateNetworkImplFromJson(
       $type: json['kind'] as String?,
     );
 
-Map<String, dynamic> _$$VeilidUpdateNetworkImplToJson(
-        _$VeilidUpdateNetworkImpl instance) =>
+Map<String, dynamic> _$VeilidUpdateNetworkToJson(
+        VeilidUpdateNetwork instance) =>
     <String, dynamic>{
       'started': instance.started,
       'bps_down': instance.bpsDown.toString(),
@@ -321,23 +308,21 @@ Map<String, dynamic> _$$VeilidUpdateNetworkImplToJson(
       'kind': instance.$type,
     };
 
-_$VeilidUpdateConfigImpl _$$VeilidUpdateConfigImplFromJson(
-        Map<String, dynamic> json) =>
-    _$VeilidUpdateConfigImpl(
+VeilidUpdateConfig _$VeilidUpdateConfigFromJson(Map<String, dynamic> json) =>
+    VeilidUpdateConfig(
       config: VeilidConfig.fromJson(json['config']),
       $type: json['kind'] as String?,
     );
 
-Map<String, dynamic> _$$VeilidUpdateConfigImplToJson(
-        _$VeilidUpdateConfigImpl instance) =>
+Map<String, dynamic> _$VeilidUpdateConfigToJson(VeilidUpdateConfig instance) =>
     <String, dynamic>{
       'config': instance.config.toJson(),
       'kind': instance.$type,
     };
 
-_$VeilidUpdateRouteChangeImpl _$$VeilidUpdateRouteChangeImplFromJson(
+VeilidUpdateRouteChange _$VeilidUpdateRouteChangeFromJson(
         Map<String, dynamic> json) =>
-    _$VeilidUpdateRouteChangeImpl(
+    VeilidUpdateRouteChange(
       deadRoutes: (json['dead_routes'] as List<dynamic>)
           .map((e) => e as String)
           .toList(),
@@ -347,17 +332,17 @@ _$VeilidUpdateRouteChangeImpl _$$VeilidUpdateRouteChangeImplFromJson(
       $type: json['kind'] as String?,
     );
 
-Map<String, dynamic> _$$VeilidUpdateRouteChangeImplToJson(
-        _$VeilidUpdateRouteChangeImpl instance) =>
+Map<String, dynamic> _$VeilidUpdateRouteChangeToJson(
+        VeilidUpdateRouteChange instance) =>
     <String, dynamic>{
       'dead_routes': instance.deadRoutes,
       'dead_remote_routes': instance.deadRemoteRoutes,
       'kind': instance.$type,
     };
 
-_$VeilidUpdateValueChangeImpl _$$VeilidUpdateValueChangeImplFromJson(
+VeilidUpdateValueChange _$VeilidUpdateValueChangeFromJson(
         Map<String, dynamic> json) =>
-    _$VeilidUpdateValueChangeImpl(
+    VeilidUpdateValueChange(
       key: Typed<FixedEncodedString43>.fromJson(json['key']),
       subkeys: (json['subkeys'] as List<dynamic>)
           .map(ValueSubkeyRange.fromJson)
@@ -367,8 +352,8 @@ _$VeilidUpdateValueChangeImpl _$$VeilidUpdateValueChangeImplFromJson(
       $type: json['kind'] as String?,
     );
 
-Map<String, dynamic> _$$VeilidUpdateValueChangeImplToJson(
-        _$VeilidUpdateValueChangeImpl instance) =>
+Map<String, dynamic> _$VeilidUpdateValueChangeToJson(
+        VeilidUpdateValueChange instance) =>
     <String, dynamic>{
       'key': instance.key.toJson(),
       'subkeys': instance.subkeys.map((e) => e.toJson()).toList(),
@@ -377,9 +362,9 @@ Map<String, dynamic> _$$VeilidUpdateValueChangeImplToJson(
       'kind': instance.$type,
     };
 
-_$VeilidStateAttachmentImpl _$$VeilidStateAttachmentImplFromJson(
+_VeilidStateAttachment _$VeilidStateAttachmentFromJson(
         Map<String, dynamic> json) =>
-    _$VeilidStateAttachmentImpl(
+    _VeilidStateAttachment(
       state: AttachmentState.fromJson(json['state']),
       publicInternetReady: json['public_internet_ready'] as bool,
       localNetworkReady: json['local_network_ready'] as bool,
@@ -389,8 +374,8 @@ _$VeilidStateAttachmentImpl _$$VeilidStateAttachmentImplFromJson(
           : TimestampDuration.fromJson(json['attached_uptime']),
     );
 
-Map<String, dynamic> _$$VeilidStateAttachmentImplToJson(
-        _$VeilidStateAttachmentImpl instance) =>
+Map<String, dynamic> _$VeilidStateAttachmentToJson(
+        _VeilidStateAttachment instance) =>
     <String, dynamic>{
       'state': instance.state.toJson(),
       'public_internet_ready': instance.publicInternetReady,
@@ -399,9 +384,8 @@ Map<String, dynamic> _$$VeilidStateAttachmentImplToJson(
       'attached_uptime': instance.attachedUptime?.toJson(),
     };
 
-_$VeilidStateNetworkImpl _$$VeilidStateNetworkImplFromJson(
-        Map<String, dynamic> json) =>
-    _$VeilidStateNetworkImpl(
+_VeilidStateNetwork _$VeilidStateNetworkFromJson(Map<String, dynamic> json) =>
+    _VeilidStateNetwork(
       started: json['started'] as bool,
       bpsDown: BigInt.parse(json['bps_down'] as String),
       bpsUp: BigInt.parse(json['bps_up'] as String),
@@ -409,8 +393,7 @@ _$VeilidStateNetworkImpl _$$VeilidStateNetworkImplFromJson(
           (json['peers'] as List<dynamic>).map(PeerTableData.fromJson).toList(),
     );
 
-Map<String, dynamic> _$$VeilidStateNetworkImplToJson(
-        _$VeilidStateNetworkImpl instance) =>
+Map<String, dynamic> _$VeilidStateNetworkToJson(_VeilidStateNetwork instance) =>
     <String, dynamic>{
       'started': instance.started,
       'bps_down': instance.bpsDown.toString(),
@@ -418,26 +401,23 @@ Map<String, dynamic> _$$VeilidStateNetworkImplToJson(
       'peers': instance.peers.map((e) => e.toJson()).toList(),
     };
 
-_$VeilidStateConfigImpl _$$VeilidStateConfigImplFromJson(
-        Map<String, dynamic> json) =>
-    _$VeilidStateConfigImpl(
+_VeilidStateConfig _$VeilidStateConfigFromJson(Map<String, dynamic> json) =>
+    _VeilidStateConfig(
       config: VeilidConfig.fromJson(json['config']),
     );
 
-Map<String, dynamic> _$$VeilidStateConfigImplToJson(
-        _$VeilidStateConfigImpl instance) =>
+Map<String, dynamic> _$VeilidStateConfigToJson(_VeilidStateConfig instance) =>
     <String, dynamic>{
       'config': instance.config.toJson(),
     };
 
-_$VeilidStateImpl _$$VeilidStateImplFromJson(Map<String, dynamic> json) =>
-    _$VeilidStateImpl(
+_VeilidState _$VeilidStateFromJson(Map<String, dynamic> json) => _VeilidState(
       attachment: VeilidStateAttachment.fromJson(json['attachment']),
       network: VeilidStateNetwork.fromJson(json['network']),
       config: VeilidStateConfig.fromJson(json['config']),
     );
 
-Map<String, dynamic> _$$VeilidStateImplToJson(_$VeilidStateImpl instance) =>
+Map<String, dynamic> _$VeilidStateToJson(_VeilidState instance) =>
     <String, dynamic>{
       'attachment': instance.attachment.toJson(),
       'network': instance.network.toJson(),

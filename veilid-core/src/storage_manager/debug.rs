@@ -79,7 +79,7 @@ impl StorageManager {
 
     pub async fn debug_local_record_subkey_info(
         &self,
-        key: TypedKey,
+        record_key: TypedKey,
         subkey: ValueSubkey,
     ) -> String {
         let inner = self.inner.lock().await;
@@ -87,12 +87,12 @@ impl StorageManager {
             return "not initialized".to_owned();
         };
         local_record_store
-            .debug_record_subkey_info(key, subkey)
+            .debug_record_subkey_info(record_key, subkey)
             .await
     }
     pub async fn debug_remote_record_subkey_info(
         &self,
-        key: TypedKey,
+        record_key: TypedKey,
         subkey: ValueSubkey,
     ) -> String {
         let inner = self.inner.lock().await;
@@ -100,17 +100,17 @@ impl StorageManager {
             return "not initialized".to_owned();
         };
         remote_record_store
-            .debug_record_subkey_info(key, subkey)
+            .debug_record_subkey_info(record_key, subkey)
             .await
     }
-    pub async fn debug_local_record_info(&self, key: TypedKey) -> String {
+    pub async fn debug_local_record_info(&self, record_key: TypedKey) -> String {
         let inner = self.inner.lock().await;
         let Some(local_record_store) = &inner.local_record_store else {
             return "not initialized".to_owned();
         };
-        let local_debug = local_record_store.debug_record_info(key);
+        let local_debug = local_record_store.debug_record_info(record_key);
 
-        let opened_debug = if let Some(o) = inner.opened_records.get(&key) {
+        let opened_debug = if let Some(o) = inner.opened_records.get(&record_key) {
             format!("Opened Record: {:#?}\n", o)
         } else {
             "".to_owned()
@@ -119,11 +119,11 @@ impl StorageManager {
         format!("{}\n{}", local_debug, opened_debug)
     }
 
-    pub async fn debug_remote_record_info(&self, key: TypedKey) -> String {
+    pub async fn debug_remote_record_info(&self, record_key: TypedKey) -> String {
         let inner = self.inner.lock().await;
         let Some(remote_record_store) = &inner.remote_record_store else {
             return "not initialized".to_owned();
         };
-        remote_record_store.debug_record_info(key)
+        remote_record_store.debug_record_info(record_key)
     }
 }

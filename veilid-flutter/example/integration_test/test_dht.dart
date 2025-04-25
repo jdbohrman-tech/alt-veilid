@@ -241,10 +241,19 @@ Future<void> testOpenWriterDHTValue() async {
         throwsA(isA<VeilidAPIException>()));
 
     // Verify subkey 0 can be set because override with the right writer
-    expect(
-        await rc.setDHTValue(key, 0, va,
-            writer: KeyPair(key: owner, secret: secret)),
-        isNull);
+    // Should have prior sequence number as its returned value because it
+    // exists online at seq 0
+    vdtemp = await rc.setDHTValue(key, 0, va,
+        writer: KeyPair(key: owner, secret: secret));
+    expect(vdtemp, isNotNull);
+    expect(vdtemp!.data, equals(vb));
+    expect(vdtemp.seq, equals(0));
+    expect(vdtemp.writer, equals(owner));
+
+    // Should update the second time to seq 1
+    vdtemp = await rc.setDHTValue(key, 0, va,
+        writer: KeyPair(key: owner, secret: secret));
+    expect(vdtemp, isNull);
 
     // Clean up
     await rc.closeDHTRecord(key);
@@ -452,16 +461,18 @@ Future<void> testInspectDHTRecord() async {
     expect(await rc.setDHTValue(rec.key, 0, utf8.encode('BLAH BLAH BLAH')),
         isNull);
 
+    await settle(rc, rec.key, 0);
+
     final rr = await rc.inspectDHTRecord(rec.key);
     expect(rr.subkeys, equals([ValueSubkeyRange.make(0, 1)]));
-    expect(rr.localSeqs, equals([0, 0xFFFFFFFF]));
-    expect(rr.networkSeqs, equals([]));
+    expect(rr.localSeqs, equals([0, null]));
+    expect(rr.networkSeqs, equals([null, null]));
 
     final rr2 =
         await rc.inspectDHTRecord(rec.key, scope: DHTReportScope.syncGet);
     expect(rr2.subkeys, equals([ValueSubkeyRange.make(0, 1)]));
-    expect(rr2.localSeqs, equals([0, 0xFFFFFFFF]));
-    expect(rr2.networkSeqs, equals([0, 0xFFFFFFFF]));
+    expect(rr2.localSeqs, equals([0, null]));
+    expect(rr2.networkSeqs, equals([0, null]));
 
     await rc.closeDHTRecord(rec.key);
     await rc.deleteDHTRecord(rec.key);

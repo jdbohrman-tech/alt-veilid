@@ -46,7 +46,7 @@ enum VeilidLogLevel {
 ////////////
 
 @freezed
-class LatencyStats with _$LatencyStats {
+sealed class LatencyStats with _$LatencyStats {
   const factory LatencyStats({
     required TimestampDuration fastest,
     required TimestampDuration average,
@@ -64,7 +64,7 @@ class LatencyStats with _$LatencyStats {
 ////////////
 
 @freezed
-class TransferStats with _$TransferStats {
+sealed class TransferStats with _$TransferStats {
   const factory TransferStats({
     required BigInt total,
     required BigInt maximum,
@@ -79,7 +79,7 @@ class TransferStats with _$TransferStats {
 ////////////
 
 @freezed
-class TransferStatsDownUp with _$TransferStatsDownUp {
+sealed class TransferStatsDownUp with _$TransferStatsDownUp {
   const factory TransferStatsDownUp({
     required TransferStats down,
     required TransferStats up,
@@ -92,7 +92,7 @@ class TransferStatsDownUp with _$TransferStatsDownUp {
 ////////////
 
 @freezed
-class StateStats with _$StateStats {
+sealed class StateStats with _$StateStats {
   const factory StateStats({
     required TimestampDuration span,
     required TimestampDuration reliable,
@@ -109,7 +109,7 @@ class StateStats with _$StateStats {
 ////////////
 
 @freezed
-class StateReasonStats with _$StateReasonStats {
+sealed class StateReasonStats with _$StateReasonStats {
   const factory StateReasonStats({
     required TimestampDuration canNotSend,
     required TimestampDuration tooManyLostAnswers,
@@ -127,7 +127,7 @@ class StateReasonStats with _$StateReasonStats {
 ////////////
 
 @freezed
-class AnswerStats with _$AnswerStats {
+sealed class AnswerStats with _$AnswerStats {
   const factory AnswerStats({
     required TimestampDuration span,
     required int questions,
@@ -148,7 +148,7 @@ class AnswerStats with _$AnswerStats {
 ////////////
 
 @freezed
-class RPCStats with _$RPCStats {
+sealed class RPCStats with _$RPCStats {
   const factory RPCStats({
     required int messagesSent,
     required int messagesRcvd,
@@ -170,7 +170,7 @@ class RPCStats with _$RPCStats {
 ////////////
 
 @freezed
-class PeerStats with _$PeerStats {
+sealed class PeerStats with _$PeerStats {
   const factory PeerStats({
     required Timestamp timeAdded,
     required RPCStats rpcStats,
@@ -186,7 +186,7 @@ class PeerStats with _$PeerStats {
 ////////////
 
 @freezed
-class PeerTableData with _$PeerTableData {
+sealed class PeerTableData with _$PeerTableData {
   const factory PeerTableData({
     required List<TypedKey> nodeIds,
     required String peerAddress,
@@ -251,7 +251,7 @@ sealed class VeilidUpdate with _$VeilidUpdate {
 /// VeilidStateAttachment
 
 @freezed
-class VeilidStateAttachment with _$VeilidStateAttachment {
+sealed class VeilidStateAttachment with _$VeilidStateAttachment {
   const factory VeilidStateAttachment(
       {required AttachmentState state,
       required bool publicInternetReady,
@@ -267,7 +267,7 @@ class VeilidStateAttachment with _$VeilidStateAttachment {
 /// VeilidStateNetwork
 
 @freezed
-class VeilidStateNetwork with _$VeilidStateNetwork {
+sealed class VeilidStateNetwork with _$VeilidStateNetwork {
   const factory VeilidStateNetwork(
       {required bool started,
       required BigInt bpsDown,
@@ -282,7 +282,7 @@ class VeilidStateNetwork with _$VeilidStateNetwork {
 /// VeilidStateConfig
 
 @freezed
-class VeilidStateConfig with _$VeilidStateConfig {
+sealed class VeilidStateConfig with _$VeilidStateConfig {
   const factory VeilidStateConfig({
     required VeilidConfig config,
   }) = _VeilidStateConfig;
@@ -295,7 +295,7 @@ class VeilidStateConfig with _$VeilidStateConfig {
 /// VeilidState
 
 @freezed
-class VeilidState with _$VeilidState {
+sealed class VeilidState with _$VeilidState {
   const factory VeilidState({
     required VeilidStateAttachment attachment,
     required VeilidStateNetwork network,

@@ -9,7 +9,7 @@ include(FetchContent)
 FetchContent_Declare(
     Corrosion
     GIT_REPOSITORY https://github.com/AndrewGaspar/corrosion.git
-    GIT_TAG v0.4.10 # Optionally specify a version tag or branch here
+    GIT_TAG v0.5.1 # Optionally specify a version tag or branch here
 )
 
 FetchContent_MakeAvailable(Corrosion)
@@ -29,4 +29,3 @@ corrosion_import_crate(MANIFEST_PATH ${repository_root}/../veilid/Cargo.toml CRA
 
 set(CRATE_NAME "veilid_flutter")
 target_link_libraries(${PLUGIN_NAME} PUBLIC ${CRATE_NAME})
-# list(APPEND PLUGIN_BUNDLED_LIBRARIES $<TARGET_FILE:${CRATE_NAME}-shared>)

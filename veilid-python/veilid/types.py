@@ -237,8 +237,7 @@ class ValueSubkey(int):
 
 
 class ValueSeqNum(int):
-    NONE = 4294967295
-
+    pass
 
 ####################################################################
 
@@ -405,15 +404,15 @@ class DHTRecordDescriptor:
 class DHTRecordReport:
     subkeys: list[tuple[ValueSubkey, ValueSubkey]]
     offline_subkeys: list[tuple[ValueSubkey, ValueSubkey]]
-    local_seqs: list[ValueSeqNum]
-    network_seqs: list[ValueSeqNum]
+    local_seqs: list[Optional[ValueSeqNum]]
+    network_seqs: list[Optional[ValueSeqNum]]
 
     def __init__(
         self,
         subkeys: list[tuple[ValueSubkey, ValueSubkey]],
         offline_subkeys: list[tuple[ValueSubkey, ValueSubkey]],
-        local_seqs: list[ValueSeqNum],
-        network_seqs: list[ValueSeqNum],
+        local_seqs: list[Optional[ValueSeqNum]],
+        network_seqs: list[Optional[ValueSeqNum]],
     ):
         self.subkeys = subkeys
         self.offline_subkeys = offline_subkeys
@@ -428,8 +427,8 @@ class DHTRecordReport:
         return cls(
             [(p[0], p[1]) for p in j["subkeys"]],
             [(p[0], p[1]) for p in j["offline_subkeys"]],
-            [ValueSeqNum(s) for s in j["local_seqs"]],
-            [ValueSeqNum(s) for s in j["network_seqs"]],
+            [(ValueSeqNum(s) if s is not None else None) for s in j["local_seqs"] ],
+            [(ValueSeqNum(s) if s is not None else None) for s in j["network_seqs"] ],
         )
 
     def to_json(self) -> dict:

@@ -10,7 +10,8 @@ part 'veilid_config.g.dart';
 //////////////////////////////////////////////////////////
 // FFI Platform-specific config
 @freezed
-class VeilidFFIConfigLoggingTerminal with _$VeilidFFIConfigLoggingTerminal {
+sealed class VeilidFFIConfigLoggingTerminal
+    with _$VeilidFFIConfigLoggingTerminal {
   const factory VeilidFFIConfigLoggingTerminal({
     required bool enabled,
     required VeilidConfigLogLevel level,
@@ -22,7 +23,7 @@ class VeilidFFIConfigLoggingTerminal with _$VeilidFFIConfigLoggingTerminal {
 }
 
 @freezed
-class VeilidFFIConfigLoggingOtlp with _$VeilidFFIConfigLoggingOtlp {
+sealed class VeilidFFIConfigLoggingOtlp with _$VeilidFFIConfigLoggingOtlp {
   const factory VeilidFFIConfigLoggingOtlp({
     required bool enabled,
     required VeilidConfigLogLevel level,
@@ -36,7 +37,7 @@ class VeilidFFIConfigLoggingOtlp with _$VeilidFFIConfigLoggingOtlp {
 }
 
 @freezed
-class VeilidFFIConfigLoggingApi with _$VeilidFFIConfigLoggingApi {
+sealed class VeilidFFIConfigLoggingApi with _$VeilidFFIConfigLoggingApi {
   const factory VeilidFFIConfigLoggingApi({
     required bool enabled,
     required VeilidConfigLogLevel level,
@@ -48,7 +49,7 @@ class VeilidFFIConfigLoggingApi with _$VeilidFFIConfigLoggingApi {
 }
 
 @freezed
-class VeilidFFIConfigLoggingFlame with _$VeilidFFIConfigLoggingFlame {
+sealed class VeilidFFIConfigLoggingFlame with _$VeilidFFIConfigLoggingFlame {
   const factory VeilidFFIConfigLoggingFlame({
     required bool enabled,
     required String path,
@@ -59,7 +60,7 @@ class VeilidFFIConfigLoggingFlame with _$VeilidFFIConfigLoggingFlame {
 }
 
 @freezed
-class VeilidFFIConfigLogging with _$VeilidFFIConfigLogging {
+sealed class VeilidFFIConfigLogging with _$VeilidFFIConfigLogging {
   const factory VeilidFFIConfigLogging(
       {required VeilidFFIConfigLoggingTerminal terminal,
       required VeilidFFIConfigLoggingOtlp otlp,
@@ -71,7 +72,7 @@ class VeilidFFIConfigLogging with _$VeilidFFIConfigLogging {
 }
 
 @freezed
-class VeilidFFIConfig with _$VeilidFFIConfig {
+sealed class VeilidFFIConfig with _$VeilidFFIConfig {
   const factory VeilidFFIConfig({
     required VeilidFFIConfigLogging logging,
   }) = _VeilidFFIConfig;
@@ -84,7 +85,7 @@ class VeilidFFIConfig with _$VeilidFFIConfig {
 // WASM Platform-specific config
 
 @freezed
-class VeilidWASMConfigLoggingPerformance
+sealed class VeilidWASMConfigLoggingPerformance
     with _$VeilidWASMConfigLoggingPerformance {
   const factory VeilidWASMConfigLoggingPerformance({
     required bool enabled,
@@ -100,7 +101,7 @@ class VeilidWASMConfigLoggingPerformance
 }
 
 @freezed
-class VeilidWASMConfigLoggingApi with _$VeilidWASMConfigLoggingApi {
+sealed class VeilidWASMConfigLoggingApi with _$VeilidWASMConfigLoggingApi {
   const factory VeilidWASMConfigLoggingApi({
     required bool enabled,
     required VeilidConfigLogLevel level,
@@ -112,7 +113,7 @@ class VeilidWASMConfigLoggingApi with _$VeilidWASMConfigLoggingApi {
 }
 
 @freezed
-class VeilidWASMConfigLogging with _$VeilidWASMConfigLogging {
+sealed class VeilidWASMConfigLogging with _$VeilidWASMConfigLogging {
   const factory VeilidWASMConfigLogging(
       {required VeilidWASMConfigLoggingPerformance performance,
       required VeilidWASMConfigLoggingApi api}) = _VeilidWASMConfigLogging;
@@ -122,7 +123,7 @@ class VeilidWASMConfigLogging with _$VeilidWASMConfigLogging {
 }
 
 @freezed
-class VeilidWASMConfig with _$VeilidWASMConfig {
+sealed class VeilidWASMConfig with _$VeilidWASMConfig {
   const factory VeilidWASMConfig({
     required VeilidWASMConfigLogging logging,
   }) = _VeilidWASMConfig;
@@ -151,7 +152,7 @@ enum VeilidConfigLogLevel {
 /// VeilidConfig
 
 @freezed
-class VeilidConfigHTTPS with _$VeilidConfigHTTPS {
+sealed class VeilidConfigHTTPS with _$VeilidConfigHTTPS {
   const factory VeilidConfigHTTPS({
     required bool enabled,
     required String listenAddress,
@@ -166,7 +167,7 @@ class VeilidConfigHTTPS with _$VeilidConfigHTTPS {
 ////////////
 
 @freezed
-class VeilidConfigHTTP with _$VeilidConfigHTTP {
+sealed class VeilidConfigHTTP with _$VeilidConfigHTTP {
   const factory VeilidConfigHTTP({
     required bool enabled,
     required String listenAddress,
@@ -181,7 +182,7 @@ class VeilidConfigHTTP with _$VeilidConfigHTTP {
 ////////////
 
 @freezed
-class VeilidConfigApplication with _$VeilidConfigApplication {
+sealed class VeilidConfigApplication with _$VeilidConfigApplication {
   const factory VeilidConfigApplication({
     required VeilidConfigHTTPS https,
     required VeilidConfigHTTP http,
@@ -193,7 +194,7 @@ class VeilidConfigApplication with _$VeilidConfigApplication {
 
 ////////////
 @freezed
-class VeilidConfigUDP with _$VeilidConfigUDP {
+sealed class VeilidConfigUDP with _$VeilidConfigUDP {
   const factory VeilidConfigUDP(
       {required bool enabled,
       required int socketPoolSize,
@@ -206,7 +207,7 @@ class VeilidConfigUDP with _$VeilidConfigUDP {
 
 ////////////
 @freezed
-class VeilidConfigTCP with _$VeilidConfigTCP {
+sealed class VeilidConfigTCP with _$VeilidConfigTCP {
   const factory VeilidConfigTCP(
       {required bool connect,
       required bool listen,
@@ -220,7 +221,7 @@ class VeilidConfigTCP with _$VeilidConfigTCP {
 
 ////////////
 @freezed
-class VeilidConfigWS with _$VeilidConfigWS {
+sealed class VeilidConfigWS with _$VeilidConfigWS {
   const factory VeilidConfigWS(
       {required bool connect,
       required bool listen,
@@ -235,7 +236,7 @@ class VeilidConfigWS with _$VeilidConfigWS {
 
 ////////////
 @freezed
-class VeilidConfigWSS with _$VeilidConfigWSS {
+sealed class VeilidConfigWSS with _$VeilidConfigWSS {
   const factory VeilidConfigWSS(
       {required bool connect,
       required bool listen,
@@ -251,7 +252,7 @@ class VeilidConfigWSS with _$VeilidConfigWSS {
 ////////////
 
 @freezed
-class VeilidConfigProtocol with _$VeilidConfigProtocol {
+sealed class VeilidConfigProtocol with _$VeilidConfigProtocol {
   const factory VeilidConfigProtocol({
     required VeilidConfigUDP udp,
     required VeilidConfigTCP tcp,
@@ -266,7 +267,7 @@ class VeilidConfigProtocol with _$VeilidConfigProtocol {
 ////////////
 
 @freezed
-class VeilidConfigTLS with _$VeilidConfigTLS {
+sealed class VeilidConfigTLS with _$VeilidConfigTLS {
   const factory VeilidConfigTLS({
     required String certificatePath,
     required String privateKeyPath,
@@ -279,7 +280,7 @@ class VeilidConfigTLS with _$VeilidConfigTLS {
 
 ////////////
 @freezed
-class VeilidConfigDHT with _$VeilidConfigDHT {
+sealed class VeilidConfigDHT with _$VeilidConfigDHT {
   const factory VeilidConfigDHT({
     required int resolveNodeTimeoutMs,
     required int resolveNodeCount,
@@ -312,7 +313,7 @@ class VeilidConfigDHT with _$VeilidConfigDHT {
 ////////////
 
 @freezed
-class VeilidConfigRPC with _$VeilidConfigRPC {
+sealed class VeilidConfigRPC with _$VeilidConfigRPC {
   const factory VeilidConfigRPC(
       {required int concurrency,
       required int queueSize,
@@ -329,7 +330,7 @@ class VeilidConfigRPC with _$VeilidConfigRPC {
 ////////////
 
 @freezed
-class VeilidConfigRoutingTable with _$VeilidConfigRoutingTable {
+sealed class VeilidConfigRoutingTable with _$VeilidConfigRoutingTable {
   const factory VeilidConfigRoutingTable({
     required List<TypedKey> nodeId,
     required List<TypedSecret> nodeIdSecret,
@@ -348,7 +349,7 @@ class VeilidConfigRoutingTable with _$VeilidConfigRoutingTable {
 ////////////
 
 @freezed
-class VeilidConfigNetwork with _$VeilidConfigNetwork {
+sealed class VeilidConfigNetwork with _$VeilidConfigNetwork {
   const factory VeilidConfigNetwork({
     required int connectionInitialTimeoutMs,
     required int connectionInactivityTimeoutMs,
@@ -378,7 +379,7 @@ class VeilidConfigNetwork with _$VeilidConfigNetwork {
 ////////////
 
 @freezed
-class VeilidConfigTableStore with _$VeilidConfigTableStore {
+sealed class VeilidConfigTableStore with _$VeilidConfigTableStore {
   const factory VeilidConfigTableStore({
     required String directory,
     required bool delete,
@@ -391,7 +392,7 @@ class VeilidConfigTableStore with _$VeilidConfigTableStore {
 ////////////
 
 @freezed
-class VeilidConfigBlockStore with _$VeilidConfigBlockStore {
+sealed class VeilidConfigBlockStore with _$VeilidConfigBlockStore {
   const factory VeilidConfigBlockStore({
     required String directory,
     required bool delete,
@@ -404,7 +405,7 @@ class VeilidConfigBlockStore with _$VeilidConfigBlockStore {
 ////////////
 
 @freezed
-class VeilidConfigProtectedStore with _$VeilidConfigProtectedStore {
+sealed class VeilidConfigProtectedStore with _$VeilidConfigProtectedStore {
   const factory VeilidConfigProtectedStore(
       {required bool allowInsecureFallback,
       required bool alwaysUseInsecureStorage,
@@ -420,7 +421,7 @@ class VeilidConfigProtectedStore with _$VeilidConfigProtectedStore {
 ////////////
 
 @freezed
-class VeilidConfigCapabilities with _$VeilidConfigCapabilities {
+sealed class VeilidConfigCapabilities with _$VeilidConfigCapabilities {
   const factory VeilidConfigCapabilities({
     required List<String> disable,
   }) = _VeilidConfigCapabilities;
@@ -432,7 +433,7 @@ class VeilidConfigCapabilities with _$VeilidConfigCapabilities {
 ////////////
 
 @freezed
-class VeilidConfig with _$VeilidConfig {
+sealed class VeilidConfig with _$VeilidConfig {
   const factory VeilidConfig({
     required String programName,
     required String namespace,

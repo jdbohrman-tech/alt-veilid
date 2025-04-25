@@ -7,7 +7,7 @@ import os
 
 import veilid
 from veilid import ValueSubkey, Timestamp, SafetySelection
-from veilid.types import VeilidJSONEncoder
+from veilid.types import ValueSeqNum, VeilidJSONEncoder
 
 ##################################################################
 BOGUS_KEY = veilid.TypedKey.from_value(
@@ -118,8 +118,8 @@ async def test_set_get_dht_value_with_owner(api_connection: veilid.VeilidAPI):
         vd4 = await rc.get_dht_value(rec.key, ValueSubkey(1), False)
         assert vd4 is None
 
-        print("vd2: {}", vd2.__dict__)
-        print("vd3: {}", vd3.__dict__)
+        #print("vd2: {}", vd2.__dict__)
+        #print("vd3: {}", vd3.__dict__)
 
         assert vd2 == vd3
 
@@ -135,7 +135,7 @@ async def test_open_writer_dht_value(api_connection: veilid.VeilidAPI):
         key = rec.key
         owner = rec.owner
         secret = rec.owner_secret
-        print(f"key:{key}")
+        #print(f"key:{key}")
 
         cs = await api_connection.get_crypto_system(rec.key.kind())
         async with cs:
@@ -237,6 +237,14 @@ async def test_open_writer_dht_value(api_connection: veilid.VeilidAPI):
             await rc.set_dht_value(key, ValueSubkey(0), va)
 
         # Verify subkey 0 can be set because override with the right writer
+        # Should have prior sequence number as its returned value because it exists online at seq 0
+        vdtemp = await rc.set_dht_value(key, ValueSubkey(0), va, veilid.KeyPair.from_parts(owner, secret))
+        assert vdtemp is not None
+        assert vdtemp.data == vb
+        assert vdtemp.seq == 0
+        assert vdtemp.writer == owner
+
+        # Should update the second time to seq 1
         vdtemp = await rc.set_dht_value(key, ValueSubkey(0), va, veilid.KeyPair.from_parts(owner, secret))
         assert vdtemp is None
 
@@ -297,7 +305,7 @@ async def test_watch_dht_values():
             await sync(rc0, [rec0])
 
             # Server 0: Make a watch on all the subkeys
-            active = await rc0.watch_dht_values(rec0.key, [], Timestamp(0), 0xFFFFFFFF)
+            active = await rc0.watch_dht_values(rec0.key)
             assert active
 
             # Server 1: Open the subkey
@@ -462,7 +470,7 @@ async def test_watch_many_dht_values():
                 assert vd is None
 
                 # Server 0: Make a watch on all the subkeys
-                active = await rc0.watch_dht_values(records[n].key, [], Timestamp(0), 0xFFFFFFFF)
+                active = await rc0.watch_dht_values(records[n].key)
                 assert active
 
             # Open and set all records
@@ -516,16 +524,18 @@ async def test_inspect_dht_record(api_connection: veilid.VeilidAPI):
         assert vd is None
 
         rr = await rc.inspect_dht_record(rec.key, [], veilid.DHTReportScope.LOCAL)
-        print("rr: {}", rr.__dict__)
-        assert rr.subkeys == [(0,1)]
-        assert rr.local_seqs == [0, 0xFFFFFFFF]
-        assert rr.network_seqs == []
+        #print("rr: {}", rr.__dict__)
+        assert rr.subkeys == [(0, 1)]
+        assert rr.local_seqs == [0, None]
+        assert rr.network_seqs == [None, None]
+
+        await sync(rc, [rec])
 
         rr2 = await rc.inspect_dht_record(rec.key, [], veilid.DHTReportScope.SYNC_GET)
-        print("rr2: {}", rr2.__dict__)
-        assert rr2.subkeys == [(0,1)]
-        assert rr2.local_seqs == [0, 0xFFFFFFFF]
-        assert rr2.network_seqs == [0, 0xFFFFFFFF]
+        #print("rr2: {}", rr2.__dict__)
+        assert rr2.subkeys == [(0, 1)]
+        assert rr2.local_seqs == [0, None]
+        assert rr2.network_seqs == [0, None]
 
         await rc.close_dht_record(rec.key)
         await rc.delete_dht_record(rec.key)
@@ -932,7 +942,7 @@ async def sync_win(
             if key is not None:
                 futurerecords.remove(key)
 
-                if len(rr.subkeys) == 1 and rr.subkeys[0] == (0, subkey_count-1) and veilid.ValueSeqNum.NONE not in rr.local_seqs and len(rr.offline_subkeys) == 0:
+                if len(rr.subkeys) == 1 and rr.subkeys[0] == (0, subkey_count-1) and None not in rr.local_seqs and len(rr.offline_subkeys) == 0:
                     if key in recordreports:
                         del recordreports[key]
                     donerecords.add(key)
@@ -959,7 +969,7 @@ async def sync_win(
                 win.addstr(n+2, 1, " " * subkey_count, curses.color_pair(1))
                 for (a,b) in rr.subkeys:
                     for m in range(a, b+1):
-                        if rr.local_seqs[m] != veilid.ValueSeqNum.NONE:
+                        if rr.local_seqs[m] != None:
                             win.addstr(n+2, m+1, " ", curses.color_pair(2))
                 for (a,b) in rr.offline_subkeys:
                     win.addstr(n+2, a+1, " " * (b-a+1), curses.color_pair(3))

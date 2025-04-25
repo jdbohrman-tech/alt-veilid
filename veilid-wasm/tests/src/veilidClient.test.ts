@@ -5,8 +5,8 @@ import {
   veilidCoreStartupConfig,
 } from './utils/veilid-config';
 
-import { VeilidState, veilidClient } from 'veilid-wasm';
-import { asyncCallWithTimeout, waitForPublicAttachment } from './utils/wait-utils';
+import { VeilidState, veilidClient } from '../../pkg/veilid_wasm';
+import { asyncCallWithTimeout, waitForDetached, waitForPublicAttachment } from './utils/wait-utils';
 
 describe('veilidClient', function () {
   before('veilid startup', async function () {
@@ -45,16 +45,17 @@ describe('veilidClient', function () {
     await veilidClient.attach();
     await asyncCallWithTimeout(waitForPublicAttachment(), 10000);
     await veilidClient.detach();
+    await asyncCallWithTimeout(waitForDetached(), 10000);
   });
 
   describe('kitchen sink', function () {
     before('attach', async function () {
       await veilidClient.attach();
-      await waitForPublicAttachment();
-
+      await asyncCallWithTimeout(waitForPublicAttachment(), 10000);
     });
     after('detach', async function () {
       await veilidClient.detach();
+      await asyncCallWithTimeout(waitForDetached(), 10000);
     });
 
     let state: VeilidState;

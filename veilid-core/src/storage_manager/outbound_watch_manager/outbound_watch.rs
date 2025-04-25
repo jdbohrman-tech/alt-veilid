@@ -4,6 +4,9 @@ impl_veilid_log_facility!("stor");
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(in crate::storage_manager) struct OutboundWatch {
+    /// Record key being watched
+    record_key: TypedKey,
+
     /// Current state
     /// None means inactive/cancelled
     state: Option<OutboundWatchState>,
@@ -34,12 +37,14 @@ impl fmt::Display for OutboundWatch {
 
 impl OutboundWatch {
     /// Create new outbound watch with desired parameters
-    pub fn new(desired: OutboundWatchParameters) -> Self {
+    pub fn new(record_key: TypedKey, desired: OutboundWatchParameters) -> Self {
         Self {
+            record_key,
             state: None,
             desired: Some(desired),
         }
     }
+
     /// Get current watch state if it exists
     pub fn state(&self) -> Option<&OutboundWatchState> {
         self.state.as_ref()
@@ -107,7 +112,7 @@ impl OutboundWatch {
     /// Returns true if this outbound watch needs to be cancelled
     pub fn needs_cancel(&self, registry: &VeilidComponentRegistry) -> bool {
         if self.is_dead() {
-            veilid_log!(registry warn "should have checked for is_dead first");
+            veilid_log!(registry warn "Should have checked for is_dead first");
             return false;
         }
 
@@ -118,6 +123,7 @@ impl OutboundWatch {
 
         // If the desired parameters is None then cancel
         let Some(_desired) = self.desired.as_ref() else {
+            veilid_log!(registry debug target: "dht", "OutboundWatch({}): needs_cancel because desired is None", self.record_key);
             return true;
         };
 
@@ -132,7 +138,7 @@ impl OutboundWatch {
         cur_ts: Timestamp,
     ) -> bool {
         if self.is_dead() || self.needs_cancel(registry) {
-            veilid_log!(registry warn "should have checked for is_dead and needs_cancel first");
+            veilid_log!(registry warn "Should have checked for is_dead and needs_cancel first");
             return false;
         }
 
@@ -156,11 +162,17 @@ impl OutboundWatch {
         // If we have a consensus but need to renew because some per-node watches
         // either expired or had their routes die, do it
         if self.wants_per_node_watch_update(registry, state, cur_ts) {
+            veilid_log!(registry debug target: "dht", "OutboundWatch({}): needs_renew because per_node_watch wants update", self.record_key);
             return true;
         }
 
         // If the desired parameters have changed, then we should renew with them
-        state.params() != desired
+        if state.params() != desired {
+            veilid_log!(registry debug target: "dht", "OutboundWatch({}): needs_renew because desired params have changed: {} != {}", self.record_key, state.params(), desired);
+            return true;
+        }
+
+        false
     }
 
     /// Returns true if there is work to be done on getting the outbound
@@ -175,7 +187,7 @@ impl OutboundWatch {
             || self.needs_cancel(registry)
             || self.needs_renew(registry, consensus_count, cur_ts)
         {
-            veilid_log!(registry warn "should have checked for is_dead, needs_cancel, needs_renew first");
+            veilid_log!(registry warn "Should have checked for is_dead, needs_cancel, needs_renew first");
             return false;
         }
 
@@ -187,6 +199,7 @@ impl OutboundWatch {
 
         // If there is a desired watch but no current state, then reconcile
         let Some(state) = self.state() else {
+            veilid_log!(registry debug target: "dht", "OutboundWatch({}): needs_reconcile because state is empty", self.record_key);
             return true;
         };
 
@@ -195,13 +208,17 @@ impl OutboundWatch {
         if state.nodes().len() < consensus_count
             && cur_ts >= state.next_reconcile_ts().unwrap_or_default()
         {
+            veilid_log!(registry debug target: "dht", "OutboundWatch({}): needs_reconcile because consensus count is too low {} < {}", self.record_key, state.nodes().len(), consensus_count);
             return true;
         }
 
         // Try to reconcile if our number of nodes currently is less than what we got from
         // the previous reconciliation attempt
         if let Some(last_consensus_node_count) = state.last_consensus_node_count() {
-            if state.nodes().len() < last_consensus_node_count {
+            if state.nodes().len() < last_consensus_node_count
+                && state.nodes().len() < consensus_count
+            {
+                veilid_log!(registry debug target: "dht", "OutboundWatch({}): needs_reconcile because node count is less than last consensus {} < {}", self.record_key, state.nodes().len(), last_consensus_node_count);
                 return true;
             }
         }
@@ -209,11 +226,17 @@ impl OutboundWatch {
         // If we have a consensus, or are not attempting consensus at this time,
         // but need to reconcile because some per-node watches either expired or had their routes die, do it
         if self.wants_per_node_watch_update(registry, state, cur_ts) {
+            veilid_log!(registry debug target: "dht", "OutboundWatch({}): needs_reconcile because per_node_watch wants update", self.record_key);
             return true;
         }
 
         // If the desired parameters have changed, then we should reconcile with them
-        state.params() != desired
+        if state.params() != desired {
+            veilid_log!(registry debug target: "dht", "OutboundWatch({}): needs_reconcile because desired params have changed: {} != {}", self.record_key, state.params(), desired);
+            return true;
+        }
+
+        false
     }
 
     /// Returns true if we need to update our per-node watches due to expiration,
@@ -233,6 +256,7 @@ impl OutboundWatch {
             && (state.params().expiration_ts.as_u64() == 0
                 || renew_ts < state.params().expiration_ts)
         {
+            veilid_log!(registry debug target: "dht", "OutboundWatch({}): wants_per_node_watch_update because cur_ts is in expiration renew window", self.record_key);
             return true;
         }
 
@@ -244,6 +268,7 @@ impl OutboundWatch {
         for vcr in state.value_changed_routes() {
             if rss.get_route_id_for_key(vcr).is_none() {
                 // Route we would receive value changes on is dead
+                veilid_log!(registry debug target: "dht", "OutboundWatch({}): wants_per_node_watch_update because route is dead: {}", self.record_key, vcr);
                 return true;
             }
         }

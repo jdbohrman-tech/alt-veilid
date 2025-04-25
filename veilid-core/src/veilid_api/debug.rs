@@ -1902,7 +1902,7 @@ impl VeilidAPI {
 
         let (key, rc) =
             self.clone()
-                .get_opened_dht_record_context(&args, "debug_record_watch", "key", 1)?;
+                .get_opened_dht_record_context(&args, "debug_record_inspect", "key", 1)?;
 
         let mut rest_defaults = false;
 
@@ -1947,6 +1947,62 @@ impl VeilidAPI {
         Ok(format!("Success: report={:?}", report))
     }
 
+    async fn debug_record_rehydrate(&self, args: Vec<String>) -> VeilidAPIResult<String> {
+        let registry = self.core_context()?.registry();
+        let storage_manager = registry.storage_manager();
+
+        let key = get_debug_argument_at(
+            &args,
+            1,
+            "debug_record_rehydrate",
+            "key",
+            get_dht_key_no_safety,
+        )?;
+
+        let mut rest_defaults = false;
+
+        let subkeys = if rest_defaults {
+            None
+        } else {
+            get_debug_argument_at(&args, 2, "debug_record_rehydrate", "subkeys", get_subkeys)
+                .inspect_err(|_| {
+                    rest_defaults = true;
+                })
+                .ok()
+        };
+
+        let consensus_count = if rest_defaults {
+            None
+        } else {
+            get_debug_argument_at(
+                &args,
+                3,
+                "debug_record_rehydrate",
+                "consensus_count",
+                get_number,
+            )
+            .inspect_err(|_| {
+                rest_defaults = true;
+            })
+            .ok()
+        };
+
+        // Do a record rehydrate
+        storage_manager
+            .add_rehydration_request(
+                key,
+                subkeys.unwrap_or_default(),
+                consensus_count.unwrap_or_else(|| {
+                    registry
+                        .config()
+                        .with(|c| c.network.dht.get_value_count as usize)
+                }),
+            )
+            .await;
+
+        Ok("Request added".to_owned())
+    }
+
     async fn debug_record(&self, args: String) -> VeilidAPIResult<String> {
         let args: Vec<String> =
             shell_words::split(&args).map_err(|e| VeilidAPIError::parse_error(e, args))?;
@@ -1977,6 +2033,8 @@ impl VeilidAPI {
             self.debug_record_cancel(args).await
         } else if command == "inspect" {
             self.debug_record_inspect(args).await
+        } else if command == "rehydrate" {
+            self.debug_record_rehydrate(args).await
         } else {
             Ok(">>> Unknown command\n".to_owned())
         }
@@ -2144,6 +2202,7 @@ DHT Operations:
            watch [<key>] [<subkeys> [<expiration> [<count>]]] - watch a record for changes
            cancel [<key>] [<subkeys>] - cancel a dht record watch
            inspect [<key>] [<scope> [<subkeys>]] - display a dht record's subkey status
+           rehydrate <key> [<subkeys>] [<consensus count>] - send a dht record's expired local data back to the network
 
 TableDB Operations:
     table list - list the names of all the tables in the TableDB
