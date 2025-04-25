@@ -263,7 +263,7 @@ impl StorageManager {
                         let disposition = if wva.answer.accepted {
                             if wva.answer.expiration_ts.as_u64() > 0 {
                                 // If the expiration time is greater than zero this watch is active
-                                veilid_log!(registry debug "WatchValue accepted for {}: id={} expiration_ts={} ({})", record_key, wva.answer.watch_id, display_ts(wva.answer.expiration_ts.as_u64()), next_node);
+                                veilid_log!(registry debug target:"dht", "WatchValue accepted for {}: id={} expiration_ts={} ({})", record_key, wva.answer.watch_id, display_ts(wva.answer.expiration_ts.as_u64()), next_node);
 
                                 // Add to accepted watches
                                 let mut ctx = context.lock();
@@ -279,7 +279,7 @@ impl StorageManager {
                                 // If the returned expiration time is zero, this watch was cancelled
 
                                 // If the expiration time is greater than zero this watch is active
-                                veilid_log!(registry debug "WatchValue rejected for {}: id={} expiration_ts={} ({})", record_key, wva.answer.watch_id, display_ts(wva.answer.expiration_ts.as_u64()), next_node);
+                                veilid_log!(registry debug target:"dht", "WatchValue rejected for {}: id={} expiration_ts={} ({})", record_key, wva.answer.watch_id, display_ts(wva.answer.expiration_ts.as_u64()), next_node);
 
                                 // Add to rejected watches
                                 let mut ctx = context.lock();
@@ -344,10 +344,10 @@ impl StorageManager {
 
         let fanout_result = fanout_call.run(init_fanout_queue).await.inspect_err(|e| {
             // If we finished with an error, return that
-            veilid_log!(self debug "WatchValue fanout error: {}", e);
+            veilid_log!(self debug target:"dht", "WatchValue fanout error: {}", e);
         })?;
 
-        veilid_log!(self debug "WatchValue Fanout: {:#}", fanout_result);
+        veilid_log!(self debug target:"dht", "WatchValue Fanout: {:#}", fanout_result);
 
         // Get cryptosystem
         let crypto = self.crypto();
@@ -476,7 +476,7 @@ impl StorageManager {
                     cancelled.push(pnk);
                 }
                 Err(e) => {
-                    veilid_log!(self debug "outbound watch cancel error: {}", e);
+                    veilid_log!(self debug "Outbound watch cancel error: {}", e);
 
                     // xxx should do something different for network unreachable vs host unreachable
                     // Leave in the 'per node states' for now because we couldn't contact the node
@@ -604,7 +604,7 @@ impl StorageManager {
                     };
                 }
                 Err(e) => {
-                    veilid_log!(self debug "outbound watch change error: {}", e);
+                    veilid_log!(self debug "Outbound watch change error: {}", e);
                 }
             }
         }
@@ -718,7 +718,7 @@ impl StorageManager {
                     });
                 }
                 Err(e) => {
-                    veilid_log!(self debug "outbound watch fanout error: {}", e);
+                    veilid_log!(self debug "Outbound watch fanout error: {}", e);
                 }
             }
 
@@ -742,11 +742,11 @@ impl StorageManager {
             .outbound_watches
             .get_mut(&record_key)
         else {
-            veilid_log!(self warn "outbound watch should have still been in the table");
+            veilid_log!(self warn "Outbound watch should have still been in the table");
             return;
         };
         let Some(desired) = outbound_watch.desired() else {
-            veilid_log!(self warn "watch with result should have desired params");
+            veilid_log!(self warn "Watch with result should have desired params");
             return;
         };
 
@@ -852,6 +852,10 @@ impl StorageManager {
             .config()
             .with(|c| c.network.dht.get_value_count as usize);
 
+        // Operate on this watch only if it isn't already being operated on
+        let watch_lock =
+            opt_watch_lock.or_else(|| self.outbound_watch_lock_table.try_lock_tag(key))?;
+
         // Terminate the 'desired' params for watches
         // that have no remaining count or have expired
         outbound_watch.try_expire_desired_state(cur_ts);
@@ -859,9 +863,6 @@ impl StorageManager {
         // Check states
         if outbound_watch.is_dead() {
             // Outbound watch is dead
-            let watch_lock =
-                opt_watch_lock.or_else(|| self.outbound_watch_lock_table.try_lock_tag(key))?;
-
             let fut = {
                 let registry = self.registry();
                 async move {
@@ -874,9 +875,6 @@ impl StorageManager {
             return Some(pin_dyn_future!(fut));
         } else if outbound_watch.needs_cancel(&registry) {
             // Outbound watch needs to be cancelled
-            let watch_lock =
-                opt_watch_lock.or_else(|| self.outbound_watch_lock_table.try_lock_tag(key))?;
-
             let fut = {
                 let registry = self.registry();
                 async move {
@@ -889,9 +887,6 @@ impl StorageManager {
             return Some(pin_dyn_future!(fut));
         } else if outbound_watch.needs_renew(&registry, consensus_count, cur_ts) {
             // Outbound watch expired but can be renewed
-            let watch_lock =
-                opt_watch_lock.or_else(|| self.outbound_watch_lock_table.try_lock_tag(key))?;
-
             let fut = {
                 let registry = self.registry();
                 async move {
@@ -904,9 +899,6 @@ impl StorageManager {
             return Some(pin_dyn_future!(fut));
         } else if outbound_watch.needs_reconcile(&registry, consensus_count, cur_ts) {
             // Outbound watch parameters have changed or it needs more nodes
-            let watch_lock =
-                opt_watch_lock.or_else(|| self.outbound_watch_lock_table.try_lock_tag(key))?;
-
             let fut = {
                 let registry = self.registry();
                 async move {
@@ -944,12 +936,12 @@ impl StorageManager {
                         return;
                     }
                 };
-                let mut changed_subkeys = report.changed_subkeys();
+                let mut newer_online_subkeys = report.newer_online_subkeys();
 
                 // Get changed first changed subkey until we find one to report
                 let mut n = 0;
-                while !changed_subkeys.is_empty() {
-                    let first_changed_subkey = changed_subkeys.first().unwrap();
+                while !newer_online_subkeys.is_empty() {
+                    let first_changed_subkey = newer_online_subkeys.first().unwrap();
 
                     let value = match this.get_value(record_key, first_changed_subkey, true).await {
                         Ok(v) => v,
@@ -960,7 +952,8 @@ impl StorageManager {
                     };
 
                     if let Some(value) = value {
-                        if value.seq() > report.local_seqs()[n] {
+                        let opt_local_seq = report.local_seqs()[n];
+                        if opt_local_seq.is_none() || value.seq() > opt_local_seq.unwrap() {
                             // Calculate the update
                             let (changed_subkeys, remaining_count, value) = {
                                 let _watch_lock =
@@ -991,7 +984,7 @@ impl StorageManager {
                                     },
                                 );
 
-                                (changed_subkeys, remaining_count, value)
+                                (newer_online_subkeys, remaining_count, value)
                             };
 
                             // Send the update
@@ -1008,7 +1001,7 @@ impl StorageManager {
                     }
 
                     // If we didn't send an update, remove the first changed subkey and try again
-                    changed_subkeys.pop_first();
+                    newer_online_subkeys.pop_first();
                     n += 1;
                 }
             }
@@ -1111,14 +1104,14 @@ impl StorageManager {
                     inner.outbound_watch_manager.per_node_states.get_mut(&pnk)
                 else {
                     // No per node state means no callback
-                    veilid_log!(self warn "missing per node state in outbound watch: {:?}", pnk);
+                    veilid_log!(self warn "Missing per node state in outbound watch: {:?}", pnk);
                     return Ok(NetworkResult::value(()));
                 };
 
                 // If watch id doesn't match it's for an older watch and should be ignored
                 if per_node_state.watch_id != watch_id {
                     // No per node state means no callback
-                    veilid_log!(self warn "incorrect watch id for per node state in outbound watch: {:?} {} != {}", pnk, per_node_state.watch_id, watch_id);
+                    veilid_log!(self warn "Incorrect watch id for per node state in outbound watch: {:?} {} != {}", pnk, per_node_state.watch_id, watch_id);
                     return Ok(NetworkResult::value(()));
                 }
 
@@ -1127,7 +1120,7 @@ impl StorageManager {
                     // If count is greater than our requested count then this is invalid, cancel the watch
                     // XXX: Should this be a punishment?
                     veilid_log!(self debug
-                        "watch count went backward: {} @ {} id={}: {} > {}",
+                        "Watch count went backward: {} @ {} id={}: {} > {}",
                         record_key,
                         inbound_node_id,
                         watch_id,
@@ -1143,7 +1136,7 @@ impl StorageManager {
                     // Log this because watch counts should always be decrementing non a per-node basis.
                     // XXX: Should this be a punishment?
                     veilid_log!(self debug
-                        "watch count duplicate: {} @ {} id={}: {} == {}",
+                        "Watch count duplicate: {} @ {} id={}: {} == {}",
                         record_key,
                         inbound_node_id,
                         watch_id,
@@ -1153,7 +1146,7 @@ impl StorageManager {
                 } else {
                     // Reduce the per-node watch count
                     veilid_log!(self debug
-                        "watch count decremented: {} @ {} id={}: {} < {}",
+                        "Watch count decremented: {} @ {} id={}: {} < {}",
                         record_key,
                         inbound_node_id,
                         watch_id,
@@ -1285,7 +1278,7 @@ impl StorageManager {
                 remaining_count,
                 Some(value),
             );
-        } else if reportable_subkeys.len() > 0 {
+        } else if !reportable_subkeys.is_empty() {
             // We have subkeys that have be reported as possibly changed
             // but not a specific record reported, so we should defer reporting and
             // inspect the range to see what changed

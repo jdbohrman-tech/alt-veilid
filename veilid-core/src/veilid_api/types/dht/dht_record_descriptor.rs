@@ -26,7 +26,7 @@ pub struct DHTRecordDescriptor {
 from_impl_to_jsvalue!(DHTRecordDescriptor);
 
 impl DHTRecordDescriptor {
-    pub fn new(
+    pub(crate) fn new(
         key: TypedKey,
         owner: PublicKey,
         owner_secret: Option<SecretKey>,

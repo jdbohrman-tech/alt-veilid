@@ -19,7 +19,7 @@ pub type ValueSubkey = u32;
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
 pub type ValueSeqNum = u32;
 
-pub(crate) fn debug_seqs(seqs: &[ValueSeqNum]) -> String {
+pub(crate) fn debug_seqs(seqs: &[Option<ValueSeqNum>]) -> String {
     let mut col = 0;
     let mut out = String::new();
     let mut left = seqs.len();
@@ -27,10 +27,10 @@ pub(crate) fn debug_seqs(seqs: &[ValueSeqNum]) -> String {
         if col == 0 {
             out += "    ";
         }
-        let sc = if *s == ValueSeqNum::MAX {
-            "-".to_owned()
-        } else {
+        let sc = if let Some(s) = s {
             s.to_string()
+        } else {
+            "-".to_owned()
         };
         out += &sc;
         out += ",";

@@ -28,7 +28,7 @@ impl DescriptorInfo {
 /// Info tracked per subkey
 struct SubkeySeqCount {
     /// The newest sequence number found for a subkey
-    pub seq: ValueSeqNum,
+    pub seq: Option<ValueSeqNum>,
     /// The set of nodes that had the most recent value for this subkey
     pub consensus_nodes: Vec<NodeRef>,
     /// The set of nodes that had any value for this subkey
@@ -44,6 +44,7 @@ struct OutboundInspectValueContext {
 }
 
 /// The result of the outbound_get_value operation
+#[derive(Debug, Clone)]
 pub(super) struct OutboundInspectValueResult {
     /// Fanout results for each subkey
     pub subkey_fanout_results: Vec<FanoutResult>,
@@ -56,13 +57,14 @@ impl StorageManager {
     #[instrument(level = "trace", target = "dht", skip_all, err)]
     pub(super) async fn outbound_inspect_value(
         &self,
-        key: TypedKey,
+        record_key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
         safety_selection: SafetySelection,
         local_inspect_result: InspectResult,
         use_set_scope: bool,
     ) -> VeilidAPIResult<OutboundInspectValueResult> {
         let routing_domain = RoutingDomain::PublicInternet;
+        let requested_subkeys = subkeys.clone();
 
         // Get the DHT parameters for 'InspectValue'
         // Can use either 'get scope' or 'set scope' depending on the purpose of the inspection
@@ -86,7 +88,7 @@ impl StorageManager {
 
         // Get the nodes we know are caching this value to seed the fanout
         let init_fanout_queue = {
-            self.get_value_nodes(key)
+            self.get_value_nodes(record_key)
                 .await?
                 .unwrap_or_default()
                 .into_iter()
@@ -99,16 +101,16 @@ impl StorageManager {
         };
 
         // Make do-inspect-value answer context
-        let opt_descriptor_info = if let Some(descriptor) = &local_inspect_result.opt_descriptor {
+        let opt_descriptor_info = if let Some(descriptor) = local_inspect_result.opt_descriptor() {
             // Get the descriptor info. This also truncates the subkeys list to what can be returned from the network.
-            Some(DescriptorInfo::new(descriptor.clone(), &subkeys)?)
+            Some(DescriptorInfo::new(descriptor, &subkeys)?)
         } else {
             None
         };
 
         let context = Arc::new(Mutex::new(OutboundInspectValueContext {
             seqcounts: local_inspect_result
-                .seqs
+                .seqs()
                 .iter()
                 .map(|s| SubkeySeqCount {
                     seq: *s,
@@ -127,7 +129,7 @@ impl StorageManager {
                 move |next_node: NodeRef| -> PinBoxFutureStatic<FanoutCallResult> {
                     let context = context.clone();
                     let registry = registry.clone();
-                    let opt_descriptor = local_inspect_result.opt_descriptor.clone();
+                    let opt_descriptor = local_inspect_result.opt_descriptor();
                     let subkeys = subkeys.clone();
                     Box::pin(async move {
                         let rpc_processor = registry.rpc_processor();
@@ -136,7 +138,7 @@ impl StorageManager {
                             rpc_processor
                                 .rpc_call_inspect_value(
                                     Destination::direct(next_node.routing_domain_filtered(routing_domain)).with_safety(safety_selection),
-                                    key,
+                                    record_key,
                                     subkeys.clone(),
                                     opt_descriptor.map(|x| (*x).clone()),
                                 )
@@ -237,13 +239,13 @@ impl StorageManager {
                                 // Then take that sequence number and note that we have gotten newer sequence numbers so we keep
                                 // looking for consensus
                                 // If the sequence number matches the old sequence number, then we keep the value node for reference later
-                                if answer_seq != ValueSeqNum::MAX {
-                                    if ctx_seqcnt.seq == ValueSeqNum::MAX || answer_seq > ctx_seqcnt.seq
+                                if let Some(answer_seq) = answer_seq {
+                                    if ctx_seqcnt.seq.is_none() || answer_seq > ctx_seqcnt.seq.unwrap()
                                     {
                                         // One node has shown us the latest sequence numbers so far
-                                        ctx_seqcnt.seq = answer_seq;
+                                        ctx_seqcnt.seq = Some(answer_seq);
                                         ctx_seqcnt.consensus_nodes = vec![next_node.clone()];
-                                    } else if answer_seq == ctx_seqcnt.seq {
+                                    } else if answer_seq == ctx_seqcnt.seq.unwrap() {
                                         // Keep the nodes that showed us the latest values
                                         ctx_seqcnt.consensus_nodes.push(next_node.clone());
                                     }
@@ -288,7 +290,7 @@ impl StorageManager {
         let routing_table = self.routing_table();
         let fanout_call = FanoutCall::new(
             &routing_table,
-            key,
+            record_key,
             key_count,
             fanout,
             consensus_count,
@@ -322,28 +324,41 @@ impl StorageManager {
             veilid_log!(self debug "InspectValue Fanout: {:#}:\n{}", fanout_result, debug_fanout_results(&subkey_fanout_results));
         }
 
-        Ok(OutboundInspectValueResult {
+        let result = OutboundInspectValueResult {
             subkey_fanout_results,
-            inspect_result: InspectResult {
-                subkeys: ctx
-                    .opt_descriptor_info
+            inspect_result: InspectResult::new(
+                self,
+                requested_subkeys,
+                "outbound_inspect_value",
+                ctx.opt_descriptor_info
                     .as_ref()
                     .map(|d| d.subkeys.clone())
                     .unwrap_or_default(),
-                seqs: ctx.seqcounts.iter().map(|cs| cs.seq).collect(),
-                opt_descriptor: ctx
-                    .opt_descriptor_info
+                ctx.seqcounts.iter().map(|cs| cs.seq).collect(),
+                ctx.opt_descriptor_info
                     .as_ref()
                     .map(|d| d.descriptor.clone()),
-            },
-        })
+            )?,
+        };
+
+        #[allow(clippy::unnecessary_cast)]
+        {
+            if result.inspect_result.subkeys().len() as u64
+                != result.subkey_fanout_results.len() as u64
+            {
+                veilid_log!(self error "mismatch between subkeys returned and fanout results returned: {}!={}", result.inspect_result.subkeys().len(), result.subkey_fanout_results.len());
+                apibail_internal!("subkey and fanout list length mismatched");
+            }
+        }
+
+        Ok(result)
     }
 
     /// Handle a received 'Inspect Value' query
     #[instrument(level = "trace", target = "dht", skip_all)]
     pub async fn inbound_inspect_value(
         &self,
-        key: TypedKey,
+        record_key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
         want_descriptor: bool,
     ) -> VeilidAPIResult<NetworkResult<InspectResult>> {
@@ -352,24 +367,25 @@ impl StorageManager {
         // See if this is a remote or local value
         let (_is_local, inspect_result) = {
             // See if the subkey we are getting has a last known local value
-            let mut local_inspect_result =
-                Self::handle_inspect_local_value_inner(&mut inner, key, subkeys.clone(), true)
-                    .await?;
+            let mut local_inspect_result = self
+                .handle_inspect_local_value_inner(&mut inner, record_key, subkeys.clone(), true)
+                .await?;
             // If this is local, it must have a descriptor already
-            if local_inspect_result.opt_descriptor.is_some() {
+            if local_inspect_result.opt_descriptor().is_some() {
                 if !want_descriptor {
-                    local_inspect_result.opt_descriptor = None;
+                    local_inspect_result.drop_descriptor();
                 }
                 (true, local_inspect_result)
             } else {
                 // See if the subkey we are getting has a last known remote value
-                let remote_inspect_result = Self::handle_inspect_remote_value_inner(
-                    &mut inner,
-                    key,
-                    subkeys,
-                    want_descriptor,
-                )
-                .await?;
+                let remote_inspect_result = self
+                    .handle_inspect_remote_value_inner(
+                        &mut inner,
+                        record_key,
+                        subkeys,
+                        want_descriptor,
+                    )
+                    .await?;
                 (false, remote_inspect_result)
             }
         };

@@ -212,13 +212,13 @@ fn main() -> EyreResult<()> {
         settingsrw.logging.terminal.enabled = true;
         settingsrw.logging.terminal.level = LogLevel::Debug;
         settingsrw.logging.api.enabled = true;
-        settingsrw.logging.api.level = LogLevel::Debug;
+        settingsrw.logging.api.level = LogLevel::Info;
     }
     if args.logging.trace {
         settingsrw.logging.terminal.enabled = true;
         settingsrw.logging.terminal.level = LogLevel::Trace;
         settingsrw.logging.api.enabled = true;
-        settingsrw.logging.api.level = LogLevel::Trace;
+        settingsrw.logging.api.level = LogLevel::Info;
     }
 
     if let Some(subnode_index) = args.subnode_index {

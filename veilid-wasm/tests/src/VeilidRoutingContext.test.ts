@@ -149,6 +149,9 @@ describe('VeilidRoutingContext', () => {
         );
         expect(setValueRes).toBeUndefined();
 
+        // Wait for synchronization
+        await waitForOfflineSubkeyWrite(routingContext, dhtRecord.key);
+
         const getValueRes = await routingContext.getDhtValue(
           dhtRecord.key,
           0,
@@ -282,9 +285,9 @@ describe('VeilidRoutingContext', () => {
           "Local",
         );
         expect(inspectRes).toBeDefined();
-        expect(inspectRes.subkeys.concat(inspectRes.offline_subkeys)).toEqual([[0, 0]]);
+        expect(inspectRes.subkeys).toEqual([[0, 0]]);
         expect(inspectRes.local_seqs).toEqual([0]);
-        expect(inspectRes.network_seqs).toEqual([]);
+        expect(inspectRes.network_seqs).toEqual([undefined]);
 
         // Wait for synchronization
         await waitForOfflineSubkeyWrite(routingContext, dhtRecord.key);
@@ -310,14 +313,17 @@ describe('VeilidRoutingContext', () => {
         );
         expect(setValueRes).toBeUndefined();
 
+        // Wait for synchronization
+        await waitForOfflineSubkeyWrite(routingContext, dhtRecord.key);
+
         // Inspect locally
         const inspectRes = await routingContext.inspectDhtRecord(
           dhtRecord.key,
         );
         expect(inspectRes).toBeDefined();
-        expect(inspectRes.subkeys.concat(inspectRes.offline_subkeys)).toEqual([[0, 0]]);
+        expect(inspectRes.offline_subkeys).toEqual([]);
         expect(inspectRes.local_seqs).toEqual([0]);
-        expect(inspectRes.network_seqs).toEqual([]);
+        expect(inspectRes.network_seqs).toEqual([undefined]);
       });
     });
   });

@@ -5,20 +5,11 @@ const MAX_INSPECT_VALUE_Q_SUBKEY_RANGES_LEN: usize = 512;
 pub const MAX_INSPECT_VALUE_A_SEQS_LEN: usize = 512;
 const MAX_INSPECT_VALUE_A_PEERS_LEN: usize = 20;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub(in crate::rpc_processor) struct ValidateInspectValueContext {
     pub last_descriptor: Option<SignedValueDescriptor>,
     pub subkeys: ValueSubkeyRangeSet,
     pub crypto_kind: CryptoKind,
-}
-
-impl fmt::Debug for ValidateInspectValueContext {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ValidateInspectValueContext")
-            .field("last_descriptor", &self.last_descriptor)
-            .field("crypto_kind", &self.crypto_kind)
-            .finish()
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -161,12 +152,20 @@ impl RPCOperationInspectValueA {
         };
 
         // Ensure seqs returned does not exceeed subkeys requested
-        #[allow(clippy::unnecessary_cast)]
-        if self.seqs.len() as u64 > inspect_value_context.subkeys.len() as u64 {
+        let subkey_count = if inspect_value_context.subkeys.is_empty()
+            || inspect_value_context.subkeys.is_full()
+            || inspect_value_context.subkeys.len() > MAX_INSPECT_VALUE_A_SEQS_LEN as u64
+        {
+            MAX_INSPECT_VALUE_A_SEQS_LEN as u64
+        } else {
+            inspect_value_context.subkeys.len()
+        };
+        if self.seqs.len() as u64 > subkey_count {
             return Err(RPCError::protocol(format!(
-                "InspectValue seqs length is greater than subkeys requested: {} > {}",
+                "InspectValue seqs length is greater than subkeys requested: {} > {}: {:#?}",
                 self.seqs.len(),
-                inspect_value_context.subkeys.len()
+                subkey_count,
+                inspect_value_context
             )));
         }
 

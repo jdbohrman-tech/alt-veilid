@@ -3,14 +3,17 @@ mod get_value;
 mod inspect_value;
 mod outbound_watch_manager;
 mod record_store;
+mod rehydrate;
 mod set_value;
 mod tasks;
 mod types;
 mod watch_value;
 
 use super::*;
+
 use outbound_watch_manager::*;
 use record_store::*;
+use rehydrate::*;
 use routing_table::*;
 use rpc_processor::*;
 
@@ -40,18 +43,24 @@ const RECONCILE_OUTBOUND_WATCHES_INTERVAL_SECS: u32 = 300;
 const RENEW_OUTBOUND_WATCHES_DURATION_SECS: u32 = 30;
 /// Frequency to check for expired server-side watched records
 const CHECK_WATCHED_RECORDS_INTERVAL_SECS: u32 = 1;
+/// Frequency to process record rehydration requests
+const REHYDRATE_RECORDS_INTERVAL_SECS: u32 = 1;
+/// Number of rehydration requests to process in parallel
+const REHYDRATE_BATCH_SIZE: usize = 4;
 /// Table store table for storage manager metadata
 const STORAGE_MANAGER_METADATA: &str = "storage_manager_metadata";
 /// Storage manager metadata key name for offline subkey write persistence
 const OFFLINE_SUBKEY_WRITES: &[u8] = b"offline_subkey_writes";
 /// Outbound watch manager metadata key name for watch persistence
 const OUTBOUND_WATCH_MANAGER: &[u8] = b"outbound_watch_manager";
+/// Rehydration requests metadata key name for watch persistence
+const REHYDRATION_REQUESTS: &[u8] = b"rehydration_requests";
 
 #[derive(Debug, Clone)]
 /// A single 'value changed' message to send
 struct ValueChangedInfo {
     target: Target,
-    key: TypedKey,
+    record_key: TypedKey,
     subkeys: ValueSubkeyRangeSet,
     count: u32,
     watch_id: u64,
@@ -71,6 +80,8 @@ struct StorageManagerInner {
     pub offline_subkey_writes: HashMap<TypedKey, tasks::offline_subkey_writes::OfflineSubkeyWrite>,
     /// Record subkeys that are currently being written to in the foreground
     pub active_subkey_writes: HashMap<TypedKey, ValueSubkeyRangeSet>,
+    /// Records that have rehydration requests
+    pub rehydration_requests: HashMap<TypedKey, RehydrationRequest>,
     /// State management for outbound watches
     pub outbound_watch_manager: OutboundWatchManager,
     /// Storage manager metadata that is persistent, including copy of offline subkey writes
@@ -88,6 +99,7 @@ impl fmt::Debug for StorageManagerInner {
             .field("remote_record_store", &self.remote_record_store)
             .field("offline_subkey_writes", &self.offline_subkey_writes)
             .field("active_subkey_writes", &self.active_subkey_writes)
+            .field("rehydration_requests", &self.rehydration_requests)
             .field("outbound_watch_manager", &self.outbound_watch_manager)
             //.field("metadata_db", &self.metadata_db)
             //.field("tick_future", &self.tick_future)
@@ -106,6 +118,7 @@ pub(crate) struct StorageManager {
     send_value_changes_task: TickTask<EyreReport>,
     check_outbound_watches_task: TickTask<EyreReport>,
     check_inbound_watches_task: TickTask<EyreReport>,
+    rehydrate_records_task: TickTask<EyreReport>,
 
     // Anonymous watch keys
     anonymous_watch_keys: TypedKeyPairGroup,
@@ -189,6 +202,10 @@ impl StorageManager {
             check_inbound_watches_task: TickTask::new(
                 "check_watched_records_task",
                 CHECK_WATCHED_RECORDS_INTERVAL_SECS,
+            ),
+            rehydrate_records_task: TickTask::new(
+                "rehydrate_records_task",
+                REHYDRATE_RECORDS_INTERVAL_SECS,
             ),
             outbound_watch_lock_table: AsyncTagLockTable::new(),
             anonymous_watch_keys,
@@ -349,6 +366,7 @@ impl StorageManager {
             let tx = metadata_db.transact();
             tx.store_json(0, OFFLINE_SUBKEY_WRITES, &inner.offline_subkey_writes)?;
             tx.store_json(0, OUTBOUND_WATCH_MANAGER, &inner.outbound_watch_manager)?;
+            tx.store_json(0, REHYDRATION_REQUESTS, &inner.rehydration_requests)?;
             tx.commit().await.wrap_err("failed to commit")?
         }
         Ok(())
@@ -380,12 +398,26 @@ impl StorageManager {
                     Default::default()
                 }
             };
+            inner.rehydration_requests = match metadata_db.load_json(0, REHYDRATION_REQUESTS).await
+            {
+                Ok(v) => v.unwrap_or_default(),
+                Err(_) => {
+                    if let Err(e) = metadata_db.delete(0, REHYDRATION_REQUESTS).await {
+                        veilid_log!(self debug "rehydration_requests format changed, clearing: {}", e);
+                    }
+                    Default::default()
+                }
+            };
         }
         Ok(())
     }
 
     pub(super) async fn has_offline_subkey_writes(&self) -> bool {
         !self.inner.lock().await.offline_subkey_writes.is_empty()
+    }
+
+    pub(super) async fn has_rehydration_requests(&self) -> bool {
+        !self.inner.lock().await.rehydration_requests.is_empty()
     }
 
     pub(super) fn dht_is_online(&self) -> bool {
@@ -489,7 +521,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "stor", skip_all)]
     pub async fn open_record(
         &self,
-        key: TypedKey,
+        record_key: TypedKey,
         writer: Option<KeyPair>,
         safety_selection: SafetySelection,
     ) -> VeilidAPIResult<DHTRecordDescriptor> {
@@ -497,9 +529,22 @@ impl StorageManager {
 
         // See if we have a local record already or not
         if let Some(res) = self
-            .open_existing_record_inner(&mut inner, key, writer, safety_selection)
+            .open_existing_record_inner(&mut inner, record_key, writer, safety_selection)
             .await?
         {
+            drop(inner);
+
+            // We had an existing record, so check the network to see if we should
+            // update it with what we have here
+            let get_consensus = self
+                .config()
+                .with(|c| c.network.dht.get_value_count as usize);
+            if let Err(e) = self
+                .rehydrate_record(record_key, ValueSubkeyRangeSet::full(), get_consensus)
+                .await
+            {
+                veilid_log!(self debug "rehydration failed: {}", e);
+            }
             return Ok(res);
         }
 
@@ -513,68 +558,54 @@ impl StorageManager {
 
         // No last descriptor, no last value
         // Use the safety selection we opened the record with
-        let subkey: ValueSubkey = 0;
-        let res_rx = self
-            .outbound_get_value(key, subkey, safety_selection, GetResult::default())
+        let result = self
+            .outbound_inspect_value(
+                record_key,
+                ValueSubkeyRangeSet::full(),
+                safety_selection,
+                InspectResult::default(),
+                false,
+            )
             .await?;
-        // Wait for the first result
-        let Ok(result) = res_rx.recv_async().await else {
-            apibail_internal!("failed to receive results");
-        };
-        let result = result?;
 
         // If we got nothing back, the key wasn't found
-        if result.get_result.opt_value.is_none() && result.get_result.opt_descriptor.is_none() {
+        if result.inspect_result.opt_descriptor().is_none() {
             // No result
-            apibail_key_not_found!(key);
-        };
-        let opt_last_seq = result
-            .get_result
-            .opt_value
-            .as_ref()
-            .map(|s| s.value_data().seq());
-
-        // Reopen inner to store value we just got
-        let out = {
-            let mut inner = self.inner.lock().await;
-
-            // Check again to see if we have a local record already or not
-            // because waiting for the outbound_get_value action could result in the key being opened
-            // via some parallel process
-
-            if let Some(res) = self
-                .open_existing_record_inner(&mut inner, key, writer, safety_selection)
-                .await?
-            {
-                return Ok(res);
-            }
-
-            // Open the new record
-            self.open_new_record_inner(
-                &mut inner,
-                key,
-                writer,
-                subkey,
-                result.get_result,
-                safety_selection,
-            )
-            .await
+            apibail_key_not_found!(record_key);
         };
 
-        if out.is_ok() {
-            if let Some(last_seq) = opt_last_seq {
-                self.process_deferred_outbound_get_value_result(res_rx, key, subkey, last_seq);
-            }
+        // Check again to see if we have a local record already or not
+        // because waiting for the outbound_inspect_value action could result in the key being opened
+        // via some parallel process
+        let mut inner = self.inner.lock().await;
+
+        if let Some(res) = self
+            .open_existing_record_inner(&mut inner, record_key, writer, safety_selection)
+            .await?
+        {
+            // Don't bother to rehydrate in this edge case
+            // We already checked above and won't have anything better than what
+            // is on the network in this case
+            return Ok(res);
         }
-        out
+
+        // Open the new record
+        self.open_new_record_inner(
+            &mut inner,
+            record_key,
+            writer,
+            result.inspect_result,
+            safety_selection,
+        )
+        .await
     }
 
     /// Close an opened local record
     #[instrument(level = "trace", target = "stor", skip_all)]
-    pub async fn close_record(&self, key: TypedKey) -> VeilidAPIResult<()> {
+    pub async fn close_record(&self, record_key: TypedKey) -> VeilidAPIResult<()> {
         // Attempt to close the record, returning the opened record if it wasn't already closed
         let mut inner = self.inner.lock().await;
-        Self::close_record_inner(&mut inner, key)?;
+        Self::close_record_inner(&mut inner, record_key)?;
         Ok(())
     }
 
@@ -593,10 +624,10 @@ impl StorageManager {
 
     /// Delete a local record
     #[instrument(level = "trace", target = "stor", skip_all)]
-    pub async fn delete_record(&self, key: TypedKey) -> VeilidAPIResult<()> {
+    pub async fn delete_record(&self, record_key: TypedKey) -> VeilidAPIResult<()> {
         // Ensure the record is closed
         let mut inner = self.inner.lock().await;
-        Self::close_record_inner(&mut inner, key)?;
+        Self::close_record_inner(&mut inner, record_key)?;
 
         // Get record from the local store
         let Some(local_record_store) = inner.local_record_store.as_mut() else {
@@ -604,20 +635,20 @@ impl StorageManager {
         };
 
         // Remove the record from the local store
-        local_record_store.delete_record(key).await
+        local_record_store.delete_record(record_key).await
     }
 
     /// Get the value of a subkey from an opened local record
     #[instrument(level = "trace", target = "stor", skip_all)]
     pub async fn get_value(
         &self,
-        key: TypedKey,
+        record_key: TypedKey,
         subkey: ValueSubkey,
         force_refresh: bool,
     ) -> VeilidAPIResult<Option<ValueData>> {
         let mut inner = self.inner.lock().await;
         let safety_selection = {
-            let Some(opened_record) = inner.opened_records.get(&key) else {
+            let Some(opened_record) = inner.opened_records.get(&record_key) else {
                 apibail_generic!("record not open");
             };
             opened_record.safety_selection()
@@ -625,7 +656,7 @@ impl StorageManager {
 
         // See if the requested subkey is our local record store
         let last_get_result =
-            Self::handle_get_local_value_inner(&mut inner, key, subkey, true).await?;
+            Self::handle_get_local_value_inner(&mut inner, record_key, subkey, true).await?;
 
         // Return the existing value if we have one unless we are forcing a refresh
         if !force_refresh {
@@ -653,7 +684,7 @@ impl StorageManager {
             .as_ref()
             .map(|v| v.value_data().seq());
         let res_rx = self
-            .outbound_get_value(key, subkey, safety_selection, last_get_result)
+            .outbound_get_value(record_key, subkey, safety_selection, last_get_result)
             .await?;
 
         // Wait for the first result
@@ -665,13 +696,18 @@ impl StorageManager {
 
         // Process the returned result
         let out = self
-            .process_outbound_get_value_result(key, subkey, opt_last_seq, result)
+            .process_outbound_get_value_result(record_key, subkey, opt_last_seq, result)
             .await?;
 
         if let Some(out) = &out {
             // If there's more to process, do it in the background
             if partial {
-                self.process_deferred_outbound_get_value_result(res_rx, key, subkey, out.seq());
+                self.process_deferred_outbound_get_value_result(
+                    res_rx,
+                    record_key,
+                    subkey,
+                    out.seq(),
+                );
             }
         }
 
@@ -682,7 +718,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "stor", skip_all)]
     pub async fn set_value(
         &self,
-        key: TypedKey,
+        record_key: TypedKey,
         subkey: ValueSubkey,
         data: Vec<u8>,
         writer: Option<KeyPair>,
@@ -691,12 +727,12 @@ impl StorageManager {
 
         // Get cryptosystem
         let crypto = self.crypto();
-        let Some(vcrypto) = crypto.get(key.kind) else {
+        let Some(vcrypto) = crypto.get(record_key.kind) else {
             apibail_generic!("unsupported cryptosystem");
         };
 
         let (safety_selection, opt_writer) = {
-            let Some(opened_record) = inner.opened_records.get(&key) else {
+            let Some(opened_record) = inner.opened_records.get(&record_key) else {
                 apibail_generic!("record not open");
             };
             (
@@ -715,7 +751,7 @@ impl StorageManager {
 
         // See if the subkey we are modifying has a last known local value
         let last_get_result =
-            Self::handle_get_local_value_inner(&mut inner, key, subkey, true).await?;
+            Self::handle_get_local_value_inner(&mut inner, record_key, subkey, true).await?;
 
         // Get the descriptor and schema for the key
         let Some(descriptor) = last_get_result.opt_descriptor else {
@@ -754,10 +790,10 @@ impl StorageManager {
         )?);
 
         // Write the value locally first
-        veilid_log!(self debug "Writing subkey locally: {}:{} len={}", key, subkey, signed_value_data.value_data().data().len() );
+        veilid_log!(self debug "Writing subkey locally: {}:{} len={}", record_key, subkey, signed_value_data.value_data().data().len() );
         Self::handle_set_local_value_inner(
             &mut inner,
-            key,
+            record_key,
             subkey,
             signed_value_data.clone(),
             InboundWatchUpdateMode::NoUpdate,
@@ -767,9 +803,9 @@ impl StorageManager {
         // Note that we are writing this subkey actively
         // If it appears we are already doing this, then put it to the offline queue
         let already_writing = {
-            let asw = inner.active_subkey_writes.entry(key).or_default();
+            let asw = inner.active_subkey_writes.entry(record_key).or_default();
             if asw.contains(subkey) {
-                veilid_log!(self debug "Already writing to this subkey: {}:{}", key, subkey);
+                veilid_log!(self debug "Already writing to this subkey: {}:{}", record_key, subkey);
                 true
             } else {
                 // Add to our list of active subkey writes
@@ -779,21 +815,21 @@ impl StorageManager {
         };
 
         if already_writing || !self.dht_is_online() {
-            veilid_log!(self debug "Writing subkey offline: {}:{} len={}", key, subkey, signed_value_data.value_data().data().len() );
+            veilid_log!(self debug "Writing subkey offline: {}:{} len={}", record_key, subkey, signed_value_data.value_data().data().len() );
             // Add to offline writes to flush
-            Self::add_offline_subkey_write_inner(&mut inner, key, subkey, safety_selection);
+            Self::add_offline_subkey_write_inner(&mut inner, record_key, subkey, safety_selection);
             return Ok(None);
         };
 
         // Drop the lock for network access
         drop(inner);
 
-        veilid_log!(self debug "Writing subkey to the network: {}:{} len={}", key, subkey, signed_value_data.value_data().data().len() );
+        veilid_log!(self debug "Writing subkey to the network: {}:{} len={}", record_key, subkey, signed_value_data.value_data().data().len() );
 
         // Use the safety selection we opened the record with
         let res_rx = match self
             .outbound_set_value(
-                key,
+                record_key,
                 subkey,
                 safety_selection,
                 signed_value_data.clone(),
@@ -805,15 +841,20 @@ impl StorageManager {
             Err(e) => {
                 // Failed to write, try again later
                 let mut inner = self.inner.lock().await;
-                Self::add_offline_subkey_write_inner(&mut inner, key, subkey, safety_selection);
+                Self::add_offline_subkey_write_inner(
+                    &mut inner,
+                    record_key,
+                    subkey,
+                    safety_selection,
+                );
 
                 // Remove from active subkey writes
-                let asw = inner.active_subkey_writes.get_mut(&key).unwrap();
+                let asw = inner.active_subkey_writes.get_mut(&record_key).unwrap();
                 if !asw.remove(subkey) {
-                    panic!("missing active subkey write: {}:{}", key, subkey);
+                    panic!("missing active subkey write: {}:{}", record_key, subkey);
                 }
                 if asw.is_empty() {
-                    inner.active_subkey_writes.remove(&key);
+                    inner.active_subkey_writes.remove(&record_key);
                 }
                 return Err(e);
             }
@@ -830,7 +871,7 @@ impl StorageManager {
             // Process the returned result
             let out = self
                 .process_outbound_set_value_result(
-                    key,
+                    record_key,
                     subkey,
                     signed_value_data.value_data().clone(),
                     safety_selection,
@@ -842,7 +883,7 @@ impl StorageManager {
             if partial {
                 self.process_deferred_outbound_set_value_result(
                     res_rx,
-                    key,
+                    record_key,
                     subkey,
                     out.clone()
                         .unwrap_or_else(|| signed_value_data.value_data().clone()),
@@ -859,12 +900,12 @@ impl StorageManager {
         let mut inner = self.inner.lock().await;
 
         // Remove from active subkey writes
-        let asw = inner.active_subkey_writes.get_mut(&key).unwrap();
+        let asw = inner.active_subkey_writes.get_mut(&record_key).unwrap();
         if !asw.remove(subkey) {
-            panic!("missing active subkey write: {}:{}", key, subkey);
+            panic!("missing active subkey write: {}:{}", record_key, subkey);
         }
         if asw.is_empty() {
-            inner.active_subkey_writes.remove(&key);
+            inner.active_subkey_writes.remove(&record_key);
         }
 
         out
@@ -874,14 +915,14 @@ impl StorageManager {
     #[instrument(level = "trace", target = "stor", skip_all)]
     pub async fn watch_values(
         &self,
-        key: TypedKey,
+        record_key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
         expiration: Timestamp,
         count: u32,
     ) -> VeilidAPIResult<bool> {
         // Obtain the watch change lock
         // (may need to wait for background operations to complete on the watch)
-        let watch_lock = self.outbound_watch_lock_table.lock_tag(key).await;
+        let watch_lock = self.outbound_watch_lock_table.lock_tag(record_key).await;
 
         self.watch_values_inner(watch_lock, subkeys, expiration, count)
             .await
@@ -996,22 +1037,25 @@ impl StorageManager {
     #[instrument(level = "trace", target = "stor", skip_all)]
     pub async fn cancel_watch_values(
         &self,
-        key: TypedKey,
+        record_key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
     ) -> VeilidAPIResult<bool> {
         // Obtain the watch change lock
         // (may need to wait for background operations to complete on the watch)
-        let watch_lock = self.outbound_watch_lock_table.lock_tag(key).await;
+        let watch_lock = self.outbound_watch_lock_table.lock_tag(record_key).await;
 
         // Calculate change to existing watch
         let (subkeys, count, expiration_ts) = {
             let inner = self.inner.lock().await;
-            let Some(_opened_record) = inner.opened_records.get(&key) else {
+            let Some(_opened_record) = inner.opened_records.get(&record_key) else {
                 apibail_generic!("record not open");
             };
 
             // See what watch we have currently if any
-            let Some(outbound_watch) = inner.outbound_watch_manager.outbound_watches.get(&key)
+            let Some(outbound_watch) = inner
+                .outbound_watch_manager
+                .outbound_watches
+                .get(&record_key)
             else {
                 // If we didn't have an active watch, then we can just return false because there's nothing to do here
                 return Ok(false);
@@ -1061,7 +1105,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "stor", skip_all)]
     pub async fn inspect_record(
         &self,
-        key: TypedKey,
+        record_key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
         scope: DHTReportScope,
     ) -> VeilidAPIResult<DHTRecordReport> {
@@ -1073,44 +1117,33 @@ impl StorageManager {
 
         // Get cryptosystem
         let crypto = self.crypto();
-        let Some(vcrypto) = crypto.get(key.kind) else {
+        let Some(vcrypto) = crypto.get(record_key.kind) else {
             apibail_generic!("unsupported cryptosystem");
         };
 
         let mut inner = self.inner.lock().await;
         let safety_selection = {
-            let Some(opened_record) = inner.opened_records.get(&key) else {
+            let Some(opened_record) = inner.opened_records.get(&record_key) else {
                 apibail_generic!("record not open");
             };
             opened_record.safety_selection()
         };
 
         // See if the requested record is our local record store
-        let mut local_inspect_result =
-            Self::handle_inspect_local_value_inner(&mut inner, key, subkeys.clone(), true).await?;
-
-        #[allow(clippy::unnecessary_cast)]
-        {
-            assert!(
-                local_inspect_result.subkeys.len() as u64 == local_inspect_result.seqs.len() as u64,
-                "mismatch between local subkeys returned and sequence number list returned"
-            );
-        }
-        assert!(
-            local_inspect_result.subkeys.is_subset(&subkeys),
-            "more subkeys returned locally than requested"
-        );
+        let mut local_inspect_result = self
+            .handle_inspect_local_value_inner(&mut inner, record_key, subkeys.clone(), true)
+            .await?;
 
         // Get the offline subkeys for this record still only returning the ones we're inspecting
         // Merge in the currently offline in-flight records and the actively written records as well
         let active_subkey_writes = inner
             .active_subkey_writes
-            .get(&key)
+            .get(&record_key)
             .cloned()
             .unwrap_or_default();
         let offline_subkey_writes = inner
             .offline_subkey_writes
-            .get(&key)
+            .get(&record_key)
             .map(|o| o.subkeys.union(&o.subkeys_in_flight))
             .unwrap_or_default()
             .union(&active_subkey_writes)
@@ -1118,12 +1151,15 @@ impl StorageManager {
 
         // If this is the maximum scope we're interested in, return the report
         if matches!(scope, DHTReportScope::Local) {
-            return Ok(DHTRecordReport::new(
-                local_inspect_result.subkeys,
+            return DHTRecordReport::new(
+                local_inspect_result.subkeys().clone(),
                 offline_subkey_writes,
-                local_inspect_result.seqs,
-                vec![],
-            ));
+                local_inspect_result.seqs().to_vec(),
+                vec![None; local_inspect_result.seqs().len()],
+            )
+            .inspect_err(|e| {
+                veilid_log!(self error "invalid record report generated: {}", e);
+            });
         }
 
         // Get rpc processor and drop mutex so we don't block while getting the value from the network
@@ -1136,15 +1172,24 @@ impl StorageManager {
 
         // If we're simulating a set, increase the previous sequence number we have by 1
         if matches!(scope, DHTReportScope::UpdateSet) {
-            for seq in &mut local_inspect_result.seqs {
-                *seq = seq.overflowing_add(1).0;
+            for seq in local_inspect_result.seqs_mut() {
+                *seq = if let Some(s) = seq {
+                    let (v, ov) = s.overflowing_add(1);
+                    if ov || v == ValueSubkey::MAX {
+                        None
+                    } else {
+                        Some(v)
+                    }
+                } else {
+                    Some(0)
+                };
             }
         }
 
         // Get the inspect record report from the network
         let result = self
             .outbound_inspect_value(
-                key,
+                record_key,
                 subkeys,
                 safety_selection,
                 if matches!(scope, DHTReportScope::SyncGet | DHTReportScope::SyncSet) {
@@ -1156,28 +1201,11 @@ impl StorageManager {
             )
             .await?;
 
-        // Sanity check before zip
-        #[allow(clippy::unnecessary_cast)]
-        {
-            assert_eq!(
-                result.inspect_result.subkeys.len() as u64,
-                result.subkey_fanout_results.len() as u64,
-                "mismatch between subkeys returned and fanout results returned"
-            );
-        }
-        if !local_inspect_result.subkeys.is_empty() && !result.inspect_result.subkeys.is_empty() {
-            assert_eq!(
-                result.inspect_result.subkeys.len(),
-                local_inspect_result.subkeys.len(),
-                "mismatch between local subkeys returned and network results returned"
-            );
-        }
-
         // Keep the list of nodes that returned a value for later reference
         let mut inner = self.inner.lock().await;
         let results_iter = result
             .inspect_result
-            .subkeys
+            .subkeys()
             .iter()
             .map(ValueSubkeyRangeSet::single)
             .zip(result.subkey_fanout_results.into_iter());
@@ -1185,19 +1213,28 @@ impl StorageManager {
         Self::process_fanout_results_inner(
             &mut inner,
             &vcrypto,
-            key,
+            record_key,
             results_iter,
             false,
             self.config()
                 .with(|c| c.network.dht.set_value_count as usize),
         );
 
-        Ok(DHTRecordReport::new(
-            result.inspect_result.subkeys,
-            offline_subkey_writes,
-            local_inspect_result.seqs,
-            result.inspect_result.seqs,
-        ))
+        if result.inspect_result.subkeys().is_empty() {
+            DHTRecordReport::new(
+                local_inspect_result.subkeys().clone(),
+                offline_subkey_writes,
+                local_inspect_result.seqs().to_vec(),
+                vec![None; local_inspect_result.seqs().len()],
+            )
+        } else {
+            DHTRecordReport::new(
+                result.inspect_result.subkeys().clone(),
+                offline_subkey_writes,
+                local_inspect_result.seqs().to_vec(),
+                result.inspect_result.seqs().to_vec(),
+            )
+        }
     }
 
     // Send single value change out to the network
@@ -1218,7 +1255,7 @@ impl StorageManager {
             .map_err(VeilidAPIError::from)?;
 
         network_result_value_or_log!(self rpc_processor
-            .rpc_call_value_changed(dest, vc.key, vc.subkeys.clone(), vc.count, vc.watch_id, vc.value.map(|v| (*v).clone()) )
+            .rpc_call_value_changed(dest, vc.record_key, vc.subkeys.clone(), vc.count, vc.watch_id, vc.value.map(|v| (*v).clone()) )
             .await
             .map_err(VeilidAPIError::from)? => [format!(": dest={:?} vc={:?}", dest, vc)] {});
 
@@ -1229,14 +1266,14 @@ impl StorageManager {
     #[instrument(level = "trace", target = "stor", skip(self, value))]
     fn update_callback_value_change(
         &self,
-        key: TypedKey,
+        record_key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
         count: u32,
         value: Option<ValueData>,
     ) {
         let update_callback = self.update_callback();
         update_callback(VeilidUpdate::ValueChange(Box::new(VeilidValueChange {
-            key,
+            key: record_key,
             subkeys,
             count,
             value,
@@ -1246,7 +1283,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "stor", skip_all)]
     fn check_fanout_set_offline(
         &self,
-        key: TypedKey,
+        record_key: TypedKey,
         subkey: ValueSubkey,
         fanout_result: &FanoutResult,
     ) -> bool {
@@ -1260,12 +1297,12 @@ impl StorageManager {
                 if value_node_count < get_consensus {
                     veilid_log!(self debug "timeout with insufficient consensus ({}<{}), adding offline subkey: {}:{}",
                         value_node_count, get_consensus,
-                        key, subkey);
+                        record_key, subkey);
                     true
                 } else {
                     veilid_log!(self debug "timeout with sufficient consensus ({}>={}): set_value {}:{}",
                         value_node_count, get_consensus,
-                        key, subkey);
+                        record_key, subkey);
                     false
                 }
             }
@@ -1277,12 +1314,12 @@ impl StorageManager {
                 if value_node_count < get_consensus {
                     veilid_log!(self debug "exhausted with insufficient consensus ({}<{}), adding offline subkey: {}:{}",
                         value_node_count, get_consensus,
-                        key, subkey);
+                        record_key, subkey);
                     true
                 } else {
                     veilid_log!(self debug "exhausted with sufficient consensus ({}>={}): set_value {}:{}",
                         value_node_count, get_consensus,
-                        key, subkey);
+                        record_key, subkey);
                     false
                 }
             }
@@ -1358,7 +1395,7 @@ impl StorageManager {
     async fn move_remote_record_to_local_inner(
         &self,
         inner: &mut StorageManagerInner,
-        key: TypedKey,
+        record_key: TypedKey,
         safety_selection: SafetySelection,
     ) -> VeilidAPIResult<Option<(PublicKey, DHTSchema)>> {
         // Get local record store
@@ -1375,7 +1412,7 @@ impl StorageManager {
             // Return record details
             r.clone()
         };
-        let Some(remote_record) = remote_record_store.with_record(key, rcb) else {
+        let Some(remote_record) = remote_record_store.with_record(record_key, rcb) else {
             // No local or remote record found, return None
             return Ok(None);
         };
@@ -1387,30 +1424,43 @@ impl StorageManager {
             remote_record.descriptor().clone(),
             LocalRecordDetail::new(safety_selection),
         )?;
-        local_record_store.new_record(key, local_record).await?;
+        local_record_store
+            .new_record(record_key, local_record)
+            .await?;
 
         // Move copy subkey data from remote to local store
         for subkey in remote_record.stored_subkeys().iter() {
-            let Some(get_result) = remote_record_store.get_subkey(key, subkey, false).await? else {
+            let Some(get_result) = remote_record_store
+                .get_subkey(record_key, subkey, false)
+                .await?
+            else {
                 // Subkey was missing
-                veilid_log!(self warn "Subkey was missing: {} #{}", key, subkey);
+                veilid_log!(self warn "Subkey was missing: {} #{}", record_key, subkey);
                 continue;
             };
             let Some(subkey_data) = get_result.opt_value else {
                 // Subkey was missing
-                veilid_log!(self warn "Subkey data was missing: {} #{}", key, subkey);
+                veilid_log!(self warn "Subkey data was missing: {} #{}", record_key, subkey);
                 continue;
             };
             local_record_store
-                .set_subkey(key, subkey, subkey_data, InboundWatchUpdateMode::NoUpdate)
+                .set_subkey(
+                    record_key,
+                    subkey,
+                    subkey_data,
+                    InboundWatchUpdateMode::NoUpdate,
+                )
                 .await?;
         }
 
         // Move watches
-        local_record_store.move_watches(key, remote_record_store.move_watches(key, None));
+        local_record_store.move_watches(
+            record_key,
+            remote_record_store.move_watches(record_key, None),
+        );
 
         // Delete remote record from store
-        remote_record_store.delete_record(key).await?;
+        remote_record_store.delete_record(record_key).await?;
 
         // Return record information as transferred to local record
         Ok(Some((*remote_record.owner(), remote_record.schema())))
@@ -1420,7 +1470,7 @@ impl StorageManager {
     pub async fn open_existing_record_inner(
         &self,
         inner: &mut StorageManagerInner,
-        key: TypedKey,
+        record_key: TypedKey,
         writer: Option<KeyPair>,
         safety_selection: SafetySelection,
     ) -> VeilidAPIResult<Option<DHTRecordDescriptor>> {
@@ -1439,13 +1489,13 @@ impl StorageManager {
             // Return record details
             (*r.owner(), r.schema())
         };
-        let (owner, schema) = match local_record_store.with_record_mut(key, cb) {
+        let (owner, schema) = match local_record_store.with_record_mut(record_key, cb) {
             Some(v) => v,
             None => {
                 // If we don't have a local record yet, check to see if we have a remote record
                 // if so, migrate it to a local record
                 let Some(v) = self
-                    .move_remote_record_to_local_inner(&mut *inner, key, safety_selection)
+                    .move_remote_record_to_local_inner(&mut *inner, record_key, safety_selection)
                     .await?
                 else {
                     // No remote record either
@@ -1471,7 +1521,7 @@ impl StorageManager {
         // Write open record
         inner
             .opened_records
-            .entry(key)
+            .entry(record_key)
             .and_modify(|e| {
                 e.set_writer(writer);
                 e.set_safety_selection(safety_selection);
@@ -1479,7 +1529,7 @@ impl StorageManager {
             .or_insert_with(|| OpenedRecord::new(writer, safety_selection));
 
         // Make DHT Record Descriptor to return
-        let descriptor = DHTRecordDescriptor::new(key, owner, owner_secret, schema);
+        let descriptor = DHTRecordDescriptor::new(record_key, owner, owner_secret, schema);
         Ok(Some(descriptor))
     }
 
@@ -1487,19 +1537,18 @@ impl StorageManager {
     pub async fn open_new_record_inner(
         &self,
         inner: &mut StorageManagerInner,
-        key: TypedKey,
+        record_key: TypedKey,
         writer: Option<KeyPair>,
-        subkey: ValueSubkey,
-        get_result: GetResult,
+        inspect_result: InspectResult,
         safety_selection: SafetySelection,
     ) -> VeilidAPIResult<DHTRecordDescriptor> {
         // Ensure the record is closed
-        if inner.opened_records.contains_key(&key) {
+        if inner.opened_records.contains_key(&record_key) {
             panic!("new record should never be opened at this point");
         }
 
         // Must have descriptor
-        let Some(signed_value_descriptor) = get_result.opt_descriptor else {
+        let Some(signed_value_descriptor) = inspect_result.opt_descriptor() else {
             // No descriptor for new record, can't store this
             apibail_generic!("no descriptor");
         };
@@ -1530,33 +1579,23 @@ impl StorageManager {
             signed_value_descriptor,
             LocalRecordDetail::new(safety_selection),
         )?;
-        local_record_store.new_record(key, record).await?;
-
-        // If we got a subkey with the getvalue, it has already been validated against the schema, so store it
-        if let Some(signed_value_data) = get_result.opt_value {
-            // Write subkey to local store
-            local_record_store
-                .set_subkey(
-                    key,
-                    subkey,
-                    signed_value_data,
-                    InboundWatchUpdateMode::NoUpdate,
-                )
-                .await?;
-        }
+        local_record_store.new_record(record_key, record).await?;
 
         // Write open record
         inner
             .opened_records
-            .insert(key, OpenedRecord::new(writer, safety_selection));
+            .insert(record_key, OpenedRecord::new(writer, safety_selection));
 
         // Make DHT Record Descriptor to return
-        let descriptor = DHTRecordDescriptor::new(key, owner, owner_secret, schema);
+        let descriptor = DHTRecordDescriptor::new(record_key, owner, owner_secret, schema);
         Ok(descriptor)
     }
 
     #[instrument(level = "trace", target = "stor", skip_all, err)]
-    pub async fn get_value_nodes(&self, key: TypedKey) -> VeilidAPIResult<Option<Vec<NodeRef>>> {
+    pub async fn get_value_nodes(
+        &self,
+        record_key: TypedKey,
+    ) -> VeilidAPIResult<Option<Vec<NodeRef>>> {
         let inner = self.inner.lock().await;
         // Get local record store
         let Some(local_record_store) = inner.local_record_store.as_ref() else {
@@ -1566,14 +1605,14 @@ impl StorageManager {
         // Get routing table to see if we still know about these nodes
         let routing_table = self.routing_table();
 
-        let opt_value_nodes = local_record_store.peek_record(key, |r| {
+        let opt_value_nodes = local_record_store.peek_record(record_key, |r| {
             let d = r.detail();
             d.nodes
                 .keys()
                 .copied()
                 .filter_map(|x| {
                     routing_table
-                        .lookup_node_ref(TypedKey::new(key.kind, x))
+                        .lookup_node_ref(TypedKey::new(record_key.kind, x))
                         .ok()
                         .flatten()
                 })
@@ -1640,18 +1679,23 @@ impl StorageManager {
         });
     }
 
-    fn close_record_inner(inner: &mut StorageManagerInner, key: TypedKey) -> VeilidAPIResult<()> {
+    fn close_record_inner(
+        inner: &mut StorageManagerInner,
+        record_key: TypedKey,
+    ) -> VeilidAPIResult<()> {
         let Some(local_record_store) = inner.local_record_store.as_mut() else {
             apibail_not_initialized!();
         };
-        if local_record_store.peek_record(key, |_| {}).is_none() {
-            apibail_key_not_found!(key);
+        if local_record_store.peek_record(record_key, |_| {}).is_none() {
+            apibail_key_not_found!(record_key);
         }
 
-        if inner.opened_records.remove(&key).is_some() {
+        if inner.opened_records.remove(&record_key).is_some() {
             // Set the watch to cancelled if we have one
             // Will process cancellation in the background
-            inner.outbound_watch_manager.set_desired_watch(key, None);
+            inner
+                .outbound_watch_manager
+                .set_desired_watch(record_key, None);
         }
 
         Ok(())
@@ -1660,7 +1704,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "stor", skip_all, err)]
     async fn handle_get_local_value_inner(
         inner: &mut StorageManagerInner,
-        key: TypedKey,
+        record_key: TypedKey,
         subkey: ValueSubkey,
         want_descriptor: bool,
     ) -> VeilidAPIResult<GetResult> {
@@ -1669,7 +1713,7 @@ impl StorageManager {
             apibail_not_initialized!();
         };
         if let Some(get_result) = local_record_store
-            .get_subkey(key, subkey, want_descriptor)
+            .get_subkey(record_key, subkey, want_descriptor)
             .await?
         {
             return Ok(get_result);
@@ -1684,7 +1728,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub(super) async fn handle_set_local_value_inner(
         inner: &mut StorageManagerInner,
-        key: TypedKey,
+        record_key: TypedKey,
         subkey: ValueSubkey,
         signed_value_data: Arc<SignedValueData>,
         watch_update_mode: InboundWatchUpdateMode,
@@ -1696,7 +1740,7 @@ impl StorageManager {
 
         // Write subkey to local store
         local_record_store
-            .set_subkey(key, subkey, signed_value_data, watch_update_mode)
+            .set_subkey(record_key, subkey, signed_value_data, watch_update_mode)
             .await?;
 
         Ok(())
@@ -1704,8 +1748,9 @@ impl StorageManager {
 
     #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub(super) async fn handle_inspect_local_value_inner(
+        &self,
         inner: &mut StorageManagerInner,
-        key: TypedKey,
+        record_key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
         want_descriptor: bool,
     ) -> VeilidAPIResult<InspectResult> {
@@ -1714,23 +1759,26 @@ impl StorageManager {
             apibail_not_initialized!();
         };
         if let Some(inspect_result) = local_record_store
-            .inspect_record(key, subkeys, want_descriptor)
+            .inspect_record(record_key, &subkeys, want_descriptor)
             .await?
         {
             return Ok(inspect_result);
         }
 
-        Ok(InspectResult {
-            subkeys: ValueSubkeyRangeSet::new(),
-            seqs: vec![],
-            opt_descriptor: None,
-        })
+        InspectResult::new(
+            self,
+            subkeys,
+            "handle_inspect_local_value_inner",
+            ValueSubkeyRangeSet::new(),
+            vec![],
+            None,
+        )
     }
 
     #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub(super) async fn handle_get_remote_value_inner(
         inner: &mut StorageManagerInner,
-        key: TypedKey,
+        record_key: TypedKey,
         subkey: ValueSubkey,
         want_descriptor: bool,
     ) -> VeilidAPIResult<GetResult> {
@@ -1739,7 +1787,7 @@ impl StorageManager {
             apibail_not_initialized!();
         };
         if let Some(get_result) = remote_record_store
-            .get_subkey(key, subkey, want_descriptor)
+            .get_subkey(record_key, subkey, want_descriptor)
             .await?
         {
             return Ok(get_result);
@@ -1754,7 +1802,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub(super) async fn handle_set_remote_value_inner(
         inner: &mut StorageManagerInner,
-        key: TypedKey,
+        record_key: TypedKey,
         subkey: ValueSubkey,
         signed_value_data: Arc<SignedValueData>,
         signed_value_descriptor: Arc<SignedValueDescriptor>,
@@ -1766,7 +1814,10 @@ impl StorageManager {
         };
 
         // See if we have a remote record already or not
-        if remote_record_store.with_record(key, |_| {}).is_none() {
+        if remote_record_store
+            .with_record(record_key, |_| {})
+            .is_none()
+        {
             // record didn't exist, make it
             let cur_ts = Timestamp::now();
             let remote_record_detail = RemoteRecordDetail {};
@@ -1775,12 +1826,12 @@ impl StorageManager {
                 signed_value_descriptor,
                 remote_record_detail,
             )?;
-            remote_record_store.new_record(key, record).await?
+            remote_record_store.new_record(record_key, record).await?
         };
 
         // Write subkey to remote store
         remote_record_store
-            .set_subkey(key, subkey, signed_value_data, watch_update_mode)
+            .set_subkey(record_key, subkey, signed_value_data, watch_update_mode)
             .await?;
 
         Ok(())
@@ -1788,8 +1839,9 @@ impl StorageManager {
 
     #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub(super) async fn handle_inspect_remote_value_inner(
+        &self,
         inner: &mut StorageManagerInner,
-        key: TypedKey,
+        record_key: TypedKey,
         subkeys: ValueSubkeyRangeSet,
         want_descriptor: bool,
     ) -> VeilidAPIResult<InspectResult> {
@@ -1798,17 +1850,20 @@ impl StorageManager {
             apibail_not_initialized!();
         };
         if let Some(inspect_result) = remote_record_store
-            .inspect_record(key, subkeys, want_descriptor)
+            .inspect_record(record_key, &subkeys, want_descriptor)
             .await?
         {
             return Ok(inspect_result);
         }
 
-        Ok(InspectResult {
-            subkeys: ValueSubkeyRangeSet::new(),
-            seqs: vec![],
-            opt_descriptor: None,
-        })
+        InspectResult::new(
+            self,
+            subkeys,
+            "handle_inspect_remote_value_inner",
+            ValueSubkeyRangeSet::new(),
+            vec![],
+            None,
+        )
     }
 
     fn get_key(
@@ -1827,13 +1882,13 @@ impl StorageManager {
     #[instrument(level = "trace", target = "stor", skip_all)]
     pub(super) fn add_offline_subkey_write_inner(
         inner: &mut StorageManagerInner,
-        key: TypedKey,
+        record_key: TypedKey,
         subkey: ValueSubkey,
         safety_selection: SafetySelection,
     ) {
         inner
             .offline_subkey_writes
-            .entry(key)
+            .entry(record_key)
             .and_modify(|x| {
                 x.subkeys.insert(subkey);
             })

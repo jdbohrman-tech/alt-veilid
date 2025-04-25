@@ -54,6 +54,24 @@ impl ValueSubkeyRangeSet {
     }
 
     #[must_use]
+    #[allow(clippy::unnecessary_cast)]
+    pub fn len(&self) -> u64 {
+        self.data.len() as u64
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
+
+    #[must_use]
+    pub fn is_full(&self) -> bool {
+        self.data.ranges_len() == 1
+            && self.data.first().unwrap() == u32::MIN
+            && self.data.last().unwrap() == u32::MAX
+    }
+
+    #[must_use]
     pub fn data(&self) -> &RangeSetBlaze<ValueSubkey> {
         &self.data
     }

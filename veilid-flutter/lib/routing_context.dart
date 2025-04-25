@@ -81,7 +81,7 @@ sealed class DHTSchema with _$DHTSchema {
 const DHTSchema defaultDHTSchema = DHTSchema.dflt(oCnt: 1);
 
 @freezed
-class DHTSchemaMember with _$DHTSchemaMember {
+sealed class DHTSchemaMember with _$DHTSchemaMember {
   @Assert('mCnt > 0 && mCnt <= 65535', 'value out of range')
   const factory DHTSchemaMember({
     required PublicKey mKey,
@@ -96,7 +96,7 @@ class DHTSchemaMember with _$DHTSchemaMember {
 /// DHTRecordDescriptor
 
 @freezed
-class DHTRecordDescriptor with _$DHTRecordDescriptor {
+sealed class DHTRecordDescriptor with _$DHTRecordDescriptor {
   const factory DHTRecordDescriptor({
     required TypedKey key,
     required PublicKey owner,
@@ -134,7 +134,7 @@ extension DHTRecordDescriptorExt on DHTRecordDescriptor {
 /// ValueData
 
 @freezed
-class ValueData with _$ValueData {
+sealed class ValueData with _$ValueData {
   @Assert('seq >= 0', 'seq out of range')
   const factory ValueData({
     required int seq,
@@ -224,7 +224,7 @@ class SafetySelectionSafe extends Equatable implements SafetySelection {
 
 /// Options for safety routes (sender privacy)
 @freezed
-class SafetySpec with _$SafetySpec {
+sealed class SafetySpec with _$SafetySpec {
   const factory SafetySpec({
     required int hopCount,
     required Stability stability,
@@ -239,7 +239,7 @@ class SafetySpec with _$SafetySpec {
 //////////////////////////////////////
 /// RouteBlob
 @freezed
-class RouteBlob with _$RouteBlob {
+sealed class RouteBlob with _$RouteBlob {
   const factory RouteBlob(
       {required String routeId,
       @Uint8ListJsonConverter() required Uint8List blob}) = _RouteBlob;
@@ -250,12 +250,12 @@ class RouteBlob with _$RouteBlob {
 //////////////////////////////////////
 /// Inspect
 @freezed
-class DHTRecordReport with _$DHTRecordReport {
+sealed class DHTRecordReport with _$DHTRecordReport {
   const factory DHTRecordReport({
     required List<ValueSubkeyRange> subkeys,
     required List<ValueSubkeyRange> offlineSubkeys,
-    required List<int> localSeqs,
-    required List<int> networkSeqs,
+    required List<int?> localSeqs,
+    required List<int?> networkSeqs,
   }) = _DHTRecordReport;
   factory DHTRecordReport.fromJson(dynamic json) =>
       _$DHTRecordReportFromJson(json as Map<String, dynamic>);

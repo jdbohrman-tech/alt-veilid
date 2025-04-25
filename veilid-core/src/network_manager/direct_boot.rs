@@ -1,5 +1,7 @@
 use super::*;
 
+impl_veilid_log_facility!("net");
+
 impl NetworkManager {
     // Direct bootstrap request handler (separate fallback mechanism from cheaper TXT bootstrap mechanism)
     #[instrument(level = "trace", target = "net", skip(self), ret, err)]
@@ -15,6 +17,8 @@ impl NetworkManager {
             .filter_map(|nr| nr.get_peer_info(RoutingDomain::PublicInternet))
             .collect();
         let json_bytes = serialize_json(bootstrap_peerinfo).as_bytes().to_vec();
+
+        veilid_log!(self trace "BOOT reponse: {}", String::from_utf8_lossy(&json_bytes));
 
         // Reply with a chunk of signed routing table
         let net = self.net();

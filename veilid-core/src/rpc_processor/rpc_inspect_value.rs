@@ -5,7 +5,7 @@ impl_veilid_log_facility!("rpc");
 
 #[derive(Clone, Debug)]
 pub struct InspectValueAnswer {
-    pub seqs: Vec<ValueSeqNum>,
+    pub seqs: Vec<Option<ValueSeqNum>>,
     pub peers: Vec<Arc<PeerInfo>>,
     pub descriptor: Option<SignedValueDescriptor>,
 }
@@ -110,6 +110,11 @@ impl RPCProcessor {
         };
 
         let (seqs, peers, descriptor) = inspect_value_a.destructure();
+        let seqs = seqs
+            .into_iter()
+            .map(|x| if x == ValueSeqNum::MAX { None } else { Some(x) })
+            .collect::<Vec<_>>();
+
         if debug_target_enabled!("dht") {
             let debug_string_answer = format!(
                 "OUT <== InspectValueA({} {} peers={}) <= {} seqs:\n{}",
@@ -232,8 +237,15 @@ impl RPCProcessor {
                     .inbound_inspect_value(key, subkeys, want_descriptor)
                     .await
                     .map_err(RPCError::internal)?);
-                (inspect_result.seqs, inspect_result.opt_descriptor)
+                (
+                    inspect_result.seqs().to_vec(),
+                    inspect_result.opt_descriptor(),
+                )
             };
+        let inspect_result_seqs = inspect_result_seqs
+            .into_iter()
+            .map(|x| if let Some(s) = x { s } else { ValueSubkey::MAX })
+            .collect::<Vec<_>>();
 
         if debug_target_enabled!("dht") {
             let debug_string_answer = format!(

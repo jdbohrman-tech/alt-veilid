@@ -28,7 +28,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "dht", skip_all, err)]
     pub(super) async fn outbound_get_value(
         &self,
-        key: TypedKey,
+        record_key: TypedKey,
         subkey: ValueSubkey,
         safety_selection: SafetySelection,
         last_get_result: GetResult,
@@ -47,7 +47,7 @@ impl StorageManager {
 
         // Get the nodes we know are caching this value to seed the fanout
         let init_fanout_queue = {
-            self.get_value_nodes(key)
+            self.get_value_nodes(record_key)
                 .await?
                 .unwrap_or_default()
                 .into_iter()
@@ -93,7 +93,7 @@ impl StorageManager {
                                 .rpc_call_get_value(
                                     Destination::direct(next_node.routing_domain_filtered(routing_domain))
                                         .with_safety(safety_selection),
-                                    key,
+                                    record_key,
                                     subkey,
                                     last_descriptor.map(|x| (*x).clone()),
                                 )
@@ -255,7 +255,7 @@ impl StorageManager {
                     let routing_table = registry.routing_table();
                     let fanout_call = FanoutCall::new(
                         &routing_table,
-                        key,
+                        record_key,
                         key_count,
                         fanout,
                         consensus_count,

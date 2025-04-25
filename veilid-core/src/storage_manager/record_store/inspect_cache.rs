@@ -4,7 +4,7 @@ const L2_CACHE_DEPTH: usize = 4; // XXX: i just picked this. we could probably d
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct InspectCacheL2Value {
-    pub seqs: Vec<ValueSeqNum>,
+    pub seqs: Vec<Option<ValueSeqNum>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -67,7 +67,7 @@ impl InspectCache {
                 continue;
             };
             if idx < entry.1.seqs.len() {
-                entry.1.seqs[idx] = seq;
+                entry.1.seqs[idx] = Some(seq);
             } else {
                 panic!(
                     "representational error in l2 inspect cache: {} >= {}",
