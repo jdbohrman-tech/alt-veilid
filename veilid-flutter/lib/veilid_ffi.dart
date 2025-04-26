@@ -38,6 +38,8 @@ typedef _ChangeLogIgnoreDart = void Function(Pointer<Utf8>, Pointer<Utf8>);
 typedef _StartupVeilidCoreDart = void Function(int, int, Pointer<Utf8>);
 // fn get_veilid_state(port: i64)
 typedef _GetVeilidStateDart = void Function(int);
+// fn is_shutdown(port: i64)
+typedef _IsShutdownDart = void Function(int);
 // fn attach(port: i64)
 typedef _AttachDart = void Function(int);
 // fn detach(port: i64)
@@ -1255,6 +1257,8 @@ class VeilidFFI extends Veilid {
         _startupVeilidCore = dylib.lookupFunction<
             Void Function(Int64, Int64, Pointer<Utf8>),
             _StartupVeilidCoreDart>('startup_veilid_core'),
+        _isShutdown = dylib.lookupFunction<Void Function(Int64), _IsShutdownDart>(
+            'is_shutdown'),
         _getVeilidState =
             dylib.lookupFunction<Void Function(Int64), _GetVeilidStateDart>(
                 'get_veilid_state'),
@@ -1494,6 +1498,7 @@ class VeilidFFI extends Veilid {
   final _ChangeLogIgnoreDart _changeLogIgnore;
   final _StartupVeilidCoreDart _startupVeilidCore;
   final _GetVeilidStateDart _getVeilidState;
+  final _IsShutdownDart _isShutdown;
   final _AttachDart _attach;
   final _DetachDart _detach;
   final _ShutdownVeilidCoreDart _shutdownVeilidCore;
@@ -1625,6 +1630,14 @@ class VeilidFFI extends Veilid {
     final sendPort = recvPort.sendPort;
     _getVeilidState(sendPort.nativePort);
     return processFutureJson(VeilidState.fromJson, recvPort.first);
+  }
+
+  @override
+  Future<bool> isShutdown() async {
+    final recvPort = ReceivePort('is_shutdown');
+    final sendPort = recvPort.sendPort;
+    _isShutdown(sendPort.nativePort);
+    return processFuturePlain<bool>(recvPort.first);
   }
 
   @override

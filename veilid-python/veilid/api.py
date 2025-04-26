@@ -375,6 +375,10 @@ class VeilidAPI(ABC):
         pass
 
     @abstractmethod
+    async def is_shutdown(self) -> bool:
+        pass
+
+    @abstractmethod
     async def attach(self):
         pass
 

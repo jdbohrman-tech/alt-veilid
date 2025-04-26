@@ -5,8 +5,8 @@ import {
   veilidCoreStartupConfig,
 } from './utils/veilid-config';
 
-import { VeilidState, veilidClient } from '../../pkg/veilid_wasm';
-import { asyncCallWithTimeout, waitForDetached, waitForPublicAttachment } from './utils/wait-utils';
+import { VeilidState, veilidClient } from 'veilid-wasm';
+import { asyncCallWithTimeout, waitForDetached, waitForPublicAttachment, waitForShutdown } from './utils/wait-utils';
 
 describe('veilidClient', function () {
   before('veilid startup', async function () {
@@ -20,6 +20,7 @@ describe('veilidClient', function () {
 
   after('veilid shutdown', async function () {
     await veilidClient.shutdownCore();
+    await asyncCallWithTimeout(waitForShutdown(), 10000);
   });
 
   it('should print version', async function () {

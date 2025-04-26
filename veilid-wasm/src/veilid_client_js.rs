@@ -162,6 +162,17 @@ impl VeilidClient {
         APIRESULT_UNDEFINED
     }
 
+    /// Check if Veilid is shutdown.
+    pub fn isShutdown() -> APIResult<bool> {
+        let veilid_api = get_veilid_api();
+        if let Err(veilid_core::VeilidAPIError::NotInitialized) = veilid_api {
+            return APIResult::Ok(true);
+        }
+        let veilid_api = veilid_api.unwrap();
+        let is_shutdown = veilid_api.is_shutdown();
+        APIResult::Ok(is_shutdown)
+    }
+
     /// Get a full copy of the current state of Veilid.
     pub async fn getState() -> APIResult<VeilidState> {
         let veilid_api = get_veilid_api()?;

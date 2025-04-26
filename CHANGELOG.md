@@ -19,10 +19,15 @@
 - veilid-flutter:
   - Bindings updated for API changes
   - Corrosion version in cmake build for linux and windows updated to 0.5.1: https://gitlab.com/veilid/veilid/-/issues/447
+  - Expose the isShutdown API: https://gitlab.com/veilid/veilid/-/merge_requests/392
 
 - veilid-python:
   - Fix type assertion bug in watch_dht_values
   - Update watchvalue integration tests
+  - Expose the is_shutdown API: https://gitlab.com/veilid/veilid/-/merge_requests/392
+
+- veilid-wasm:
+  - Expose the isShutdown API: https://gitlab.com/veilid/veilid/-/merge_requests/392
 
 **Changed in Veilid 0.4.4**
 

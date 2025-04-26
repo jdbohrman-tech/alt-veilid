@@ -60,6 +60,16 @@ export const waitForDetached = async () => {
   }
 }
 
+export const waitForShutdown = async () => {
+  while (true) {
+    let isShutdown = veilidClient.isShutdown();
+    if (isShutdown) {
+      break;
+    }
+    await waitForMs(1000);
+  }
+}
+
 export const waitForOfflineSubkeyWrite = async (routingContext: VeilidRoutingContext, key: TypedKey) => {
   while ((await routingContext.inspectDhtRecord(key)).offline_subkeys.length != 0) {
     await waitForMs(200);

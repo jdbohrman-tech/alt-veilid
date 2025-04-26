@@ -46,6 +46,7 @@ pub enum RequestOp {
         args: Vec<String>,
     },
     GetState,
+    IsShutdown,
     Attach,
     Detach,
     NewPrivateRoute,
@@ -142,6 +143,9 @@ pub enum ResponseOp {
     GetState {
         #[serde(flatten)]
         result: ApiResult<Box<VeilidState>>,
+    },
+    IsShutdown {
+        value: bool,
     },
     Attach {
         #[serde(flatten)]

@@ -619,6 +619,9 @@ impl JsonRequestProcessor {
             RequestOp::GetState => ResponseOp::GetState {
                 result: to_json_api_result(self.api.get_state().await.map(Box::new)),
             },
+            RequestOp::IsShutdown => ResponseOp::IsShutdown {
+                value: self.api.is_shutdown(),
+            },
             RequestOp::Attach => ResponseOp::Attach {
                 result: to_json_api_result(self.api.attach().await),
             },

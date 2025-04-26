@@ -7,8 +7,20 @@ pub async fn test_startup_shutdown() {
     let api = api_startup(update_callback, config_callback)
         .await
         .expect("startup failed");
+
+    // Test initial state
+    assert!(!api.is_shutdown(), "API should not be shut down initially");
+
     trace!("test_startup_shutdown: shutting down");
+    let api_clone = api.clone();
     api.shutdown().await;
+
+    // Test state after shutdown
+    assert!(
+        api_clone.is_shutdown(),
+        "API should be shut down after shutdown()"
+    );
+
     trace!("test_startup_shutdown: finished");
 }
 
