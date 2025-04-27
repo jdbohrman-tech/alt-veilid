@@ -628,6 +628,11 @@ class VeilidJS extends Veilid {
           js_util.callMethod(wasm, 'get_veilid_state', []))));
 
   @override
+  Future<bool> isShutdown() async =>
+      await _wrapApiPromise<bool>(
+          js_util.callMethod(wasm, 'is_shutdown', []));
+
+  @override
   Future<void> attach() =>
       _wrapApiPromise(js_util.callMethod(wasm, 'attach', []));
 

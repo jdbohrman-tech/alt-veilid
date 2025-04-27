@@ -47,6 +47,20 @@
         "op": {
           "type": "string",
           "enum": [
+            "IsShutdown"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "op"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "enum": [
             "Attach"
           ]
         }

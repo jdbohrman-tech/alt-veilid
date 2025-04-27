@@ -323,6 +323,9 @@ class _JsonVeilidAPI(VeilidAPI):
         return VeilidState.from_json(
             raise_api_result(await self.send_ndjson_request(Operation.GET_STATE))
         )
+    
+    async def is_shutdown(self) -> bool:
+        return raise_api_result(await self.send_ndjson_request(Operation.IS_SHUTDOWN))
 
     async def attach(self):
         raise_api_result(await self.send_ndjson_request(Operation.ATTACH))

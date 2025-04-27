@@ -327,6 +327,17 @@ pub fn get_veilid_state() -> Promise {
 }
 
 #[wasm_bindgen()]
+pub fn is_shutdown() -> APIResult<bool> {
+    let veilid_api = get_veilid_api();
+    if let Err(veilid_core::VeilidAPIError::NotInitialized) = veilid_api {
+        return APIResult::Ok(true);
+    }
+    let veilid_api = veilid_api.unwrap();
+    let is_shutdown = veilid_api.is_shutdown();
+    APIResult::Ok(is_shutdown)
+}
+
+#[wasm_bindgen()]
 pub fn attach() -> Promise {
     wrap_api_future_void(async move {
         let veilid_api = get_veilid_api()?;

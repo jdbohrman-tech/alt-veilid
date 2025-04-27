@@ -137,6 +137,7 @@ abstract class Veilid {
   void changeLogIgnore(String layer, List<String> changes);
   Future<Stream<VeilidUpdate>> startupVeilidCore(VeilidConfig config);
   Future<VeilidState> getVeilidState();
+  Future<bool> isShutdown();
   Future<void> attach();
   Future<void> detach();
   Future<void> shutdownVeilidCore();

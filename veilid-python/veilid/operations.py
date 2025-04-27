@@ -5,6 +5,7 @@ from typing import Self
 class Operation(StrEnum):
     CONTROL = "Control"
     GET_STATE = "GetState"
+    IS_SHUTDOWN = "IsShutdown"
     ATTACH = "Attach"
     DETACH = "Detach"
     NEW_PRIVATE_ROUTE = "NewPrivateRoute"
