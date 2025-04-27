@@ -171,6 +171,10 @@ code-linux:
         # FROM registry.gitlab.com/veilid/build-cache:latest
     END
     COPY --keep-ts --dir .cargo build_docs.sh files scripts veilid-cli veilid-core veilid-server veilid-tools veilid-flutter veilid-wasm Cargo.lock Cargo.toml /veilid
+    # Check to make sure Cargo.lock is up to date
+    RUN cargo update -w --locked
+    # Restore original Cargo.lock
+    COPY --keep-ts --dir Cargo.lock /veilid
 
 # Code + Linux + Android deps
 code-android:
@@ -181,10 +185,10 @@ code-android:
 # Clippy only
 clippy:
     FROM +code-linux
-    RUN cargo clippy --target x86_64-unknown-linux-gnu
-    RUN cargo clippy --target x86_64-pc-windows-gnu
-    RUN cargo clippy --target aarch64-apple-darwin
-    RUN cargo clippy --manifest-path=veilid-wasm/Cargo.toml --target wasm32-unknown-unknown
+    RUN cargo clippy --locked --target x86_64-unknown-linux-gnu
+    RUN cargo clippy --locked --target x86_64-pc-windows-gnu
+    RUN cargo clippy --locked --target aarch64-apple-darwin
+    RUN cargo clippy --locked --manifest-path=veilid-wasm/Cargo.toml --target wasm32-unknown-unknown
 
 # Build
 build-linux-amd64:
@@ -194,7 +198,7 @@ build-linux-amd64:
         RUN echo "not enough container memory to build. increase build host memory."
         RUN false
     END
-    RUN cargo zigbuild --target x86_64-unknown-linux-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
+    RUN cargo zigbuild --locked --target x86_64-unknown-linux-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
     SAVE ARTIFACT ./target/x86_64-unknown-linux-gnu AS LOCAL ./target/artifacts/x86_64-unknown-linux-gnu
 
 build-linux-arm64:
@@ -204,7 +208,7 @@ build-linux-arm64:
         RUN echo "not enough container memory to build. increase build host memory."
         RUN false
     END
-    RUN cargo zigbuild --target aarch64-unknown-linux-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
+    RUN cargo zigbuild --locked --target aarch64-unknown-linux-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
     SAVE ARTIFACT ./target/aarch64-unknown-linux-gnu AS LOCAL ./target/artifacts/aarch64-unknown-linux-gnu
 
 # build-windows-amd64:
@@ -214,7 +218,7 @@ build-linux-arm64:
 #         RUN echo "not enough container memory to build. increase build host memory."
 #         RUN false
 #     END
-#     RUN cargo zigbuild --target x86_64-pc-windows-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
+#     RUN cargo zigbuild --locked --target x86_64-pc-windows-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
 #     SAVE ARTIFACT ./target/x86_64-pc-windows-gnu AS LOCAL ./target/artifacts/x86_64-pc-windows-gnu
 
 # build-macos-arm64:
@@ -224,7 +228,7 @@ build-linux-arm64:
 #         RUN echo "not enough container memory to build. increase build host memory."
 #         RUN false
 #     END
-#     RUN cargo zigbuild --target aarch64-apple-darwin --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
+#     RUN cargo zigbuild --locked --target aarch64-apple-darwin --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
 #     SAVE ARTIFACT ./target/aarch64-apple-darwin AS LOCAL ./target/artifacts/aarch64-apple-darwin
 
 
@@ -232,10 +236,10 @@ build-android:
     FROM +code-android
     WORKDIR /veilid/veilid-core
     ENV PATH=$PATH:/Android/Sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/
-    RUN cargo build --target aarch64-linux-android --release
-    RUN cargo build --target armv7-linux-androideabi --release
-    RUN cargo build --target i686-linux-android --release
-    RUN cargo build --target x86_64-linux-android --release
+    RUN cargo build --locked --target aarch64-linux-android --release
+    RUN cargo build --locked --target armv7-linux-androideabi --release
+    RUN cargo build --locked --target i686-linux-android --release
+    RUN cargo build --locked --target x86_64-linux-android --release
     WORKDIR /veilid
     SAVE ARTIFACT ./target/aarch64-linux-android AS LOCAL ./target/artifacts/aarch64-linux-android
     SAVE ARTIFACT ./target/armv7-linux-androideabi AS LOCAL ./target/artifacts/armv7-linux-androideabi
@@ -265,7 +269,7 @@ unit-tests-docs-linux:
         
 unit-tests-native-linux:
     FROM +code-linux
-    RUN cargo test --tests --target $DEFAULT_CARGO_TARGET -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
+    RUN cargo test --locked --tests --target $DEFAULT_CARGO_TARGET -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
 
 unit-tests-wasm-linux:
     FROM +code-linux

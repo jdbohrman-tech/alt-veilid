@@ -29,6 +29,9 @@
 - veilid-wasm:
   - Expose the isShutdown API: https://gitlab.com/veilid/veilid/-/merge_requests/392
 
+- CI:
+  - Ensure Cargo.lock is up-to-date during CI pipelines
+
 **Changed in Veilid 0.4.4**
 
 - veilid-core:
