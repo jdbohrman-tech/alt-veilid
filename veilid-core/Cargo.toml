@@ -124,7 +124,7 @@ curve25519-dalek = { version = "4.1.3", default-features = false, features = [
     "zeroize",
     "precomputed-tables",
 ] }
-blake3 = { version = "1.6.1" }
+blake3 = { version = "1.8.2" }
 chacha20poly1305 = "0.10.1"
 chacha20 = "0.9.1"
 argon2 = "0.5.3"
