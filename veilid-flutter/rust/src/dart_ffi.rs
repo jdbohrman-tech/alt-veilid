@@ -2049,3 +2049,11 @@ pub extern "C" fn veilid_version() -> VeilidVersion {
 pub extern "C" fn default_veilid_config() -> *mut c_char {
     veilid_core::default_veilid_config().into_ffi_value()
 }
+
+#[no_mangle]
+#[instrument(level = "trace", target = "ffi", skip_all)]
+pub extern "C" fn veilid_features() -> *mut c_char {
+    serde_json::to_string(&veilid_core::veilid_features())
+        .expect("Failed to serialize features")
+        .into_ffi_value()
+}

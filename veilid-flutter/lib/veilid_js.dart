@@ -758,6 +758,12 @@ class VeilidJS extends Veilid {
   }
 
   @override
+  List<String> veilidFeatures() {
+    final features = js_util.callMethod(wasm, 'veilid_features', []);
+    return (features as js_interop.JSArray).dartify()! as List<String>;
+  }
+
+  @override
   String defaultVeilidConfig() =>
       js_util.callMethod(wasm, 'default_veilid_config', []);
 }

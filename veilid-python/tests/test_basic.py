@@ -44,6 +44,13 @@ async def test_version(api_connection: veilid.VeilidAPI):
     print(f"veilid_version_string: {vstr}")
 
 
+@pytest.mark.asyncio    
+async def test_features(api_connection: veilid.VeilidAPI):
+    features = await api_connection.veilid_features()
+    print(f"veilid_features: {features}")
+    assert isinstance(features, list)
+
+
 @pytest.mark.asyncio
 async def test_config(api_connection: veilid.VeilidAPI):
     cfgstr = await api_connection.default_veilid_config()

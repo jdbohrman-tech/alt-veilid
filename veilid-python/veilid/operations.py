@@ -29,6 +29,7 @@ class Operation(StrEnum):
     DEBUG = "Debug"
     VEILID_VERSION_STRING = "VeilidVersionString"
     VEILID_VERSION = "VeilidVersion"
+    VEILID_FEATURES = "VeilidFeatures"
     DEFAULT_VEILID_CONFIG = "DefaultVeilidConfig"
 
 

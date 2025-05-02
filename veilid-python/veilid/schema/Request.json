@@ -1626,6 +1626,20 @@
         "op": {
           "type": "string",
           "enum": [
+            "VeilidFeatures"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "op"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "enum": [
             "DefaultVeilidConfig"
           ]
         }

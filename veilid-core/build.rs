@@ -242,6 +242,9 @@ fn main() {
         return;
     }
 
+    // Gather build-time information, such as the features that were enabled when veilid-core was built.
+    bosion::gather();
+
     if is_input_file_outdated("./proto/veilid.capnp", "./proto/veilid_capnp.rs").unwrap() {
         println!("cargo:warning=rebuilding proto/veilid_capnp.rs because it has changed from the last generation of proto/veilid.capnp");
         do_capnp_build();

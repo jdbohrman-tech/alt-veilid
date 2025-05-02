@@ -859,6 +859,9 @@ impl JsonRequestProcessor {
                     patch,
                 }
             }
+            RequestOp::VeilidFeatures => ResponseOp::VeilidFeatures {
+                value: veilid_features(),
+            },
             RequestOp::DefaultVeilidConfig => ResponseOp::DefaultVeilidConfig {
                 value: default_veilid_config(),
             },

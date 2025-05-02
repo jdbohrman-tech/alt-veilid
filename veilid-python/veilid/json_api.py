@@ -490,6 +490,9 @@ class _JsonVeilidAPI(VeilidAPI):
         v = await self.send_ndjson_request(Operation.VEILID_VERSION)
         return VeilidVersion(v["major"], v["minor"], v["patch"])
 
+    async def veilid_features(self) -> list[str]:
+        return raise_api_result(await self.send_ndjson_request(Operation.VEILID_FEATURES))
+
     async def default_veilid_config(self) -> str:
         return raise_api_result(await self.send_ndjson_request(Operation.DEFAULT_VEILID_CONFIG))
 

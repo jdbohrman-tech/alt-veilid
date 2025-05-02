@@ -250,6 +250,9 @@ typedef _VeilidVersionDart = VeilidVersionFFI Function();
 // fn default_veilid_config() -> *mut c_char
 typedef _DefaultVeilidConfigDart = Pointer<Utf8> Function();
 
+// fn veilid_features() -> *mut c_char
+typedef _VeilidFeaturesDart = Pointer<Utf8> Function();
+
 // Async message types
 const int messageOk = 0;
 const int messageErr = 1;
@@ -1257,8 +1260,9 @@ class VeilidFFI extends Veilid {
         _startupVeilidCore = dylib.lookupFunction<
             Void Function(Int64, Int64, Pointer<Utf8>),
             _StartupVeilidCoreDart>('startup_veilid_core'),
-        _isShutdown = dylib.lookupFunction<Void Function(Int64), _IsShutdownDart>(
-            'is_shutdown'),
+        _isShutdown =
+            dylib.lookupFunction<Void Function(Int64), _IsShutdownDart>(
+                'is_shutdown'),
         _getVeilidState =
             dylib.lookupFunction<Void Function(Int64), _GetVeilidStateDart>(
                 'get_veilid_state'),
@@ -1476,7 +1480,10 @@ class VeilidFFI extends Veilid {
         _veilidVersion = dylib.lookupFunction<VeilidVersionFFI Function(),
             _VeilidVersionDart>('veilid_version'),
         _defaultVeilidConfig = dylib.lookupFunction<Pointer<Utf8> Function(),
-            _DefaultVeilidConfigDart>('default_veilid_config') {
+            _DefaultVeilidConfigDart>('default_veilid_config'),
+        _veilidFeatures =
+            dylib.lookupFunction<Pointer<Utf8> Function(), _VeilidFeaturesDart>(
+                'veilid_features') {
     // Get veilid_flutter initializer
     final initializeVeilidFlutter = _dylib.lookupFunction<
         Void Function(Pointer<_DartPostCObject>, Pointer<Utf8>),
@@ -1579,6 +1586,7 @@ class VeilidFFI extends Veilid {
   final _VeilidVersionStringDart _veilidVersionString;
   final _VeilidVersionDart _veilidVersion;
   final _DefaultVeilidConfigDart _defaultVeilidConfig;
+  final _VeilidFeaturesDart _veilidFeatures;
 
   @override
   void initializeVeilidCore(Map<String, dynamic> platformConfigJson) {
@@ -1834,9 +1842,18 @@ class VeilidFFI extends Veilid {
 
   @override
   String defaultVeilidConfig() {
-    final defaultVeilidConfig = _defaultVeilidConfig();
-    final ret = defaultVeilidConfig.toDartString();
-    _freeString(defaultVeilidConfig);
-    return ret;
+    final ptr = _defaultVeilidConfig();
+    final out = ptr.toDartString();
+    _freeString(ptr);
+    return out;
+  }
+
+  @override
+  List<String> veilidFeatures() {
+    final ptr = _veilidFeatures();
+    final str = ptr.toDartString();
+    _freeString(ptr);
+    final features = jsonDecode(str) as List<dynamic>;
+    return features.map((e) => e as String).toList();
   }
 }

@@ -190,4 +190,7 @@ abstract class Veilid {
   VeilidVersion veilidVersion();
   String defaultVeilidConfig();
   Future<String> debug(String command);
+
+  /// Return the features that were enabled when veilid-core was built.
+  List<String> veilidFeatures();
 }

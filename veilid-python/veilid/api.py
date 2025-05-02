@@ -463,6 +463,10 @@ class VeilidAPI(ABC):
         pass
 
     @abstractmethod
+    async def veilid_features(self) -> list[str]:
+        pass
+
+    @abstractmethod
     async def veilid_version(self) -> types.VeilidVersion:
         pass
 
