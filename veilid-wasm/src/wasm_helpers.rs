@@ -1,26 +1,5 @@
 use super::*;
 
-cfg_if::cfg_if! {
-  if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
-      pub use wasm_bindgen::prelude::*;
-
-      macro_rules! from_impl_to_jsvalue {
-          ($name: ident) => {
-              impl From<$name> for JsValue {
-                  fn from(value: $name) -> Self {
-                      serde_wasm_bindgen::to_value(&value).unwrap()
-                  }
-              }
-          }
-      }
-  } else {
-      macro_rules! from_impl_to_jsvalue {
-          ($name: ident) => {}
-      }
-  }
-}
-pub(crate) use from_impl_to_jsvalue;
-
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(typescript_type = "string[]")]

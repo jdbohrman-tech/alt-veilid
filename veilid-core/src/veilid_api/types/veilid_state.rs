@@ -197,7 +197,6 @@ pub enum VeilidUpdate {
     ValueChange(Box<VeilidValueChange>),
     Shutdown,
 }
-from_impl_to_jsvalue!(VeilidUpdate);
 
 /// A queriable state of the internals of veilid-core.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -212,4 +211,3 @@ pub struct VeilidState {
     pub network: Box<VeilidStateNetwork>,
     pub config: Box<VeilidStateConfig>,
 }
-from_impl_to_jsvalue!(VeilidState);

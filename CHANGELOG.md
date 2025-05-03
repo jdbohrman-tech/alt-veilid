@@ -27,6 +27,7 @@
   - Expose the is_shutdown API: https://gitlab.com/veilid/veilid/-/merge_requests/392
 
 - veilid-wasm:
+  - **Breaking** Properly generate TypeScript types for `ValueSubkeyRangeSet`, which would previously resolve to `any`. This is breaking since it can cause type errors to correctly surface in existing applications. ([!397](https://gitlab.com/veilid/veilid/-/merge_requests/397))
   - Expose the isShutdown API: https://gitlab.com/veilid/veilid/-/merge_requests/392
 
 - CI:

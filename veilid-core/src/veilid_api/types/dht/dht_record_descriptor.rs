@@ -23,7 +23,6 @@ pub struct DHTRecordDescriptor {
     /// The schema in use associated with the key
     schema: DHTSchema,
 }
-from_impl_to_jsvalue!(DHTRecordDescriptor);
 
 impl DHTRecordDescriptor {
     pub(crate) fn new(

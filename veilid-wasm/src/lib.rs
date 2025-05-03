@@ -24,7 +24,6 @@ use tsify::*;
 use veilid_core::*;
 use veilid_core::{tools::*, VeilidAPIError};
 use veilid_tracing_wasm::*;
-use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::*;
 
 pub mod veilid_client_js;
@@ -184,7 +183,6 @@ pub struct VeilidRouteBlob {
     )]
     pub blob: Vec<u8>,
 }
-from_impl_to_jsvalue!(VeilidRouteBlob);
 
 // WASM Bindings
 
