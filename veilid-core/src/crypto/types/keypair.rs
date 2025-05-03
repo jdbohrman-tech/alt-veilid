@@ -1,17 +1,20 @@
 use super::*;
 
 #[derive(Clone, Copy, Default, PartialOrd, Ord, PartialEq, Eq, Hash)]
-#[cfg_attr(
-    all(target_arch = "wasm32", target_os = "unknown"),
-    derive(Tsify),
-    tsify(from_wasm_abi, into_wasm_abi)
-)]
 #[must_use]
 pub struct KeyPair {
     pub key: PublicKey,
     pub secret: SecretKey,
 }
-from_impl_to_jsvalue!(KeyPair);
+
+cfg_if::cfg_if! {
+    if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
+        #[wasm_bindgen(typescript_custom_section)]
+        const KEYPAIR_TYPE: &'static str = r#"
+export type KeyPair = `${PublicKey}:${SecretKey}`;
+"#;
+    }
+}
 
 impl KeyPair {
     pub fn new(key: PublicKey, secret: SecretKey) -> Self {

@@ -9,6 +9,15 @@ use super::*;
 #[must_use]
 pub struct FourCC(pub [u8; 4]);
 
+cfg_if::cfg_if! {
+    if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
+        #[wasm_bindgen(typescript_custom_section)]
+        const FOURCC_TYPE: &'static str = r#"
+export type FourCC = string;
+"#;
+    }
+}
+
 impl From<[u8; 4]> for FourCC {
     fn from(b: [u8; 4]) -> Self {
         Self(b)

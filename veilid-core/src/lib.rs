@@ -55,7 +55,6 @@ mod storage_manager;
 mod table_store;
 mod veilid_api;
 mod veilid_config;
-mod wasm_helpers;
 
 pub(crate) use self::component::*;
 pub(crate) use self::core_context::RegisteredComponents;
@@ -122,4 +121,10 @@ use stop_token::*;
 use thiserror::Error as ThisError;
 use tracing::*;
 use veilid_tools::*;
-use wasm_helpers::*;
+
+cfg_if::cfg_if! {
+    if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
+        pub use wasm_bindgen::prelude::*;
+        pub use tsify::*;
+    }
+}

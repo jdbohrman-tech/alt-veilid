@@ -15,6 +15,10 @@ use range_set_blaze::*;
 pub struct ValueSubkeyRangeSet {
     #[serde(with = "serialize_range_set_blaze")]
     #[schemars(with = "Vec<(u32,u32)>")]
+    #[cfg_attr(
+        all(target_arch = "wasm32", target_os = "unknown"),
+        tsify(type = "Array<[ValueSubkey, ValueSubkey]>")
+    )]
     data: RangeSetBlaze<ValueSubkey>,
 }
 

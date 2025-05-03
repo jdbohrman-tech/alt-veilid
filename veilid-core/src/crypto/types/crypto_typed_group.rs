@@ -19,6 +19,15 @@ where
     items: Vec<CryptoTyped<K>>,
 }
 
+cfg_if::cfg_if! {
+    if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
+        #[wasm_bindgen(typescript_custom_section)]
+        const CRYPOTYPEDGROUP_TYPE: &'static str = r#"
+export type CryptoTypedGroup<TCryptoKey extends string> = Array<CryptoTyped<TCryptoKey>>;
+"#;
+    }
+}
+
 impl<K> CryptoTypedGroup<K>
 where
     K: Clone

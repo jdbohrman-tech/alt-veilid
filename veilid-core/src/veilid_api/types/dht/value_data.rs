@@ -29,7 +29,6 @@ pub struct ValueData {
     #[schemars(with = "String")]
     writer: PublicKey,
 }
-from_impl_to_jsvalue!(ValueData);
 
 impl ValueData {
     pub const MAX_LEN: usize = 32768;

@@ -78,22 +78,19 @@ where
 macro_rules! byte_array_type {
     ($name:ident, $size:expr, $encoded_size:expr) => {
         #[derive(Clone, Copy, Hash, PartialOrd, Ord, PartialEq, Eq)]
+        #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
         #[cfg_attr(
             all(target_arch = "wasm32", target_os = "unknown"),
-            derive(Tsify),
-            tsify(into_wasm_abi)
+            tsify(from_wasm_abi, into_wasm_abi)
         )]
+        #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), serde(transparent))]
         #[must_use]
         pub struct $name {
+            #[cfg_attr(
+                all(target_arch = "wasm32", target_os = "unknown"),
+                tsify(type = "string")
+            )]
             pub bytes: [u8; $size],
-        }
-
-        impl Default for $name {
-            fn default() -> Self {
-                Self {
-                    bytes: [0u8; $size],
-                }
-            }
         }
 
         impl serde::Serialize for $name {
@@ -116,6 +113,14 @@ macro_rules! byte_array_type {
                     return Ok($name::default());
                 }
                 $name::try_decode(s.as_str()).map_err(serde::de::Error::custom)
+            }
+        }
+
+        impl Default for $name {
+            fn default() -> Self {
+                Self {
+                    bytes: [0u8; $size],
+                }
             }
         }
 

@@ -20,7 +20,6 @@ pub struct DHTRecordReport {
     /// The sequence numbers of each subkey requested from the DHT over the network
     network_seqs: Vec<Option<ValueSeqNum>>,
 }
-from_impl_to_jsvalue!(DHTRecordReport);
 
 impl DHTRecordReport {
     pub(crate) fn new(

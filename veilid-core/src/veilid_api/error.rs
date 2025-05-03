@@ -151,7 +151,6 @@ pub enum VeilidAPIError {
     #[error("Generic: {message}")]
     Generic { message: String },
 }
-from_impl_to_jsvalue!(VeilidAPIError);
 
 impl VeilidAPIError {
     pub fn not_initialized() -> Self {
