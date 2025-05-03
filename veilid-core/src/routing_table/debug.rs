@@ -66,11 +66,12 @@ impl RoutingTable {
         let mut out = String::new();
         let inner = self.inner.read();
         out += &format!("Node Ids: {}\n", self.node_ids());
+        out += &format!("Version: {}\n", veilid_version_string());
+        out += &format!("Features: {:?}\n", veilid_features());
         out += &format!(
             "Self Transfer Stats:\n{}",
             indent_all_string(&inner.self_transfer_stats)
         );
-        out += &format!("Version: {}", veilid_version_string());
 
         out
     }

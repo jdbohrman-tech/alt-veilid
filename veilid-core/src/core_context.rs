@@ -71,6 +71,8 @@ impl VeilidCoreContext {
         let registry = VeilidComponentRegistry::new(config);
 
         veilid_log!(registry info "Veilid API starting up");
+        veilid_log!(registry info "Version: {}", veilid_version_string());
+        veilid_log!(registry info "Features: {:?}", veilid_features());
 
         // Register all components
         registry.register(ProtectedStore::new);

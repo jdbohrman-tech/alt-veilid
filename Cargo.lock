@@ -835,6 +835,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "bosion"
+version = "1.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "858150532ced83f59a49236ccade71f0ec46362dbd1632affdf79a5c299462cd"
+dependencies = [
+ "time",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6455,6 +6464,7 @@ dependencies = [
  "async_executors",
  "backtrace",
  "blake3",
+ "bosion",
  "capnp",
  "capnpc",
  "cfg-if 1.0.0",

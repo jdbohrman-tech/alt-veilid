@@ -121,6 +121,7 @@ pub enum RequestOp {
     },
     VeilidVersionString,
     VeilidVersion,
+    VeilidFeatures,
     DefaultVeilidConfig,
 }
 
@@ -237,6 +238,9 @@ pub enum ResponseOp {
     },
     DefaultVeilidConfig {
         value: String,
+    },
+    VeilidFeatures {
+        value: Vec<String>,
     },
 }
 

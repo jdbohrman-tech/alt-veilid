@@ -207,6 +207,12 @@ impl VeilidClient {
         }
     }
 
+    /// Return the features that were enabled when veilid-core was built.
+    #[must_use]
+    pub fn features() -> Vec<String> {
+        veilid_core::veilid_features()
+    }
+
     /// Return the cargo package version of veilid-core, in string format.
     #[must_use]
     pub fn versionString() -> String {

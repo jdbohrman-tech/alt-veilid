@@ -29,6 +29,12 @@ describe('veilidClient', function () {
     expect(version.length).toBeGreaterThan(0);
   });
 
+  it('should print features', async function () {
+    const features = veilidClient.features();
+    expect(Array.isArray(features)).toBe(true);
+    expect(features.length).toBeGreaterThan(0);
+  });
+
   it('should get config string', async function () {
     const defaultConfig = veilidClient.defaultConfig();
     expect(typeof defaultConfig).toBe('string');
