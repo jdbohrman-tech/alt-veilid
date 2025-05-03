@@ -15,7 +15,7 @@ describe('veilidClient', function () {
       // if (_update.kind === 'Log') {
       //   console.log(_update.message);
       // }
-    }, JSON.stringify(veilidCoreStartupConfig));
+    }, veilidCoreStartupConfig);
   });
 
   after('veilid shutdown', async function () {
@@ -35,17 +35,17 @@ describe('veilidClient', function () {
     expect(features.length).toBeGreaterThan(0);
   });
 
-  it('should get config string', async function () {
+  it('should get config', async function () {
     const defaultConfig = veilidClient.defaultConfig();
-    expect(typeof defaultConfig).toBe('string');
-    expect(defaultConfig.length).toBeGreaterThan(0);
+    expect(typeof defaultConfig).toBe('object');
 
-    const cfgObject1 = JSON.parse(defaultConfig);
-    const defaultConfigStr = JSON.stringify(cfgObject1);
-    const cfgObject2 = JSON.parse(defaultConfigStr);
-    const defaultConfigStr2 = JSON.stringify(cfgObject2);
-
-    expect(defaultConfigStr).toEqual(defaultConfigStr2);
+    expect(defaultConfig).toHaveProperty('program_name');
+    expect(defaultConfig).toHaveProperty('namespace');
+    expect(defaultConfig).toHaveProperty('capabilities');
+    expect(defaultConfig).toHaveProperty('protected_store');
+    expect(defaultConfig).toHaveProperty('table_store');
+    expect(defaultConfig).toHaveProperty('block_store');
+    expect(defaultConfig).toHaveProperty('network');
   });
 
   it('should attach and detach', async function () {

@@ -113,8 +113,8 @@ pub fn fix_peertabledata() -> PeerTableData {
     }
 }
 
-pub fn fix_veilidconfiginner() -> VeilidConfigInner {
-    VeilidConfigInner {
+pub fn fix_veilidconfig() -> VeilidConfig {
+    VeilidConfig {
         program_name: "Bob".to_string(),
         namespace: "Internets".to_string(),
         capabilities: VeilidConfigCapabilities {

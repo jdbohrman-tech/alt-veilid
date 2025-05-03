@@ -30,7 +30,7 @@ impl VeilidCoreContext {
         config_callback: ConfigCallback,
     ) -> VeilidAPIResult<VeilidCoreContext> {
         // Set up config from callback
-        let config = VeilidConfig::new_from_callback(config_callback, update_callback)?;
+        let config = VeilidStartupOptions::new_from_callback(config_callback, update_callback)?;
 
         Self::new_common(config).await
     }
@@ -38,15 +38,15 @@ impl VeilidCoreContext {
     #[instrument(level = "trace", target = "core_context", err, skip_all)]
     async fn new_with_config(
         update_callback: UpdateCallback,
-        config_inner: VeilidConfigInner,
+        config_inner: VeilidConfig,
     ) -> VeilidAPIResult<VeilidCoreContext> {
         // Set up config from json
-        let config = VeilidConfig::new_from_config(config_inner, update_callback);
+        let config = VeilidStartupOptions::new_from_config(config_inner, update_callback);
         Self::new_common(config).await
     }
 
     #[instrument(level = "trace", target = "core_context", err, skip_all)]
-    async fn new_common(config: VeilidConfig) -> VeilidAPIResult<VeilidCoreContext> {
+    async fn new_common(config: VeilidStartupOptions) -> VeilidAPIResult<VeilidCoreContext> {
         cfg_if! {
             if #[cfg(target_os = "android")] {
                 if !crate::intf::android::is_android_ready() {
@@ -260,7 +260,7 @@ pub async fn api_startup_json(
     config_json: String,
 ) -> VeilidAPIResult<VeilidAPI> {
     // Parse the JSON config
-    let config: VeilidConfigInner =
+    let config: VeilidConfig =
         serde_json::from_str(&config_json).map_err(VeilidAPIError::generic)?;
 
     api_startup_config(update_callback, config).await
@@ -277,7 +277,7 @@ pub async fn api_startup_json(
 #[instrument(level = "trace", target = "core_context", err, skip_all)]
 pub async fn api_startup_config(
     update_callback: UpdateCallback,
-    config: VeilidConfigInner,
+    config: VeilidConfig,
 ) -> VeilidAPIResult<VeilidAPI> {
     // Get the program_name and namespace we're starting up in
     let program_name = config.program_name.clone();

@@ -79,7 +79,7 @@ impl VeilidAPI {
     // Public Accessors
 
     /// Access the configuration that Veilid was initialized with.
-    pub fn config(&self) -> VeilidAPIResult<VeilidConfig> {
+    pub fn config(&self) -> VeilidAPIResult<VeilidStartupOptions> {
         let inner = self.inner.lock();
         let Some(context) = &inner.context else {
             return Err(VeilidAPIError::NotInitialized);

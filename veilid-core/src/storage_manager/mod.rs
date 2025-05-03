@@ -217,7 +217,7 @@ impl StorageManager {
         this
     }
 
-    fn local_limits_from_config(config: VeilidConfig) -> RecordStoreLimits {
+    fn local_limits_from_config(config: VeilidStartupOptions) -> RecordStoreLimits {
         let c = config.get();
         RecordStoreLimits {
             subkey_cache_size: c.network.dht.local_subkey_cache_size as usize,
@@ -237,7 +237,7 @@ impl StorageManager {
         }
     }
 
-    fn remote_limits_from_config(config: VeilidConfig) -> RecordStoreLimits {
+    fn remote_limits_from_config(config: VeilidStartupOptions) -> RecordStoreLimits {
         let c = config.get();
         RecordStoreLimits {
             subkey_cache_size: c.network.dht.remote_subkey_cache_size as usize,

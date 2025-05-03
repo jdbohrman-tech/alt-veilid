@@ -18,7 +18,7 @@ describe('VeilidTable', () => {
       // if (_update.kind === 'Log') {
       //   console.log(_update.message);
       // }
-    }, JSON.stringify(veilidCoreStartupConfig));
+    }, veilidCoreStartupConfig);
   });
 
   after('veilid shutdown', async () => {

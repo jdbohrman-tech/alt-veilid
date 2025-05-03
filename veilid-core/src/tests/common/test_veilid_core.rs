@@ -26,7 +26,7 @@ pub async fn test_startup_shutdown() {
 
 pub async fn test_startup_shutdown_from_config() {
     trace!("test_startup_from_config: starting");
-    let config = VeilidConfigInner {
+    let config = VeilidConfig {
         program_name: "VeilidCoreTests".into(),
         table_store: VeilidConfigTableStore {
             directory: get_table_store_path(),
@@ -111,7 +111,7 @@ pub async fn test_startup_shutdown_from_config_multiple() {
     let namespaces = (0..3).map(|x| format!("ns_{}", x)).collect::<Vec<_>>();
     let mut apis = vec![];
     for ns in &namespaces {
-        let config = VeilidConfigInner {
+        let config = VeilidConfig {
             program_name: "VeilidCoreTests".into(),
             namespace: ns.to_owned(),
             table_store: VeilidConfigTableStore {

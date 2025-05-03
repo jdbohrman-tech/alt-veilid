@@ -4,6 +4,9 @@
   - watch_dht_values() now returns a bool rather than an expiration timestamp. Expiration renewal is now managed by veilid-core internally. Apps no longer need to renew watches!
   - inspect_dht_record() and cancel_dht_watch() now take an Option<ValueSubkeyRangeSet> instead of just a ValueSubkeyRangeSet, to make things easier for automatic binding generation someday and to remove ambiguities about the semantics of the default empty set.
   - DHTRecordReport now uses a Vec<Option<ValueSubkey>> for seq lists, rather than using the 'ValueSubkey::MAX' sentinel value (0xFFFFFFFF) to represent a missing subkey
+  - Renamed config structs to better describe their purpose, and remove "Inner" from a struct that's being exposed via the API. ([!402](https://gitlab.com/veilid/veilid/-/merge_requests/402))
+    - `VeilidConfig` -> `VeilidStartupOptions`
+    - `VeilidConfigInner` -> `VeilidConfig`
 
 - veilid-core:
   - Allow shutdown even if tables are closed
@@ -30,6 +33,10 @@
 
 - veilid-wasm:
   - **Breaking** Properly generate TypeScript types for `ValueSubkeyRangeSet`, which would previously resolve to `any`. This is breaking since it can cause type errors to correctly surface in existing applications. ([!397](https://gitlab.com/veilid/veilid/-/merge_requests/397))
+  - **Breaking** `starupCore()` and `defaultConfig()` now use config objects instead of stringified JSON.
+    - `veilidClient.startupCore(callback, JSON.stringify(config))` now becomes `veilidClient.startupCore(callback, config)`. ([!402](https://gitlab.com/veilid/veilid/-/merge_requests/402))
+    - `JSON.parse(veilidClient.defaultConfig())` is now `veilidClient.defaultConfig()`
+    - The `VeilidConfigInner` type is now `VeilidConfig`.
   - Expose the isShutdown API: https://gitlab.com/veilid/veilid/-/merge_requests/392
 
 - CI:

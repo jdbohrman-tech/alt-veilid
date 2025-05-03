@@ -21,7 +21,7 @@ describe('VeilidRoutingContext', () => {
       // if (_update.kind === 'Log') {
       //   console.log(_update.message);
       // }
-    }, JSON.stringify(veilidCoreStartupConfig));
+    }, veilidCoreStartupConfig);
     await veilidClient.attach();
     await asyncCallWithTimeout(waitForPublicAttachment(), 10000);
     //console.log("---Started Up---");

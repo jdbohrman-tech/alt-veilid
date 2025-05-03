@@ -152,7 +152,7 @@ pub struct VeilidRouteChange {
 #[must_use]
 pub struct VeilidStateConfig {
     /// If the Veilid node configuration has changed the full new config will be here.
-    pub config: VeilidConfigInner,
+    pub config: VeilidConfig,
 }
 
 /// Describe when DHT records have subkey values changed

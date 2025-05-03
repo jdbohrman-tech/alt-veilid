@@ -2716,7 +2716,7 @@
               "description": "If the Veilid node configuration has changed the full new config will be here.",
               "allOf": [
                 {
-                  "$ref": "#/definitions/VeilidConfigInner"
+                  "$ref": "#/definitions/VeilidConfig"
                 }
               ]
             },
@@ -3954,6 +3954,69 @@
         }
       ]
     },
+    "VeilidConfig": {
+      "description": "Top level of the Veilid configuration tree",
+      "type": "object",
+      "required": [
+        "block_store",
+        "capabilities",
+        "namespace",
+        "network",
+        "program_name",
+        "protected_store",
+        "table_store"
+      ],
+      "properties": {
+        "block_store": {
+          "description": "Configuring the block store (storage of large content-addressable content)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/VeilidConfigBlockStore"
+            }
+          ]
+        },
+        "capabilities": {
+          "description": "Capabilities to enable for your application/node",
+          "allOf": [
+            {
+              "$ref": "#/definitions/VeilidConfigCapabilities"
+            }
+          ]
+        },
+        "namespace": {
+          "description": "To run multiple Veilid nodes within the same application, either through a single process running api_startup/api_startup_json multiple times, or your application running mulitple times side-by-side there needs to be a key used to partition the application's storage (in the TableStore, ProtectedStore, etc). An empty value here is the default, but if you run multiple veilid nodes concurrently, you should set this to a string that uniquely identifies this -instance- within the same 'program_name'. Must be a valid filename for all Veilid-capable systems, which means no backslashes or forward slashes in the name. Stick to a-z,0-9,_ and space and you should be fine.",
+          "type": "string"
+        },
+        "network": {
+          "description": "Configuring how Veilid interacts with the low level network",
+          "allOf": [
+            {
+              "$ref": "#/definitions/VeilidConfigNetwork"
+            }
+          ]
+        },
+        "program_name": {
+          "description": "An identifier used to describe the program using veilid-core. Used to partition storage locations in places like the ProtectedStore. Must be non-empty and a valid filename for all Veilid-capable systems, which means no backslashes or forward slashes in the name. Stick to a-z,0-9,_ and space and you should be fine.\n\nCaution: If you change this string, there is no migration support. Your app's protected store and table store will very likely experience data loss. Pick a program name and stick with it. This is not a 'visible' identifier and it should uniquely identify your application.",
+          "type": "string"
+        },
+        "protected_store": {
+          "description": "Configuring the protected store (keychain/keyring/etc)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/VeilidConfigProtectedStore"
+            }
+          ]
+        },
+        "table_store": {
+          "description": "Configuring the table store (persistent encrypted database)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/VeilidConfigTableStore"
+            }
+          ]
+        }
+      }
+    },
     "VeilidConfigApplication": {
       "description": "Application configuration.\n\nConfigure web access to the Progressive Web App (PWA).\n\nTo be implemented...",
       "type": "object",
@@ -4187,69 +4250,6 @@
           "type": [
             "string",
             "null"
-          ]
-        }
-      }
-    },
-    "VeilidConfigInner": {
-      "description": "Top level of the Veilid configuration tree",
-      "type": "object",
-      "required": [
-        "block_store",
-        "capabilities",
-        "namespace",
-        "network",
-        "program_name",
-        "protected_store",
-        "table_store"
-      ],
-      "properties": {
-        "block_store": {
-          "description": "Configuring the block store (storage of large content-addressable content)",
-          "allOf": [
-            {
-              "$ref": "#/definitions/VeilidConfigBlockStore"
-            }
-          ]
-        },
-        "capabilities": {
-          "description": "Capabilities to enable for your application/node",
-          "allOf": [
-            {
-              "$ref": "#/definitions/VeilidConfigCapabilities"
-            }
-          ]
-        },
-        "namespace": {
-          "description": "To run multiple Veilid nodes within the same application, either through a single process running api_startup/api_startup_json multiple times, or your application running mulitple times side-by-side there needs to be a key used to partition the application's storage (in the TableStore, ProtectedStore, etc). An empty value here is the default, but if you run multiple veilid nodes concurrently, you should set this to a string that uniquely identifies this -instance- within the same 'program_name'. Must be a valid filename for all Veilid-capable systems, which means no backslashes or forward slashes in the name. Stick to a-z,0-9,_ and space and you should be fine.",
-          "type": "string"
-        },
-        "network": {
-          "description": "Configuring how Veilid interacts with the low level network",
-          "allOf": [
-            {
-              "$ref": "#/definitions/VeilidConfigNetwork"
-            }
-          ]
-        },
-        "program_name": {
-          "description": "An identifier used to describe the program using veilid-core. Used to partition storage locations in places like the ProtectedStore. Must be non-empty and a valid filename for all Veilid-capable systems, which means no backslashes or forward slashes in the name. Stick to a-z,0-9,_ and space and you should be fine.\n\nCaution: If you change this string, there is no migration support. Your app's protected store and table store will very likely experience data loss. Pick a program name and stick with it. This is not a 'visible' identifier and it should uniquely identify your application.",
-          "type": "string"
-        },
-        "protected_store": {
-          "description": "Configuring the protected store (keychain/keyring/etc)",
-          "allOf": [
-            {
-              "$ref": "#/definitions/VeilidConfigProtectedStore"
-            }
-          ]
-        },
-        "table_store": {
-          "description": "Configuring the table store (persistent encrypted database)",
-          "allOf": [
-            {
-              "$ref": "#/definitions/VeilidConfigTableStore"
-            }
           ]
         }
       }
@@ -4779,7 +4779,7 @@
           "description": "If the Veilid node configuration has changed the full new config will be here.",
           "allOf": [
             {
-              "$ref": "#/definitions/VeilidConfigInner"
+              "$ref": "#/definitions/VeilidConfig"
             }
           ]
         }
