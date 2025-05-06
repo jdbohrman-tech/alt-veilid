@@ -480,10 +480,12 @@ impl ConnectionManager {
                 }
                 Err(e) => {
                     if retry_count == 0 {
-                        return Err(e).wrap_err(format!(
-                            "failed to connect: {:?} -> {:?}",
-                            preferred_local_address, dial_info
-                        ));
+                        bail!(
+                            "failed to connect: {:?} -> {:?}: {:#?}",
+                            preferred_local_address,
+                            dial_info,
+                            e
+                        );
                     }
                 }
             };

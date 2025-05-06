@@ -4475,6 +4475,7 @@
       "type": "object",
       "required": [
         "bootstrap",
+        "bootstrap_keys",
         "limit_attached_good",
         "limit_attached_strong",
         "limit_attached_weak",
@@ -4485,6 +4486,12 @@
       ],
       "properties": {
         "bootstrap": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "bootstrap_keys": {
           "type": "array",
           "items": {
             "type": "string"

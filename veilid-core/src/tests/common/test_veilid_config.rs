@@ -208,10 +208,17 @@ pub fn config_callback(key: String) -> ConfigCallbackReturn {
         "network.routing_table.node_id_secret" => Ok(Box::new(TypedSecretGroup::new())),
         // "network.routing_table.bootstrap" => Ok(Box::new(Vec::<String>::new())),
         #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-        "network.routing_table.bootstrap" => Ok(Box::new(vec!["bootstrap.veilid.net".to_string()])),
+        "network.routing_table.bootstrap" => {
+            Ok(Box::new(vec!["bootstrap-v1.veilid.net".to_string()]))
+        }
         #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
         "network.routing_table.bootstrap" => Ok(Box::new(vec![
-            "ws://bootstrap.veilid.net:5150/ws".to_string(),
+            "ws://bootstrap-v1.veilid.net:5150/ws".to_string(),
+        ])),
+        "network.routing_table.bootstrap_keys" => Ok(Box::new(vec![
+            TypedKey::from_str("VLD0:Vj0lKDdUQXmQ5Ol1SZdlvXkBHUccBcQvGLN9vbLSI7k").unwrap(),
+            TypedKey::from_str("VLD0:QeQJorqbXtC7v3OlynCZ_W3m76wGNeB5NTF81ypqHAo").unwrap(),
+            TypedKey::from_str("VLD0:QNdcl-0OiFfYVj9331XVR6IqZ49NG-E18d5P7lwi4TA").unwrap(),
         ])),
         "network.routing_table.limit_over_attached" => Ok(Box::new(64u32)),
         "network.routing_table.limit_fully_attached" => Ok(Box::new(32u32)),
@@ -353,12 +360,20 @@ pub fn test_config() {
     #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     assert_eq!(
         inner.network.routing_table.bootstrap,
-        vec!["bootstrap.veilid.net"],
+        vec!["bootstrap-v1.veilid.net"],
     );
     #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
     assert_eq!(
         inner.network.routing_table.bootstrap,
-        vec!["ws://bootstrap.veilid.net:5150/ws"],
+        vec!["ws://bootstrap-v1.veilid.net:5150/ws"],
+    );
+    assert_eq!(
+        inner.network.routing_table.bootstrap_keys,
+        vec![
+            TypedKey::from_str("VLD0:Vj0lKDdUQXmQ5Ol1SZdlvXkBHUccBcQvGLN9vbLSI7k").unwrap(),
+            TypedKey::from_str("VLD0:QeQJorqbXtC7v3OlynCZ_W3m76wGNeB5NTF81ypqHAo").unwrap(),
+            TypedKey::from_str("VLD0:QNdcl-0OiFfYVj9331XVR6IqZ49NG-E18d5P7lwi4TA").unwrap(),
+        ],
     );
     assert_eq!(inner.network.routing_table.limit_over_attached, 64u32);
     assert_eq!(inner.network.routing_table.limit_fully_attached, 32u32);

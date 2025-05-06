@@ -12,6 +12,16 @@ pub const RECENT_PEERS_TABLE_SIZE: usize = 64;
 // Critical sections
 pub const LOCK_TAG_TICK: &str = "TICK";
 
+/// Keeping track of how many entries we have of each type we care about
+#[derive(Debug, Clone, Default, Eq, PartialEq)]
+pub struct LiveEntryCounts {
+    /// A rough count of the entries in the table per routing domain and crypto kind with any capabilities
+    pub any_capabilities: EntryCounts,
+    /// A rough count of the entries in the table per routing domain and crypto kind with CONNECTIVITY_CAPABILITIES
+    pub connectivity_capabilities: EntryCounts,
+    /// A rough count of the entries in the table per routing domain and crypto kind with DISTANCE_METRIC_CAPABILITIES
+    pub distance_metric_capabilities: EntryCounts,
+}
 pub type EntryCounts = BTreeMap<(RoutingDomain, CryptoKind), usize>;
 
 #[derive(Debug)]
@@ -32,8 +42,8 @@ pub struct RoutingTableInner {
     pub(super) buckets: BTreeMap<CryptoKind, Vec<Bucket>>,
     /// A weak set of all the entries we have in the buckets for faster iteration
     pub(super) all_entries: PtrWeakHashSet<Weak<BucketEntry>>,
-    /// A rough count of the entries in the table per routing domain and crypto kind
-    pub(super) live_entry_count: EntryCounts,
+    /// Summary of how many entries we have of capability combinations we care about
+    pub(super) live_entry_counts: Arc<LiveEntryCounts>,
     /// The public internet routing domain
     pub(super) public_internet_routing_domain: PublicInternetRoutingDomainDetail,
     /// The dial info we use on the local network
@@ -67,7 +77,7 @@ impl RoutingTableInner {
             ),
             local_network_routing_domain: LocalNetworkRoutingDomainDetail::new(registry.clone()),
             all_entries: PtrWeakHashSet::new(),
-            live_entry_count: BTreeMap::new(),
+            live_entry_counts: Default::default(),
             self_latency_stats_accounting: LatencyStatsAccounting::new(),
             self_transfer_stats_accounting: TransferStatsAccounting::new(),
             self_transfer_stats: TransferStatsDownUp::default(),
@@ -281,6 +291,11 @@ impl RoutingTableInner {
         self.with_routing_domain(routing_domain, |rdd| rdd.get_peer_info(self))
     }
 
+    /// Return a list of the current valid bootstrap peers in a particular routing domain
+    pub fn get_bootstrap_peers(&self, routing_domain: RoutingDomain) -> Vec<NodeRef> {
+        self.with_routing_domain(routing_domain, |rdd| rdd.get_bootstrap_peers())
+    }
+
     /// Return the domain's currently registered network class
     pub fn get_network_class(&self, routing_domain: RoutingDomain) -> NetworkClass {
         self.with_routing_domain(routing_domain, |rdd| rdd.network_class())
@@ -391,10 +406,11 @@ impl RoutingTableInner {
 
     /// Build the counts of entries per routing domain and crypto kind and cache them
     /// Only considers entries that have valid signed node info
-    pub fn refresh_cached_entry_counts(&mut self) -> EntryCounts {
-        self.live_entry_count.clear();
+    pub fn refresh_cached_live_entry_counts(&mut self) -> Arc<LiveEntryCounts> {
+        let mut live_entry_counts = LiveEntryCounts::default();
+
         let cur_ts = Timestamp::now();
-        self.with_entries_mut(cur_ts, BucketEntryState::Unreliable, |rti, entry| {
+        self.with_entries_mut(cur_ts, BucketEntryState::Unreliable, |_rti, entry| {
             entry.with_inner(|e| {
                 // Tally per routing domain and crypto kind
                 for rd in RoutingDomain::all() {
@@ -403,10 +419,25 @@ impl RoutingTableInner {
                         if sni.has_any_signature() {
                             // Tally
                             for crypto_kind in e.crypto_kinds() {
-                                rti.live_entry_count
+                                live_entry_counts
+                                    .any_capabilities
                                     .entry((rd, crypto_kind))
                                     .and_modify(|x| *x += 1)
                                     .or_insert(1);
+                                if e.has_all_capabilities(rd, CONNECTIVITY_CAPABILITIES) {
+                                    live_entry_counts
+                                        .connectivity_capabilities
+                                        .entry((rd, crypto_kind))
+                                        .and_modify(|x| *x += 1)
+                                        .or_insert(1);
+                                }
+                                if e.has_all_capabilities(rd, DISTANCE_METRIC_CAPABILITIES) {
+                                    live_entry_counts
+                                        .distance_metric_capabilities
+                                        .entry((rd, crypto_kind))
+                                        .and_modify(|x| *x += 1)
+                                        .or_insert(1);
+                                }
                             }
                         }
                     }
@@ -414,13 +445,14 @@ impl RoutingTableInner {
             });
             Option::<()>::None
         });
-        self.live_entry_count.clone()
+        self.live_entry_counts = Arc::new(live_entry_counts);
+        self.live_entry_counts.clone()
     }
 
     /// Return the last cached entry counts
     /// Only considers entries that have valid signed node info
-    pub fn cached_entry_counts(&self) -> EntryCounts {
-        self.live_entry_count.clone()
+    pub fn cached_live_entry_counts(&self) -> Arc<LiveEntryCounts> {
+        self.live_entry_counts.clone()
     }
 
     /// Count entries that match some criteria
@@ -1050,7 +1082,7 @@ impl RoutingTableInner {
             .get_published_peer_info(RoutingDomain::LocalNetwork)
             .is_some();
 
-        let live_entry_counts = self.cached_entry_counts();
+        let live_entry_counts = self.cached_live_entry_counts().as_ref().clone();
 
         RoutingTableHealth {
             reliable_entry_count,

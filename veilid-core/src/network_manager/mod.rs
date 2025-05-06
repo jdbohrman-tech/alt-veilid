@@ -7,11 +7,11 @@ mod wasm;
 
 mod address_check;
 mod address_filter;
+mod bootstrap;
 mod connection_handle;
 mod connection_manager;
 mod connection_table;
 mod debug;
-mod direct_boot;
 mod network_connection;
 mod node_contact_method_cache;
 mod receipt_manager;
@@ -31,6 +31,7 @@ pub use network_connection::*;
 pub use receipt_manager::*;
 pub use stats::*;
 
+pub(crate) use bootstrap::*;
 pub(crate) use node_contact_method_cache::*;
 pub(crate) use types::*;
 
@@ -57,17 +58,29 @@ pub use wasm::{/* LOCAL_NETWORK_CAPABILITIES, */ MAX_CAPABILITIES, PUBLIC_INTERN
 
 impl_veilid_log_facility!("net");
 
-pub const MAX_MESSAGE_SIZE: usize = MAX_ENVELOPE_SIZE;
-pub const IPADDR_TABLE_SIZE: usize = 1024;
-pub const IPADDR_MAX_INACTIVE_DURATION_US: TimestampDuration =
-    TimestampDuration::new(300_000_000u64); // 5 minutes
-pub const ADDRESS_FILTER_TASK_INTERVAL_SECS: u32 = 60;
+/// Bootstrap v0 FOURCC
 pub const BOOT_MAGIC: &[u8; 4] = b"BOOT";
+/// Bootstrap v1 FOURCC
+pub const B01T_MAGIC: &[u8; 4] = b"B01T";
+/// Cache size for TXT lookups used by bootstrap
+pub const TXT_LOOKUP_CACHE_SIZE: usize = 256;
+/// Duration that TXT lookups are valid in the cache (5 minutes, <= the DNS record expiration timeout)
+pub const TXT_LOOKUP_EXPIRATION: TimestampDuration = TimestampDuration::new_secs(300);
+/// Maximum size for a message is the same as the maximum size for an Envelope
+pub const MAX_MESSAGE_SIZE: usize = MAX_ENVELOPE_SIZE;
+/// Statistics table size for tracking performance by IP address
+pub const IPADDR_TABLE_SIZE: usize = 1024;
+/// Eviction time for ip addresses from statistics tables (5 minutes)
+pub const IPADDR_MAX_INACTIVE_DURATION: TimestampDuration = TimestampDuration::new_secs(300);
+/// How frequently to process adddress filter background tasks
+pub const ADDRESS_FILTER_TASK_INTERVAL_SECS: u32 = 60;
+/// Delay between hole punch operations to improve likelihood of seqential state processing
 pub const HOLE_PUNCH_DELAY_MS: u32 = 100;
+/// Number of rpc relay operations that can be handles simultaneously
 pub const RELAY_WORKERS_PER_CORE: u32 = 16;
 
-// Things we get when we start up and go away when we shut down
-// Routing table is not in here because we want it to survive a network shutdown/startup restart
+/// Things we get when we start up and go away when we shut down
+/// Routing table is not in here because we want it to survive a network shutdown/startup restart
 #[derive(Clone)]
 struct NetworkComponents {
     net: Network,
@@ -186,6 +199,9 @@ struct NetworkManagerInner {
     peer_info_change_subscription: Option<EventBusSubscription>,
     socket_address_change_subscription: Option<EventBusSubscription>,
 
+    // TXT lookup cache
+    txt_lookup_cache: LruCache<String, (Timestamp, Vec<String>)>,
+
     // Relay workers
     relay_stop_source: Option<StopSource>,
     relay_send_channel: Option<flume::Sender<RelayWorkerRequest>>,
@@ -242,6 +258,7 @@ impl NetworkManager {
             address_check: None,
             peer_info_change_subscription: None,
             socket_address_change_subscription: None,
+            txt_lookup_cache: LruCache::new(TXT_LOOKUP_CACHE_SIZE),
             //
             relay_send_channel: None,
             relay_stop_source: None,
@@ -1007,7 +1024,11 @@ impl NetworkManager {
 
         // Is this a direct bootstrap request instead of an envelope?
         if data[0..4] == *BOOT_MAGIC {
-            network_result_value_or_log!(self pin_future!(self.handle_boot_request(flow)).await? => [ format!(": flow={:?}", flow) ] {});
+            network_result_value_or_log!(self pin_future!(self.handle_boot_v0_request(flow)).await? => [ format!(": v0 flow={:?}", flow) ] {});
+            return Ok(true);
+        }
+        if data[0..4] == *B01T_MAGIC {
+            network_result_value_or_log!(self pin_future!(self.handle_boot_v1_request(flow)).await? => [ format!(": v1 flow={:?}", flow) ] {});
             return Ok(true);
         }
 

@@ -114,7 +114,7 @@ pub struct CmdlineArgs {
     /// Set the node ids and secret keys
     ///
     /// Specify node ids in typed key set format ('\[VLD0:xxxx,VLD1:xxxx\]') on the command line, a prompt appears to enter the secret key set interactively.
-    #[arg(long, value_name = "key_set")]
+    #[arg(long, value_name = "NODE_IDS")]
     set_node_id: Option<String>,
 
     /// Delete the entire contents of the protected store (DANGER, NO UNDO!)
@@ -134,8 +134,8 @@ pub struct CmdlineArgs {
     dump_config: bool,
 
     /// Prints the bootstrap TXT record for this node and then quits
-    #[arg(long)]
-    dump_txt_record: bool,
+    #[arg(long, value_name = "BOOTSTRAP_SIGNING_KEYPAIR")]
+    dump_txt_record: Option<String>,
 
     /// Emits a JSON-Schema for a named type
     #[arg(long, value_name = "schema_name")]
@@ -144,6 +144,10 @@ pub struct CmdlineArgs {
     /// Specify a list of bootstrap hostnames to use
     #[arg(long, value_name = "BOOTSTRAP_LIST")]
     bootstrap: Option<String>,
+
+    /// Specify a list of bootstrap node ids to use
+    #[arg(long, value_name = "BOOTSTRAP_NODE_IDS_LIST")]
+    bootstrap_keys: Option<String>,
 
     /// Panic on ctrl-c instead of graceful shutdown
     #[arg(long)]
@@ -299,7 +303,7 @@ fn main() -> EyreResult<()> {
     if let Some(network_key) = args.network_key {
         settingsrw.core.network.network_key_password = Some(network_key);
     }
-    if args.dump_txt_record {
+    if args.dump_txt_record.is_some() {
         // Turn off terminal logging so we can be interactive
         settingsrw.logging.terminal.enabled = false;
     }
@@ -336,8 +340,41 @@ fn main() -> EyreResult<()> {
                 bootstrap_list.push(x);
             }
         }
-        settingsrw.core.network.routing_table.bootstrap = bootstrap_list;
+        if bootstrap_list != settingsrw.core.network.routing_table.bootstrap {
+            settingsrw.core.network.routing_table.bootstrap = bootstrap_list;
+            settingsrw.core.network.routing_table.bootstrap_keys = vec![];
+        }
     };
+
+    if let Some(bootstrap_keys) = args.bootstrap_keys {
+        println!("Overriding bootstrap keys with: ");
+        let mut bootstrap_keys_list: Vec<veilid_core::TypedKey> = Vec::new();
+        for x in bootstrap_keys.split(',') {
+            let x = x.trim();
+            let key = match veilid_core::TypedKey::from_str(x) {
+                Ok(v) => v,
+                Err(e) => {
+                    bail!("Failed to parse bootstrap key: {}\n{}", e, x)
+                }
+            };
+
+            println!("    {}", key);
+            bootstrap_keys_list.push(key);
+        }
+        settingsrw.core.network.routing_table.bootstrap_keys = bootstrap_keys_list;
+    };
+
+    if settingsrw
+        .core
+        .network
+        .routing_table
+        .bootstrap_keys
+        .is_empty()
+    {
+        println!(
+            "Bootstrap verification is disabled. Add bootstrap keys to your config to enable it."
+        );
+    }
 
     #[cfg(feature = "rt-tokio")]
     if args.console {
@@ -426,8 +463,15 @@ fn main() -> EyreResult<()> {
             "Node Id and Secret set successfully",
             "Failed to set Node Id and Secret",
         )
-    } else if args.dump_txt_record {
-        (ServerMode::DumpTXTRecord, "", "Failed to dump txt record")
+    } else if let Some(skpstr) = args.dump_txt_record.as_ref() {
+        (
+            ServerMode::DumpTXTRecord(
+                veilid_core::TypedKeyPair::from_str(skpstr)
+                    .expect("should be valid typed key pair"),
+            ),
+            "",
+            "Failed to dump bootstrap TXT record",
+        )
     } else {
         (ServerMode::Normal, "", "")
     };

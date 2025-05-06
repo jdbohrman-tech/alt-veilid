@@ -1,59 +1,6 @@
 use super::*;
-use routing_table::tasks::bootstrap::BOOTSTRAP_TXT_VERSION_0;
 
 impl RoutingTable {
-    pub async fn debug_info_txtrecord(&self) -> String {
-        let mut out = String::new();
-
-        let gdis = self.dial_info_details(RoutingDomain::PublicInternet);
-        if gdis.is_empty() {
-            out += "No TXT Record\n";
-        } else {
-            let mut short_urls = Vec::new();
-            let mut some_hostname = Option::<String>::None;
-            for gdi in gdis {
-                let (short_url, hostname) = gdi.dial_info.to_short().await;
-                if let Some(h) = &some_hostname {
-                    if h != &hostname {
-                        return format!(
-                            "Inconsistent hostnames for dial info: {} vs {}",
-                            some_hostname.unwrap(),
-                            hostname
-                        );
-                    }
-                } else {
-                    some_hostname = Some(hostname);
-                }
-
-                short_urls.push(short_url);
-            }
-            if some_hostname.is_none() || short_urls.is_empty() {
-                return "No dial info for bootstrap host".to_owned();
-            }
-            short_urls.sort();
-            short_urls.dedup();
-
-            let valid_envelope_versions = VALID_ENVELOPE_VERSIONS.map(|x| x.to_string()).join(",");
-            let node_ids = self
-                .node_ids()
-                .iter()
-                .map(|x| x.to_string())
-                .collect::<Vec<String>>()
-                .join(",");
-            out += "TXT Record:\n";
-            out += &format!(
-                "{}|{}|{}|{}|",
-                BOOTSTRAP_TXT_VERSION_0,
-                valid_envelope_versions,
-                node_ids,
-                some_hostname.unwrap()
-            );
-            out += &short_urls.join(",");
-            out += "\n";
-        }
-        out
-    }
-
     pub fn debug_info_nodeid(&self) -> String {
         let mut out = String::new();
         for nid in self.node_ids().iter() {
@@ -243,7 +190,7 @@ impl RoutingTable {
 
         out += &format!("Entries: {}\n", inner.bucket_entry_count());
         out += "   Live:\n";
-        for ec in inner.cached_entry_counts() {
+        for ec in inner.cached_live_entry_counts().any_capabilities.iter() {
             let routing_domain = ec.0 .0;
             let crypto_kind = ec.0 .1;
             let count = ec.1;

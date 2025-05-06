@@ -420,6 +420,9 @@ _VeilidConfigRoutingTable _$VeilidConfigRoutingTableFromJson(
           .toList(),
       bootstrap:
           (json['bootstrap'] as List<dynamic>).map((e) => e as String).toList(),
+      bootstrapKeys: (json['bootstrap_keys'] as List<dynamic>)
+          .map(Typed<FixedEncodedString43>.fromJson)
+          .toList(),
       limitOverAttached: (json['limit_over_attached'] as num).toInt(),
       limitFullyAttached: (json['limit_fully_attached'] as num).toInt(),
       limitAttachedStrong: (json['limit_attached_strong'] as num).toInt(),
@@ -433,6 +436,7 @@ Map<String, dynamic> _$VeilidConfigRoutingTableToJson(
       'node_id': instance.nodeId.map((e) => e.toJson()).toList(),
       'node_id_secret': instance.nodeIdSecret.map((e) => e.toJson()).toList(),
       'bootstrap': instance.bootstrap,
+      'bootstrap_keys': instance.bootstrapKeys.map((e) => e.toJson()).toList(),
       'limit_over_attached': instance.limitOverAttached,
       'limit_fully_attached': instance.limitFullyAttached,
       'limit_attached_strong': instance.limitAttachedStrong,

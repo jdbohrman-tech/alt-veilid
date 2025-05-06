@@ -105,9 +105,18 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
     fn get_peer_info(&self, rti: &RoutingTableInner) -> Arc<PeerInfo> {
         self.common.get_peer_info(rti)
     }
-
     fn get_published_peer_info(&self) -> Option<Arc<PeerInfo>> {
         (*self.published_peer_info.lock()).clone()
+    }
+
+    fn get_bootstrap_peers(&self) -> Vec<NodeRef> {
+        self.common.get_bootstrap_peers()
+    }
+    fn clear_bootstrap_peers(&self) {
+        self.common.clear_bootstrap_peers();
+    }
+    fn add_bootstrap_peer(&self, bootstrap_peer: NodeRef) {
+        self.common.add_bootstrap_peer(bootstrap_peer)
     }
 
     fn can_contain_address(&self, address: Address) -> bool {

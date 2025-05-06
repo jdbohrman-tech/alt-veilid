@@ -23,7 +23,7 @@ impl Default for AttachmentManagerStartupContext {
 #[derive(Debug)]
 struct AttachmentManagerInner {
     last_attachment_state: AttachmentState,
-    last_routing_table_health: Option<RoutingTableHealth>,
+    last_routing_table_health: Option<Arc<RoutingTableHealth>>,
     maintain_peers: bool,
     started_ts: Timestamp,
     attach_ts: Option<Timestamp>,
@@ -123,14 +123,14 @@ impl AttachmentManager {
             // Check if the routing table health is different
             if let Some(last_routing_table_health) = &inner.last_routing_table_health {
                 // If things are the same, just return
-                if last_routing_table_health == &health {
+                if last_routing_table_health.as_ref() == &health {
                     return;
                 }
             }
 
             // Swap in new health numbers
             let opt_previous_health = inner.last_routing_table_health.take();
-            inner.last_routing_table_health = Some(health.clone());
+            inner.last_routing_table_health = Some(Arc::new(health.clone()));
 
             // Calculate new attachment state
             let config = self.config();
@@ -414,10 +414,6 @@ impl AttachmentManager {
         }
     }
 
-    // pub fn get_attachment_state(&self) -> AttachmentState {
-    //     self.inner.lock().last_attachment_state
-    // }
-
     fn get_veilid_state_inner(inner: &AttachmentManagerInner) -> Box<VeilidStateAttachment> {
         let now = Timestamp::now();
         let uptime = now - inner.started_ts;
@@ -443,5 +439,15 @@ impl AttachmentManager {
     pub fn get_veilid_state(&self) -> Box<VeilidStateAttachment> {
         let inner = self.inner.lock();
         Self::get_veilid_state_inner(&inner)
+    }
+
+    #[expect(dead_code)]
+    pub fn get_attachment_state(&self) -> AttachmentState {
+        self.inner.lock().last_attachment_state
+    }
+
+    #[expect(dead_code)]
+    pub fn get_last_routing_table_health(&self) -> Option<Arc<RoutingTableHealth>> {
+        self.inner.lock().last_routing_table_health.clone()
     }
 }

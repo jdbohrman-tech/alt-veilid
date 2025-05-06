@@ -58,6 +58,12 @@ pub trait RoutingDomainDetail {
     fn set_relay_node_last_keepalive(&mut self, ts: Option<Timestamp>);
     // Set last relay optimized time
     fn set_relay_node_last_optimized(&mut self, ts: Option<Timestamp>);
+
+    // Bootstrap peers
+    #[expect(dead_code)]
+    fn get_bootstrap_peers(&self) -> Vec<NodeRef>;
+    fn clear_bootstrap_peers(&self);
+    fn add_bootstrap_peer(&self, bootstrap_peer: NodeRef);
 }
 
 trait RoutingDomainDetailCommonAccessors: RoutingDomainDetail {
@@ -129,6 +135,7 @@ struct RoutingDomainDetailCommon {
     cached_peer_info: Mutex<Option<Arc<PeerInfo>>>,
     relay_node_last_keepalive: Option<Timestamp>,
     relay_node_last_optimized: Option<Timestamp>,
+    bootstrap_peers: Mutex<Vec<NodeRef>>,
 }
 
 impl RoutingDomainDetailCommon {
@@ -145,6 +152,7 @@ impl RoutingDomainDetailCommon {
             cached_peer_info: Mutex::new(Default::default()),
             relay_node_last_keepalive: Default::default(),
             relay_node_last_optimized: Default::default(),
+            bootstrap_peers: Mutex::new(Default::default()),
         }
     }
 
@@ -182,6 +190,19 @@ impl RoutingDomainDetailCommon {
 
     pub fn capabilities(&self) -> Vec<Capability> {
         self.capabilities.clone()
+    }
+
+    pub fn get_bootstrap_peers(&self) -> Vec<NodeRef> {
+        self.bootstrap_peers.lock().clone()
+    }
+
+    pub fn clear_bootstrap_peers(&self) {
+        self.bootstrap_peers.lock().clear()
+    }
+
+    pub fn add_bootstrap_peer(&self, bootstrap_peer: NodeRef) {
+        let mut bootstrap_peers = self.bootstrap_peers.lock();
+        bootstrap_peers.push(bootstrap_peer);
     }
 
     pub fn requires_relay(&self, compatible_address_types: AddressTypeSet) -> Option<RelayKind> {

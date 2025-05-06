@@ -16,7 +16,7 @@ use veilid_core::tools::*;
 pub enum ServerMode {
     Normal,
     ShutdownImmediate,
-    DumpTXTRecord,
+    DumpTXTRecord(veilid_core::TypedKeyPair),
 }
 
 lazy_static! {
@@ -163,7 +163,7 @@ pub async fn run_veilid_server_subnode(
     }
 
     // Process dump-txt-record
-    if matches!(server_mode, ServerMode::DumpTXTRecord) {
+    if let ServerMode::DumpTXTRecord(keypair) = server_mode {
         let start_time = Instant::now();
         while Instant::now().duration_since(start_time) < Duration::from_secs(10) {
             match veilid_api.get_state().await {
@@ -179,7 +179,7 @@ pub async fn run_veilid_server_subnode(
             }
             sleep(100).await;
         }
-        match veilid_api.debug("txtrecord".to_string()).await {
+        match veilid_api.debug(format!("txtrecord {}", keypair)).await {
             Ok(v) => {
                 print!("{}", v);
             }

@@ -5520,6 +5520,7 @@ mixin _$VeilidConfigRoutingTable implements DiagnosticableTreeMixin {
   List<TypedKey> get nodeId;
   List<TypedSecret> get nodeIdSecret;
   List<String> get bootstrap;
+  List<TypedKey> get bootstrapKeys;
   int get limitOverAttached;
   int get limitFullyAttached;
   int get limitAttachedStrong;
@@ -5544,6 +5545,7 @@ mixin _$VeilidConfigRoutingTable implements DiagnosticableTreeMixin {
       ..add(DiagnosticsProperty('nodeId', nodeId))
       ..add(DiagnosticsProperty('nodeIdSecret', nodeIdSecret))
       ..add(DiagnosticsProperty('bootstrap', bootstrap))
+      ..add(DiagnosticsProperty('bootstrapKeys', bootstrapKeys))
       ..add(DiagnosticsProperty('limitOverAttached', limitOverAttached))
       ..add(DiagnosticsProperty('limitFullyAttached', limitFullyAttached))
       ..add(DiagnosticsProperty('limitAttachedStrong', limitAttachedStrong))
@@ -5560,6 +5562,8 @@ mixin _$VeilidConfigRoutingTable implements DiagnosticableTreeMixin {
             const DeepCollectionEquality()
                 .equals(other.nodeIdSecret, nodeIdSecret) &&
             const DeepCollectionEquality().equals(other.bootstrap, bootstrap) &&
+            const DeepCollectionEquality()
+                .equals(other.bootstrapKeys, bootstrapKeys) &&
             (identical(other.limitOverAttached, limitOverAttached) ||
                 other.limitOverAttached == limitOverAttached) &&
             (identical(other.limitFullyAttached, limitFullyAttached) ||
@@ -5579,6 +5583,7 @@ mixin _$VeilidConfigRoutingTable implements DiagnosticableTreeMixin {
       const DeepCollectionEquality().hash(nodeId),
       const DeepCollectionEquality().hash(nodeIdSecret),
       const DeepCollectionEquality().hash(bootstrap),
+      const DeepCollectionEquality().hash(bootstrapKeys),
       limitOverAttached,
       limitFullyAttached,
       limitAttachedStrong,
@@ -5587,7 +5592,7 @@ mixin _$VeilidConfigRoutingTable implements DiagnosticableTreeMixin {
 
   @override
   String toString({DiagnosticLevel minLevel = DiagnosticLevel.info}) {
-    return 'VeilidConfigRoutingTable(nodeId: $nodeId, nodeIdSecret: $nodeIdSecret, bootstrap: $bootstrap, limitOverAttached: $limitOverAttached, limitFullyAttached: $limitFullyAttached, limitAttachedStrong: $limitAttachedStrong, limitAttachedGood: $limitAttachedGood, limitAttachedWeak: $limitAttachedWeak)';
+    return 'VeilidConfigRoutingTable(nodeId: $nodeId, nodeIdSecret: $nodeIdSecret, bootstrap: $bootstrap, bootstrapKeys: $bootstrapKeys, limitOverAttached: $limitOverAttached, limitFullyAttached: $limitFullyAttached, limitAttachedStrong: $limitAttachedStrong, limitAttachedGood: $limitAttachedGood, limitAttachedWeak: $limitAttachedWeak)';
   }
 }
 
@@ -5598,9 +5603,10 @@ abstract mixin class $VeilidConfigRoutingTableCopyWith<$Res> {
       _$VeilidConfigRoutingTableCopyWithImpl;
   @useResult
   $Res call(
-      {List<Typed<FixedEncodedString43>> nodeId,
-      List<Typed<FixedEncodedString43>> nodeIdSecret,
+      {List<TypedKey> nodeId,
+      List<TypedSecret> nodeIdSecret,
       List<String> bootstrap,
+      List<TypedKey> bootstrapKeys,
       int limitOverAttached,
       int limitFullyAttached,
       int limitAttachedStrong,
@@ -5624,6 +5630,7 @@ class _$VeilidConfigRoutingTableCopyWithImpl<$Res>
     Object? nodeId = null,
     Object? nodeIdSecret = null,
     Object? bootstrap = null,
+    Object? bootstrapKeys = null,
     Object? limitOverAttached = null,
     Object? limitFullyAttached = null,
     Object? limitAttachedStrong = null,
@@ -5632,17 +5639,21 @@ class _$VeilidConfigRoutingTableCopyWithImpl<$Res>
   }) {
     return _then(_self.copyWith(
       nodeId: null == nodeId
-          ? _self.nodeId!
+          ? _self.nodeId
           : nodeId // ignore: cast_nullable_to_non_nullable
-              as List<Typed<FixedEncodedString43>>,
+              as List<TypedKey>,
       nodeIdSecret: null == nodeIdSecret
-          ? _self.nodeIdSecret!
+          ? _self.nodeIdSecret
           : nodeIdSecret // ignore: cast_nullable_to_non_nullable
-              as List<Typed<FixedEncodedString43>>,
+              as List<TypedSecret>,
       bootstrap: null == bootstrap
           ? _self.bootstrap
           : bootstrap // ignore: cast_nullable_to_non_nullable
               as List<String>,
+      bootstrapKeys: null == bootstrapKeys
+          ? _self.bootstrapKeys
+          : bootstrapKeys // ignore: cast_nullable_to_non_nullable
+              as List<TypedKey>,
       limitOverAttached: null == limitOverAttached
           ? _self.limitOverAttached
           : limitOverAttached // ignore: cast_nullable_to_non_nullable
@@ -5673,9 +5684,10 @@ class _VeilidConfigRoutingTable
     with DiagnosticableTreeMixin
     implements VeilidConfigRoutingTable {
   const _VeilidConfigRoutingTable(
-      {required final List<Typed<FixedEncodedString43>> nodeId,
-      required final List<Typed<FixedEncodedString43>> nodeIdSecret,
+      {required final List<TypedKey> nodeId,
+      required final List<TypedSecret> nodeIdSecret,
       required final List<String> bootstrap,
+      required final List<TypedKey> bootstrapKeys,
       required this.limitOverAttached,
       required this.limitFullyAttached,
       required this.limitAttachedStrong,
@@ -5683,21 +5695,22 @@ class _VeilidConfigRoutingTable
       required this.limitAttachedWeak})
       : _nodeId = nodeId,
         _nodeIdSecret = nodeIdSecret,
-        _bootstrap = bootstrap;
+        _bootstrap = bootstrap,
+        _bootstrapKeys = bootstrapKeys;
   factory _VeilidConfigRoutingTable.fromJson(Map<String, dynamic> json) =>
       _$VeilidConfigRoutingTableFromJson(json);
 
-  final List<Typed<FixedEncodedString43>> _nodeId;
+  final List<TypedKey> _nodeId;
   @override
-  List<Typed<FixedEncodedString43>> get nodeId {
+  List<TypedKey> get nodeId {
     if (_nodeId is EqualUnmodifiableListView) return _nodeId;
     // ignore: implicit_dynamic_type
     return EqualUnmodifiableListView(_nodeId);
   }
 
-  final List<Typed<FixedEncodedString43>> _nodeIdSecret;
+  final List<TypedSecret> _nodeIdSecret;
   @override
-  List<Typed<FixedEncodedString43>> get nodeIdSecret {
+  List<TypedSecret> get nodeIdSecret {
     if (_nodeIdSecret is EqualUnmodifiableListView) return _nodeIdSecret;
     // ignore: implicit_dynamic_type
     return EqualUnmodifiableListView(_nodeIdSecret);
@@ -5709,6 +5722,14 @@ class _VeilidConfigRoutingTable
     if (_bootstrap is EqualUnmodifiableListView) return _bootstrap;
     // ignore: implicit_dynamic_type
     return EqualUnmodifiableListView(_bootstrap);
+  }
+
+  final List<TypedKey> _bootstrapKeys;
+  @override
+  List<TypedKey> get bootstrapKeys {
+    if (_bootstrapKeys is EqualUnmodifiableListView) return _bootstrapKeys;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_bootstrapKeys);
   }
 
   @override
@@ -5745,6 +5766,7 @@ class _VeilidConfigRoutingTable
       ..add(DiagnosticsProperty('nodeId', nodeId))
       ..add(DiagnosticsProperty('nodeIdSecret', nodeIdSecret))
       ..add(DiagnosticsProperty('bootstrap', bootstrap))
+      ..add(DiagnosticsProperty('bootstrapKeys', bootstrapKeys))
       ..add(DiagnosticsProperty('limitOverAttached', limitOverAttached))
       ..add(DiagnosticsProperty('limitFullyAttached', limitFullyAttached))
       ..add(DiagnosticsProperty('limitAttachedStrong', limitAttachedStrong))
@@ -5762,6 +5784,8 @@ class _VeilidConfigRoutingTable
                 .equals(other._nodeIdSecret, _nodeIdSecret) &&
             const DeepCollectionEquality()
                 .equals(other._bootstrap, _bootstrap) &&
+            const DeepCollectionEquality()
+                .equals(other._bootstrapKeys, _bootstrapKeys) &&
             (identical(other.limitOverAttached, limitOverAttached) ||
                 other.limitOverAttached == limitOverAttached) &&
             (identical(other.limitFullyAttached, limitFullyAttached) ||
@@ -5781,6 +5805,7 @@ class _VeilidConfigRoutingTable
       const DeepCollectionEquality().hash(_nodeId),
       const DeepCollectionEquality().hash(_nodeIdSecret),
       const DeepCollectionEquality().hash(_bootstrap),
+      const DeepCollectionEquality().hash(_bootstrapKeys),
       limitOverAttached,
       limitFullyAttached,
       limitAttachedStrong,
@@ -5789,7 +5814,7 @@ class _VeilidConfigRoutingTable
 
   @override
   String toString({DiagnosticLevel minLevel = DiagnosticLevel.info}) {
-    return 'VeilidConfigRoutingTable(nodeId: $nodeId, nodeIdSecret: $nodeIdSecret, bootstrap: $bootstrap, limitOverAttached: $limitOverAttached, limitFullyAttached: $limitFullyAttached, limitAttachedStrong: $limitAttachedStrong, limitAttachedGood: $limitAttachedGood, limitAttachedWeak: $limitAttachedWeak)';
+    return 'VeilidConfigRoutingTable(nodeId: $nodeId, nodeIdSecret: $nodeIdSecret, bootstrap: $bootstrap, bootstrapKeys: $bootstrapKeys, limitOverAttached: $limitOverAttached, limitFullyAttached: $limitFullyAttached, limitAttachedStrong: $limitAttachedStrong, limitAttachedGood: $limitAttachedGood, limitAttachedWeak: $limitAttachedWeak)';
   }
 }
 
@@ -5802,9 +5827,10 @@ abstract mixin class _$VeilidConfigRoutingTableCopyWith<$Res>
   @override
   @useResult
   $Res call(
-      {List<Typed<FixedEncodedString43>> nodeId,
-      List<Typed<FixedEncodedString43>> nodeIdSecret,
+      {List<TypedKey> nodeId,
+      List<TypedSecret> nodeIdSecret,
       List<String> bootstrap,
+      List<TypedKey> bootstrapKeys,
       int limitOverAttached,
       int limitFullyAttached,
       int limitAttachedStrong,
@@ -5828,6 +5854,7 @@ class __$VeilidConfigRoutingTableCopyWithImpl<$Res>
     Object? nodeId = null,
     Object? nodeIdSecret = null,
     Object? bootstrap = null,
+    Object? bootstrapKeys = null,
     Object? limitOverAttached = null,
     Object? limitFullyAttached = null,
     Object? limitAttachedStrong = null,
@@ -5838,15 +5865,19 @@ class __$VeilidConfigRoutingTableCopyWithImpl<$Res>
       nodeId: null == nodeId
           ? _self._nodeId
           : nodeId // ignore: cast_nullable_to_non_nullable
-              as List<Typed<FixedEncodedString43>>,
+              as List<TypedKey>,
       nodeIdSecret: null == nodeIdSecret
           ? _self._nodeIdSecret
           : nodeIdSecret // ignore: cast_nullable_to_non_nullable
-              as List<Typed<FixedEncodedString43>>,
+              as List<TypedSecret>,
       bootstrap: null == bootstrap
           ? _self._bootstrap
           : bootstrap // ignore: cast_nullable_to_non_nullable
               as List<String>,
+      bootstrapKeys: null == bootstrapKeys
+          ? _self._bootstrapKeys
+          : bootstrapKeys // ignore: cast_nullable_to_non_nullable
+              as List<TypedKey>,
       limitOverAttached: null == limitOverAttached
           ? _self.limitOverAttached
           : limitOverAttached // ignore: cast_nullable_to_non_nullable

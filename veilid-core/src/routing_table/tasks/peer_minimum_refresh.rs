@@ -10,7 +10,8 @@ impl RoutingTable {
     // mechanism for LocalNetwork suffices for locating all the local network
     // peers that are available. This, however, may query other LocalNetwork
     // nodes for their PublicInternet peers, which is a very fast way to get
-    // a new node online.
+    // a new node online. This finds nodes that have connectivity capabilities
+    // specifically, as those are required for most nodes to get online.
     #[instrument(level = "trace", skip(self), err)]
     pub async fn peer_minimum_refresh_task_routine(
         &self,
@@ -19,7 +20,7 @@ impl RoutingTable {
         _cur_ts: Timestamp,
     ) -> EyreResult<()> {
         // Get counts by crypto kind
-        let entry_count = self.inner.read().cached_entry_counts();
+        let live_entry_counts = self.inner.read().cached_live_entry_counts();
 
         let (min_peer_count, min_peer_refresh_time_ms) = self.config().with(|c| {
             (
@@ -37,7 +38,11 @@ impl RoutingTable {
         for crypto_kind in VALID_CRYPTO_KINDS {
             // Do we need to peer minimum refresh this crypto kind?
             let eckey = (RoutingDomain::PublicInternet, crypto_kind);
-            let cnt = entry_count.get(&eckey).copied().unwrap_or_default();
+            let cnt = live_entry_counts
+                .connectivity_capabilities
+                .get(&eckey)
+                .copied()
+                .unwrap_or_default();
             if cnt == 0 || cnt > min_peer_count {
                 // If we have enough nodes, skip it
                 // If we have zero nodes, bootstrap will get it
@@ -52,6 +57,13 @@ impl RoutingTable {
                         // Keep only the entries that contain the crypto kind we're looking for
                         let compatible_crypto = e.crypto_kinds().contains(&crypto_kind);
                         if !compatible_crypto {
+                            return false;
+                        }
+                        // Keep only the entries with connectivity capabilities
+                        if !e.has_all_capabilities(
+                            RoutingDomain::PublicInternet,
+                            CONNECTIVITY_CAPABILITIES,
+                        ) {
                             return false;
                         }
                         // Keep only the entries we haven't talked to in the min_peer_refresh_time
@@ -78,8 +90,16 @@ impl RoutingTable {
 
             for nr in noderefs {
                 ord.push_back(
-                    async move { self.reverse_find_node(crypto_kind, nr, false, vec![]).await }
-                        .instrument(Span::current()),
+                    async move {
+                        self.reverse_find_node(
+                            crypto_kind,
+                            nr,
+                            false,
+                            CONNECTIVITY_CAPABILITIES.to_vec(),
+                        )
+                        .await
+                    }
+                    .instrument(Span::current()),
                 );
             }
         }

@@ -30,7 +30,7 @@ impl NetworkManager {
                 );
 
                 // While we're here, lets see if this address has timed out
-                if cur_ts.saturating_sub(stats.last_seen_ts) >= IPADDR_MAX_INACTIVE_DURATION_US {
+                if cur_ts.saturating_sub(stats.last_seen_ts) >= IPADDR_MAX_INACTIVE_DURATION {
                     // it's dead, put it in the dead list
                     dead_addrs.insert(*addr);
                 }

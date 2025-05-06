@@ -104,13 +104,14 @@ pub async fn txt_lookup<S: AsRef<str>>(host: S) -> EyreResult<Vec<String>> {
                     if (*p_record).wType == DNS_TYPE_TEXT.0 {
                         let count:usize = (*p_record).Data.TXT.dwStringCount.try_into().unwrap();
                         let string_array: *const PSTR = &(*p_record).Data.TXT.pStringArray[0];
+                        let mut record_out = Vec::<u8>::new();
                         for n in 0..count {
                             let pstr: PSTR = *(string_array.add(n));
                             let c_str: &CStr = CStr::from_ptr(pstr.0 as *const i8);
-                            if let Ok(str_slice) = c_str.to_str() {
-                                let str_buf: String = str_slice.to_owned();
-                                out.push(str_buf);
-                            }
+                            record_out.extend_from_slice(c_str.to_bytes());
+                        }
+                        if let Ok(s) = String::from_utf8(record_out) {
+                            out.push(s);
                         }
                     }
                     p_record = (*p_record).pNext;
@@ -148,8 +149,12 @@ pub async fn txt_lookup<S: AsRef<str>>(host: S) -> EyreResult<Vec<String>> {
                 })).await?;
             let mut out = Vec::new();
             for x in txt_result.iter() {
-                for s in x.txt_data() {
-                    out.push(String::from_utf8(s.to_vec()).wrap_err("utf8 conversion error")?);
+                let mut record_out = Vec::<u8>::new();
+                for txtd in x.txt_data() {
+                    record_out.extend_from_slice(txtd);
+                }
+                if let Ok(s) = String::from_utf8(record_out) {
+                    out.push(s);
                 }
             }
             Ok(out)

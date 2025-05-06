@@ -2379,10 +2379,7 @@ abstract mixin class $PeerTableDataCopyWith<$Res> {
           PeerTableData value, $Res Function(PeerTableData) _then) =
       _$PeerTableDataCopyWithImpl;
   @useResult
-  $Res call(
-      {List<Typed<FixedEncodedString43>> nodeIds,
-      String peerAddress,
-      PeerStats peerStats});
+  $Res call({List<TypedKey> nodeIds, String peerAddress, PeerStats peerStats});
 
   $PeerStatsCopyWith<$Res> get peerStats;
 }
@@ -2406,9 +2403,9 @@ class _$PeerTableDataCopyWithImpl<$Res>
   }) {
     return _then(_self.copyWith(
       nodeIds: null == nodeIds
-          ? _self.nodeIds!
+          ? _self.nodeIds
           : nodeIds // ignore: cast_nullable_to_non_nullable
-              as List<Typed<FixedEncodedString43>>,
+              as List<TypedKey>,
       peerAddress: null == peerAddress
           ? _self.peerAddress
           : peerAddress // ignore: cast_nullable_to_non_nullable
@@ -2435,16 +2432,16 @@ class _$PeerTableDataCopyWithImpl<$Res>
 @JsonSerializable()
 class _PeerTableData implements PeerTableData {
   const _PeerTableData(
-      {required final List<Typed<FixedEncodedString43>> nodeIds,
+      {required final List<TypedKey> nodeIds,
       required this.peerAddress,
       required this.peerStats})
       : _nodeIds = nodeIds;
   factory _PeerTableData.fromJson(Map<String, dynamic> json) =>
       _$PeerTableDataFromJson(json);
 
-  final List<Typed<FixedEncodedString43>> _nodeIds;
+  final List<TypedKey> _nodeIds;
   @override
-  List<Typed<FixedEncodedString43>> get nodeIds {
+  List<TypedKey> get nodeIds {
     if (_nodeIds is EqualUnmodifiableListView) return _nodeIds;
     // ignore: implicit_dynamic_type
     return EqualUnmodifiableListView(_nodeIds);
@@ -2501,10 +2498,7 @@ abstract mixin class _$PeerTableDataCopyWith<$Res>
       __$PeerTableDataCopyWithImpl;
   @override
   @useResult
-  $Res call(
-      {List<Typed<FixedEncodedString43>> nodeIds,
-      String peerAddress,
-      PeerStats peerStats});
+  $Res call({List<TypedKey> nodeIds, String peerAddress, PeerStats peerStats});
 
   @override
   $PeerStatsCopyWith<$Res> get peerStats;
@@ -2531,7 +2525,7 @@ class __$PeerTableDataCopyWithImpl<$Res>
       nodeIds: null == nodeIds
           ? _self._nodeIds
           : nodeIds // ignore: cast_nullable_to_non_nullable
-              as List<Typed<FixedEncodedString43>>,
+              as List<TypedKey>,
       peerAddress: null == peerAddress
           ? _self.peerAddress
           : peerAddress // ignore: cast_nullable_to_non_nullable
@@ -2715,7 +2709,7 @@ class VeilidAppMessage implements VeilidUpdate {
 
   @Uint8ListJsonConverter.jsIsArray()
   final Uint8List message;
-  final Typed<FixedEncodedString43>? sender;
+  final TypedKey? sender;
   final String? routeId;
 
   @JsonKey(name: 'kind')
@@ -2765,7 +2759,7 @@ abstract mixin class $VeilidAppMessageCopyWith<$Res>
   @useResult
   $Res call(
       {@Uint8ListJsonConverter.jsIsArray() Uint8List message,
-      Typed<FixedEncodedString43>? sender,
+      TypedKey? sender,
       String? routeId});
 }
 
@@ -2793,7 +2787,7 @@ class _$VeilidAppMessageCopyWithImpl<$Res>
       sender: freezed == sender
           ? _self.sender
           : sender // ignore: cast_nullable_to_non_nullable
-              as Typed<FixedEncodedString43>?,
+              as TypedKey?,
       routeId: freezed == routeId
           ? _self.routeId
           : routeId // ignore: cast_nullable_to_non_nullable
@@ -2818,7 +2812,7 @@ class VeilidAppCall implements VeilidUpdate {
   @Uint8ListJsonConverter.jsIsArray()
   final Uint8List message;
   final String callId;
-  final Typed<FixedEncodedString43>? sender;
+  final TypedKey? sender;
   final String? routeId;
 
   @JsonKey(name: 'kind')
@@ -2870,7 +2864,7 @@ abstract mixin class $VeilidAppCallCopyWith<$Res>
   $Res call(
       {@Uint8ListJsonConverter.jsIsArray() Uint8List message,
       String callId,
-      Typed<FixedEncodedString43>? sender,
+      TypedKey? sender,
       String? routeId});
 }
 
@@ -2903,7 +2897,7 @@ class _$VeilidAppCallCopyWithImpl<$Res>
       sender: freezed == sender
           ? _self.sender
           : sender // ignore: cast_nullable_to_non_nullable
-              as Typed<FixedEncodedString43>?,
+              as TypedKey?,
       routeId: freezed == routeId
           ? _self.routeId
           : routeId // ignore: cast_nullable_to_non_nullable
@@ -3358,7 +3352,7 @@ class VeilidUpdateValueChange implements VeilidUpdate {
   factory VeilidUpdateValueChange.fromJson(Map<String, dynamic> json) =>
       _$VeilidUpdateValueChangeFromJson(json);
 
-  final Typed<FixedEncodedString43> key;
+  final TypedKey key;
   final List<ValueSubkeyRange> _subkeys;
   List<ValueSubkeyRange> get subkeys {
     if (_subkeys is EqualUnmodifiableListView) return _subkeys;
@@ -3417,7 +3411,7 @@ abstract mixin class $VeilidUpdateValueChangeCopyWith<$Res>
       _$VeilidUpdateValueChangeCopyWithImpl;
   @useResult
   $Res call(
-      {Typed<FixedEncodedString43> key,
+      {TypedKey key,
       List<ValueSubkeyRange> subkeys,
       int count,
       ValueData? value});
@@ -3446,7 +3440,7 @@ class _$VeilidUpdateValueChangeCopyWithImpl<$Res>
       key: null == key
           ? _self.key
           : key // ignore: cast_nullable_to_non_nullable
-              as Typed<FixedEncodedString43>,
+              as TypedKey,
       subkeys: null == subkeys
           ? _self._subkeys
           : subkeys // ignore: cast_nullable_to_non_nullable
