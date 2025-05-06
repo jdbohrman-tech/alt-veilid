@@ -1,6 +1,6 @@
 #!/bin/bash
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-CAPNPROTO_VERSION="1.0.1" # Keep in sync with veilid-core/build.rs
+CAPNPROTO_VERSION="1.1.0    " # Keep in sync with veilid-core/build.rs
 
 mkdir /tmp/capnproto-install
 pushd /tmp/capnproto-install

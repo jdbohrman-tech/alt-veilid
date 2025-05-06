@@ -22,7 +22,7 @@ sudo systemctl stop veilid-server.service
 
 ### Setup the config
 
-In _/etc/veilid-server/veilid-server.conf`_ ensure _bootstrap: ['bootstrap.<your.domain>']_ in the _routing_table:_ section
+In `/etc/veilid-server/veilid-server.conf`, ensure `bootstrap: ['bootstrap.<your.domain>']` in the `routing_table:` section.
 
 If you came here from the [dev network setup](./dev-setup/dev-network-setup.md) guide, this is when you set the network key.
 
