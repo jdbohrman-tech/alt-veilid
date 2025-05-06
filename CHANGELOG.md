@@ -34,7 +34,7 @@
 
 - veilid-wasm:
   - **Breaking** Properly generate TypeScript types for `ValueSubkeyRangeSet`, which would previously resolve to `any`. This is breaking since it can cause type errors to correctly surface in existing applications. ([!397](https://gitlab.com/veilid/veilid/-/merge_requests/397))
-  - **Breaking** `starupCore()` and `defaultConfig()` now use config objects instead of stringified JSON.
+  - **Breaking** `startupCore()` and `defaultConfig()` now use config objects instead of stringified JSON.
     - `veilidClient.startupCore(callback, JSON.stringify(config))` now becomes `veilidClient.startupCore(callback, config)`. ([!402](https://gitlab.com/veilid/veilid/-/merge_requests/402))
     - `JSON.parse(veilidClient.defaultConfig())` is now `veilidClient.defaultConfig()`
     - The `VeilidConfigInner` type is now `VeilidConfig`.
