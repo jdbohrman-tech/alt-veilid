@@ -41,9 +41,10 @@ impl Network {
 
     // Determine if we need to check for public dialinfo
     fn wants_update_network_class_tick(&self) -> bool {
-        let public_internet_network_class = self
-            .routing_table()
-            .get_network_class(RoutingDomain::PublicInternet);
+        let routing_table = self.routing_table();
+
+        let public_internet_network_class =
+            routing_table.get_network_class(RoutingDomain::PublicInternet);
 
         let needs_update_network_class = self.needs_update_network_class();
         if needs_update_network_class
@@ -51,18 +52,17 @@ impl Network {
             || (public_internet_network_class == NetworkClass::OutboundOnly
                 && self.inner.lock().next_outbound_only_dial_info_check <= Timestamp::now())
         {
-            let routing_table = self.routing_table();
-            let rth = routing_table.get_routing_table_health();
+            let live_entry_counts = routing_table.cached_live_entry_counts();
 
-            // We want at least two live entries per crypto kind before we start doing this (bootstrap)
+            // Bootstrap needs to have gotten us connectivity nodes
             let mut has_at_least_two = true;
             for ck in VALID_CRYPTO_KINDS {
-                if rth
-                    .live_entry_counts
+                if live_entry_counts
+                    .connectivity_capabilities
                     .get(&(RoutingDomain::PublicInternet, ck))
                     .copied()
                     .unwrap_or_default()
-                    < 2
+                    < MIN_BOOTSTRAP_CONNECTIVITY_PEERS
                 {
                     has_at_least_two = false;
                     break;

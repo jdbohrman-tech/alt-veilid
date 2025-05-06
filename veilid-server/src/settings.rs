@@ -142,7 +142,8 @@ core:
         routing_table:
             node_id: null
             node_id_secret: null
-            bootstrap: ['bootstrap.veilid.net']
+            bootstrap: ['bootstrap-v1.veilid.net']
+            bootstrap_keys: ['VLD0:Vj0lKDdUQXmQ5Ol1SZdlvXkBHUccBcQvGLN9vbLSI7k','VLD0:QeQJorqbXtC7v3OlynCZ_W3m76wGNeB5NTF81ypqHAo','VLD0:QNdcl-0OiFfYVj9331XVR6IqZ49NG-E18d5P7lwi4TA']
             limit_over_attached: 64
             limit_fully_attached: 32
             limit_attached_strong: 16
@@ -700,6 +701,7 @@ pub struct RoutingTable {
     pub node_id: Option<veilid_core::TypedKeyGroup>,
     pub node_id_secret: Option<veilid_core::TypedSecretGroup>,
     pub bootstrap: Vec<String>,
+    pub bootstrap_keys: Vec<veilid_core::TypedKey>,
     pub limit_over_attached: u32,
     pub limit_fully_attached: u32,
     pub limit_attached_strong: u32,
@@ -1158,6 +1160,7 @@ impl Settings {
         set_config_value!(inner.core.network.routing_table.node_id, value);
         set_config_value!(inner.core.network.routing_table.node_id_secret, value);
         set_config_value!(inner.core.network.routing_table.bootstrap, value);
+        set_config_value!(inner.core.network.routing_table.bootstrap_keys, value);
         set_config_value!(inner.core.network.routing_table.limit_over_attached, value);
         set_config_value!(inner.core.network.routing_table.limit_fully_attached, value);
         set_config_value!(
@@ -1353,6 +1356,9 @@ impl Settings {
                 "network.routing_table.bootstrap" => {
                     Ok(Box::new(inner.core.network.routing_table.bootstrap.clone()))
                 }
+                "network.routing_table.bootstrap_keys" => Ok(Box::new(
+                    inner.core.network.routing_table.bootstrap_keys.clone(),
+                )),
                 "network.routing_table.limit_over_attached" => Ok(Box::new(
                     inner.core.network.routing_table.limit_over_attached,
                 )),
@@ -1826,7 +1832,15 @@ mod tests {
         //
         assert_eq!(
             s.core.network.routing_table.bootstrap,
-            vec!["bootstrap.veilid.net".to_owned()]
+            vec!["bootstrap-v1.veilid.net".to_owned()]
+        );
+        assert_eq!(
+            s.core.network.routing_table.bootstrap_keys,
+            vec![
+                TypedKey::from_str("VLD0:Vj0lKDdUQXmQ5Ol1SZdlvXkBHUccBcQvGLN9vbLSI7k").unwrap(),
+                TypedKey::from_str("VLD0:QeQJorqbXtC7v3OlynCZ_W3m76wGNeB5NTF81ypqHAo").unwrap(),
+                TypedKey::from_str("VLD0:QNdcl-0OiFfYVj9331XVR6IqZ49NG-E18d5P7lwi4TA").unwrap(),
+            ]
         );
         //
         assert_eq!(s.core.network.rpc.concurrency, 0);

@@ -35,8 +35,10 @@ impl_veilid_log_facility!("rtab");
 
 //////////////////////////////////////////////////////////////////////////
 
-/// How many nodes in our routing table we require for a functional PublicInternet RoutingDomain
-pub const MIN_PUBLIC_INTERNET_ROUTING_DOMAIN_NODE_COUNT: usize = 4;
+/// Minimum number of nodes we need, per crypto kind, per routing domain, or we trigger a bootstrap
+pub const MIN_BOOTSTRAP_CONNECTIVITY_PEERS: usize = 4;
+/// Set of routing domains that use the bootstrap mechanism
+pub const BOOTSTRAP_ROUTING_DOMAINS: [RoutingDomain; 1] = [RoutingDomain::PublicInternet];
 
 /// How frequently we tick the relay management routine
 pub const RELAY_MANAGEMENT_INTERVAL_SECS: u32 = 1;
@@ -87,7 +89,7 @@ pub struct RoutingTableHealth {
     /// Number of dead (always unresponsive) entries in the routing table
     pub dead_entry_count: usize,
     /// Number of live (responsive) entries in the routing table per RoutingDomain and CryptoKind
-    pub live_entry_counts: BTreeMap<(RoutingDomain, CryptoKind), usize>,
+    pub live_entry_counts: LiveEntryCounts,
     /// If PublicInternet network class is valid yet
     pub public_internet_ready: bool,
     /// If LocalNetwork network class is valid yet
@@ -599,6 +601,11 @@ impl RoutingTable {
         self.inner.read().get_current_peer_info(routing_domain)
     }
 
+    /// Return a list of the current valid bootstrap peers in a particular routing domain
+    pub fn get_bootstrap_peers(&self, routing_domain: RoutingDomain) -> Vec<NodeRef> {
+        self.inner.read().get_bootstrap_peers(routing_domain)
+    }
+
     /// Return the domain's currently registered network class
     #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), expect(dead_code))]
     pub fn get_network_class(&self, routing_domain: RoutingDomain) -> NetworkClass {
@@ -710,6 +717,10 @@ impl RoutingTable {
 
     pub fn get_routing_table_health(&self) -> RoutingTableHealth {
         self.inner.read().get_routing_table_health()
+    }
+
+    pub fn cached_live_entry_counts(&self) -> Arc<LiveEntryCounts> {
+        self.inner.read().cached_live_entry_counts()
     }
 
     #[instrument(level = "trace", skip_all)]
@@ -866,116 +877,6 @@ impl RoutingTable {
             node_count,
             filters,
         )
-    }
-
-    /// Retrieve up to N of each type of protocol capable nodes for a single crypto kind
-    fn find_bootstrap_nodes_filtered_per_crypto_kind(
-        &self,
-        crypto_kind: CryptoKind,
-        max_per_type: usize,
-    ) -> Vec<NodeRef> {
-        let protocol_types = [
-            ProtocolType::UDP,
-            ProtocolType::TCP,
-            ProtocolType::WS,
-            ProtocolType::WSS,
-        ];
-
-        let protocol_types_len = protocol_types.len();
-        let mut nodes_proto_v4 = [0usize, 0usize, 0usize, 0usize];
-        let mut nodes_proto_v6 = [0usize, 0usize, 0usize, 0usize];
-
-        let filter = Box::new(
-            move |rti: &RoutingTableInner, entry: Option<Arc<BucketEntry>>| {
-                let entry = entry.unwrap();
-                entry.with(rti, |_rti, e| {
-                    // skip nodes on our local network here
-                    if e.has_node_info(RoutingDomain::LocalNetwork.into()) {
-                        return false;
-                    }
-
-                    // Ensure crypto kind is supported
-                    if !e.crypto_kinds().contains(&crypto_kind) {
-                        return false;
-                    }
-
-                    // Only nodes with direct publicinternet node info
-                    let Some(signed_node_info) = e.signed_node_info(RoutingDomain::PublicInternet)
-                    else {
-                        return false;
-                    };
-                    let SignedNodeInfo::Direct(signed_direct_node_info) = signed_node_info else {
-                        return false;
-                    };
-                    let node_info = signed_direct_node_info.node_info();
-
-                    // Bootstraps must have -only- inbound capable network class
-                    if !matches!(node_info.network_class(), NetworkClass::InboundCapable) {
-                        return false;
-                    }
-
-                    // Check for direct dialinfo and a good mix of protocol and address types
-                    let mut keep = false;
-                    for did in node_info.dial_info_detail_list() {
-                        // Bootstraps must have -only- direct dial info
-                        if !matches!(did.class, DialInfoClass::Direct) {
-                            return false;
-                        }
-                        if matches!(did.dial_info.address_type(), AddressType::IPV4) {
-                            for (n, protocol_type) in protocol_types.iter().enumerate() {
-                                if nodes_proto_v4[n] < max_per_type
-                                    && did.dial_info.protocol_type() == *protocol_type
-                                {
-                                    nodes_proto_v4[n] += 1;
-                                    keep = true;
-                                }
-                            }
-                        } else if matches!(did.dial_info.address_type(), AddressType::IPV6) {
-                            for (n, protocol_type) in protocol_types.iter().enumerate() {
-                                if nodes_proto_v6[n] < max_per_type
-                                    && did.dial_info.protocol_type() == *protocol_type
-                                {
-                                    nodes_proto_v6[n] += 1;
-                                    keep = true;
-                                }
-                            }
-                        }
-                    }
-                    keep
-                })
-            },
-        ) as RoutingTableEntryFilter;
-
-        let filters = VecDeque::from([filter]);
-
-        self.find_preferred_fastest_nodes(
-            protocol_types_len * 2 * max_per_type,
-            filters,
-            |_rti, entry: Option<Arc<BucketEntry>>| {
-                NodeRef::new(self.registry(), entry.unwrap().clone())
-            },
-        )
-    }
-
-    /// Retrieve up to N of each type of protocol capable nodes for all crypto kinds
-    pub fn find_bootstrap_nodes_filtered(&self, max_per_type: usize) -> Vec<NodeRef> {
-        let mut out =
-            self.find_bootstrap_nodes_filtered_per_crypto_kind(VALID_CRYPTO_KINDS[0], max_per_type);
-
-        // Merge list of nodes so we don't have duplicates
-        for crypto_kind in &VALID_CRYPTO_KINDS[1..] {
-            let nrs =
-                self.find_bootstrap_nodes_filtered_per_crypto_kind(*crypto_kind, max_per_type);
-            'nrloop: for nr in nrs {
-                for nro in &out {
-                    if nro.same_entry(&nr) {
-                        continue 'nrloop;
-                    }
-                }
-                out.push(nr);
-            }
-        }
-        out
     }
 
     pub fn find_preferred_fastest_nodes<'a, T, O>(

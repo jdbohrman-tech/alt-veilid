@@ -310,7 +310,7 @@ abstract mixin class $DHTSchemaMemberCopyWith<$Res> {
           DHTSchemaMember value, $Res Function(DHTSchemaMember) _then) =
       _$DHTSchemaMemberCopyWithImpl;
   @useResult
-  $Res call({FixedEncodedString43 mKey, int mCnt});
+  $Res call({PublicKey mKey, int mCnt});
 }
 
 /// @nodoc
@@ -331,9 +331,9 @@ class _$DHTSchemaMemberCopyWithImpl<$Res>
   }) {
     return _then(_self.copyWith(
       mKey: null == mKey
-          ? _self.mKey!
+          ? _self.mKey
           : mKey // ignore: cast_nullable_to_non_nullable
-              as FixedEncodedString43,
+              as PublicKey,
       mCnt: null == mCnt
           ? _self.mCnt
           : mCnt // ignore: cast_nullable_to_non_nullable
@@ -351,7 +351,7 @@ class _DHTSchemaMember implements DHTSchemaMember {
       _$DHTSchemaMemberFromJson(json);
 
   @override
-  final FixedEncodedString43 mKey;
+  final PublicKey mKey;
   @override
   final int mCnt;
 
@@ -397,7 +397,7 @@ abstract mixin class _$DHTSchemaMemberCopyWith<$Res>
       __$DHTSchemaMemberCopyWithImpl;
   @override
   @useResult
-  $Res call({FixedEncodedString43 mKey, int mCnt});
+  $Res call({PublicKey mKey, int mCnt});
 }
 
 /// @nodoc
@@ -420,7 +420,7 @@ class __$DHTSchemaMemberCopyWithImpl<$Res>
       mKey: null == mKey
           ? _self.mKey
           : mKey // ignore: cast_nullable_to_non_nullable
-              as FixedEncodedString43,
+              as PublicKey,
       mCnt: null == mCnt
           ? _self.mCnt
           : mCnt // ignore: cast_nullable_to_non_nullable
@@ -476,10 +476,10 @@ abstract mixin class $DHTRecordDescriptorCopyWith<$Res> {
       _$DHTRecordDescriptorCopyWithImpl;
   @useResult
   $Res call(
-      {Typed<FixedEncodedString43> key,
-      FixedEncodedString43 owner,
+      {TypedKey key,
+      PublicKey owner,
       DHTSchema schema,
-      FixedEncodedString43? ownerSecret});
+      PublicKey? ownerSecret});
 
   $DHTSchemaCopyWith<$Res> get schema;
 }
@@ -504,21 +504,21 @@ class _$DHTRecordDescriptorCopyWithImpl<$Res>
   }) {
     return _then(_self.copyWith(
       key: null == key
-          ? _self.key!
+          ? _self.key
           : key // ignore: cast_nullable_to_non_nullable
-              as Typed<FixedEncodedString43>,
+              as TypedKey,
       owner: null == owner
-          ? _self.owner!
+          ? _self.owner
           : owner // ignore: cast_nullable_to_non_nullable
-              as FixedEncodedString43,
+              as PublicKey,
       schema: null == schema
           ? _self.schema
           : schema // ignore: cast_nullable_to_non_nullable
               as DHTSchema,
       ownerSecret: freezed == ownerSecret
-          ? _self.ownerSecret!
+          ? _self.ownerSecret
           : ownerSecret // ignore: cast_nullable_to_non_nullable
-              as FixedEncodedString43?,
+              as PublicKey?,
     ));
   }
 
@@ -545,13 +545,13 @@ class _DHTRecordDescriptor implements DHTRecordDescriptor {
       _$DHTRecordDescriptorFromJson(json);
 
   @override
-  final Typed<FixedEncodedString43> key;
+  final TypedKey key;
   @override
-  final FixedEncodedString43 owner;
+  final PublicKey owner;
   @override
   final DHTSchema schema;
   @override
-  final FixedEncodedString43? ownerSecret;
+  final PublicKey? ownerSecret;
 
   /// Create a copy of DHTRecordDescriptor
   /// with the given fields replaced by the non-null parameter values.
@@ -600,10 +600,10 @@ abstract mixin class _$DHTRecordDescriptorCopyWith<$Res>
   @override
   @useResult
   $Res call(
-      {Typed<FixedEncodedString43> key,
-      FixedEncodedString43 owner,
+      {TypedKey key,
+      PublicKey owner,
       DHTSchema schema,
-      FixedEncodedString43? ownerSecret});
+      PublicKey? ownerSecret});
 
   @override
   $DHTSchemaCopyWith<$Res> get schema;
@@ -631,11 +631,11 @@ class __$DHTRecordDescriptorCopyWithImpl<$Res>
       key: null == key
           ? _self.key
           : key // ignore: cast_nullable_to_non_nullable
-              as Typed<FixedEncodedString43>,
+              as TypedKey,
       owner: null == owner
           ? _self.owner
           : owner // ignore: cast_nullable_to_non_nullable
-              as FixedEncodedString43,
+              as PublicKey,
       schema: null == schema
           ? _self.schema
           : schema // ignore: cast_nullable_to_non_nullable
@@ -643,7 +643,7 @@ class __$DHTRecordDescriptorCopyWithImpl<$Res>
       ownerSecret: freezed == ownerSecret
           ? _self.ownerSecret
           : ownerSecret // ignore: cast_nullable_to_non_nullable
-              as FixedEncodedString43?,
+              as PublicKey?,
     ));
   }
 
@@ -704,7 +704,7 @@ abstract mixin class $ValueDataCopyWith<$Res> {
   $Res call(
       {int seq,
       @Uint8ListJsonConverter.jsIsArray() Uint8List data,
-      FixedEncodedString43 writer});
+      PublicKey writer});
 }
 
 /// @nodoc
@@ -733,9 +733,9 @@ class _$ValueDataCopyWithImpl<$Res> implements $ValueDataCopyWith<$Res> {
           : data // ignore: cast_nullable_to_non_nullable
               as Uint8List,
       writer: null == writer
-          ? _self.writer!
+          ? _self.writer
           : writer // ignore: cast_nullable_to_non_nullable
-              as FixedEncodedString43,
+              as PublicKey,
     ));
   }
 }
@@ -757,7 +757,7 @@ class _ValueData implements ValueData {
   @Uint8ListJsonConverter.jsIsArray()
   final Uint8List data;
   @override
-  final FixedEncodedString43 writer;
+  final PublicKey writer;
 
   /// Create a copy of ValueData
   /// with the given fields replaced by the non-null parameter values.
@@ -806,7 +806,7 @@ abstract mixin class _$ValueDataCopyWith<$Res>
   $Res call(
       {int seq,
       @Uint8ListJsonConverter.jsIsArray() Uint8List data,
-      FixedEncodedString43 writer});
+      PublicKey writer});
 }
 
 /// @nodoc
@@ -837,7 +837,7 @@ class __$ValueDataCopyWithImpl<$Res> implements _$ValueDataCopyWith<$Res> {
       writer: null == writer
           ? _self.writer
           : writer // ignore: cast_nullable_to_non_nullable
-              as FixedEncodedString43,
+              as PublicKey,
     ));
   }
 }

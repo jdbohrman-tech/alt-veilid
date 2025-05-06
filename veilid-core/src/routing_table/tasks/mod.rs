@@ -137,9 +137,9 @@ impl RoutingTable {
         }
 
         // Refresh entry counts
-        let entry_counts = {
+        let live_entry_counts = {
             let mut inner = self.inner.write();
-            inner.refresh_cached_entry_counts()
+            inner.refresh_cached_live_entry_counts()
         };
 
         // Only do the rest if the network has started
@@ -147,27 +147,47 @@ impl RoutingTable {
             return Ok(());
         }
 
-        let min_peer_count = self
-            .config()
-            .with(|c| c.network.dht.min_peer_count as usize);
-
-        // Figure out which tables need bootstrap or peer minimum refresh
+        // Figure out if we need bootstrap
         let mut needs_bootstrap = false;
-        let mut needs_peer_minimum_refresh = false;
-        for ck in VALID_CRYPTO_KINDS {
-            let eckey = (RoutingDomain::PublicInternet, ck);
-            let cnt = entry_counts.get(&eckey).copied().unwrap_or_default();
-            if cnt < MIN_PUBLIC_INTERNET_ROUTING_DOMAIN_NODE_COUNT {
-                needs_bootstrap = true;
-            } else if cnt < min_peer_count {
-                needs_peer_minimum_refresh = true;
+        for rd in BOOTSTRAP_ROUTING_DOMAINS {
+            for ck in VALID_CRYPTO_KINDS {
+                let eckey = (rd, ck);
+                let cnt = live_entry_counts
+                    .connectivity_capabilities
+                    .get(&eckey)
+                    .copied()
+                    .unwrap_or_default();
+                if cnt < MIN_BOOTSTRAP_CONNECTIVITY_PEERS {
+                    needs_bootstrap = true;
+                }
+            }
+            if needs_bootstrap {
+                self.bootstrap_task.tick().await?;
             }
         }
-        if needs_bootstrap {
-            self.bootstrap_task.tick().await?;
-        }
-        if needs_peer_minimum_refresh {
-            self.peer_minimum_refresh_task.tick().await?;
+
+        // Figure out if we need peer minimum refresh
+        // XXX: eventually this should probably be done per-routingdomain
+        let mut needs_peer_minimum_refresh = false;
+        if !needs_bootstrap {
+            let min_peer_count = self
+                .config()
+                .with(|c| c.network.dht.min_peer_count as usize);
+
+            for ck in VALID_CRYPTO_KINDS {
+                let eckey = (RoutingDomain::PublicInternet, ck);
+                let cnt = live_entry_counts
+                    .connectivity_capabilities
+                    .get(&eckey)
+                    .copied()
+                    .unwrap_or_default();
+                if cnt < min_peer_count {
+                    needs_peer_minimum_refresh = true;
+                }
+            }
+            if needs_peer_minimum_refresh {
+                self.peer_minimum_refresh_task.tick().await?;
+            }
         }
 
         // Ping validate some nodes to groom the table
@@ -181,7 +201,7 @@ impl RoutingTable {
         // Run the relay management task
         self.relay_management_task.tick().await?;
 
-        // Get more nodes if we need to
+        // Get more nodes close to our node id
         if !needs_bootstrap && !needs_peer_minimum_refresh {
             // Run closest peers refresh task
             self.closest_peers_refresh_task.tick().await?;

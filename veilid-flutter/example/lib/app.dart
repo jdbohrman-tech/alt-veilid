@@ -1,3 +1,6 @@
+// Allow environment variables
+// ignore_for_file: avoid_redundant_argument_values, do_not_use_environment
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -109,21 +112,21 @@ class _MyAppState extends State<MyApp> with UiLoggy {
       var config = await getDefaultVeilidConfig(
           isWeb: kIsWeb,
           programName: 'Veilid Plugin Example',
-          // ignore: avoid_redundant_argument_values, do_not_use_environment
           bootstrap: const String.fromEnvironment('BOOTSTRAP'),
-          // ignore: avoid_redundant_argument_values, do_not_use_environment
+          bootstrapKeys: const bool.hasEnvironment('BOOTSTRAP_KEYS')
+              ? const String.fromEnvironment('BOOTSTRAP_KEYS')
+              : const bool.hasEnvironment('BOOTSTRAP')
+                  ? ''
+                  : null,
           networkKeyPassword: const String.fromEnvironment('NETWORK_KEY'));
-      // ignore: do_not_use_environment
       if (const String.fromEnvironment('DELETE_TABLE_STORE') == '1') {
         config = config.copyWith(
             tableStore: config.tableStore.copyWith(delete: true));
       }
-      // ignore: do_not_use_environment
       if (const String.fromEnvironment('DELETE_PROTECTED_STORE') == '1') {
         config = config.copyWith(
             protectedStore: config.protectedStore.copyWith(delete: true));
       }
-      // ignore: do_not_use_environment
       if (const String.fromEnvironment('DELETE_BLOCK_STORE') == '1') {
         config = config.copyWith(
             blockStore: config.blockStore.copyWith(delete: true));
@@ -164,7 +167,7 @@ class _MyAppState extends State<MyApp> with UiLoggy {
               color: materialBackgroundColor.shade100,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.15),
+                  color: Colors.black.withAlpha(38),
                   spreadRadius: 4,
                   blurRadius: 4,
                 )

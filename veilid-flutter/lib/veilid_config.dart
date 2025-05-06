@@ -335,6 +335,7 @@ sealed class VeilidConfigRoutingTable with _$VeilidConfigRoutingTable {
     required List<TypedKey> nodeId,
     required List<TypedSecret> nodeIdSecret,
     required List<String> bootstrap,
+    required List<TypedKey> bootstrapKeys,
     required int limitOverAttached,
     required int limitFullyAttached,
     required int limitAttachedStrong,

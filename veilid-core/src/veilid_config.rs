@@ -500,6 +500,8 @@ pub struct VeilidConfigRoutingTable {
     #[schemars(with = "Vec<String>")]
     pub node_id_secret: TypedSecretGroup,
     pub bootstrap: Vec<String>,
+    #[schemars(with = "Vec<String>")]
+    pub bootstrap_keys: Vec<TypedKey>,
     pub limit_over_attached: u32,
     pub limit_fully_attached: u32,
     pub limit_attached_strong: u32,
@@ -513,16 +515,25 @@ impl Default for VeilidConfigRoutingTable {
     fn default() -> Self {
         cfg_if::cfg_if! {
             if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
-                let bootstrap = vec!["ws://bootstrap.veilid.net:5150/ws".to_string()];
+                let bootstrap = vec!["ws://bootstrap-v1.veilid.net:5150/ws".to_string()];
             } else {
-                let bootstrap = vec!["bootstrap.veilid.net".to_string()];
+                let bootstrap = vec!["bootstrap-v1.veilid.net".to_string()];
             }
         }
+        let bootstrap_keys = vec![
+            // Primary Veilid Foundation bootstrap signing key
+            TypedKey::from_str("VLD0:Vj0lKDdUQXmQ5Ol1SZdlvXkBHUccBcQvGLN9vbLSI7k").unwrap(),
+            // Secondary Veilid Foundation bootstrap signing key
+            TypedKey::from_str("VLD0:QeQJorqbXtC7v3OlynCZ_W3m76wGNeB5NTF81ypqHAo").unwrap(),
+            // Backup Veilid Foundation bootstrap signing key
+            TypedKey::from_str("VLD0:QNdcl-0OiFfYVj9331XVR6IqZ49NG-E18d5P7lwi4TA").unwrap(),
+        ];
 
         Self {
             node_id: TypedKeyGroup::default(),
             node_id_secret: TypedSecretGroup::default(),
             bootstrap,
+            bootstrap_keys,
             limit_over_attached: 64,
             limit_fully_attached: 32,
             limit_attached_strong: 16,
@@ -967,6 +978,7 @@ impl VeilidStartupOptions {
         get_config!(inner.network.routing_table.node_id);
         get_config!(inner.network.routing_table.node_id_secret);
         get_config!(inner.network.routing_table.bootstrap);
+        get_config!(inner.network.routing_table.bootstrap_keys);
         get_config!(inner.network.routing_table.limit_over_attached);
         get_config!(inner.network.routing_table.limit_fully_attached);
         get_config!(inner.network.routing_table.limit_attached_strong);

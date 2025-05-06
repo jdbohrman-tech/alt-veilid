@@ -9,6 +9,7 @@ Future<VeilidConfig> getDefaultVeilidConfig({
   required bool isWeb,
   required String programName,
   String bootstrap = '',
+  String? bootstrapKeys,
   String namespace = '',
   String deviceEncryptionKeyPassword = '',
   String? newDeviceEncryptionKeyPassword,
@@ -40,10 +41,15 @@ Future<VeilidConfig> getDefaultVeilidConfig({
         newDeviceEncryptionKeyPassword: newDeviceEncryptionKeyPassword,
       ),
       network: defaultConfig.network.copyWith(
-          networkKeyPassword: networkKeyPassword,
-          routingTable: defaultConfig.network.routingTable.copyWith(
-              bootstrap: bootstrap.isNotEmpty
-                  ? bootstrap.split(',')
-                  : defaultConfig.network.routingTable.bootstrap),
-          dht: defaultConfig.network.dht.copyWith()));
+        networkKeyPassword: networkKeyPassword,
+        routingTable: defaultConfig.network.routingTable.copyWith(
+            bootstrap: bootstrap.isNotEmpty
+                ? bootstrap.split(',')
+                : defaultConfig.network.routingTable.bootstrap,
+            bootstrapKeys: bootstrapKeys != null
+                ? bootstrapKeys.isNotEmpty
+                    ? bootstrapKeys.split(',').map(TypedKey.fromString).toList()
+                    : []
+                : defaultConfig.network.routingTable.bootstrapKeys),
+      ));
 }

@@ -14,6 +14,8 @@ pub const CAP_APPMESSAGE: Capability = FourCC(*b"APPM");
 pub const CAP_BLOCKSTORE: Capability = FourCC(*b"BLOC");
 
 pub const DISTANCE_METRIC_CAPABILITIES: &[Capability] = &[CAP_DHT, CAP_DHT_WATCH];
+pub const CONNECTIVITY_CAPABILITIES: &[Capability] =
+    &[CAP_RELAY, CAP_SIGNAL, CAP_ROUTE, CAP_VALIDATE_DIAL_INFO];
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NodeInfo {

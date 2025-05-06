@@ -237,6 +237,9 @@ fn get_public_key(text: &str) -> Option<PublicKey> {
 fn get_keypair(text: &str) -> Option<KeyPair> {
     KeyPair::from_str(text).ok()
 }
+fn get_typedkeypair(text: &str) -> Option<TypedKeyPair> {
+    TypedKeyPair::from_str(text).ok()
+}
 
 fn get_crypto_system_version<'a>(
     crypto: &'a Crypto,
@@ -644,10 +647,20 @@ impl VeilidAPI {
         Ok(routing_table.debug_info_peerinfo(routing_domain, published))
     }
 
-    async fn debug_txtrecord(&self, _args: String) -> VeilidAPIResult<String> {
+    async fn debug_txtrecord(&self, args: String) -> VeilidAPIResult<String> {
         // Dump routing table txt record
-        let routing_table = self.core_context()?.routing_table();
-        Ok(routing_table.debug_info_txtrecord().await)
+        let args: Vec<String> = args.split_whitespace().map(|s| s.to_owned()).collect();
+
+        let signing_key_pair = get_debug_argument_at(
+            &args,
+            0,
+            "debug_txtrecord",
+            "signing_key_pair",
+            get_typedkeypair,
+        )?;
+
+        let network_manager = self.core_context()?.network_manager();
+        Ok(network_manager.debug_info_txtrecord(signing_key_pair).await)
     }
 
     fn debug_keypair(&self, args: String) -> VeilidAPIResult<String> {

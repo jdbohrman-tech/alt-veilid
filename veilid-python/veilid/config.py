@@ -71,6 +71,7 @@ class VeilidConfigRoutingTable(ConfigBase):
     node_id: list[TypedKey]
     node_id_secret: list[TypedSecret]
     bootstrap: list[str]
+    bootstrap_keys: list[TypedKey]
     limit_over_attached: int
     limit_fully_attached: int
     limit_attached_strong: int

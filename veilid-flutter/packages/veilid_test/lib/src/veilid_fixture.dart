@@ -1,9 +1,11 @@
+// Allow environment variables
+// ignore_for_file: do_not_use_environment, avoid_redundant_argument_values
+
 import 'dart:async';
 
 import 'package:async_tools/async_tools.dart';
 import 'package:veilid/veilid.dart';
 
-// ignore: do_not_use_environment
 bool kIsWeb = const bool.fromEnvironment('dart.library.js_util');
 
 abstract class VeilidFixture {
@@ -32,17 +34,14 @@ class DefaultVeilidFixture implements VeilidFixture {
     _updateStreamController = StreamController.broadcast();
 
     final ignoreLogTargetsStr =
-        // ignore: do_not_use_environment
         const String.fromEnvironment('IGNORE_LOG_TARGETS').trim();
     final ignoreLogTargets = ignoreLogTargetsStr.isEmpty
         ? <String>[]
         : ignoreLogTargetsStr.split(',').map((e) => e.trim()).toList();
 
     final logLevel = VeilidConfigLogLevel.fromJson(
-        // ignore: do_not_use_environment
         const String.fromEnvironment('LOG_LEVEL', defaultValue: 'info'));
 
-    // ignore: do_not_use_environment
     final flamePathStr = const String.fromEnvironment('FLAME').trim();
 
     final Map<String, dynamic> platformConfigJson;
@@ -91,9 +90,12 @@ class DefaultVeilidFixture implements VeilidFixture {
     var config = await getDefaultVeilidConfig(
       isWeb: kIsWeb,
       programName: programName,
-      // ignore: avoid_redundant_argument_values, do_not_use_environment
       bootstrap: const String.fromEnvironment('BOOTSTRAP'),
-      // ignore: avoid_redundant_argument_values, do_not_use_environment
+      bootstrapKeys: const bool.hasEnvironment('BOOTSTRAP_KEYS')
+          ? const String.fromEnvironment('BOOTSTRAP_KEYS')
+          : const bool.hasEnvironment('BOOTSTRAP')
+              ? ''
+              : null,
       networkKeyPassword: const String.fromEnvironment('NETWORK_KEY'),
     );
 

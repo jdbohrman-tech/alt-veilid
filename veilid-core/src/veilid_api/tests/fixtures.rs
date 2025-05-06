@@ -151,6 +151,10 @@ pub fn fix_veilidconfig() -> VeilidConfig {
                 node_id: TypedKeyGroup::new(),
                 node_id_secret: TypedSecretGroup::new(),
                 bootstrap: vec!["boots".to_string()],
+                bootstrap_keys: vec![TypedKey::from_str(
+                    "VLD0:qrxwD1-aM9xiUw4IAPVXE_4qgoIfyR4Y6MEPyaDl_GQ",
+                )
+                .unwrap()],
                 limit_over_attached: 1,
                 limit_fully_attached: 2,
                 limit_attached_strong: 3,

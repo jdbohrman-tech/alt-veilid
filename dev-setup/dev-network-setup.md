@@ -6,7 +6,7 @@ There will be times when a contibutor wishes to dynamically test their work on l
 
 This document outlines the process of using the steps found in [INSTALL.md](../INSTALL.md) and [BOOTSTRAP-SETUP.md](../BOOTSTRAP-SETUP.md) with some modifications which results in a reasonably isolated and independent network of Veilid development nodes which do not communicate with nodes on the actual Veilid network.
 
-The minimum topology of a dev network is 1 bootstrap server and 4 nodes, all with public IP addresses with port 5150/TCP open. This allows enabling public address detection and private routing. The minimum specifications are 1 vCPU, 1GB RAM, and 25 GB storage.
+The minimum topology of a dev network is 1 bootstrap server and 4 nodes, all with public IP addresses with port 5150/TCP open. It is preferable to open port 5150/UDP as well. This allows enabling public address detection and private routing. The minimum specifications are 1 vCPU, 1GB RAM, and 25 GB storage.
 
 ## Quick Start
 

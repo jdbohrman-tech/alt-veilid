@@ -9,6 +9,7 @@ use stop_token::future::FutureExt as StopFutureExt;
 impl RoutingTable {
     /// Ask our closest peers to give us more peers close to ourselves. This will
     /// assist with the DHT and other algorithms that utilize the distance metric.
+    /// This only finds nodes in the PublicInternet domain.
     #[instrument(level = "trace", skip(self), err)]
     pub async fn closest_peers_refresh_task_routine(
         &self,

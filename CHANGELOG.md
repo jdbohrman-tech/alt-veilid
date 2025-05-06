@@ -10,13 +10,14 @@
     - `VeilidConfigInner` -> `VeilidConfig`
 
 - veilid-core:
+  - **Security** Signed bootstrap v1 added which closes #293: https://gitlab.com/veilid/veilid/-/issues/293
   - Allow shutdown even if tables are closed
   - New, more robust, watchvalue implementation
   - Consensus is now counted from the nodes closest to the key, excluding attempts that have failed, but including new nodes that show up, requiring N out of the M closest nodes to have      succeeded and all have been attempted.
   - Watching a node now also triggers an background inspection+valueget to detect if values have changed online
   - Fanout queue disqualifaction for distance-based rejections reimplemented
   - Local rehydration implemented. DHT record subkey data that does not have sufficient consensus online is re-pushed to keep it alive when records are opened.
-  - Direct bootstrap now filters out Relayed nodes correctly
+  - Direct bootstrap v0 now filters out Relayed nodes correctly
   - Closed issue #400: https://gitlab.com/veilid/veilid/-/issues/400
   - Closed issue #377: https://gitlab.com/veilid/veilid/-/issues/377
   - Add the `veilid_features()` API, which lists the compile-time features that were enabled when `veilid-core` was built (available in language bindings as well). ([!401](https://gitlab.com/veilid/veilid/-/issues/400))
