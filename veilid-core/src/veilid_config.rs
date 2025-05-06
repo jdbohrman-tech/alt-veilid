@@ -774,8 +774,12 @@ impl fmt::Display for VeilidConfigLogLevel {
 /// Top level of the Veilid configuration tree
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
+#[cfg_attr(
+    all(target_arch = "wasm32", target_os = "unknown"),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
 #[must_use]
-pub struct VeilidConfigInner {
+pub struct VeilidConfig {
     /// An identifier used to describe the program using veilid-core.
     /// Used to partition storage locations in places like the ProtectedStore.
     /// Must be non-empty and a valid filename for all Veilid-capable systems, which means
@@ -805,8 +809,8 @@ pub struct VeilidConfigInner {
     pub network: VeilidConfigNetwork,
 }
 
-impl VeilidConfigInner {
-    /// Create a new 'VeilidConfigInner' for use with `setup_from_config`
+impl VeilidConfig {
+    /// Create a new 'VeilidConfig' for use with `setup_from_config`
     /// Should match the application bundle name if used elsewhere in the format:
     /// `qualifier.organization.program_name` - for example `org.veilid.veilidchat`
     ///
@@ -815,7 +819,7 @@ impl VeilidConfigInner {
     /// specified to override this location
     ///
     /// * `program_name` - Pick a program name and do not change it from release to release,
-    ///    see `VeilidConfigInner::program_name` for details.
+    ///    see `VeilidConfig::program_name` for details.
     /// * `organization_name` - Similar to program_name, but for the organization publishing this app
     /// * `qualifier` - Suffix for the application bundle name
     /// * `storage_directory` - Override for the path where veilid-core stores its content
@@ -883,12 +887,12 @@ impl VeilidConfigInner {
 /// The configuration built for each Veilid node during API startup
 #[derive(Clone)]
 #[must_use]
-pub struct VeilidConfig {
+pub struct VeilidStartupOptions {
     update_cb: UpdateCallback,
-    inner: Arc<RwLock<VeilidConfigInner>>,
+    inner: Arc<RwLock<VeilidConfig>>,
 }
 
-impl fmt::Debug for VeilidConfig {
+impl fmt::Debug for VeilidStartupOptions {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let inner = self.inner.read();
         f.debug_struct("VeilidConfig")
@@ -897,8 +901,8 @@ impl fmt::Debug for VeilidConfig {
     }
 }
 
-impl VeilidConfig {
-    pub(crate) fn new_from_config(config: VeilidConfigInner, update_cb: UpdateCallback) -> Self {
+impl VeilidStartupOptions {
+    pub(crate) fn new_from_config(config: VeilidConfig, update_cb: UpdateCallback) -> Self {
         Self {
             update_cb,
             inner: Arc::new(RwLock::new(config)),
@@ -928,7 +932,7 @@ impl VeilidConfig {
         cb: ConfigCallback,
         update_cb: UpdateCallback,
     ) -> VeilidAPIResult<Self> {
-        let mut inner = VeilidConfigInner::default();
+        let mut inner = VeilidConfig::default();
 
         // Simple config transformation
         macro_rules! get_config {
@@ -1058,11 +1062,11 @@ impl VeilidConfig {
         self.update_cb.clone()
     }
 
-    pub fn get(&self) -> RwLockReadGuard<VeilidConfigInner> {
+    pub fn get(&self) -> RwLockReadGuard<VeilidConfig> {
         self.inner.read()
     }
 
-    fn safe_config_inner(&self) -> VeilidConfigInner {
+    fn safe_config_inner(&self) -> VeilidConfig {
         let mut safe_cfg = self.inner.read().clone();
 
         // Remove secrets
@@ -1073,7 +1077,7 @@ impl VeilidConfig {
         safe_cfg
     }
 
-    pub fn safe_config(&self) -> VeilidConfig {
+    pub fn safe_config(&self) -> VeilidStartupOptions {
         let mut safe_cfg = self.inner.read().clone();
 
         // Remove secrets
@@ -1081,7 +1085,7 @@ impl VeilidConfig {
         "".clone_into(&mut safe_cfg.protected_store.device_encryption_key_password);
         safe_cfg.protected_store.new_device_encryption_key_password = None;
 
-        VeilidConfig {
+        VeilidStartupOptions {
             update_cb: self.update_cb.clone(),
             inner: Arc::new(RwLock::new(safe_cfg)),
         }
@@ -1089,7 +1093,7 @@ impl VeilidConfig {
 
     pub fn with<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&VeilidConfigInner) -> R,
+        F: FnOnce(&VeilidConfig) -> R,
     {
         let inner = self.inner.read();
         f(&inner)
@@ -1097,7 +1101,7 @@ impl VeilidConfig {
 
     pub fn try_with_mut<F, R>(&self, f: F) -> VeilidAPIResult<R>
     where
-        F: FnOnce(&mut VeilidConfigInner) -> VeilidAPIResult<R>,
+        F: FnOnce(&mut VeilidConfig) -> VeilidAPIResult<R>,
     {
         let out = {
             let inner = &mut *self.inner.write();
@@ -1227,7 +1231,7 @@ impl VeilidConfig {
         Ok(())
     }
 
-    fn validate(inner: &VeilidConfigInner) -> VeilidAPIResult<()> {
+    fn validate(inner: &VeilidConfig) -> VeilidAPIResult<()> {
         Self::validate_program_name(&inner.program_name)?;
         Self::validate_namespace(&inner.namespace)?;
 
@@ -1335,5 +1339,5 @@ impl VeilidConfig {
 /// Return the default veilid config as a json object.
 #[must_use]
 pub fn default_veilid_config() -> String {
-    serialize_json(VeilidConfigInner::default())
+    serialize_json(VeilidConfig::default())
 }

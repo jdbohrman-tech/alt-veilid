@@ -28,7 +28,7 @@ Um exemplo básico usando `veilid-core` e `tokio` se parece com o abaixo.
 ```rust
 use std::sync::Arc;
 use veilid_core::VeilidUpdate::{AppMessage, Network};
-use veilid_core::{VeilidConfigBlockStore, VeilidConfigInner, VeilidConfigProtectedStore, VeilidConfigTableStore, VeilidUpdate};
+use veilid_core::{VeilidConfigBlockStore, VeilidConfig, VeilidConfigProtectedStore, VeilidConfigTableStore, VeilidUpdate};
 
 #[tokio::main]
 async fn main() {
@@ -46,7 +46,7 @@ async fn main() {
         };
     });
 
-    let config = VeilidConfigInner {
+    let config = VeilidConfig {
         program_name: "Example Veilid".into(),
         namespace: "veilid-example".into(),
         protected_store: VeilidConfigProtectedStore {

@@ -39,7 +39,7 @@ export async function startVeilid() {
 
     veilidClient.startupCore(async (data) => {
         veilidEventEmitter.emit(data.kind, data);
-    }, JSON.stringify(config));
+    }, config);
 
     return veilidClient;
 }

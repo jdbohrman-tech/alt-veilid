@@ -297,8 +297,11 @@ pub fn config_callback(key: String) -> ConfigCallbackReturn {
     }
 }
 
-pub fn get_config() -> VeilidConfig {
-    match VeilidConfig::new_from_callback(Arc::new(config_callback), Arc::new(update_callback)) {
+pub fn get_config() -> VeilidStartupOptions {
+    match VeilidStartupOptions::new_from_callback(
+        Arc::new(config_callback),
+        Arc::new(update_callback),
+    ) {
         Ok(vc) => vc,
         Err(e) => {
             error!("Error: {}", e);

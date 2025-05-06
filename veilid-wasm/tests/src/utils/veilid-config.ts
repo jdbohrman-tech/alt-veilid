@@ -19,7 +19,7 @@ export const veilidCoreInitConfig: VeilidWASMConfig = {
 };
 
 export var veilidCoreStartupConfig = (() => {
-  var defaultConfig = JSON.parse(veilidClient.defaultConfig());
+  var defaultConfig = veilidClient.defaultConfig();
   defaultConfig.program_name = 'veilid-wasm-test';
   // Ensure we are starting from scratch
   defaultConfig.table_store.delete = true;

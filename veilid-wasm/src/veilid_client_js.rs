@@ -81,7 +81,7 @@ impl VeilidClient {
     /// @param {string} json_config - called at startup to supply a JSON configuration object.
     pub async fn startupCore(
         update_callback_js: UpdateVeilidFunction,
-        json_config: String,
+        config: VeilidConfig,
     ) -> APIResult<()> {
         let update_callback_js = SendWrapper::new(update_callback_js);
         let update_callback = Arc::new(move |update: VeilidUpdate| {
@@ -102,7 +102,7 @@ impl VeilidClient {
             return APIResult::Err(veilid_core::VeilidAPIError::AlreadyInitialized);
         }
 
-        let veilid_api = veilid_core::api_startup_json(update_callback, json_config).await?;
+        let veilid_api = veilid_core::api_startup_config(update_callback, config).await?;
         VEILID_API.replace(Some(veilid_api));
         APIRESULT_UNDEFINED
     }
@@ -220,8 +220,7 @@ impl VeilidClient {
     }
 
     /// Return the default veilid configuration, in string format
-    #[must_use]
-    pub fn defaultConfig() -> String {
-        veilid_core::default_veilid_config()
+    pub fn defaultConfig() -> VeilidConfig {
+        VeilidConfig::default()
     }
 }

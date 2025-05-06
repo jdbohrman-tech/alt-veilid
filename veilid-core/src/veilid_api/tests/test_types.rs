@@ -252,7 +252,7 @@ pub fn test_veilidroutechange() {
 
 pub fn test_veilidstateconfig() {
     let orig = VeilidStateConfig {
-        config: fix_veilidconfiginner(),
+        config: fix_veilidconfig(),
     };
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();
 
@@ -289,7 +289,7 @@ pub fn test_veilidstate() {
             peers: vec![fix_peertabledata()],
         }),
         config: Box::new(VeilidStateConfig {
-            config: fix_veilidconfiginner(),
+            config: fix_veilidconfig(),
         }),
     };
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();

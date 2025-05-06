@@ -25,7 +25,7 @@ pub(crate) trait VeilidComponent:
 pub(crate) trait VeilidComponentRegistryAccessor {
     fn registry(&self) -> VeilidComponentRegistry;
 
-    fn config(&self) -> VeilidConfig {
+    fn config(&self) -> VeilidStartupOptions {
         self.registry().config.clone()
     }
     fn update_callback(&self) -> UpdateCallback {
@@ -65,7 +65,7 @@ struct VeilidComponentRegistryInner {
 #[derive(Clone, Debug)]
 pub(crate) struct VeilidComponentRegistry {
     inner: Arc<Mutex<VeilidComponentRegistryInner>>,
-    config: VeilidConfig,
+    config: VeilidStartupOptions,
     namespace: &'static str,
     program_name: &'static str,
     log_key: &'static str,
@@ -74,7 +74,7 @@ pub(crate) struct VeilidComponentRegistry {
 }
 
 impl VeilidComponentRegistry {
-    pub fn new(config: VeilidConfig) -> Self {
+    pub fn new(config: VeilidStartupOptions) -> Self {
         let (namespace, program_name) =
             config.with(|c| (c.namespace.to_static_str(), c.program_name.to_static_str()));
 
