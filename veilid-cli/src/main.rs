@@ -47,10 +47,10 @@ struct CmdlineArgs {
     /// Log level for the CLI itself (not for the Veilid node)
     #[arg(long, value_enum)]
     cli_log_level: Option<LogLevel>,
-    /// interactive
+    /// interactive mode
     #[arg(long, short = 'i', group = "execution_mode")]
     interactive: bool,
-    /// evaluate
+    /// evaluate the rest of the line as a cli command
     #[arg(long, short = 'e', group = "execution_mode")]
     evaluate: Option<String>,
     /// show log only
