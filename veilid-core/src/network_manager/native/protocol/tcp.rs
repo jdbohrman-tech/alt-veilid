@@ -151,6 +151,14 @@ impl RawTcpProtocolHandler {
             return Ok(None);
         }
 
+        // Ensure this has a chance of being proper framed, otherwise drop the connection
+        // This will keep upgraded WS->WSS TLS negotiations from getting punished if the
+        // WSS accept handler isn't enabled
+        if peekbuf[0] != b'V' || peekbuf[1] != b'L' {
+            // Not framed TCP, drop it
+            return Ok(None);
+        }
+
         let peer_addr = PeerAddress::new(
             SocketAddress::from_socket_addr(socket_addr),
             ProtocolType::TCP,
