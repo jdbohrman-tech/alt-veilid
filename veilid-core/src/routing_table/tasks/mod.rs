@@ -1,5 +1,6 @@
 pub mod bootstrap;
 pub mod closest_peers_refresh;
+pub mod flush;
 pub mod kick_buckets;
 pub mod peer_minimum_refresh;
 pub mod ping_validator;
@@ -13,6 +14,9 @@ impl_veilid_log_facility!("rtab");
 
 impl RoutingTable {
     pub fn setup_tasks(&self) {
+        // Set flush tick task
+        impl_setup_task!(self, Self, flush_task, flush_task_routine);
+
         // Set rolling transfers tick task
         impl_setup_task!(
             self,
@@ -121,6 +125,9 @@ impl RoutingTable {
             return Ok(());
         };
 
+        // Do flush every ROUTING_TABLE_FLUSH_INTERVAL_SECS secs
+        self.flush_task.tick().await?;
+
         // Do rolling transfers every ROLLING_TRANSFERS_INTERVAL_SECS secs
         self.rolling_transfers_task.tick().await?;
 
@@ -225,6 +232,10 @@ impl RoutingTable {
 
     pub async fn cancel_tasks(&self) {
         // Cancel all tasks being ticked
+        veilid_log!(self debug "stopping flush task");
+        if let Err(e) = self.flush_task.stop().await {
+            veilid_log!(self warn "flush_task not stopped: {}", e);
+        }
         veilid_log!(self debug "stopping rolling transfers task");
         if let Err(e) = self.rolling_transfers_task.stop().await {
             veilid_log!(self warn "rolling_transfers_task not stopped: {}", e);

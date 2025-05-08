@@ -160,6 +160,8 @@ impl RoutingTable {
             }
         }
 
+        self.flush().await;
+
         Ok(())
     }
 }

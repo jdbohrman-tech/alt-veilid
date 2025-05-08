@@ -56,8 +56,6 @@ pub struct RoutingTableInner {
     pub(super) self_transfer_stats: TransferStatsDownUp,
     /// Peers we have recently communicated with
     pub(super) recent_peers: LruCache<TypedKey, RecentPeersEntry>,
-    /// Storage for private/safety RouteSpecs
-    pub(super) route_spec_store: Option<RouteSpecStore>,
     /// Async tagged critical sections table
     /// Tag: "tick" -> in ticker
     pub(super) critical_sections: AsyncTagLockTable<&'static str>,
@@ -82,7 +80,6 @@ impl RoutingTableInner {
             self_transfer_stats_accounting: TransferStatsAccounting::new(),
             self_transfer_stats: TransferStatsDownUp::default(),
             recent_peers: LruCache::new(RECENT_PEERS_TABLE_SIZE),
-            route_spec_store: None,
             critical_sections: AsyncTagLockTable::new(),
             opt_active_watch_keepalive_ts: None,
         }

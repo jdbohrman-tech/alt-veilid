@@ -23,6 +23,7 @@
   - Add the `veilid_features()` API, which lists the compile-time features that were enabled when `veilid-core` was built (available in language bindings as well). ([!401](https://gitlab.com/veilid/veilid/-/issues/400))
   - When `veilid-core` starts up, log the version number, and the compile-time features that were enabled when it was built. ([!401](https://gitlab.com/veilid/veilid/-/issues/400))
   - Closed issue #448: https://gitlab.com/veilid/veilid/-/issues/448
+  - Add background flush for routing table and route spec store, to address issue #449: https://gitlab.com/veilid/veilid/-/issues/449
 
 - veilid-flutter:
   - Bindings updated for API changes

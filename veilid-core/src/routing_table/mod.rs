@@ -52,6 +52,9 @@ pub const RELAY_SELECTION_PERCENTILE: f32 = 85.0;
 /// How frequently we tick the private route management routine
 pub const PRIVATE_ROUTE_MANAGEMENT_INTERVAL_SECS: u32 = 1;
 
+/// How frequently we flush the routing table and route spec store to storage
+pub const ROUTING_TABLE_FLUSH_INTERVAL_SECS: u32 = 30;
+
 // Connectionless protocols like UDP are dependent on a NAT translation timeout
 // We ping relays to maintain our UDP NAT state with a RELAY_KEEPALIVE_PING_INTERVAL_SECS=10 frequency
 // since 30 seconds is a typical UDP NAT state timeout.
@@ -113,6 +116,8 @@ pub(crate) struct RoutingTable {
     route_spec_store: RouteSpecStore,
     /// Buckets to kick on our next kick task
     kick_queue: Mutex<BTreeSet<BucketIndex>>,
+    /// Background process for flushing the table to disk
+    flush_task: TickTask<EyreReport>,
     /// Background process for computing statistics
     rolling_transfers_task: TickTask<EyreReport>,
     /// Background process for computing statistics
@@ -163,6 +168,7 @@ impl RoutingTable {
             inner,
             route_spec_store,
             kick_queue: Mutex::new(BTreeSet::default()),
+            flush_task: TickTask::new("flush_task", ROUTING_TABLE_FLUSH_INTERVAL_SECS),
             rolling_transfers_task: TickTask::new(
                 "rolling_transfers_task",
                 ROLLING_TRANSFERS_INTERVAL_SECS,
@@ -266,28 +272,25 @@ impl RoutingTable {
     async fn terminate_async(&self) {
         veilid_log!(self debug "starting routing table terminate");
 
-        // Load bucket entries from table db if possible
-        veilid_log!(self debug "saving routing table entries");
-        if let Err(e) = self.save_buckets().await {
-            error!("failed to save routing table entries: {}", e);
-        }
+        veilid_log!(self debug "routing table termination flush");
+        self.flush().await;
 
-        veilid_log!(self debug "saving route spec store");
-        let rss = {
-            let mut inner = self.inner.write();
-            inner.route_spec_store.take()
-        };
-        if let Some(rss) = rss {
-            if let Err(e) = rss.save().await {
-                error!("couldn't save route spec store: {}", e);
-            }
-        }
         veilid_log!(self debug "shutting down routing table");
 
         let mut inner = self.inner.write();
         *inner = RoutingTableInner::new(self.registry());
 
         veilid_log!(self debug "finished routing table terminate");
+    }
+
+    pub async fn flush(&self) {
+        if let Err(e) = self.save_buckets().await {
+            error!("failed to save routing table entries: {}", e);
+        }
+
+        if let Err(e) = self.route_spec_store().save().await {
+            error!("couldn't save route spec store: {}", e);
+        }
     }
 
     ///////////////////////////////////////////////////////////////////
