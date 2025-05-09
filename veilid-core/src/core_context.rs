@@ -73,6 +73,11 @@ impl VeilidCoreContext {
         veilid_log!(registry info "Veilid API starting up");
         veilid_log!(registry info "Version: {}", veilid_version_string());
         veilid_log!(registry info "Features: {:?}", veilid_features());
+        #[cfg(feature = "footgun")]
+        {
+            veilid_log!(registry warn
+                "Footgun feature is enabled. This disables sender privacy protections and should be avoided in production.");
+        }
 
         // Register all components
         registry.register(ProtectedStore::new);

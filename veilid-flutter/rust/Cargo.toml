@@ -32,6 +32,7 @@ rt-tokio = [
     "opentelemetry/rt-tokio",
 ]
 debug-load = ["dep:ctor", "dep:libc-print", "dep:android_log-sys", "dep:oslog"]
+footgun = ["veilid-core/footgun"]
 
 [dependencies]
 veilid-core = { path = "../../veilid-core", default-features = false }

@@ -101,6 +101,15 @@ impl RoutingContext {
         veilid_log!(self debug
             "RoutingContext::with_safety(self: {:?}, safety_selection: {:?})", self, safety_selection);
 
+        if let SafetySelection::Unsafe(_) = safety_selection {
+            #[cfg(not(feature = "footgun"))]
+            {
+                return Err(VeilidAPIError::generic(
+                    "Unsafe routing mode is not allowed without the 'footgun' feature enabled",
+                ));
+            }
+        }
+
         Ok(Self {
             api: self.api.clone(),
             unlocked_inner: Arc::new(RoutingContextUnlockedInner { safety_selection }),
@@ -161,19 +170,12 @@ impl RoutingContext {
         .map_err(VeilidAPIError::invalid_target)
     }
 
-    ////////////////////////////////////////////////////////////////
-    // App-level Messaging
-
-    /// App-level bidirectional call that expects a response to be returned.
-    ///
-    /// Veilid apps may use this for arbitrary message passing.
-    ///
-    /// * `target` - can be either a direct node id or a private route.
-    /// * `message` - an arbitrary message blob of up to 32768 bytes.
-    ///
-    /// Returns an answer blob of up to 32768 bytes.
     #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), ret, err)]
-    pub async fn app_call(&self, target: Target, message: Vec<u8>) -> VeilidAPIResult<Vec<u8>> {
+    async fn internal_app_call(
+        &self,
+        target: Target,
+        message: Vec<u8>,
+    ) -> VeilidAPIResult<Vec<u8>> {
         veilid_log!(self debug
             "RoutingContext::app_call(self: {:?}, target: {:?}, message: {:?})", self, target, message);
 
@@ -200,14 +202,45 @@ impl RoutingContext {
         Ok(answer.answer)
     }
 
-    /// App-level unidirectional message that does not expect any value to be returned.
+    #[cfg(feature = "footgun")]
+    ////////////////////////////////////////////////////////////////
+    // App-level Messaging
+
+    /// App-level bidirectional call that expects a response to be returned.
     ///
     /// Veilid apps may use this for arbitrary message passing.
     ///
     /// * `target` - can be either a direct node id or a private route.
     /// * `message` - an arbitrary message blob of up to 32768 bytes.
+    ///
+    /// Returns an answer blob of up to 32768 bytes.
+    pub async fn app_call(&self, target: Target, message: Vec<u8>) -> VeilidAPIResult<Vec<u8>> {
+        self.internal_app_call(target, message).await
+    }
+
+    #[cfg(not(feature = "footgun"))]
+    ////////////////////////////////////////////////////////////////
+    // App-level Messaging
+
+    /// App-level bidirectional call that expects a response to be returned.
+    ///
+    /// Veilid apps may use this for arbitrary message passing.
+    ///
+    /// * `target` - a private route.
+    /// * `message` - an arbitrary message blob of up to 32768 bytes.
+    ///
+    /// Returns an answer blob of up to 32768 bytes.
+    pub async fn app_call(&self, target: Target, message: Vec<u8>) -> VeilidAPIResult<Vec<u8>> {
+        match target {
+            Target::PrivateRoute(_) => self.internal_app_call(target, message).await,
+            Target::NodeId(_) => Err(VeilidAPIError::invalid_target(
+                "Only PrivateRoute targets are allowed without the footgun feature",
+            )),
+        }
+    }
+
     #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), ret, err)]
-    pub async fn app_message(&self, target: Target, message: Vec<u8>) -> VeilidAPIResult<()> {
+    async fn internal_app_message(&self, target: Target, message: Vec<u8>) -> VeilidAPIResult<()> {
         veilid_log!(self debug
             "RoutingContext::app_message(self: {:?}, target: {:?}, message: {:?})", self, target, message);
 
@@ -231,6 +264,33 @@ impl RoutingContext {
         };
 
         Ok(())
+    }
+
+    #[cfg(feature = "footgun")]
+    /// App-level unidirectional message that does not expect any value to be returned.
+    ///
+    /// Veilid apps may use this for arbitrary message passing.
+    ///
+    /// * `target` - can be either a direct node id or a private route.
+    /// * `message` - an arbitrary message blob of up to 32768 bytes.
+    pub async fn app_message(&self, target: Target, message: Vec<u8>) -> VeilidAPIResult<()> {
+        self.internal_app_message(target, message).await
+    }
+
+    #[cfg(not(feature = "footgun"))]
+    /// App-level unidirectional message that does not expect any value to be returned.
+    ///
+    /// Veilid apps may use this for arbitrary message passing.
+    ///
+    /// * `target` - a private route.
+    /// * `message` - an arbitrary message blob of up to 32768 bytes.
+    pub async fn app_message(&self, target: Target, message: Vec<u8>) -> VeilidAPIResult<()> {
+        match target {
+            Target::PrivateRoute(_) => self.internal_app_message(target, message).await,
+            Target::NodeId(_) => Err(VeilidAPIError::invalid_target(
+                "Only PrivateRoute targets are allowed without the footgun feature",
+            )),
+        }
     }
 
     ///////////////////////////////////

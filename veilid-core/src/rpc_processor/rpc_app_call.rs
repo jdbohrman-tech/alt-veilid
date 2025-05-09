@@ -118,6 +118,15 @@ impl RPCProcessor {
             .as_ref()
             .map(|nr| nr.node_ids().get(crypto_kind).unwrap());
 
+        #[cfg(not(feature = "footgun"))]
+        {
+            if sender.is_some() {
+                return Ok(NetworkResult::invalid_message(
+                    "Direct NodeId senders are not allowed for AppCall when footgun is disabled",
+                ));
+            }
+        }
+
         // Register a waiter for this app call
         let handle = self.waiting_app_call_table.add_op_waiter(op_id, ());
 

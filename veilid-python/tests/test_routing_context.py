@@ -34,9 +34,15 @@ async def test_routing_contexts(api_connection: veilid.VeilidAPI):
     )
     await rc.release()
 
-    rc = await (await api_connection.new_routing_context()).with_safety(
-        veilid.SafetySelection.unsafe(veilid.Sequencing.PREFER_ORDERED)
-    )
+
+    # Test that creating an Unsafe routing context throws an error
+    # as mentioned in the CHANGELOG (footgun feature disabled by default)
+    rc = await api_connection.new_routing_context()
+    with pytest.raises(Exception):
+        rc = await rc.with_safety(
+            veilid.SafetySelection.unsafe(veilid.Sequencing.PREFER_ORDERED)
+        )
+
     await rc.release()
 
 

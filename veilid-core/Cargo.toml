@@ -62,6 +62,10 @@ virtual-network-server = ["veilid-tools/virtual-network-server"]
 # GeoIP
 geolocation = ["maxminddb", "reqwest"]
 
+# Features that go against "Natural Security" concepts
+# https://gitlab.com/veilid/veilid/-/issues/420
+footgun = []
+
 ### DEPENDENCIES
 
 [dependencies]

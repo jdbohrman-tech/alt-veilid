@@ -8,6 +8,10 @@
   - Renamed config structs to better describe their purpose, and remove "Inner" from a struct that's being exposed via the API. ([!402](https://gitlab.com/veilid/veilid/-/merge_requests/402))
     - `VeilidConfig` -> `VeilidStartupOptions`
     - `VeilidConfigInner` -> `VeilidConfig`
+  - Gate insecure capabilities behind the new `footgun` feature flag ([#394](https://gitlab.com/veilid/veilid/-/issues/394)), which is disabled by default. ([!400](https://gitlab.com/veilid/veilid/-/merge_requests/400))
+    - Calling `app_call` or `app_message` with a `NodeId` target will throw an error. Use a `PrivateRoute` target instead.
+    - Creating an `Unsafe` routing context will throw and error. Use `Safe` routing context instead.
+    - Any AppCall or AppMessage sent from a direct NodeId will not be received.
 
 - veilid-core:
   - **Security** Signed bootstrap v1 added which closes #293: https://gitlab.com/veilid/veilid/-/issues/293

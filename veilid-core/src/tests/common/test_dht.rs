@@ -11,55 +11,35 @@ lazy_static! {
 }
 
 pub async fn test_get_dht_value_unopened(api: VeilidAPI) {
-    let rc = api
-        .routing_context()
-        .unwrap()
-        .with_safety(SafetySelection::Unsafe(Sequencing::EnsureOrdered))
-        .unwrap();
+    let rc = api.routing_context().unwrap();
 
     let result = rc.get_dht_value(*BOGUS_KEY, 0, false).await;
     assert_err!(result);
 }
 
 pub async fn test_open_dht_record_nonexistent_no_writer(api: VeilidAPI) {
-    let rc = api
-        .routing_context()
-        .unwrap()
-        .with_safety(SafetySelection::Unsafe(Sequencing::EnsureOrdered))
-        .unwrap();
+    let rc = api.routing_context().unwrap();
 
     let result = rc.get_dht_value(*BOGUS_KEY, 0, false).await;
     assert_err!(result);
 }
 
 pub async fn test_close_dht_record_nonexistent(api: VeilidAPI) {
-    let rc = api
-        .routing_context()
-        .unwrap()
-        .with_safety(SafetySelection::Unsafe(Sequencing::EnsureOrdered))
-        .unwrap();
+    let rc = api.routing_context().unwrap();
 
     let result = rc.close_dht_record(*BOGUS_KEY).await;
     assert_err!(result);
 }
 
 pub async fn test_delete_dht_record_nonexistent(api: VeilidAPI) {
-    let rc = api
-        .routing_context()
-        .unwrap()
-        .with_safety(SafetySelection::Unsafe(Sequencing::EnsureOrdered))
-        .unwrap();
+    let rc = api.routing_context().unwrap();
 
     let result = rc.delete_dht_record(*BOGUS_KEY).await;
     assert_err!(result);
 }
 
 pub async fn test_create_delete_dht_record_simple(api: VeilidAPI) {
-    let rc = api
-        .routing_context()
-        .unwrap()
-        .with_safety(SafetySelection::Unsafe(Sequencing::EnsureOrdered))
-        .unwrap();
+    let rc = api.routing_context().unwrap();
 
     let rec = rc
         .create_dht_record(DHTSchema::dflt(1).unwrap(), None, Some(CRYPTO_KIND_VLD0))
@@ -72,11 +52,7 @@ pub async fn test_create_delete_dht_record_simple(api: VeilidAPI) {
 }
 
 pub async fn test_create_dht_record_with_owner(api: VeilidAPI) {
-    let rc = api
-        .routing_context()
-        .unwrap()
-        .with_safety(SafetySelection::Unsafe(Sequencing::EnsureOrdered))
-        .unwrap();
+    let rc = api.routing_context().unwrap();
 
     let crypto = api.crypto().unwrap();
     let cs = crypto.get(CRYPTO_KIND_VLD0).unwrap();
@@ -99,11 +75,7 @@ pub async fn test_create_dht_record_with_owner(api: VeilidAPI) {
 }
 
 pub async fn test_get_dht_record_key(api: VeilidAPI) {
-    let rc = api
-        .routing_context()
-        .unwrap()
-        .with_safety(SafetySelection::Unsafe(Sequencing::EnsureOrdered))
-        .unwrap();
+    let rc = api.routing_context().unwrap();
 
     let crypto = api.crypto().unwrap();
     let cs = crypto.get(CRYPTO_KIND_VLD0).unwrap();
@@ -130,11 +102,7 @@ pub async fn test_get_dht_record_key(api: VeilidAPI) {
 }
 
 pub async fn test_get_dht_value_nonexistent(api: VeilidAPI) {
-    let rc = api
-        .routing_context()
-        .unwrap()
-        .with_safety(SafetySelection::Unsafe(Sequencing::EnsureOrdered))
-        .unwrap();
+    let rc = api.routing_context().unwrap();
 
     let rec = rc
         .create_dht_record(DHTSchema::dflt(1).unwrap(), None, Some(CRYPTO_KIND_VLD0))
@@ -149,11 +117,7 @@ pub async fn test_get_dht_value_nonexistent(api: VeilidAPI) {
 }
 
 pub async fn test_set_get_dht_value(api: VeilidAPI) {
-    let rc = api
-        .routing_context()
-        .unwrap()
-        .with_safety(SafetySelection::Unsafe(Sequencing::EnsureOrdered))
-        .unwrap();
+    let rc = api.routing_context().unwrap();
 
     let rec = rc
         .create_dht_record(DHTSchema::dflt(2).unwrap(), None, Some(CRYPTO_KIND_VLD0))
@@ -201,11 +165,7 @@ pub async fn test_set_get_dht_value(api: VeilidAPI) {
 }
 
 pub async fn test_open_writer_dht_value(api: VeilidAPI) {
-    let rc = api
-        .routing_context()
-        .unwrap()
-        .with_safety(SafetySelection::Unsafe(Sequencing::EnsureOrdered))
-        .unwrap();
+    let rc = api.routing_context().unwrap();
 
     let rec = rc
         .create_dht_record(DHTSchema::dflt(2).unwrap(), None, Some(CRYPTO_KIND_VLD0))

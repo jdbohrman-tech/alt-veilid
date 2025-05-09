@@ -448,11 +448,11 @@ async def test_watch_many_dht_values():
 
         # make routing contexts
         # unsafe version for debugging
-        rc0 = await (await api0.new_routing_context()).with_safety(SafetySelection.unsafe())
-        rc1 = await (await api1.new_routing_context()).with_safety(SafetySelection.unsafe())
+        # rc0 = await (await api0.new_routing_context()).with_safety(SafetySelection.unsafe())
+        # rc1 = await (await api1.new_routing_context()).with_safety(SafetySelection.unsafe())
         # safe default version
-        # rc0 = await api0.new_routing_context()
-        # rc1 = await api1.new_routing_context()
+        rc0 = await api0.new_routing_context()
+        rc1 = await api1.new_routing_context()
 
         async with rc0, rc1:
 

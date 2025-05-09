@@ -81,6 +81,15 @@ impl RPCProcessor {
             .as_ref()
             .map(|nr| nr.node_ids().get(crypto_kind).unwrap());
 
+        #[cfg(not(feature = "footgun"))]
+        {
+            if sender.is_some() {
+                return Ok(NetworkResult::invalid_message(
+                    "Direct NodeId senders are not allowed for AppMessage when footgun is disabled",
+                ));
+            }
+        }
+
         // Pass the message up through the update callback
         let message = app_message.destructure();
         (self.update_callback())(VeilidUpdate::AppMessage(Box::new(VeilidAppMessage::new(

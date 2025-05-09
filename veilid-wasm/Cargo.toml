@@ -18,6 +18,7 @@ path = "src/lib.rs"
 [features]
 default = ["veilid-core/default-wasm"]
 crypto-test = ["veilid-core/crypto-test"]
+footgun = ["veilid-core/footgun"]
 
 [dependencies]
 veilid-core = { version = "0.4.4", path = "../veilid-core", default-features = false }

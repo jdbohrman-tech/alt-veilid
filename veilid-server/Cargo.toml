@@ -18,6 +18,7 @@ path = "src/main.rs"
 [features]
 default = ["rt-tokio", "veilid-core/default", "otlp-tonic"]
 default-async-std = ["rt-async-std", "veilid-core/default-async-std"]
+footgun = ["veilid-core/footgun"]
 
 virtual-network = [
     "veilid-core/virtual-network",

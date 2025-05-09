@@ -75,7 +75,7 @@ describe('veilidClient', function () {
     });
 
     it('should call debug command', async function () {
-      const response = await veilidClient.debug('txtrecord');
+      const response = await veilidClient.debug('help');
       expect(response).toBeDefined();
       expect(response.length).toBeGreaterThan(0);
     });

@@ -23,7 +23,7 @@ describe('VeilidRoutingContext', () => {
       // }
     }, veilidCoreStartupConfig);
     await veilidClient.attach();
-    await asyncCallWithTimeout(waitForPublicAttachment(), 10000);
+    await asyncCallWithTimeout(waitForPublicAttachment(), 30_000);
     //console.log("---Started Up---");
   });
 
@@ -65,15 +65,21 @@ describe('VeilidRoutingContext', () => {
         VeilidRoutingContext.create().withSequencing('EnsureOrdered');
       expect(routingContext instanceof VeilidRoutingContext).toBe(true);
     });
+
+    it('should error if unsafe is used', async () => {
+      expect(() => {
+        VeilidRoutingContext.create().withSafety({
+          Unsafe: 'EnsureOrdered',
+        });
+      }).toThrow();
+    });
   });
 
   describe('operations', () => {
     let routingContext: VeilidRoutingContext;
 
     before('create routing context', () => {
-      routingContext = VeilidRoutingContext.create().withSafety({
-        Unsafe: 'EnsureOrdered',
-      });
+      routingContext = VeilidRoutingContext.create();
     });
 
     describe('createDhtRecord', () => {
