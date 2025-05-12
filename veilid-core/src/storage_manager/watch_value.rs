@@ -44,7 +44,7 @@ impl OutboundWatchValueResult {
 
 impl StorageManager {
     /// Perform a 'watch value cancel' on the network without fanout
-    #[instrument(level = "trace", target = "dht", skip_all, err)]
+    #[instrument(target = "watch", level = "debug", skip_all, err)]
     pub(super) async fn outbound_watch_value_cancel(
         &self,
         watch_lock: AsyncTagLockGuard<TypedKey>,
@@ -92,7 +92,7 @@ impl StorageManager {
 
     /// Perform a 'watch value change' on the network without fanout
     #[allow(clippy::too_many_arguments)]
-    #[instrument(target = "dht", level = "debug", skip_all, err)]
+    #[instrument(target = "watch", level = "debug", skip_all, err)]
     pub(super) async fn outbound_watch_value_change(
         &self,
         watch_lock: AsyncTagLockGuard<TypedKey>,
@@ -162,7 +162,7 @@ impl StorageManager {
     /// Perform a 'watch value' query on the network using fanout
     ///
     #[allow(clippy::too_many_arguments)]
-    //#[instrument(level = "trace", target = "dht", skip_all, err)]
+    #[instrument(target = "watch", level = "debug", skip_all, err)]
     pub(super) async fn outbound_watch_value(
         &self,
         watch_lock: AsyncTagLockGuard<TypedKey>,
@@ -263,7 +263,7 @@ impl StorageManager {
                         let disposition = if wva.answer.accepted {
                             if wva.answer.expiration_ts.as_u64() > 0 {
                                 // If the expiration time is greater than zero this watch is active
-                                veilid_log!(registry debug target:"dht", "WatchValue accepted for {}: id={} expiration_ts={} ({})", record_key, wva.answer.watch_id, display_ts(wva.answer.expiration_ts.as_u64()), next_node);
+                                veilid_log!(registry debug target:"watch", "WatchValue accepted for {}: id={} expiration_ts={} ({})", record_key, wva.answer.watch_id, display_ts(wva.answer.expiration_ts.as_u64()), next_node);
 
                                 // Add to accepted watches
                                 let mut ctx = context.lock();
@@ -279,7 +279,7 @@ impl StorageManager {
                                 // If the returned expiration time is zero, this watch was cancelled
 
                                 // If the expiration time is greater than zero this watch is active
-                                veilid_log!(registry debug target:"dht", "WatchValue rejected for {}: id={} expiration_ts={} ({})", record_key, wva.answer.watch_id, display_ts(wva.answer.expiration_ts.as_u64()), next_node);
+                                veilid_log!(registry debug target:"watch", "WatchValue rejected for {}: id={} expiration_ts={} ({})", record_key, wva.answer.watch_id, display_ts(wva.answer.expiration_ts.as_u64()), next_node);
 
                                 // Add to rejected watches
                                 let mut ctx = context.lock();
@@ -344,7 +344,7 @@ impl StorageManager {
 
         let fanout_result = fanout_call.run(init_fanout_queue).await.inspect_err(|e| {
             // If we finished with an error, return that
-            veilid_log!(self debug target:"dht", "WatchValue fanout error: {}", e);
+            veilid_log!(self debug target:"watch", "WatchValue fanout error: {}", e);
         })?;
 
         veilid_log!(self debug target:"dht", "WatchValue Fanout: {:#}", fanout_result);
@@ -1052,7 +1052,7 @@ impl StorageManager {
     }
 
     /// Handle a received 'Value Changed' statement
-    #[instrument(level = "trace", target = "dht", skip_all)]
+    #[instrument(level = "debug", target = "watch", skip_all)]
     pub async fn inbound_value_changed(
         &self,
         record_key: TypedKey,

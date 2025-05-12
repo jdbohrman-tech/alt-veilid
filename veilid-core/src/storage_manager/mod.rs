@@ -11,6 +11,7 @@ mod watch_value;
 
 use super::*;
 
+use hashlink::LinkedHashMap;
 use outbound_watch_manager::*;
 use record_store::*;
 use rehydrate::*;
@@ -32,7 +33,11 @@ const FLUSH_RECORD_STORES_INTERVAL_SECS: u32 = 1;
 /// Frequency to save metadata to disk
 const SAVE_METADATA_INTERVAL_SECS: u32 = 30;
 /// Frequency to check for offline subkeys writes to send to the network
-const OFFLINE_SUBKEY_WRITES_INTERVAL_SECS: u32 = 5;
+const OFFLINE_SUBKEY_WRITES_INTERVAL_SECS: u32 = 1;
+/// Total number of offline subkey write requests to process in parallel
+const OFFLINE_SUBKEY_WRITES_BATCH_SIZE: usize = 16;
+/// Number of subkeys per offline subkey write keys to process in a chunk
+const OFFLINE_SUBKEY_WRITES_SUBKEY_CHUNK_SIZE: u64 = 4;
 /// Frequency to send ValueChanged notifications to the network
 const SEND_VALUE_CHANGES_INTERVAL_SECS: u32 = 1;
 /// Frequency to check for dead nodes and routes for client-side outbound watches
@@ -46,7 +51,7 @@ const CHECK_WATCHED_RECORDS_INTERVAL_SECS: u32 = 1;
 /// Frequency to process record rehydration requests
 const REHYDRATE_RECORDS_INTERVAL_SECS: u32 = 1;
 /// Number of rehydration requests to process in parallel
-const REHYDRATE_BATCH_SIZE: usize = 4;
+const REHYDRATE_BATCH_SIZE: usize = 16;
 /// Table store table for storage manager metadata
 const STORAGE_MANAGER_METADATA: &str = "storage_manager_metadata";
 /// Storage manager metadata key name for offline subkey write persistence
@@ -77,7 +82,8 @@ struct StorageManagerInner {
     /// Records that have been pushed to this node for distribution by other nodes, that we make an effort to republish
     pub remote_record_store: Option<RecordStore<RemoteRecordDetail>>,
     /// Record subkeys that have not been pushed to the network because they were written to offline
-    pub offline_subkey_writes: HashMap<TypedKey, tasks::offline_subkey_writes::OfflineSubkeyWrite>,
+    pub offline_subkey_writes:
+        LinkedHashMap<TypedKey, tasks::offline_subkey_writes::OfflineSubkeyWrite>,
     /// Record subkeys that are currently being written to in the foreground
     pub active_subkey_writes: HashMap<TypedKey, ValueSubkeyRangeSet>,
     /// Records that have rehydration requests
@@ -539,12 +545,10 @@ impl StorageManager {
             let get_consensus = self
                 .config()
                 .with(|c| c.network.dht.get_value_count as usize);
-            if let Err(e) = self
-                .rehydrate_record(record_key, ValueSubkeyRangeSet::full(), get_consensus)
-                .await
-            {
-                veilid_log!(self debug "rehydration failed: {}", e);
-            }
+
+            self.add_rehydration_request(record_key, ValueSubkeyRangeSet::full(), get_consensus)
+                .await;
+
             return Ok(res);
         }
 
@@ -561,7 +565,7 @@ impl StorageManager {
         let result = self
             .outbound_inspect_value(
                 record_key,
-                ValueSubkeyRangeSet::full(),
+                ValueSubkeyRangeSet::single(0),
                 safety_selection,
                 InspectResult::default(),
                 false,
@@ -1001,6 +1005,7 @@ impl StorageManager {
         };
 
         // Modify the 'desired' state of the watch or add one if it does not exist
+        let active = desired_params.is_some();
         inner
             .outbound_watch_manager
             .set_desired_watch(key, desired_params);
@@ -1008,30 +1013,7 @@ impl StorageManager {
         // Drop the lock for network access
         drop(inner);
 
-        // Process this watch's state machine operations until we are done
-        loop {
-            let opt_op_fut = {
-                let mut inner = self.inner.lock().await;
-                let Some(outbound_watch) =
-                    inner.outbound_watch_manager.outbound_watches.get_mut(&key)
-                else {
-                    // Watch is gone
-                    return Ok(false);
-                };
-                self.get_next_outbound_watch_operation(
-                    key,
-                    Some(watch_lock.clone()),
-                    Timestamp::now(),
-                    outbound_watch,
-                )
-            };
-            let Some(op_fut) = opt_op_fut else {
-                break;
-            };
-            op_fut.await;
-        }
-
-        Ok(true)
+        Ok(active)
     }
 
     #[instrument(level = "trace", target = "stor", skip_all)]

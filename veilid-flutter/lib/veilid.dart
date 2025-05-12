@@ -117,12 +117,47 @@ class TimestampDuration extends Equatable
   bool operator >=(TimestampDuration other) => compareTo(other) >= 0;
 
   @override
-  String toString() => value.toString();
-  String toJson() => toString();
+  String toString() {
+    final biDay = BigInt.from(1000000) * BigInt.from(60 * 60 * 24);
+    final biHour = BigInt.from(1000000) * BigInt.from(60 * 60);
+    final biMin = BigInt.from(1000000) * BigInt.from(60);
+    final biSec = BigInt.from(1000000);
+    final biMsec = BigInt.from(1000);
+
+    final days = (value ~/ biDay).toInt();
+    final dvalue = value % biDay;
+    final hours = (dvalue ~/ biHour).toInt();
+    final hvalue = dvalue % biHour;
+    final mins = (hvalue ~/ biMin).toInt();
+    final mvalue = hvalue % biMin;
+    final secs = (mvalue ~/ biSec).toInt();
+    final svalue = mvalue % biSec;
+    final msecs = (svalue ~/ biMsec).toInt();
+    final uvalue = svalue % biMsec;
+
+    if (days == 0 && hours == 0 && mins == 0 && secs == 0) {
+      // microseconds format
+      return '$msecs.${uvalue.toString().padLeft(3, '0')}ms';
+    }
+    var out = '';
+    if (days != 0) {
+      out += '${days}d';
+    }
+    if (hours != 0) {
+      out += '${hours}h';
+    }
+    if (mins != 0) {
+      out += '${mins}m';
+    }
+    return '$out$secs.${msecs.toString().padLeft(3, '0')}s';
+  }
+
+  String toJson() => value.toString();
   Int64 toInt64() => Int64.fromInts(
       (value >> 32).toUnsigned(32).toInt(), value.toUnsigned(32).toInt());
 
-  int toMillis() => (value ~/ BigInt.from(1000)).toInt();
+  double toMillis() => value / BigInt.from(1000);
+  double toSecs() => value / BigInt.from(1000000);
   BigInt toMicros() => value;
 }
 

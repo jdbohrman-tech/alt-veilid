@@ -162,6 +162,24 @@ impl InspectResult {
         })
     }
 
+    pub fn strip_none_seqs(&self) -> Self {
+        // Trim inspected subkey range to subkeys we have data for locally
+        let mut trimmed_subkeys = ValueSubkeyRangeSet::new();
+        let mut trimmed_seqs = vec![];
+        for (skn, sk) in self.subkeys.iter().enumerate() {
+            if let Some(seq) = self.seqs[skn] {
+                trimmed_seqs.push(Some(seq));
+                trimmed_subkeys.insert(sk);
+            }
+        }
+
+        Self {
+            subkeys: trimmed_subkeys,
+            seqs: trimmed_seqs,
+            opt_descriptor: self.opt_descriptor.clone(),
+        }
+    }
+
     pub fn subkeys(&self) -> &ValueSubkeyRangeSet {
         &self.subkeys
     }

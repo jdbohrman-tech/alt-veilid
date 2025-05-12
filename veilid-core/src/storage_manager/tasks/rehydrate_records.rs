@@ -22,28 +22,27 @@ impl StorageManager {
                 let res = self
                     .rehydrate_record(req.0, req.1.subkeys.clone(), req.1.consensus_count)
                     .await;
-                (req, res)
-            });
-        }
 
-        process_batched_future_queue(
-            futs,
-            REHYDRATE_BATCH_SIZE,
-            stop_token,
-            |(req, res)| async move {
                 let _report = match res {
                     Ok(v) => v,
                     Err(e) => {
                         veilid_log!(self debug "Rehydration request failed: {}", e);
-                        // Try again later
-                        self.add_rehydration_request(req.0, req.1.subkeys, req.1.consensus_count)
+                        if matches!(e, VeilidAPIError::TryAgain { message: _ }) {
+                            // Try again later
+                            self.add_rehydration_request(
+                                req.0,
+                                req.1.subkeys,
+                                req.1.consensus_count,
+                            )
                             .await;
+                        }
                         return;
                     }
                 };
-            },
-        )
-        .await;
+            });
+        }
+
+        process_batched_future_queue_void(futs, REHYDRATE_BATCH_SIZE, stop_token).await;
 
         Ok(())
     }

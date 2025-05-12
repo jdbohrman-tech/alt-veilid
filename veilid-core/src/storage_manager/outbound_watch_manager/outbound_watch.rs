@@ -123,7 +123,7 @@ impl OutboundWatch {
 
         // If the desired parameters is None then cancel
         let Some(_desired) = self.desired.as_ref() else {
-            veilid_log!(registry debug target: "dht", "OutboundWatch({}): needs_cancel because desired is None", self.record_key);
+            veilid_log!(registry debug target: "watch", "OutboundWatch({}): needs_cancel because desired is None", self.record_key);
             return true;
         };
 
@@ -162,13 +162,13 @@ impl OutboundWatch {
         // If we have a consensus but need to renew because some per-node watches
         // either expired or had their routes die, do it
         if self.wants_per_node_watch_update(registry, state, cur_ts) {
-            veilid_log!(registry debug target: "dht", "OutboundWatch({}): needs_renew because per_node_watch wants update", self.record_key);
+            veilid_log!(registry debug target: "watch", "OutboundWatch({}): needs_renew because per_node_watch wants update", self.record_key);
             return true;
         }
 
         // If the desired parameters have changed, then we should renew with them
         if state.params() != desired {
-            veilid_log!(registry debug target: "dht", "OutboundWatch({}): needs_renew because desired params have changed: {} != {}", self.record_key, state.params(), desired);
+            veilid_log!(registry debug target: "watch", "OutboundWatch({}): needs_renew because desired params have changed: {} != {}", self.record_key, state.params(), desired);
             return true;
         }
 
@@ -199,7 +199,7 @@ impl OutboundWatch {
 
         // If there is a desired watch but no current state, then reconcile
         let Some(state) = self.state() else {
-            veilid_log!(registry debug target: "dht", "OutboundWatch({}): needs_reconcile because state is empty", self.record_key);
+            veilid_log!(registry debug target: "watch", "OutboundWatch({}): needs_reconcile because state is empty", self.record_key);
             return true;
         };
 
@@ -208,7 +208,7 @@ impl OutboundWatch {
         if state.nodes().len() < consensus_count
             && cur_ts >= state.next_reconcile_ts().unwrap_or_default()
         {
-            veilid_log!(registry debug target: "dht", "OutboundWatch({}): needs_reconcile because consensus count is too low {} < {}", self.record_key, state.nodes().len(), consensus_count);
+            veilid_log!(registry debug target: "watch", "OutboundWatch({}): needs_reconcile because consensus count is too low {} < {}", self.record_key, state.nodes().len(), consensus_count);
             return true;
         }
 
@@ -218,7 +218,7 @@ impl OutboundWatch {
             if state.nodes().len() < last_consensus_node_count
                 && state.nodes().len() < consensus_count
             {
-                veilid_log!(registry debug target: "dht", "OutboundWatch({}): needs_reconcile because node count is less than last consensus {} < {}", self.record_key, state.nodes().len(), last_consensus_node_count);
+                veilid_log!(registry debug target: "watch", "OutboundWatch({}): needs_reconcile because node count is less than last consensus {} < {}", self.record_key, state.nodes().len(), last_consensus_node_count);
                 return true;
             }
         }
@@ -226,13 +226,13 @@ impl OutboundWatch {
         // If we have a consensus, or are not attempting consensus at this time,
         // but need to reconcile because some per-node watches either expired or had their routes die, do it
         if self.wants_per_node_watch_update(registry, state, cur_ts) {
-            veilid_log!(registry debug target: "dht", "OutboundWatch({}): needs_reconcile because per_node_watch wants update", self.record_key);
+            veilid_log!(registry debug target: "watch", "OutboundWatch({}): needs_reconcile because per_node_watch wants update", self.record_key);
             return true;
         }
 
         // If the desired parameters have changed, then we should reconcile with them
         if state.params() != desired {
-            veilid_log!(registry debug target: "dht", "OutboundWatch({}): needs_reconcile because desired params have changed: {} != {}", self.record_key, state.params(), desired);
+            veilid_log!(registry debug target: "watch", "OutboundWatch({}): needs_reconcile because desired params have changed: {} != {}", self.record_key, state.params(), desired);
             return true;
         }
 
@@ -256,7 +256,7 @@ impl OutboundWatch {
             && (state.params().expiration_ts.as_u64() == 0
                 || renew_ts < state.params().expiration_ts)
         {
-            veilid_log!(registry debug target: "dht", "OutboundWatch({}): wants_per_node_watch_update because cur_ts is in expiration renew window", self.record_key);
+            veilid_log!(registry debug target: "watch", "OutboundWatch({}): wants_per_node_watch_update because cur_ts is in expiration renew window", self.record_key);
             return true;
         }
 
@@ -268,7 +268,7 @@ impl OutboundWatch {
         for vcr in state.value_changed_routes() {
             if rss.get_route_id_for_key(vcr).is_none() {
                 // Route we would receive value changes on is dead
-                veilid_log!(registry debug target: "dht", "OutboundWatch({}): wants_per_node_watch_update because route is dead: {}", self.record_key, vcr);
+                veilid_log!(registry debug target: "watch", "OutboundWatch({}): wants_per_node_watch_update because route is dead: {}", self.record_key, vcr);
                 return true;
             }
         }

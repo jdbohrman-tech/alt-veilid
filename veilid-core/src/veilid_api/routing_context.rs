@@ -202,10 +202,10 @@ impl RoutingContext {
         Ok(answer.answer)
     }
 
-    #[cfg(feature = "footgun")]
     ////////////////////////////////////////////////////////////////
-    // App-level Messaging
+    /// App-level Messaging
 
+    #[cfg(feature = "footgun")]
     /// App-level bidirectional call that expects a response to be returned.
     ///
     /// Veilid apps may use this for arbitrary message passing.
@@ -219,9 +219,6 @@ impl RoutingContext {
     }
 
     #[cfg(not(feature = "footgun"))]
-    ////////////////////////////////////////////////////////////////
-    // App-level Messaging
-
     /// App-level bidirectional call that expects a response to be returned.
     ///
     /// Veilid apps may use this for arbitrary message passing.

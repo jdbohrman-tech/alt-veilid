@@ -25,6 +25,7 @@ pub static DEFAULT_LOG_FACILITIES_IGNORE_LIST: &[&str] = &[
     "veilid_api",
     "network_result",
     "dht",
+    "watch",
     "fanout",
     "receipt",
     "rpc_message",

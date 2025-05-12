@@ -1,5 +1,5 @@
 use super::*;
-use futures_util::*;
+use futures_util::{stream::unfold, *};
 use stop_token::future::FutureExt as _;
 
 impl_veilid_log_facility!("stor");
@@ -21,14 +21,14 @@ enum OfflineSubkeyWriteResult {
 
 #[derive(Debug)]
 struct WorkItem {
-    key: TypedKey,
+    record_key: TypedKey,
     safety_selection: SafetySelection,
     subkeys: ValueSubkeyRangeSet,
 }
 
 #[derive(Debug)]
 struct WorkItemResult {
-    record_key: TypedKey,
+    work_item: WorkItem,
     written_subkeys: ValueSubkeyRangeSet,
     fanout_results: Vec<(ValueSubkeyRangeSet, FanoutResult)>,
 }
@@ -131,7 +131,7 @@ impl StorageManager {
             let result = match self
                 .write_single_offline_subkey(
                     stop_token.clone(),
-                    work_item.key,
+                    work_item.record_key,
                     subkey,
                     work_item.safety_selection,
                 )
@@ -151,7 +151,7 @@ impl StorageManager {
 
             // Process non-partial setvalue result
             let was_offline =
-                self.check_fanout_set_offline(work_item.key, subkey, &result.fanout_result);
+                self.check_fanout_set_offline(work_item.record_key, subkey, &result.fanout_result);
             if !was_offline {
                 written_subkeys.insert(subkey);
             }
@@ -159,24 +159,10 @@ impl StorageManager {
         }
 
         Ok(WorkItemResult {
-            record_key: work_item.key,
+            work_item,
             written_subkeys,
             fanout_results,
         })
-    }
-
-    // Process all results
-    fn prepare_all_work(
-        offline_subkey_writes: HashMap<TypedKey, OfflineSubkeyWrite>,
-    ) -> VecDeque<WorkItem> {
-        offline_subkey_writes
-            .into_iter()
-            .map(|(key, v)| WorkItem {
-                key,
-                safety_selection: v.safety_selection,
-                subkeys: v.subkeys_in_flight,
-            })
-            .collect()
     }
 
     // Process all results
@@ -192,105 +178,134 @@ impl StorageManager {
         veilid_log!(self debug "Offline write result: {:?}", result);
 
         // Get the offline subkey write record
-        match inner.offline_subkey_writes.entry(result.record_key) {
-            std::collections::hash_map::Entry::Occupied(mut o) => {
+        match inner
+            .offline_subkey_writes
+            .entry(result.work_item.record_key)
+        {
+            hashlink::linked_hash_map::Entry::Occupied(mut o) => {
                 let finished = {
                     let osw = o.get_mut();
 
                     // Mark in-flight subkeys as having been completed
                     let subkeys_still_offline =
-                        osw.subkeys_in_flight.difference(&result.written_subkeys);
+                        result.work_item.subkeys.difference(&result.written_subkeys);
                     // Now any left over are still offline, so merge them with any subkeys that have been added while we were working
                     osw.subkeys = osw.subkeys.union(&subkeys_still_offline);
                     // And clear the subkeys in flight since we're done with this key for now
-                    osw.subkeys_in_flight.clear();
+                    osw.subkeys_in_flight =
+                        osw.subkeys_in_flight.difference(&result.written_subkeys);
 
-                    osw.subkeys.is_empty()
+                    // If we have no new work to do, and not still doing work, then this record is done
+                    osw.subkeys.is_empty() && osw.subkeys_in_flight.is_empty()
                 };
                 if finished {
-                    veilid_log!(self debug "Offline write finished key {}", result.record_key);
+                    veilid_log!(self debug "Offline write finished key {}", result.work_item.record_key);
                     o.remove();
                 }
             }
-            std::collections::hash_map::Entry::Vacant(_) => {
-                veilid_log!(self warn "offline write work items should always be on offline_subkey_writes entries that exist: ignoring key {}", result.record_key);
+            hashlink::linked_hash_map::Entry::Vacant(_) => {
+                veilid_log!(self warn "offline write work items should always be on offline_subkey_writes entries that exist: ignoring key {}", result.work_item.record_key);
             }
         }
 
         // Keep the list of nodes that returned a value for later reference
         let crypto = self.crypto();
-        let vcrypto = crypto.get(result.record_key.kind).unwrap();
+        let vcrypto = crypto.get(result.work_item.record_key.kind).unwrap();
 
         Self::process_fanout_results_inner(
             &mut inner,
             &vcrypto,
-            result.record_key,
+            result.work_item.record_key,
             result.fanout_results.into_iter().map(|x| (x.0, x.1)),
             true,
             consensus_count,
         );
     }
 
-    #[instrument(level = "trace", target = "stor", skip_all, err)]
-    pub(super) async fn process_offline_subkey_writes(
-        &self,
-        stop_token: StopToken,
-        work_items: Arc<Mutex<VecDeque<WorkItem>>>,
-    ) -> EyreResult<()> {
-        // Process all work items
-        loop {
-            let Some(work_item) = work_items.lock().pop_front() else {
-                break;
-            };
-            let result = self
-                .process_work_item(stop_token.clone(), work_item)
-                .await?;
-            {
-                self.process_single_result(result).await;
+    // Get the next available work item
+    async fn get_next_work_item(&self) -> Option<WorkItem> {
+        let mut inner = self.inner.lock().await;
+
+        // Find first offline subkey write record
+        // That doesn't have the maximum number of concurrent
+        // in-flight subkeys right now
+        for (record_key, osw) in &mut inner.offline_subkey_writes {
+            if osw.subkeys_in_flight.len() < OFFLINE_SUBKEY_WRITES_SUBKEY_CHUNK_SIZE {
+                // Get first subkey to process that is not already in-flight
+                for sk in osw.subkeys.iter() {
+                    if !osw.subkeys_in_flight.contains(sk) {
+                        // Found a not-yet-in-flight subkey, move it to in-flight
+                        osw.subkeys.remove(sk);
+                        osw.subkeys_in_flight.insert(sk);
+                        // And return a work item for it
+                        return Some(WorkItem {
+                            record_key: *record_key,
+                            safety_selection: osw.safety_selection,
+                            subkeys: ValueSubkeyRangeSet::single(sk),
+                        });
+                    }
+                }
             }
         }
 
-        Ok(())
+        None
     }
 
     // Best-effort write subkeys to the network that were written offline
-    #[instrument(level = "trace", target = "stor", skip_all, err)]
+    //#[instrument(level = "trace", target = "stor", skip_all, err)]
     pub(super) async fn offline_subkey_writes_task_routine(
         &self,
         stop_token: StopToken,
         _last_ts: Timestamp,
         _cur_ts: Timestamp,
     ) -> EyreResult<()> {
-        // Operate on a copy of the offline subkey writes map
-        let work_items = {
-            let mut inner = self.inner.lock().await;
-            // Move the current set of writes to 'in flight'
-            for osw in &mut inner.offline_subkey_writes {
-                osw.1.subkeys_in_flight = mem::take(&mut osw.1.subkeys);
+        // Produce WorkItems
+        let work_item_stream = unfold((), |_| {
+            let registry = self.registry();
+            {
+                async move {
+                    let storage_manager = registry.storage_manager();
+                    storage_manager.get_next_work_item().await.map(|x| (x, ()))
+                }
             }
+        });
 
-            // Prepare items to work on
-            Arc::new(Mutex::new(Self::prepare_all_work(
-                inner.offline_subkey_writes.clone(),
-            )))
+        // WorkItem -> Work Futures
+        let work_future_stream = {
+            let stop_token = stop_token.clone();
+            work_item_stream.map(move |work_item| {
+                let stop_token = stop_token.clone();
+                async move {
+                    let res = self.process_work_item(stop_token.clone(), work_item).await;
+                    let result = match res {
+                        Ok(v) => v,
+                        Err(e) => {
+                            veilid_log!(self debug "Offline subkey write failed: {}", e);
+                            return;
+                        }
+                    };
+                    self.process_single_result(result).await;
+                }
+            })
         };
 
-        // Process everything
-        let res = self
-            .process_offline_subkey_writes(stop_token, work_items)
-            .await;
+        // Batched parallel processed Work Futures
+        process_batched_future_stream_void(
+            work_future_stream,
+            OFFLINE_SUBKEY_WRITES_BATCH_SIZE,
+            stop_token,
+        )
+        .await;
 
         // Ensure nothing is left in-flight when returning even due to an error
         {
             let mut inner = self.inner.lock().await;
-            for osw in &mut inner.offline_subkey_writes {
-                osw.1.subkeys = osw
-                    .1
-                    .subkeys
-                    .union(&mem::take(&mut osw.1.subkeys_in_flight));
-            }
+            inner.offline_subkey_writes.retain(|_, v| {
+                v.subkeys = v.subkeys.union(&mem::take(&mut v.subkeys_in_flight));
+                !v.subkeys.is_empty()
+            });
         }
 
-        res
+        Ok(())
     }
 }

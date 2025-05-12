@@ -9,8 +9,6 @@ pub struct RehydrateReport {
     subkeys: ValueSubkeyRangeSet,
     /// The requested consensus count,
     consensus_count: usize,
-    /// The range of subkeys that wanted rehydration
-    wanted: ValueSubkeyRangeSet,
     /// The range of subkeys that actually could be rehydrated
     rehydrated: ValueSubkeyRangeSet,
 }
@@ -101,11 +99,14 @@ impl StorageManager {
         // Drop the lock for network access
         drop(inner);
 
+        // Trim inspected subkey range to subkeys we have data for locally
+        let local_inspect_result = local_inspect_result.strip_none_seqs();
+
         // Get the inspect record report from the network
         let result = self
             .outbound_inspect_value(
                 record_key,
-                subkeys.clone(),
+                local_inspect_result.subkeys().clone(),
                 safety_selection,
                 InspectResult::default(),
                 true,
@@ -150,7 +151,7 @@ impl StorageManager {
     ) -> VeilidAPIResult<RehydrateReport> {
         let mut inner = self.inner.lock().await;
 
-        veilid_log!(self debug "Rehydrating all subkeys: record={} subkeys={}", record_key, local_inspect_result.subkeys());
+        veilid_log!(self debug "Rehydrating all subkeys: record={} subkeys={}", record_key, subkeys);
 
         let mut rehydrated = ValueSubkeyRangeSet::new();
         for (n, subkey) in local_inspect_result.subkeys().iter().enumerate() {
@@ -177,7 +178,6 @@ impl StorageManager {
             record_key,
             subkeys,
             consensus_count,
-            wanted: local_inspect_result.subkeys().clone(),
             rehydrated,
         });
     }
@@ -200,18 +200,13 @@ impl StorageManager {
             apibail_generic!("unsupported cryptosystem");
         };
 
-        if local_inspect_result.subkeys().len()
-            != outbound_inspect_result.subkey_fanout_results.len() as u64
-        {
-            veilid_log!(self debug "Subkey count mismatch when rehydrating required subkeys: record={} {} != {}",
-                record_key, local_inspect_result.subkeys().len(), outbound_inspect_result.subkey_fanout_results.len());
-            apibail_internal!("subkey count mismatch");
-        }
-
         // For each subkey, determine if we should rehydrate it
-        let mut wanted = ValueSubkeyRangeSet::new();
         let mut rehydrated = ValueSubkeyRangeSet::new();
         for (n, subkey) in local_inspect_result.subkeys().iter().enumerate() {
+            if local_inspect_result.seqs()[n].is_none() {
+                apibail_internal!(format!("None sequence number found in local inspect results. Should have been stripped by strip_none_seqs(): {:?}", local_inspect_result));
+            }
+
             let sfr = outbound_inspect_result
                 .subkey_fanout_results
                 .get(n)
@@ -219,27 +214,22 @@ impl StorageManager {
             // Does the online subkey have enough consensus?
             // If not, schedule it to be written in the background
             if sfr.consensus_nodes.len() < consensus_count {
-                wanted.insert(subkey);
-                if local_inspect_result.seqs()[n].is_some() {
-                    // Add to offline writes to flush
-                    veilid_log!(self debug "Rehydrating: record={} subkey={}", record_key, subkey);
-                    rehydrated.insert(subkey);
-                    Self::add_offline_subkey_write_inner(
-                        &mut inner,
-                        record_key,
-                        subkey,
-                        safety_selection,
-                    );
-                }
+                // Add to offline writes to flush
+                veilid_log!(self debug "Rehydrating: record={} subkey={}", record_key, subkey);
+                rehydrated.insert(subkey);
+                Self::add_offline_subkey_write_inner(
+                    &mut inner,
+                    record_key,
+                    subkey,
+                    safety_selection,
+                );
             }
         }
 
-        if wanted.is_empty() {
+        if rehydrated.is_empty() {
             veilid_log!(self debug "Record did not need rehydrating: record={} local_subkeys={}", record_key, local_inspect_result.subkeys());
-        } else if rehydrated.is_empty() {
-            veilid_log!(self debug "Record wanted rehydrating, but no subkey data available: record={} local_subkeys={} wanted={}", record_key, local_inspect_result.subkeys(), wanted);
         } else {
-            veilid_log!(self debug "Record rehydrating: record={} local_subkeys={} wanted={} rehydrated={}", record_key, local_inspect_result.subkeys(), wanted, rehydrated);
+            veilid_log!(self debug "Record rehydrating: record={} local_subkeys={} rehydrated={}", record_key, local_inspect_result.subkeys(), rehydrated);
         }
 
         // Keep the list of nodes that returned a value for later reference
@@ -264,7 +254,6 @@ impl StorageManager {
             record_key,
             subkeys,
             consensus_count,
-            wanted,
             rehydrated,
         })
     }
