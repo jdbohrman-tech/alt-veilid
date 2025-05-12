@@ -1,7 +1,7 @@
 use crate::settings::*;
 use crate::*;
 use cfg_if::*;
-#[cfg(feature = "rt-tokio")]
+#[cfg(feature = "tokio-console")]
 use console_subscriber::ConsoleLayer;
 
 cfg_if::cfg_if! {
@@ -67,7 +67,7 @@ impl VeilidLogs {
         let mut fields_to_strip = HashSet::<&'static str>::new();
         fields_to_strip.insert(VEILID_LOG_KEY_FIELD);
 
-        #[cfg(feature = "rt-tokio")]
+        #[cfg(feature = "tokio-console")]
         if settingsr.logging.console.enabled {
             let filter = veilid_core::VeilidLayerFilter::new_no_default(
                 veilid_core::VeilidConfigLogLevel::Trace,

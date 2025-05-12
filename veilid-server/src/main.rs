@@ -38,12 +38,8 @@ pub struct Logging {
 #[command(author, version, about)]
 pub struct CmdlineArgs {
     /// Run in daemon mode in the background
-    #[arg(short, long)]
-    daemon: bool,
-
-    /// Run in the foreground
-    #[arg(short, long)]
-    foreground: bool,
+    #[arg(short, long, value_name = "BOOL", num_args=0..=1, require_equals=true, default_missing_value = "true")]
+    daemon: Option<bool>,
 
     /// Specify a configuration file to use
     #[arg(short, long, value_name = "FILE", default_value = OsString::from(Settings::get_default_veilid_server_conf_path()))]
@@ -163,7 +159,7 @@ pub struct CmdlineArgs {
     wait_for_debug: bool,
 
     /// Enable tokio console
-    #[cfg(feature = "rt-tokio")]
+    #[cfg(feature = "tokio-console")]
     #[arg(long)]
     console: bool,
 
@@ -205,12 +201,13 @@ fn main() -> EyreResult<()> {
     let mut settingsrw = settings.write();
 
     // Set config from command line
-    if args.daemon {
-        settingsrw.daemon.enabled = true;
-        settingsrw.logging.terminal.enabled = false;
-    }
-    if args.foreground {
-        settingsrw.daemon.enabled = false;
+    if let Some(daemon) = args.daemon {
+        if daemon {
+            settingsrw.daemon.enabled = true;
+            settingsrw.logging.terminal.enabled = false;
+        } else {
+            settingsrw.daemon.enabled = false;
+        }
     }
     if args.logging.debug {
         settingsrw.logging.terminal.enabled = true;
@@ -376,7 +373,7 @@ fn main() -> EyreResult<()> {
         );
     }
 
-    #[cfg(feature = "rt-tokio")]
+    #[cfg(feature = "tokio-console")]
     if args.console {
         settingsrw.logging.console.enabled = true;
     }
@@ -405,7 +402,14 @@ fn main() -> EyreResult<()> {
         if let Some((k, v)) = set_config.split_once('=') {
             let k = k.trim();
             let v = v.trim();
-            settings.set(k, v)?;
+            if let Err(e) = settings.set(k, v) {
+                // Try again with value quoted as string, since that is a common thing to do
+                let strv = json::stringify(v);
+                if settings.set(k, &strv).is_err() {
+                    // Return original error
+                    return Err(e);
+                }
+            }
         }
     }
 

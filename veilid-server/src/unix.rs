@@ -96,13 +96,13 @@ pub fn run_daemon(settings: Settings, _args: CmdlineArgs) -> EyreResult<()> {
         daemon
     };
 
+    // Daemonize
+    daemon.start().wrap_err("Failed to daemonize")?;
+
     // Now, run the server
     block_on(async {
         // Init combined console/file logger
         let veilid_logs = VeilidLogs::setup(settings.clone())?;
-
-        // Daemonize
-        daemon.start().wrap_err("Failed to daemonize")?;
 
         run_veilid_server_with_signals(settings, ServerMode::Normal, veilid_logs).await
     })

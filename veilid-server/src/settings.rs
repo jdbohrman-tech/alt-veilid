@@ -575,7 +575,7 @@ pub struct Logging {
     pub flame: Flame,
     #[cfg(all(unix, feature = "perfetto"))]
     pub perfetto: Perfetto,
-    #[cfg(feature = "rt-tokio")]
+    #[cfg(feature = "tokio-console")]
     pub console: Console,
 }
 
@@ -1068,11 +1068,21 @@ impl Settings {
         }
 
         set_config_value!(inner.daemon.enabled, value);
+        set_config_value!(inner.daemon.pid_file, value);
+        set_config_value!(inner.daemon.chroot, value);
+        set_config_value!(inner.daemon.working_directory, value);
+        set_config_value!(inner.daemon.user, value);
+        set_config_value!(inner.daemon.group, value);
+        set_config_value!(inner.daemon.stdout_file, value);
+        set_config_value!(inner.daemon.stderr_file, value);
+
         set_config_value!(inner.client_api.ipc_enabled, value);
         set_config_value!(inner.client_api.ipc_directory, value);
         set_config_value!(inner.client_api.network_enabled, value);
         set_config_value!(inner.client_api.listen_address, value);
+
         set_config_value!(inner.auto_attach, value);
+
         set_config_value!(inner.logging.system.enabled, value);
         set_config_value!(inner.logging.system.level, value);
         set_config_value!(inner.logging.system.ignore_log_targets, value);
@@ -1104,7 +1114,7 @@ impl Settings {
             set_config_value!(inner.logging.perfetto.enabled, value);
             set_config_value!(inner.logging.perfetto.path, value);
         }
-        #[cfg(feature = "rt-tokio")]
+        #[cfg(feature = "tokio-console")]
         set_config_value!(inner.logging.console.enabled, value);
         set_config_value!(inner.testing.subnode_index, value);
         #[cfg(feature = "virtual-network")]
@@ -1770,6 +1780,7 @@ mod tests {
             assert!(!s.logging.perfetto.enabled);
             assert_eq!(s.logging.perfetto.path, "");
         }
+        #[cfg(feature = "tokio-console")]
         assert!(!s.logging.console.enabled);
         assert_eq!(s.testing.subnode_index, 0);
         #[cfg(feature = "virtual-network")]

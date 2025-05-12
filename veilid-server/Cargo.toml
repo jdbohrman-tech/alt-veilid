@@ -42,13 +42,13 @@ rt-tokio = [
     "tokio-stream",
     "tokio-util",
     "opentelemetry_sdk/rt-tokio",
-    "console-subscriber",
 ]
 tracking = ["veilid-core/tracking"]
 debug-json-api = []
 debug-locks = ["veilid-core/debug-locks"]
 perfetto = ["tracing-perfetto"]
 flame = ["tracing-flame"]
+tokio-console = ["rt-tokio", "console-subscriber"]
 
 geolocation = ["veilid-core/geolocation"]
 

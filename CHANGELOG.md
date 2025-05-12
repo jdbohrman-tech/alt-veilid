@@ -39,6 +39,10 @@
   - Update watchvalue integration tests
   - Expose the is_shutdown API: https://gitlab.com/veilid/veilid/-/merge_requests/392
 
+- veilid-server:
+  - Put tokio-console behind a feature flag. Closed issue #274: https://gitlab.com/veilid/veilid/-/issues/274
+  - Fixed 'daemon' mode `-d` option. Closed issue #360: https://gitlab.com/veilid/veilid/-/issues/360
+
 - veilid-wasm:
   - **Breaking** Properly generate TypeScript types for `ValueSubkeyRangeSet`, which would previously resolve to `any`. This is breaking since it can cause type errors to correctly surface in existing applications. ([!397](https://gitlab.com/veilid/veilid/-/merge_requests/397))
   - **Breaking** `startupCore()` and `defaultConfig()` now use config objects instead of stringified JSON.
