@@ -1,4 +1,4 @@
-**UNRELEASED**
+**Changed in Veilid 0.4.5**
 
 - Update capnproto version to 1.1.0
 - *BREAKING API CHANGE*:
@@ -17,7 +17,7 @@
   - **Security** Signed bootstrap v1 added which closes #293: https://gitlab.com/veilid/veilid/-/issues/293
   - Allow shutdown even if tables are closed
   - New, more robust, watchvalue implementation
-  - Consensus is now counted from the nodes closest to the key, excluding attempts that have failed, but including new nodes that show up, requiring N out of the M closest nodes to have      succeeded and all have been attempted.
+  - Consensus is now counted from the nodes closest to the key, excluding attempts that have failed, but including new nodes that show up, requiring N out of the M closest nodes to have succeeded and all have been attempted.
   - Watching a node now also triggers an background inspection+valueget to detect if values have changed online
   - Fanout queue disqualifaction for distance-based rejections reimplemented
   - Local rehydration implemented. DHT record subkey data that does not have sufficient consensus online is re-pushed to keep it alive when records are opened.
