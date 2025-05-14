@@ -1,7 +1,7 @@
 {
     "droplet_config": {
         "name": "build-server-tmp",
-        "image": 187099515,
+        "image": 187101119,
         "size": "c2-16vcpu-32gb"
     }
 }
