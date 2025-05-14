@@ -1,7 +1,7 @@
 [package]
 # --- Bumpversion match - do not reorder
 name = "veilid-flutter"
-version = "0.4.4"
+version = "0.4.5"
 # ---
 description = "Flutter/Dart bindings for Veilid"
 resolver = "2"

@@ -1,6 +1,6 @@
 # --- Bumpversion match - do not reorder
 name: veilid
-version: 0.4.4
+version: 0.4.5
 # ---
 description: Veilid Framework
 homepage: https://veilid.com
