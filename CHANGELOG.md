@@ -1,3 +1,7 @@
+**Changed in Veilid 0.4.6**
+
+- Updated pinned Rust version to 1.86
+
 **Changed in Veilid 0.4.5**
 
 - Update capnproto version to 1.1.0
