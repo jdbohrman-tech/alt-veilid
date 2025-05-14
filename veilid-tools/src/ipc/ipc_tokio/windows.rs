@@ -124,8 +124,8 @@ pub struct IpcIncoming<'a> {
 impl Stream for IpcIncoming<'_> {
     type Item = io::Result<IpcStream>;
 
-    fn poll_next<'a>(
-        mut self: std::pin::Pin<&'a mut Self>,
+    fn poll_next(
+        mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Option<Self::Item>> {
         if self.unord.is_empty() {

@@ -14,7 +14,7 @@ repository = "https://gitlab.com/veilid/veilid"
 authors = ["Veilid Team <contact@veilid.com>"]
 license = "MPL-2.0"
 edition = "2021"
-rust-version = "1.81.0"
+rust-version = "1.86.0"
 
 [patch.crates-io]
 cursive = { git = "https://gitlab.com/veilid/cursive.git" }

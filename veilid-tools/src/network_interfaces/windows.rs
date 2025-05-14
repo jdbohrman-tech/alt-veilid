@@ -87,7 +87,7 @@ impl PlatformSupportWindows {
                                     for (n, netmask_elt) in netmask
                                         .iter_mut()
                                         .enumerate()
-                                        .take((prefix.PrefixLength as usize + 7) / 8)
+                                        .take((prefix.PrefixLength as usize).div_ceil(8))
                                     {
                                         let x_byte = ipv4_addr.octets()[n];
                                         let y_byte = a.octets()[n];
@@ -140,7 +140,7 @@ impl PlatformSupportWindows {
                                     for (n, netmask_elt) in netmask
                                         .iter_mut()
                                         .enumerate()
-                                        .take((prefix.PrefixLength as usize + 15) / 16)
+                                        .take((prefix.PrefixLength as usize).div_ceil(16))
                                     {
                                         let x_word = ipv6_addr.segments()[n];
                                         let y_word = a.segments()[n];

@@ -138,7 +138,7 @@ pub fn capability_fanout_node_info_filter(caps: Vec<Capability>) -> FanoutNodeIn
 ///  * 'node_count' - the number of nodes to keep in the closest_nodes set
 ///  * 'fanout' - the number of concurrent calls being processed at the same time
 ///  * 'consensus_count' - the number of nodes in the processed queue that need to be in the
-///                        'Accepted' state before we terminate the fanout early.
+///    'Accepted' state before we terminate the fanout early.
 ///
 /// The algorithm returns early if 'check_done' returns some value, or if an error is found during the process.
 /// If the algorithm times out, a Timeout result is returned, however operations will still have been performed and a

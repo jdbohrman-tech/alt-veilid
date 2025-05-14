@@ -830,7 +830,7 @@ impl VeilidConfig {
     /// specified to override this location
     ///
     /// * `program_name` - Pick a program name and do not change it from release to release,
-    ///    see `VeilidConfig::program_name` for details.
+    ///   see `VeilidConfig::program_name` for details.
     /// * `organization_name` - Similar to program_name, but for the organization publishing this app
     /// * `qualifier` - Suffix for the application bundle name
     /// * `storage_directory` - Override for the path where veilid-core stores its content

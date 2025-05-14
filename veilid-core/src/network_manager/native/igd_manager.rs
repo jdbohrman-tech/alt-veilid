@@ -198,7 +198,7 @@ impl IGDManager {
 
             // Map any port
             let desc = this.get_description(protocol_type, local_port);
-            let mapped_port = match gw.add_any_port(convert_protocol_type(protocol_type), SocketAddr::new(local_ip, local_port), (UPNP_MAPPING_LIFETIME_MS + 999) / 1000, &desc) {
+            let mapped_port = match gw.add_any_port(convert_protocol_type(protocol_type), SocketAddr::new(local_ip, local_port), UPNP_MAPPING_LIFETIME_MS.div_ceil(1000), &desc) {
                 Ok(mapped_port) => mapped_port,
                 Err(e) => {
                     // Failed to map external port
@@ -295,7 +295,7 @@ impl IGDManager {
                     match gw.add_any_port(
                         convert_protocol_type(k.protocol_type),
                         SocketAddr::new(local_ip, k.local_port),
-                        (UPNP_MAPPING_LIFETIME_MS + 999) / 1000,
+                        UPNP_MAPPING_LIFETIME_MS.div_ceil(1000),
                         &desc,
                     ) {
                         Ok(mapped_port) => {
@@ -343,7 +343,7 @@ impl IGDManager {
                         convert_protocol_type(k.protocol_type),
                         v.mapped_port,
                         SocketAddr::new(local_ip, k.local_port),
-                        (UPNP_MAPPING_LIFETIME_MS + 999) / 1000,
+                        UPNP_MAPPING_LIFETIME_MS.div_ceil(1000),
                         &desc,
                     ) {
                         Ok(()) => {
