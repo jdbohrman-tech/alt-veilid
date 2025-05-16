@@ -1491,6 +1491,7 @@ class VeilidFFI extends Veilid {
             Pointer<Utf8>)>('initialize_veilid_flutter');
     initializeVeilidFlutter(
       NativeApi.postCObject,
+      // Allow environment to configure
       // ignore: avoid_redundant_argument_values, do_not_use_environment
       const String.fromEnvironment('VEILID_CRASH_PATH').toNativeUtf8(),
     );

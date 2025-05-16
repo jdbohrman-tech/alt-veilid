@@ -30,9 +30,13 @@ Future<T> _wrapApiPromise<T>(Object p) => js_util
       try {
         final ex = VeilidAPIException.fromJson(jsonDecode(e as String));
         throw ex;
-      } on Exception catch (_) {
-        // Wrap all other errors in VeilidAPIExceptionInternal
-        throw VeilidAPIExceptionInternal('$e\nStack Trace:\n$s');
+      } on Exception catch (e) {
+        if (e is VeilidAPIException) {
+          rethrow;
+        } else {
+          // Wrap all other errors in VeilidAPIExceptionInternal
+          throw VeilidAPIExceptionInternal('$e\nStack Trace:\n$s');
+        }
       }
     });
 
@@ -629,8 +633,7 @@ class VeilidJS extends Veilid {
 
   @override
   Future<bool> isShutdown() async =>
-      await _wrapApiPromise<bool>(
-          js_util.callMethod(wasm, 'is_shutdown', []));
+      await _wrapApiPromise<bool>(js_util.callMethod(wasm, 'is_shutdown', []));
 
   @override
   Future<void> attach() =>
@@ -759,8 +762,9 @@ class VeilidJS extends Veilid {
 
   @override
   List<String> veilidFeatures() {
-    final features = js_util.callMethod(wasm, 'veilid_features', []);
-    return (features as js_interop.JSArray).dartify()! as List<String>;
+    final features =
+        js_util.callMethod<js_interop.JSArray>(wasm, 'veilid_features', []);
+    return features.dartify()! as List<String>;
   }
 
   @override
