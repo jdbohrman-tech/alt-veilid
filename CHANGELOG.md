@@ -1,8 +1,11 @@
+**On Nightly**
+
+- veilid-flutter:
+  - Fix exception handling for WASM
+
 **Changed in Veilid 0.4.6**
 
 - Updated pinned Rust version to 1.86
-- veilid-flutter:
-  - Fix exception handling for WASM
 
 **Changed in Veilid 0.4.5**
 
