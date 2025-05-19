@@ -376,17 +376,17 @@ macro_rules! impl_subscribe_event_bus {
 
 pub(crate) use impl_subscribe_event_bus;
 
-// macro_rules! impl_subscribe_event_bus_async {
-//     ($this:expr, $this_type:ty, $event_handler:ident ) => {{
-//         let registry = $this.registry();
-//         $this.event_bus().subscribe(move |evt| {
-//             let registry = registry.clone();
-//             Box::pin(async move {
-//                 let this = registry.lookup::<$this_type>().unwrap();
-//                 this.$event_handler(evt).await;
-//             })
-//         })
-//     }};
-// }
+macro_rules! impl_subscribe_event_bus_async {
+    ($this:expr, $this_type:ty, $event_handler:ident ) => {{
+        let registry = $this.registry();
+        $this.event_bus().subscribe(move |evt| {
+            let registry = registry.clone();
+            Box::pin(async move {
+                let this = registry.lookup::<$this_type>().unwrap();
+                this.$event_handler(evt).await;
+            })
+        })
+    }};
+}
 
-// pub(crate) use impl_subscribe_event_bus_async;
+pub(crate) use impl_subscribe_event_bus_async;

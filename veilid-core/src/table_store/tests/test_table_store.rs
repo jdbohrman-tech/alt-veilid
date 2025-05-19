@@ -283,6 +283,7 @@ pub async fn test_store_load_json_many(ts: &TableStore) {
 
     let mut r = 0;
     let start_ts = Timestamp::now();
+    let mut keys = HashSet::new();
     loop {
         while r < rows && unord.len() < parallel {
             let key = format!("key_{}", r);
@@ -290,6 +291,7 @@ pub async fn test_store_load_json_many(ts: &TableStore) {
 
             unord.push(Box::pin(async {
                 let key = key;
+
                 db.store_json(0, key.as_bytes(), &value)
                     .await
                     .expect("should store");
@@ -299,12 +301,21 @@ pub async fn test_store_load_json_many(ts: &TableStore) {
                     .expect("should load")
                     .expect("should exist");
                 assert_eq!(value, value2);
+
+                key.as_bytes().to_vec()
             }));
         }
-        if unord.next().await.is_none() {
+        if let Some(res) = unord.next().await {
+            keys.insert(res);
+        } else {
             break;
         }
     }
+
+    let stored_keys = db.get_keys(0).await.expect("should get keys");
+    let stored_keys_set = stored_keys.into_iter().collect::<HashSet<_>>();
+    assert_eq!(stored_keys_set, keys, "should have same keys");
+
     let end_ts = Timestamp::now();
     trace!("test_store_load_json_many duration={}", (end_ts - start_ts));
 }

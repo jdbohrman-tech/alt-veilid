@@ -1,4 +1,9 @@
-**On Nightly**
+**UNRELEASED**
+
+- veilid-core:
+  - Update keyvaluedb to 0.1.3
+  - Inspect watched records for value changes made while offline when coming back online
+  - Additional table store unit test
 
 - veilid-flutter:
   - Fix exception handling for WASM

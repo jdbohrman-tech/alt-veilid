@@ -94,6 +94,8 @@ struct StorageManagerInner {
     pub metadata_db: Option<TableDB>,
     /// Background processing task (not part of attachment manager tick tree so it happens when detached too)
     pub tick_future: Option<PinBoxFutureStatic<()>>,
+    /// PeerInfo subscription
+    peer_info_change_subscription: Option<EventBusSubscription>,
 }
 
 impl fmt::Debug for StorageManagerInner {
@@ -107,6 +109,10 @@ impl fmt::Debug for StorageManagerInner {
             .field("active_subkey_writes", &self.active_subkey_writes)
             .field("rehydration_requests", &self.rehydration_requests)
             .field("outbound_watch_manager", &self.outbound_watch_manager)
+            .field(
+                "peer_info_change_subscription",
+                &self.peer_info_change_subscription,
+            )
             //.field("metadata_db", &self.metadata_db)
             //.field("tick_future", &self.tick_future)
             .finish()
@@ -137,6 +143,9 @@ pub(crate) struct StorageManager {
     // for offline subkey writes, watch changes, and any other
     // background operations the storage manager wants to perform
     background_operation_processor: DeferredStreamProcessor,
+
+    // Online check
+    is_online: AtomicBool,
 }
 
 impl fmt::Debug for StorageManager {
@@ -161,6 +170,7 @@ impl fmt::Debug for StorageManager {
                 &self.background_operation_processor,
             )
             .field("anonymous_watch_keys", &self.anonymous_watch_keys)
+            .field("is_online", &self.is_online)
             .finish()
     }
 }
@@ -216,6 +226,7 @@ impl StorageManager {
             outbound_watch_lock_table: AsyncTagLockTable::new(),
             anonymous_watch_keys,
             background_operation_processor: DeferredStreamProcessor::new(),
+            is_online: AtomicBool::new(false),
         };
 
         this.setup_tasks();
@@ -295,6 +306,10 @@ impl StorageManager {
 
     #[instrument(level = "trace", target = "tstore", skip_all)]
     async fn post_init_async(&self) -> EyreResult<()> {
+        // Register event handlers
+        let peer_info_change_subscription =
+            impl_subscribe_event_bus_async!(self, Self, peer_info_change_event_handler);
+
         let mut inner = self.inner.lock().await;
 
         // Resolve outbound watch manager noderefs
@@ -312,19 +327,23 @@ impl StorageManager {
             }
         });
         inner.tick_future = Some(tick_future);
+        inner.peer_info_change_subscription = Some(peer_info_change_subscription);
 
         Ok(())
     }
 
     #[instrument(level = "trace", target = "tstore", skip_all)]
     async fn pre_terminate_async(&self) {
-        // Stop the background ticker process
+        // Stop background operations
         {
             let mut inner = self.inner.lock().await;
             // Stop ticker
             let tick_future = inner.tick_future.take();
             if let Some(f) = tick_future {
                 f.await;
+            }
+            if let Some(sub) = inner.peer_info_change_subscription.take() {
+                self.event_bus().unsubscribe(sub);
             }
         }
 
@@ -427,17 +446,7 @@ impl StorageManager {
     }
 
     pub(super) fn dht_is_online(&self) -> bool {
-        // Check if we have published peer info
-        // Note, this is a best-effort check, subject to race conditions on the network's state
-        if self
-            .routing_table()
-            .get_published_peer_info(RoutingDomain::PublicInternet)
-            .is_none()
-        {
-            return false;
-        }
-
-        true
+        self.is_online.load(Ordering::Acquire)
     }
 
     /// Get the set of nodes in our active watches
@@ -1889,5 +1898,19 @@ impl StorageManager {
     ) -> bool {
         self.background_operation_processor
             .add_stream(receiver.into_stream(), handler)
+    }
+
+    async fn peer_info_change_event_handler(&self, evt: Arc<PeerInfoChangeEvent>) {
+        // Note when we have come back online
+        if evt.routing_domain == RoutingDomain::PublicInternet {
+            if evt.opt_old_peer_info.is_none() && evt.opt_new_peer_info.is_some() {
+                self.is_online.store(true, Ordering::Release);
+
+                // Trigger online updates
+                self.change_inspect_all_watches().await;
+            } else if evt.opt_old_peer_info.is_some() && evt.opt_new_peer_info.is_none() {
+                self.is_online.store(false, Ordering::Release);
+            }
+        }
     }
 }

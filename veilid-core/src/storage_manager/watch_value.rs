@@ -1292,4 +1292,32 @@ impl StorageManager {
 
         Ok(NetworkResult::value(()))
     }
+
+    /// Check all watches for changes
+    /// Used when we come back online from being offline and may have
+    /// missed some ValueChanged notifications
+    #[instrument(level = "trace", target = "watch", skip_all)]
+    pub async fn change_inspect_all_watches(&self) {
+        let mut inner = self.inner.lock().await;
+
+        let mut change_inspects = vec![];
+        for (record_key, outbound_watch) in &inner.outbound_watch_manager.outbound_watches {
+            if let Some(state) = outbound_watch.state() {
+                let reportable_subkeys = state.params().subkeys.clone();
+                change_inspects.push((*record_key, reportable_subkeys));
+            }
+        }
+
+        if change_inspects.is_empty() {
+            return;
+        }
+
+        veilid_log!(self debug "change inspecting {} watches", change_inspects.len());
+
+        for change_inspect in change_inspects {
+            inner
+                .outbound_watch_manager
+                .enqueue_change_inspect(change_inspect.0, change_inspect.1);
+        }
+    }
 }

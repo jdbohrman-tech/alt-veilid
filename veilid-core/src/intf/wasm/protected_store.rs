@@ -22,9 +22,9 @@ impl ProtectedStore {
     pub fn delete_all(&self) -> EyreResult<()> {
         for kpsk in &KNOWN_PROTECTED_STORE_KEYS {
             if let Err(e) = self.remove_user_secret(kpsk) {
-                error!("failed to delete '{}': {}", kpsk, e);
+                veilid_log!(self error "failed to delete protected store key '{}': {}", kpsk, e);
             } else {
-                veilid_log!(self debug "deleted table '{}'", kpsk);
+                veilid_log!(self debug "deleted protected store key '{}'", kpsk);
             }
         }
         Ok(())
@@ -32,6 +32,10 @@ impl ProtectedStore {
 
     #[instrument(level = "debug", skip(self), err)]
     async fn init_async(&self) -> EyreResult<()> {
+        if self.config().with(|c| c.protected_store.delete) {
+            self.delete_all()?;
+        }
+
         Ok(())
     }
 
@@ -124,7 +128,6 @@ impl ProtectedStore {
             };
 
             let vkey = self.browser_key_name(key.as_ref());
-
             ls.get_item(&vkey)
                 .map_err(map_jsvalue_error)
                 .wrap_err("exception_thrown")

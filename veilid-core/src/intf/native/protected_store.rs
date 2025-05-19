@@ -41,9 +41,9 @@ impl ProtectedStore {
     pub fn delete_all(&self) -> EyreResult<()> {
         for kpsk in &KNOWN_PROTECTED_STORE_KEYS {
             if let Err(e) = self.remove_user_secret(kpsk) {
-                error!("failed to delete '{}': {}", kpsk, e);
+                veilid_log!(self error "failed to delete '{}': {}", kpsk, e);
             } else {
-                veilid_log!(self debug "deleted table '{}'", kpsk);
+                veilid_log!(self debug "deleted protected store key '{}'", kpsk);
             }
         }
         Ok(())
@@ -97,7 +97,6 @@ impl ProtectedStore {
                 );
             }
             if inner.keyring_manager.is_none() {
-                veilid_log!(self error "QWERQWER");
                 bail!("Could not initialize the protected store.");
             }
             c.protected_store.delete

@@ -134,7 +134,7 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
     }
 
     fn publish_peer_info(&self, rti: &RoutingTableInner) -> bool {
-        let opt_peer_info = {
+        let (opt_old_peer_info, opt_new_peer_info) = {
             let opt_new_peer_info = {
                 let pi = self.get_peer_info(rti);
 
@@ -156,7 +156,9 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
 
             // Don't publish if the peer info hasnt changed from our previous publication
             let mut ppi_lock = self.published_peer_info.lock();
-            if let Some(old_peer_info) = &*ppi_lock {
+            let opt_old_peer_info = (*ppi_lock).clone();
+
+            if let Some(old_peer_info) = &opt_old_peer_info {
                 if let Some(new_peer_info) = &opt_new_peer_info {
                     if new_peer_info.equivalent(old_peer_info) {
                         veilid_log!(rti debug "[LocalNetwork] Not publishing peer info because it is equivalent");
@@ -175,12 +177,13 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
             }
             *ppi_lock = opt_new_peer_info.clone();
 
-            opt_new_peer_info
+            (opt_old_peer_info, opt_new_peer_info)
         };
 
         if let Err(e) = rti.event_bus().post(PeerInfoChangeEvent {
             routing_domain: RoutingDomain::LocalNetwork,
-            opt_peer_info,
+            opt_old_peer_info,
+            opt_new_peer_info,
         }) {
             veilid_log!(rti debug "Failed to post event: {}", e);
         }
