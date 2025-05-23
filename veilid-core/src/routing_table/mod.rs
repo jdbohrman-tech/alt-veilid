@@ -263,6 +263,15 @@ impl RoutingTable {
         // Stop tasks
         veilid_log!(self debug "stopping routing table tasks");
         self.cancel_tasks().await;
+
+        // Unpublish peer info
+        veilid_log!(self debug "unpublishing peer info");
+        {
+            let mut inner = self.inner.write();
+            for routing_domain in RoutingDomainSet::all() {
+                inner.unpublish_peer_info(routing_domain);
+            }
+        }
     }
 
     #[expect(clippy::unused_async)]

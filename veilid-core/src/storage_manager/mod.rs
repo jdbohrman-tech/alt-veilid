@@ -43,7 +43,7 @@ const SEND_VALUE_CHANGES_INTERVAL_SECS: u32 = 1;
 /// Frequency to check for dead nodes and routes for client-side outbound watches
 const CHECK_OUTBOUND_WATCHES_INTERVAL_SECS: u32 = 1;
 /// Frequency to retry reconciliation of watches that are not at consensus
-const RECONCILE_OUTBOUND_WATCHES_INTERVAL_SECS: u32 = 300;
+const RECONCILE_OUTBOUND_WATCHES_INTERVAL_SECS: u32 = 60;
 /// How long before expiration to try to renew per-node watches
 const RENEW_OUTBOUND_WATCHES_DURATION_SECS: u32 = 30;
 /// Frequency to check for expired server-side watched records
@@ -869,6 +869,9 @@ impl StorageManager {
                 if asw.is_empty() {
                     inner.active_subkey_writes.remove(&record_key);
                 }
+                if matches!(e, VeilidAPIError::TryAgain { message: _ }) {
+                    return Ok(None);
+                }
                 return Err(e);
             }
         };
@@ -919,6 +922,9 @@ impl StorageManager {
         }
         if asw.is_empty() {
             inner.active_subkey_writes.remove(&record_key);
+        }
+        if matches!(out, Err(VeilidAPIError::TryAgain { message: _ })) {
+            return Ok(None);
         }
 
         out

@@ -205,6 +205,10 @@ impl OutboundWatch {
 
         // If we are still working on getting the 'current' state to match
         // the 'desired' state, then do the reconcile if we are within the timeframe for it
+        if state.nodes().is_empty() {
+            veilid_log!(registry debug target: "watch", "OutboundWatch({}): needs_reconcile because consensus count is zero 0 < {}", self.record_key, consensus_count);
+            return true;
+        }
         if state.nodes().len() < consensus_count
             && cur_ts >= state.next_reconcile_ts().unwrap_or_default()
         {
