@@ -87,7 +87,7 @@ impl RoutingTable {
 
     fn format_entry(
         cur_ts: Timestamp,
-        node: TypedPublicKey,
+        node_id_str: &str,
         e: &BucketEntryInner,
         relay_tag: &str,
     ) -> String {
@@ -130,7 +130,7 @@ impl RoutingTable {
         let mut result = format!(
             "    {} [{}][{}] {} [{}] lastq@{} seen@{}",
             // node id
-            node,
+            node_id_str,
             // state reason
             state_reason,
             // Relay tag
@@ -245,12 +245,8 @@ impl RoutingTable {
 
                         out += "    ";
                         out += &e.1.with(inner, |_rti, e| {
-                            Self::format_entry(
-                                cur_ts,
-                                TypedPublicKey::new(*ck, node),
-                                e,
-                                &relay_tag,
-                            )
+                            let node_id_str = TypedPublicKey::new(*ck, node).to_string();
+                            Self::format_entry(cur_ts, &node_id_str, e, &relay_tag)
                         });
                         out += "\n";
                     }
@@ -328,10 +324,10 @@ impl RoutingTable {
                 relaying_count += 1;
             }
 
-            let best_node_id = node.best_node_id();
+            let node_id_str = node.to_string();
 
             out += "    ";
-            out += &node.operate(|_rti, e| Self::format_entry(cur_ts, best_node_id, e, &relay_tag));
+            out += &node.operate(|_rti, e| Self::format_entry(cur_ts, &node_id_str, e, &relay_tag));
             out += "\n";
         }
 

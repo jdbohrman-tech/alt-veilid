@@ -158,7 +158,12 @@ impl Clone for FilteredNodeRef {
 
 impl fmt::Display for FilteredNodeRef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.entry.with_inner(|e| e.best_node_id()))
+        if let Some(best_node_id) = self.entry.with_inner(|e| e.best_node_id()) {
+            return write!(f, "{}", best_node_id);
+        } else if let Some(node_id) = self.entry.with_inner(|e| e.node_ids().first().cloned()) {
+            return write!(f, "{}", node_id);
+        }
+        write!(f, "*NONE*")
     }
 }
 

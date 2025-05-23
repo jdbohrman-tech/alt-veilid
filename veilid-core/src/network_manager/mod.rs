@@ -922,7 +922,12 @@ impl NetworkManager {
         };
 
         let destination_node_ref = destination_node_ref.unwrap_or_else(|| node_ref.unfiltered());
-        let best_node_id = destination_node_ref.best_node_id();
+        let Some(best_node_id) = destination_node_ref.best_node_id() else {
+            bail!(
+                "can't talk to this node {} because we dont support its cryptosystem",
+                node_ref
+            );
+        };
 
         // Get node's envelope versions and see if we can send to it
         // and if so, get the max version we can use

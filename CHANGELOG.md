@@ -4,6 +4,10 @@
   - Update keyvaluedb to 0.1.3
   - Inspect watched records for value changes made while offline when coming back online
   - Additional table store unit test
+  - Eliminate `unwrap()` in `best_node_id()` (fixes crash)
+
+- veilid-tools:
+  - Add `HashAtom<>` type for hashing references by identity
 
 - veilid-flutter:
   - Fix exception handling for WASM
@@ -18,7 +22,7 @@
 - *BREAKING API CHANGE*:
   - watch_dht_values() now returns a bool rather than an expiration timestamp. Expiration renewal is now managed by veilid-core internally. Apps no longer need to renew watches!
   - inspect_dht_record() and cancel_dht_watch() now take an Option<ValueSubkeyRangeSet> instead of just a ValueSubkeyRangeSet, to make things easier for automatic binding generation someday and to remove ambiguities about the semantics of the default empty set.
-  - DHTRecordReport now uses a Vec<Option<ValueSubkey>> for seq lists, rather than using the 'ValueSubkey::MAX' sentinel value (0xFFFFFFFF) to represent a missing subkey
+  - DHTRecordReport now uses a `Vec<Option<ValueSubkey>>` for seq lists, rather than using the 'ValueSubkey::MAX' sentinel value (0xFFFFFFFF) to represent a missing subkey
   - Renamed config structs to better describe their purpose, and remove "Inner" from a struct that's being exposed via the API. ([!402](https://gitlab.com/veilid/veilid/-/merge_requests/402))
     - `VeilidConfig` -> `VeilidStartupOptions`
     - `VeilidConfigInner` -> `VeilidConfig`

@@ -43,6 +43,127 @@ impl RoutingTable {
         None
     }
 
+    fn check_relay_valid(
+        &self,
+        editor: &mut RoutingDomainEditorPublicInternet<'_>,
+        cur_ts: Timestamp,
+        relay_node: FilteredNodeRef,
+        relay_node_filter: &impl Fn(&BucketEntryInner) -> bool,
+        relay_desired: Option<RelayKind>,
+    ) -> bool {
+        let state_reason = relay_node.state_reason(cur_ts);
+
+        // No best node id
+        let Some(relay_node_id) = relay_node.best_node_id() else {
+            veilid_log!(self debug "Relay node no longer has best node id, dropping relay {}", relay_node);
+            editor.set_relay_node(None);
+            return false;
+        };
+
+        // Relay node is dead or no longer needed
+        if matches!(
+            state_reason,
+            BucketEntryStateReason::Dead(_) | BucketEntryStateReason::Punished(_)
+        ) {
+            veilid_log!(self debug "Relay node is now {:?}, dropping relay {}", state_reason, relay_node);
+            editor.set_relay_node(None);
+            return false;
+        }
+
+        // Relay node no longer can relay
+        if relay_node.operate(|_rti, e| !&relay_node_filter(e)) {
+            veilid_log!(self debug
+                "Relay node can no longer relay, dropping relay {}",
+                relay_node
+            );
+            editor.set_relay_node(None);
+            return false;
+        }
+
+        // Relay node is no longer wanted
+        if relay_desired.is_none() {
+            veilid_log!(self debug
+                "Relay node no longer desired, dropping relay {}",
+                relay_node
+            );
+            editor.set_relay_node(None);
+            return false;
+        }
+
+        // See if our relay was optimized last long enough ago to consider getting a new one
+        // if it is no longer fast enough
+        let mut inner = self.inner.upgradable_read();
+        if let Some(last_optimized) = inner.relay_node_last_optimized(RoutingDomain::PublicInternet)
+        {
+            let last_optimized_duration = cur_ts - last_optimized;
+            if last_optimized_duration
+                > TimestampDuration::new_secs(RELAY_OPTIMIZATION_INTERVAL_SECS)
+            {
+                // See what our relay's current percentile is
+                if let Some(relay_relative_performance) = inner.get_node_relative_performance(
+                    relay_node_id,
+                    cur_ts,
+                    relay_node_filter,
+                    |ls| ls.tm90,
+                ) {
+                    // Get latency numbers
+                    let latency_stats = if let Some(latency) = relay_node.peer_stats().latency {
+                        latency.to_string()
+                    } else {
+                        "[no stats]".to_owned()
+                    };
+
+                    // Get current relay reliability
+                    let state_reason = relay_node.state_reason(cur_ts);
+
+                    if relay_relative_performance.percentile < RELAY_OPTIMIZATION_PERCENTILE {
+                        // Drop the current relay so we can get the best new one
+                        veilid_log!(self debug
+                            "Relay tm90 is ({:.2}% < {:.2}%) ({} out of {}) (latency {}, {:?}) optimizing relay {}",
+                            relay_relative_performance.percentile,
+                            RELAY_OPTIMIZATION_PERCENTILE,
+                            relay_relative_performance.node_index,
+                            relay_relative_performance.node_count,
+                            latency_stats,
+                            state_reason,
+                            relay_node
+                        );
+                        editor.set_relay_node(None);
+                        return false;
+                    } else {
+                        // Note that we tried to optimize the relay but it was good
+                        veilid_log!(self debug
+                            "Relay tm90 is ({:.2}% >= {:.2}%) ({} out of {}) (latency {}, {:?}) keeping {}",
+                            relay_relative_performance.percentile,
+                            RELAY_OPTIMIZATION_PERCENTILE,
+                            relay_relative_performance.node_index,
+                            relay_relative_performance.node_count,
+                            latency_stats,
+                            state_reason,
+                            relay_node
+                        );
+                        inner.with_upgraded(|inner| {
+                            inner.set_relay_node_last_optimized(
+                                RoutingDomain::PublicInternet,
+                                cur_ts,
+                            )
+                        });
+                    }
+                } else {
+                    // Drop the current relay because it could not be measured
+                    veilid_log!(self debug
+                        "Relay relative performance not found {}",
+                        relay_node
+                    );
+                    editor.set_relay_node(None);
+                    return false;
+                }
+            }
+        }
+
+        true
+    }
+
     // Keep relays assigned and accessible
     #[instrument(level = "trace", skip_all, err)]
     pub async fn relay_management_task_routine(
@@ -60,115 +181,13 @@ impl RoutingTable {
         // If we already have a relay, see if it is dead, or if we don't need it any more
         let has_relay = {
             if let Some(relay_node) = self.relay_node(RoutingDomain::PublicInternet) {
-                let state_reason = relay_node.state_reason(cur_ts);
-                // Relay node is dead or no longer needed
-                if matches!(
-                    state_reason,
-                    BucketEntryStateReason::Dead(_) | BucketEntryStateReason::Punished(_)
-                ) {
-                    veilid_log!(self debug "Relay node is now {:?}, dropping relay {}", state_reason, relay_node);
-                    editor.set_relay_node(None);
-                    false
-                }
-                // Relay node no longer can relay
-                else if relay_node.operate(|_rti, e| !&relay_node_filter(e)) {
-                    veilid_log!(self debug
-                        "Relay node can no longer relay, dropping relay {}",
-                        relay_node
-                    );
-                    editor.set_relay_node(None);
-                    false
-                }
-                // Relay node is no longer wanted
-                else if relay_desired.is_none() {
-                    veilid_log!(self debug
-                        "Relay node no longer desired, dropping relay {}",
-                        relay_node
-                    );
-                    editor.set_relay_node(None);
-                    false
-                } else {
-                    // See if our relay was optimized last long enough ago to consider getting a new one
-                    // if it is no longer fast enough
-                    let mut has_relay = true;
-                    let mut inner = self.inner.upgradable_read();
-                    if let Some(last_optimized) =
-                        inner.relay_node_last_optimized(RoutingDomain::PublicInternet)
-                    {
-                        let last_optimized_duration = cur_ts - last_optimized;
-                        if last_optimized_duration
-                            > TimestampDuration::new_secs(RELAY_OPTIMIZATION_INTERVAL_SECS)
-                        {
-                            // See what our relay's current percentile is
-                            let relay_node_id = relay_node.best_node_id();
-                            if let Some(relay_relative_performance) = inner
-                                .get_node_relative_performance(
-                                    relay_node_id,
-                                    cur_ts,
-                                    &relay_node_filter,
-                                    |ls| ls.tm90,
-                                )
-                            {
-                                // Get latency numbers
-                                let latency_stats =
-                                    if let Some(latency) = relay_node.peer_stats().latency {
-                                        latency.to_string()
-                                    } else {
-                                        "[no stats]".to_owned()
-                                    };
-
-                                // Get current relay reliability
-                                let state_reason = relay_node.state_reason(cur_ts);
-
-                                if relay_relative_performance.percentile
-                                    < RELAY_OPTIMIZATION_PERCENTILE
-                                {
-                                    // Drop the current relay so we can get the best new one
-                                    veilid_log!(self debug
-                                        "Relay tm90 is ({:.2}% < {:.2}%) ({} out of {}) (latency {}, {:?}) optimizing relay {}",
-                                        relay_relative_performance.percentile,
-                                        RELAY_OPTIMIZATION_PERCENTILE,
-                                        relay_relative_performance.node_index,
-                                        relay_relative_performance.node_count,
-                                        latency_stats,
-                                        state_reason,
-                                        relay_node
-                                    );
-                                    editor.set_relay_node(None);
-                                    has_relay = false;
-                                } else {
-                                    // Note that we tried to optimize the relay but it was good
-                                    veilid_log!(self debug
-                                        "Relay tm90 is ({:.2}% >= {:.2}%) ({} out of {}) (latency {}, {:?}) keeping {}",
-                                        relay_relative_performance.percentile,
-                                        RELAY_OPTIMIZATION_PERCENTILE,
-                                        relay_relative_performance.node_index,
-                                        relay_relative_performance.node_count,
-                                        latency_stats,
-                                        state_reason,
-                                        relay_node
-                                    );
-                                    inner.with_upgraded(|inner| {
-                                        inner.set_relay_node_last_optimized(
-                                            RoutingDomain::PublicInternet,
-                                            cur_ts,
-                                        )
-                                    });
-                                }
-                            } else {
-                                // Drop the current relay because it could not be measured
-                                veilid_log!(self debug
-                                    "Relay relative performance not found {}",
-                                    relay_node
-                                );
-                                editor.set_relay_node(None);
-                                has_relay = false;
-                            }
-                        }
-                    }
-
-                    has_relay
-                }
+                self.check_relay_valid(
+                    &mut editor,
+                    cur_ts,
+                    relay_node,
+                    &relay_node_filter,
+                    relay_desired,
+                )
             } else {
                 false
             }
@@ -245,6 +264,11 @@ impl RoutingTable {
             let Some(signed_node_info) = e.signed_node_info(RoutingDomain::PublicInternet) else {
                 return false;
             };
+
+            // Exclude any nodes that don't have a 'best node id' for our enabled cryptosystems
+            if e.best_node_id().is_none() {
+                return false;
+            }
 
             // Exclude any nodes that have 'failed to send' state indicating a
             // connection drop or inability to reach the node

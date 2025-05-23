@@ -109,9 +109,9 @@ where
     #[must_use]
     pub fn best(&self) -> Option<CryptoTyped<K>> {
         self.items
-            .first()
+            .iter()
+            .find(|k| VALID_CRYPTO_KINDS.contains(&k.kind))
             .copied()
-            .filter(|k| VALID_CRYPTO_KINDS.contains(&k.kind))
     }
     #[must_use]
     pub fn is_empty(&self) -> bool {

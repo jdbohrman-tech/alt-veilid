@@ -772,7 +772,14 @@ impl RPCProcessor {
                             Some(pi) => pi,
                         };
                         let private_route = PrivateRoute::new_stub(
-                            destination_node_ref.best_node_id(),
+                            match destination_node_ref.best_node_id() {
+                                Some(nid) => nid,
+                                None => {
+                                    return Ok(NetworkResult::no_connection_other(
+                                        "No best node id for stub private route",
+                                    ));
+                                }
+                            },
                             RouteNode::PeerInfo(peer_info),
                         );
 

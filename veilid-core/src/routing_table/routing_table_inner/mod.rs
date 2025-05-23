@@ -1564,11 +1564,13 @@ impl RoutingTableInner {
         // Print faster node stats
         #[cfg(feature = "verbose-tracing")]
         for nl in 0..node_index {
-            let (latency, node_id) = all_filtered_nodes[nl].with(self, |_rti, e| {
+            let (latency, best_node_id) = all_filtered_nodes[nl].with(self, |_rti, e| {
                 (e.peer_stats().latency.clone(), e.best_node_id())
             });
-            if let Some(latency) = latency {
-                veilid_log!(self debug "Better relay {}: {}: {}", nl, node_id, latency);
+            if let Some(node_id) = best_node_id {
+                if let Some(latency) = latency {
+                    veilid_log!(self debug "Better relay {}: {}: {}", nl, node_id, latency);
+                }
             }
         }
 

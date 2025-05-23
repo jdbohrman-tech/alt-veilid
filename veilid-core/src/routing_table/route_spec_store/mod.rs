@@ -505,7 +505,13 @@ impl RouteSpecStore {
                 |_rti: &RoutingTableInner, nodes: &[NodeRef], perm: &[usize]| -> Vec<u8> {
                     let mut cache: Vec<u8> = Vec::with_capacity(perm.len() * PUBLIC_KEY_LENGTH);
                     for n in perm {
-                        cache.extend_from_slice(&nodes[*n].locked(rti).best_node_id().value.bytes)
+                        cache.extend_from_slice(
+                            &nodes[*n]
+                                .locked(rti)
+                                .best_node_id()
+                                .map(|bni| bni.value.bytes)
+                                .unwrap_or_default(),
+                        );
                     }
                     cache
                 };
@@ -517,10 +523,10 @@ impl RouteSpecStore {
             }
 
             // Ensure the route doesn't contain both a node and its relay
-            let mut seen_nodes: HashSet<TypedPublicKey> = HashSet::new();
+            let mut seen_nodes: HashSet<HashAtom<BucketEntry>> = HashSet::new();
             for n in permutation {
                 let node = nodes.get(*n).unwrap();
-                if !seen_nodes.insert(node.locked(rti).best_node_id()) {
+                if !seen_nodes.insert(node.entry().hash_atom()) {
                     // Already seen this node, should not be in the route twice
                     return None;
                 }
@@ -532,8 +538,7 @@ impl RouteSpecStore {
                     }
                 };
                 if let Some(relay) = opt_relay {
-                    let relay_id = relay.locked(rti).best_node_id();
-                    if !seen_nodes.insert(relay_id) {
+                    if !seen_nodes.insert(relay.entry().hash_atom()) {
                         // Already seen this node, should not be in the route twice
                         return None;
                     }

@@ -128,7 +128,12 @@ impl RouteSetSpecDetail {
         let hops = &self.hop_node_refs;
         let mut cache: Vec<u8> = Vec::with_capacity(hops.len() * PUBLIC_KEY_LENGTH);
         for hop in hops {
-            cache.extend_from_slice(&hop.locked(rti).best_node_id().value.bytes);
+            cache.extend_from_slice(
+                &hop.locked(rti)
+                    .best_node_id()
+                    .map(|bni| bni.value.bytes)
+                    .unwrap_or_default(),
+            );
         }
         cache
     }

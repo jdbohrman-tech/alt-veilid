@@ -42,7 +42,7 @@ pub(crate) trait NodeRefCommonTrait: NodeRefAccessorsTrait + NodeRefOperateTrait
     fn node_ids(&self) -> TypedPublicKeyGroup {
         self.operate(|_rti, e| e.node_ids())
     }
-    fn best_node_id(&self) -> TypedPublicKey {
+    fn best_node_id(&self) -> Option<TypedPublicKey> {
         self.operate(|_rti, e| e.best_node_id())
     }
 
@@ -247,7 +247,9 @@ pub(crate) trait NodeRefCommonTrait: NodeRefAccessorsTrait + NodeRefOperateTrait
     fn set_last_flow(&self, flow: Flow, ts: Timestamp) {
         self.operate_mut(|rti, e| {
             e.set_last_flow(flow, ts);
-            rti.touch_recent_peer(e.best_node_id(), flow);
+            if let Some(best_node_id) = e.best_node_id() {
+                rti.touch_recent_peer(best_node_id, flow);
+            }
         })
     }
 

@@ -130,12 +130,20 @@ impl Destination {
             Destination::Direct {
                 node,
                 safety_selection: _,
-            } => Ok(Target::NodeId(node.best_node_id())),
+            } => {
+                Ok(Target::NodeId(node.best_node_id().ok_or_else(|| {
+                    RPCError::protocol("no supported node id")
+                })?))
+            }
             Destination::Relay {
                 relay: _,
                 node,
                 safety_selection: _,
-            } => Ok(Target::NodeId(node.best_node_id())),
+            } => {
+                Ok(Target::NodeId(node.best_node_id().ok_or_else(|| {
+                    RPCError::protocol("no supported node id")
+                })?))
+            }
             Destination::PrivateRoute {
                 private_route,
                 safety_selection: _,
@@ -336,7 +344,10 @@ impl RPCProcessor {
                 }
                 SafetySelection::Safe(safety_spec) => {
                     // Sent directly but with a safety route, respond to private route
-                    let crypto_kind = target.best_node_id().kind;
+                    let crypto_kind = target
+                        .best_node_id()
+                        .ok_or_else(|| RPCError::protocol("no supported node id"))?
+                        .kind;
                     let pr_key = network_result_try!(rss
                         .get_private_route_for_safety_spec(
                             crypto_kind,
@@ -364,7 +375,10 @@ impl RPCProcessor {
                 }
                 SafetySelection::Safe(safety_spec) => {
                     // Sent via a relay but with a safety route, respond to private route
-                    let crypto_kind = target.best_node_id().kind;
+                    let crypto_kind = target
+                        .best_node_id()
+                        .ok_or_else(|| RPCError::protocol("no supported node id"))?
+                        .kind;
 
                     let mut avoid_nodes = relay.node_ids();
                     avoid_nodes.add_all(&target.node_ids());

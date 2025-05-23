@@ -454,24 +454,17 @@ impl StorageManager {
         let inner = self.inner.lock().await;
 
         let mut out = vec![];
-        let mut node_set = HashSet::new();
+        let mut node_set: HashSet<HashAtom<BucketEntry>> = HashSet::new();
         for v in inner.outbound_watch_manager.outbound_watches.values() {
             if let Some(current) = v.state() {
                 let node_refs =
                     current.watch_node_refs(&inner.outbound_watch_manager.per_node_states);
                 for node_ref in &node_refs {
-                    let mut found = false;
-                    for nid in node_ref.node_ids().iter() {
-                        if node_set.contains(nid) {
-                            found = true;
-                            break;
-                        }
-                    }
-                    if found {
+                    if node_set.contains(&node_ref.entry().hash_atom()) {
                         continue;
                     }
 
-                    node_set.insert(node_ref.best_node_id());
+                    node_set.insert(node_ref.entry().hash_atom());
                     out.push(
                         Destination::direct(
                             node_ref.routing_domain_filtered(RoutingDomain::PublicInternet),

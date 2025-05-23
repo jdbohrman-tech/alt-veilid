@@ -348,8 +348,8 @@ impl BucketEntryInner {
         opt_dead_id
     }
 
-    pub fn best_node_id(&self) -> TypedPublicKey {
-        self.validated_node_ids.best().unwrap()
+    pub fn best_node_id(&self) -> Option<TypedPublicKey> {
+        self.validated_node_ids.best()
     }
 
     /// Get crypto kinds
@@ -1269,6 +1269,11 @@ impl BucketEntry {
             ref_count: AtomicU32::new(0),
             inner: RwLock::new(inner),
         }
+    }
+
+    // Get a hash atom for this entry that can be used as a key for HashSet and HashTable
+    pub fn hash_atom(self: Arc<Self>) -> HashAtom<'static, BucketEntry> {
+        HashAtom::from(self)
     }
 
     // Note, that this requires -also- holding the RoutingTable read lock, as an
