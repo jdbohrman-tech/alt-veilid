@@ -5,7 +5,7 @@ const MAX_VALUE_CHANGED_SUBKEY_RANGES_LEN: usize = 512;
 
 #[derive(Debug, Clone)]
 pub(in crate::rpc_processor) struct RPCOperationValueChanged {
-    key: TypedKey,
+    key: TypedRecordKey,
     subkeys: ValueSubkeyRangeSet,
     count: u32,
     watch_id: u64,
@@ -14,7 +14,7 @@ pub(in crate::rpc_processor) struct RPCOperationValueChanged {
 
 impl RPCOperationValueChanged {
     pub fn new(
-        key: TypedKey,
+        key: TypedRecordKey,
         subkeys: ValueSubkeyRangeSet,
         count: u32,
         watch_id: u64,
@@ -58,7 +58,7 @@ impl RPCOperationValueChanged {
     }
 
     #[expect(dead_code)]
-    pub fn key(&self) -> &TypedKey {
+    pub fn key(&self) -> &TypedRecordKey {
         &self.key
     }
 
@@ -85,7 +85,7 @@ impl RPCOperationValueChanged {
     pub fn destructure(
         self,
     ) -> (
-        TypedKey,
+        TypedRecordKey,
         ValueSubkeyRangeSet,
         u32,
         u64,
@@ -105,7 +105,7 @@ impl RPCOperationValueChanged {
         reader: &veilid_capnp::operation_value_changed::Reader,
     ) -> Result<Self, RPCError> {
         let k_reader = reader.get_key().map_err(RPCError::protocol)?;
-        let key = decode_typed_key(&k_reader)?;
+        let key = decode_typed_record_key(&k_reader)?;
 
         let sk_reader = reader.get_subkeys().map_err(RPCError::protocol)?;
         if sk_reader.len() as usize > MAX_VALUE_CHANGED_SUBKEY_RANGES_LEN {
@@ -151,7 +151,7 @@ impl RPCOperationValueChanged {
         builder: &mut veilid_capnp::operation_value_changed::Builder,
     ) -> Result<(), RPCError> {
         let mut k_builder = builder.reborrow().init_key();
-        encode_typed_key(&self.key, &mut k_builder);
+        encode_typed_record_key(&self.key, &mut k_builder);
 
         let mut sk_builder = builder.reborrow().init_subkeys(
             self.subkeys

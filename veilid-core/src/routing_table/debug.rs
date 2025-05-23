@@ -87,7 +87,7 @@ impl RoutingTable {
 
     fn format_entry(
         cur_ts: Timestamp,
-        node: TypedKey,
+        node: TypedPublicKey,
         e: &BucketEntryInner,
         relay_tag: &str,
     ) -> String {
@@ -245,7 +245,12 @@ impl RoutingTable {
 
                         out += "    ";
                         out += &e.1.with(inner, |_rti, e| {
-                            Self::format_entry(cur_ts, TypedKey::new(*ck, node), e, &relay_tag)
+                            Self::format_entry(
+                                cur_ts,
+                                TypedPublicKey::new(*ck, node),
+                                e,
+                                &relay_tag,
+                            )
                         });
                         out += "\n";
                     }

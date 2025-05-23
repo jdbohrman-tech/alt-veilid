@@ -204,8 +204,8 @@ pub fn config_callback(key: String) -> ConfigCallbackReturn {
         "network.reverse_connection_receipt_time_ms" => Ok(Box::new(5_000u32)),
         "network.hole_punch_receipt_time_ms" => Ok(Box::new(5_000u32)),
         "network.network_key_password" => Ok(Box::new(Option::<String>::None)),
-        "network.routing_table.node_id" => Ok(Box::new(TypedKeyGroup::new())),
-        "network.routing_table.node_id_secret" => Ok(Box::new(TypedSecretGroup::new())),
+        "network.routing_table.node_id" => Ok(Box::new(TypedPublicKeyGroup::new())),
+        "network.routing_table.node_id_secret" => Ok(Box::new(TypedSecretKeyGroup::new())),
         // "network.routing_table.bootstrap" => Ok(Box::new(Vec::<String>::new())),
         #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
         "network.routing_table.bootstrap" => {
@@ -216,9 +216,9 @@ pub fn config_callback(key: String) -> ConfigCallbackReturn {
             "ws://bootstrap-v1.veilid.net:5150/ws".to_string(),
         ])),
         "network.routing_table.bootstrap_keys" => Ok(Box::new(vec![
-            TypedKey::from_str("VLD0:Vj0lKDdUQXmQ5Ol1SZdlvXkBHUccBcQvGLN9vbLSI7k").unwrap(),
-            TypedKey::from_str("VLD0:QeQJorqbXtC7v3OlynCZ_W3m76wGNeB5NTF81ypqHAo").unwrap(),
-            TypedKey::from_str("VLD0:QNdcl-0OiFfYVj9331XVR6IqZ49NG-E18d5P7lwi4TA").unwrap(),
+            TypedPublicKey::from_str("VLD0:Vj0lKDdUQXmQ5Ol1SZdlvXkBHUccBcQvGLN9vbLSI7k").unwrap(),
+            TypedPublicKey::from_str("VLD0:QeQJorqbXtC7v3OlynCZ_W3m76wGNeB5NTF81ypqHAo").unwrap(),
+            TypedPublicKey::from_str("VLD0:QNdcl-0OiFfYVj9331XVR6IqZ49NG-E18d5P7lwi4TA").unwrap(),
         ])),
         "network.routing_table.limit_over_attached" => Ok(Box::new(64u32)),
         "network.routing_table.limit_fully_attached" => Ok(Box::new(32u32)),
@@ -370,9 +370,9 @@ pub fn test_config() {
     assert_eq!(
         inner.network.routing_table.bootstrap_keys,
         vec![
-            TypedKey::from_str("VLD0:Vj0lKDdUQXmQ5Ol1SZdlvXkBHUccBcQvGLN9vbLSI7k").unwrap(),
-            TypedKey::from_str("VLD0:QeQJorqbXtC7v3OlynCZ_W3m76wGNeB5NTF81ypqHAo").unwrap(),
-            TypedKey::from_str("VLD0:QNdcl-0OiFfYVj9331XVR6IqZ49NG-E18d5P7lwi4TA").unwrap(),
+            TypedPublicKey::from_str("VLD0:Vj0lKDdUQXmQ5Ol1SZdlvXkBHUccBcQvGLN9vbLSI7k").unwrap(),
+            TypedPublicKey::from_str("VLD0:QeQJorqbXtC7v3OlynCZ_W3m76wGNeB5NTF81ypqHAo").unwrap(),
+            TypedPublicKey::from_str("VLD0:QNdcl-0OiFfYVj9331XVR6IqZ49NG-E18d5P7lwi4TA").unwrap(),
         ],
     );
     assert_eq!(inner.network.routing_table.limit_over_attached, 64u32);

@@ -4,7 +4,7 @@ use crate::tests::mock_registry;
 fn make_mock_bootstrap_record(include_timestamp: bool) -> BootstrapRecord {
     let mut node_ids = CryptoTypedGroup::new();
     node_ids.add(
-        TypedKey::from_str("VLD0:f8G4Ckr1UR8YXnmAllwfvBEvXGgfYicZllb7jEpJeSU")
+        TypedPublicKey::from_str("VLD0:f8G4Ckr1UR8YXnmAllwfvBEvXGgfYicZllb7jEpJeSU")
             .expect("should parse key"),
     );
     let envelope_support = VALID_ENVELOPE_VERSIONS.to_vec();
@@ -68,7 +68,7 @@ pub async fn test_bootstrap_v1() {
         TypedKeyPair::from_str("VLD0:v6XPfyOoCP_ZP-CWFNrf_pF_dpxsq74p2LW_Q5Q4yPQ:n-DhHtOU7KWQkdp5to8cpBa_u0RFt2IDZzXPqMTq4O0").expect("should parse keypair")];
     let signing_keys = signing_key_pairs
         .iter()
-        .map(|skp| TypedKey::new(skp.kind, skp.value.key))
+        .map(|skp| TypedPublicKey::new(skp.kind, skp.value.key))
         .collect::<Vec<_>>();
     let v1str = bsrec
         .to_v1_string(&network_manager, &dial_info_converter, signing_key_pairs[0])

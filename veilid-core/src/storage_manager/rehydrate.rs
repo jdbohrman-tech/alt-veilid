@@ -4,7 +4,7 @@ use super::{inspect_value::OutboundInspectValueResult, *};
 #[derive(Debug, Clone)]
 pub struct RehydrateReport {
     /// The record key rehydrated
-    record_key: TypedKey,
+    record_key: TypedRecordKey,
     /// The requested range of subkeys to rehydrate if necessary
     subkeys: ValueSubkeyRangeSet,
     /// The requested consensus count,
@@ -24,7 +24,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "stor", skip_all)]
     pub async fn add_rehydration_request(
         &self,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         subkeys: ValueSubkeyRangeSet,
         consensus_count: usize,
     ) {
@@ -55,7 +55,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "stor", skip(self), ret, err)]
     pub(super) async fn rehydrate_record(
         &self,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         subkeys: ValueSubkeyRangeSet,
         consensus_count: usize,
     ) -> VeilidAPIResult<RehydrateReport> {
@@ -143,7 +143,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "stor", skip(self), ret, err)]
     pub(super) async fn rehydrate_all_subkeys(
         &self,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         subkeys: ValueSubkeyRangeSet,
         consensus_count: usize,
         safety_selection: SafetySelection,
@@ -185,7 +185,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "stor", skip(self), ret, err)]
     pub(super) async fn rehydrate_required_subkeys(
         &self,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         subkeys: ValueSubkeyRangeSet,
         consensus_count: usize,
         safety_selection: SafetySelection,

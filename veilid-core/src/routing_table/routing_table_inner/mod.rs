@@ -55,7 +55,7 @@ pub struct RoutingTableInner {
     /// Statistics about the total bandwidth to/from this node
     pub(super) self_transfer_stats: TransferStatsDownUp,
     /// Peers we have recently communicated with
-    pub(super) recent_peers: LruCache<TypedKey, RecentPeersEntry>,
+    pub(super) recent_peers: LruCache<TypedPublicKey, RecentPeersEntry>,
     /// Async tagged critical sections table
     /// Tag: "tick" -> in ticker
     pub(super) critical_sections: AsyncTagLockTable<&'static str>,
@@ -655,7 +655,7 @@ impl RoutingTableInner {
     fn update_bucket_entry_node_ids(
         &mut self,
         entry: Arc<BucketEntry>,
-        node_ids: &[TypedKey],
+        node_ids: &[TypedPublicKey],
     ) -> EyreResult<()> {
         let routing_table = self.routing_table();
 
@@ -745,7 +745,7 @@ impl RoutingTableInner {
     #[instrument(level = "trace", skip_all, err)]
     fn create_node_ref<F>(
         &mut self,
-        node_ids: &TypedKeyGroup,
+        node_ids: &TypedPublicKeyGroup,
         update_func: F,
     ) -> EyreResult<NodeRef>
     where
@@ -827,7 +827,7 @@ impl RoutingTableInner {
     #[instrument(level = "trace", skip_all, err)]
     pub fn lookup_any_node_ref(&self, node_id_key: PublicKey) -> EyreResult<Option<NodeRef>> {
         for ck in VALID_CRYPTO_KINDS {
-            if let Some(nr) = self.lookup_node_ref(TypedKey::new(ck, node_id_key))? {
+            if let Some(nr) = self.lookup_node_ref(TypedPublicKey::new(ck, node_id_key))? {
                 return Ok(Some(nr));
             }
         }
@@ -836,7 +836,7 @@ impl RoutingTableInner {
 
     /// Resolve an existing routing table entry and return a reference to it
     #[instrument(level = "trace", skip_all, err)]
-    pub fn lookup_node_ref(&self, node_id: TypedKey) -> EyreResult<Option<NodeRef>> {
+    pub fn lookup_node_ref(&self, node_id: TypedPublicKey) -> EyreResult<Option<NodeRef>> {
         if self.routing_table().matches_own_node_id(&[node_id]) {
             bail!("can't look up own node id in routing table");
         }
@@ -855,7 +855,7 @@ impl RoutingTableInner {
     #[instrument(level = "trace", skip_all, err)]
     pub fn lookup_and_filter_noderef(
         &self,
-        node_id: TypedKey,
+        node_id: TypedPublicKey,
         routing_domain_set: RoutingDomainSet,
         dial_info_filter: DialInfoFilter,
     ) -> EyreResult<Option<FilteredNodeRef>> {
@@ -870,7 +870,7 @@ impl RoutingTableInner {
     }
 
     /// Resolve an existing routing table entry and call a function on its entry without using a noderef
-    pub fn with_node_entry<F, R>(&self, node_id: TypedKey, f: F) -> Option<R>
+    pub fn with_node_entry<F, R>(&self, node_id: TypedPublicKey, f: F) -> Option<R>
     where
         F: FnOnce(Arc<BucketEntry>) -> R,
     {
@@ -970,10 +970,10 @@ impl RoutingTableInner {
     pub fn register_node_with_id(
         &mut self,
         routing_domain: RoutingDomain,
-        node_id: TypedKey,
+        node_id: TypedPublicKey,
         timestamp: Timestamp,
     ) -> EyreResult<FilteredNodeRef> {
-        let nr = self.create_node_ref(&TypedKeyGroup::from(node_id), |_rti, e| {
+        let nr = self.create_node_ref(&TypedPublicKeyGroup::from(node_id), |_rti, e| {
             //e.make_not_dead(timestamp);
             e.touch_last_seen(timestamp);
         })?;
@@ -1091,7 +1091,7 @@ impl RoutingTableInner {
         }
     }
 
-    pub fn touch_recent_peer(&mut self, node_id: TypedKey, last_connection: Flow) {
+    pub fn touch_recent_peer(&mut self, node_id: TypedPublicKey, last_connection: Flow) {
         self.recent_peers
             .insert(node_id, RecentPeersEntry { last_connection });
     }
@@ -1319,7 +1319,7 @@ impl RoutingTableInner {
     pub fn find_preferred_closest_nodes<T, O>(
         &self,
         node_count: usize,
-        node_id: TypedKey,
+        node_id: TypedHashDigest,
         mut filters: VecDeque<RoutingTableEntryFilter>,
         transform: T,
     ) -> VeilidAPIResult<Vec<O>>
@@ -1393,8 +1393,8 @@ impl RoutingTableInner {
             };
 
             // distance is the next metric, closer nodes first
-            let da = vcrypto.distance(&a_key.value, &node_id.value);
-            let db = vcrypto.distance(&b_key.value, &node_id.value);
+            let da = vcrypto.distance(&HashDigest::from(a_key.value), &node_id.value);
+            let db = vcrypto.distance(&HashDigest::from(b_key.value), &node_id.value);
             da.cmp(&db)
         };
 
@@ -1407,7 +1407,7 @@ impl RoutingTableInner {
     #[instrument(level = "trace", skip_all)]
     pub fn sort_and_clean_closest_noderefs(
         &self,
-        node_id: TypedKey,
+        node_id: TypedHashDigest,
         closest_nodes: &[NodeRef],
     ) -> Vec<NodeRef> {
         // Lock all noderefs
@@ -1525,7 +1525,7 @@ impl RoutingTableInner {
     #[instrument(level = "trace", skip(self, filter, metric), ret)]
     pub fn get_node_relative_performance(
         &self,
-        node_id: TypedKey,
+        node_id: TypedPublicKey,
         cur_ts: Timestamp,
         filter: impl Fn(&BucketEntryInner) -> bool,
         metric: impl Fn(&LatencyStats) -> TimestampDuration,
@@ -1584,7 +1584,7 @@ impl RoutingTableInner {
 #[instrument(level = "trace", skip_all)]
 pub fn make_closest_noderef_sort<'a>(
     crypto: &'a Crypto,
-    node_id: TypedKey,
+    node_id: TypedHashDigest,
 ) -> impl Fn(&LockedNodeRef, &LockedNodeRef) -> core::cmp::Ordering + 'a {
     let kind = node_id.kind;
     // Get cryptoversion to check distance with
@@ -1603,8 +1603,8 @@ pub fn make_closest_noderef_sort<'a>(
                 let b_key = b_entry.node_ids().get(kind).unwrap();
 
                 // distance is the next metric, closer nodes first
-                let da = vcrypto.distance(&a_key.value, &node_id.value);
-                let db = vcrypto.distance(&b_key.value, &node_id.value);
+                let da = vcrypto.distance(&HashDigest::from(a_key.value), &node_id.value);
+                let db = vcrypto.distance(&HashDigest::from(b_key.value), &node_id.value);
                 da.cmp(&db)
             })
         })
@@ -1613,16 +1613,16 @@ pub fn make_closest_noderef_sort<'a>(
 
 pub fn make_closest_node_id_sort(
     crypto: &Crypto,
-    node_id: TypedKey,
-) -> impl Fn(&CryptoKey, &CryptoKey) -> core::cmp::Ordering + '_ {
+    node_id: TypedPublicKey,
+) -> impl Fn(&PublicKey, &PublicKey) -> core::cmp::Ordering + '_ {
     let kind = node_id.kind;
     // Get cryptoversion to check distance with
     let vcrypto = crypto.get(kind).unwrap();
 
-    move |a: &CryptoKey, b: &CryptoKey| -> core::cmp::Ordering {
+    move |a: &PublicKey, b: &PublicKey| -> core::cmp::Ordering {
         // distance is the next metric, closer nodes first
-        let da = vcrypto.distance(a, &node_id.value);
-        let db = vcrypto.distance(b, &node_id.value);
+        let da = vcrypto.distance(&HashDigest::from(*a), &HashDigest::from(node_id.value));
+        let db = vcrypto.distance(&HashDigest::from(*b), &HashDigest::from(node_id.value));
         da.cmp(&db)
     }
 }

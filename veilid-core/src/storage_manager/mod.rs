@@ -65,7 +65,7 @@ const REHYDRATION_REQUESTS: &[u8] = b"rehydration_requests";
 /// A single 'value changed' message to send
 struct ValueChangedInfo {
     target: Target,
-    record_key: TypedKey,
+    record_key: TypedRecordKey,
     subkeys: ValueSubkeyRangeSet,
     count: u32,
     watch_id: u64,
@@ -76,18 +76,18 @@ struct ValueChangedInfo {
 #[derive(Default)]
 struct StorageManagerInner {
     /// Records that have been 'opened' and are not yet closed
-    pub opened_records: HashMap<TypedKey, OpenedRecord>,
+    pub opened_records: HashMap<TypedRecordKey, OpenedRecord>,
     /// Records that have ever been 'created' or 'opened' by this node, things we care about that we must republish to keep alive
     pub local_record_store: Option<RecordStore<LocalRecordDetail>>,
     /// Records that have been pushed to this node for distribution by other nodes, that we make an effort to republish
     pub remote_record_store: Option<RecordStore<RemoteRecordDetail>>,
     /// Record subkeys that have not been pushed to the network because they were written to offline
     pub offline_subkey_writes:
-        LinkedHashMap<TypedKey, tasks::offline_subkey_writes::OfflineSubkeyWrite>,
+        LinkedHashMap<TypedRecordKey, tasks::offline_subkey_writes::OfflineSubkeyWrite>,
     /// Record subkeys that are currently being written to in the foreground
-    pub active_subkey_writes: HashMap<TypedKey, ValueSubkeyRangeSet>,
+    pub active_subkey_writes: HashMap<TypedRecordKey, ValueSubkeyRangeSet>,
     /// Records that have rehydration requests
-    pub rehydration_requests: HashMap<TypedKey, RehydrationRequest>,
+    pub rehydration_requests: HashMap<TypedRecordKey, RehydrationRequest>,
     /// State management for outbound watches
     pub outbound_watch_manager: OutboundWatchManager,
     /// Storage manager metadata that is persistent, including copy of offline subkey writes
@@ -137,7 +137,7 @@ pub(crate) struct StorageManager {
 
     // Outbound watch operation lock
     // Keeps changes to watches to one-at-a-time per record
-    outbound_watch_lock_table: AsyncTagLockTable<TypedKey>,
+    outbound_watch_lock_table: AsyncTagLockTable<TypedRecordKey>,
 
     // Background operation processor
     // for offline subkey writes, watch changes, and any other
@@ -492,7 +492,7 @@ impl StorageManager {
         kind: CryptoKind,
         schema: DHTSchema,
         owner_key: &PublicKey,
-    ) -> VeilidAPIResult<TypedKey> {
+    ) -> VeilidAPIResult<TypedRecordKey> {
         // Get cryptosystem
         let crypto = self.crypto();
         let Some(vcrypto) = crypto.get(kind) else {
@@ -536,7 +536,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "stor", skip_all)]
     pub async fn open_record(
         &self,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         writer: Option<KeyPair>,
         safety_selection: SafetySelection,
     ) -> VeilidAPIResult<DHTRecordDescriptor> {
@@ -615,7 +615,7 @@ impl StorageManager {
 
     /// Close an opened local record
     #[instrument(level = "trace", target = "stor", skip_all)]
-    pub async fn close_record(&self, record_key: TypedKey) -> VeilidAPIResult<()> {
+    pub async fn close_record(&self, record_key: TypedRecordKey) -> VeilidAPIResult<()> {
         // Attempt to close the record, returning the opened record if it wasn't already closed
         let mut inner = self.inner.lock().await;
         Self::close_record_inner(&mut inner, record_key)?;
@@ -637,7 +637,7 @@ impl StorageManager {
 
     /// Delete a local record
     #[instrument(level = "trace", target = "stor", skip_all)]
-    pub async fn delete_record(&self, record_key: TypedKey) -> VeilidAPIResult<()> {
+    pub async fn delete_record(&self, record_key: TypedRecordKey) -> VeilidAPIResult<()> {
         // Ensure the record is closed
         let mut inner = self.inner.lock().await;
         Self::close_record_inner(&mut inner, record_key)?;
@@ -655,7 +655,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "stor", skip_all)]
     pub async fn get_value(
         &self,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         subkey: ValueSubkey,
         force_refresh: bool,
     ) -> VeilidAPIResult<Option<ValueData>> {
@@ -731,7 +731,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "stor", skip_all)]
     pub async fn set_value(
         &self,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         subkey: ValueSubkey,
         data: Vec<u8>,
         writer: Option<KeyPair>,
@@ -934,7 +934,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "stor", skip_all)]
     pub async fn watch_values(
         &self,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         subkeys: ValueSubkeyRangeSet,
         expiration: Timestamp,
         count: u32,
@@ -950,7 +950,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "stor", skip_all)]
     async fn watch_values_inner(
         &self,
-        watch_lock: AsyncTagLockGuard<TypedKey>,
+        watch_lock: AsyncTagLockGuard<TypedRecordKey>,
         subkeys: ValueSubkeyRangeSet,
         expiration: Timestamp,
         count: u32,
@@ -1034,7 +1034,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "stor", skip_all)]
     pub async fn cancel_watch_values(
         &self,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         subkeys: ValueSubkeyRangeSet,
     ) -> VeilidAPIResult<bool> {
         // Obtain the watch change lock
@@ -1102,7 +1102,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "stor", skip_all)]
     pub async fn inspect_record(
         &self,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         subkeys: ValueSubkeyRangeSet,
         scope: DHTReportScope,
     ) -> VeilidAPIResult<DHTRecordReport> {
@@ -1263,7 +1263,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "stor", skip(self, value))]
     fn update_callback_value_change(
         &self,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         subkeys: ValueSubkeyRangeSet,
         count: u32,
         value: Option<ValueData>,
@@ -1280,7 +1280,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "stor", skip_all)]
     fn check_fanout_set_offline(
         &self,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         subkey: ValueSubkey,
         fanout_result: &FanoutResult,
     ) -> bool {
@@ -1333,7 +1333,7 @@ impl StorageManager {
         schema: DHTSchema,
         owner: Option<KeyPair>,
         safety_selection: SafetySelection,
-    ) -> VeilidAPIResult<(TypedKey, KeyPair)> {
+    ) -> VeilidAPIResult<(TypedRecordKey, KeyPair)> {
         // Get cryptosystem
         let crypto = self.crypto();
         let Some(vcrypto) = crypto.get(kind) else {
@@ -1392,7 +1392,7 @@ impl StorageManager {
     async fn move_remote_record_to_local_inner(
         &self,
         inner: &mut StorageManagerInner,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         safety_selection: SafetySelection,
     ) -> VeilidAPIResult<Option<(PublicKey, DHTSchema)>> {
         // Get local record store
@@ -1467,7 +1467,7 @@ impl StorageManager {
     pub async fn open_existing_record_inner(
         &self,
         inner: &mut StorageManagerInner,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         writer: Option<KeyPair>,
         safety_selection: SafetySelection,
     ) -> VeilidAPIResult<Option<DHTRecordDescriptor>> {
@@ -1534,7 +1534,7 @@ impl StorageManager {
     pub async fn open_new_record_inner(
         &self,
         inner: &mut StorageManagerInner,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         writer: Option<KeyPair>,
         inspect_result: InspectResult,
         safety_selection: SafetySelection,
@@ -1591,7 +1591,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub async fn get_value_nodes(
         &self,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
     ) -> VeilidAPIResult<Option<Vec<NodeRef>>> {
         let inner = self.inner.lock().await;
         // Get local record store
@@ -1609,7 +1609,7 @@ impl StorageManager {
                 .copied()
                 .filter_map(|x| {
                     routing_table
-                        .lookup_node_ref(TypedKey::new(record_key.kind, x))
+                        .lookup_node_ref(TypedPublicKey::new(record_key.kind, x))
                         .ok()
                         .flatten()
                 })
@@ -1625,7 +1625,7 @@ impl StorageManager {
     >(
         inner: &mut StorageManagerInner,
         vcrypto: &CryptoSystemGuard<'_>,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         subkey_results_iter: I,
         is_set: bool,
         consensus_count: usize,
@@ -1665,8 +1665,10 @@ impl StorageManager {
                     return res;
                 }
                 // Distance is the next metric, closer nodes first
-                let da = vcrypto.distance(&a.0, &record_key.value);
-                let db = vcrypto.distance(&b.0, &record_key.value);
+                let da =
+                    vcrypto.distance(&HashDigest::from(a.0), &HashDigest::from(record_key.value));
+                let db =
+                    vcrypto.distance(&HashDigest::from(b.0), &HashDigest::from(record_key.value));
                 da.cmp(&db)
             });
 
@@ -1678,7 +1680,7 @@ impl StorageManager {
 
     fn close_record_inner(
         inner: &mut StorageManagerInner,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
     ) -> VeilidAPIResult<()> {
         let Some(local_record_store) = inner.local_record_store.as_mut() else {
             apibail_not_initialized!();
@@ -1701,7 +1703,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "stor", skip_all, err)]
     async fn handle_get_local_value_inner(
         inner: &mut StorageManagerInner,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         subkey: ValueSubkey,
         want_descriptor: bool,
     ) -> VeilidAPIResult<GetResult> {
@@ -1725,7 +1727,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub(super) async fn handle_set_local_value_inner(
         inner: &mut StorageManagerInner,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         subkey: ValueSubkey,
         signed_value_data: Arc<SignedValueData>,
         watch_update_mode: InboundWatchUpdateMode,
@@ -1747,7 +1749,7 @@ impl StorageManager {
     pub(super) async fn handle_inspect_local_value_inner(
         &self,
         inner: &mut StorageManagerInner,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         subkeys: ValueSubkeyRangeSet,
         want_descriptor: bool,
     ) -> VeilidAPIResult<InspectResult> {
@@ -1775,7 +1777,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub(super) async fn handle_get_remote_value_inner(
         inner: &mut StorageManagerInner,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         subkey: ValueSubkey,
         want_descriptor: bool,
     ) -> VeilidAPIResult<GetResult> {
@@ -1799,7 +1801,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub(super) async fn handle_set_remote_value_inner(
         inner: &mut StorageManagerInner,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         subkey: ValueSubkey,
         signed_value_data: Arc<SignedValueData>,
         signed_value_descriptor: Arc<SignedValueDescriptor>,
@@ -1838,7 +1840,7 @@ impl StorageManager {
     pub(super) async fn handle_inspect_remote_value_inner(
         &self,
         inner: &mut StorageManagerInner,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         subkeys: ValueSubkeyRangeSet,
         want_descriptor: bool,
     ) -> VeilidAPIResult<InspectResult> {
@@ -1867,19 +1869,19 @@ impl StorageManager {
         vcrypto: &CryptoSystemGuard<'_>,
         owner_key: &PublicKey,
         schema_data: &[u8],
-    ) -> TypedKey {
+    ) -> TypedRecordKey {
         let mut hash_data = Vec::<u8>::with_capacity(PUBLIC_KEY_LENGTH + 4 + schema_data.len());
         hash_data.extend_from_slice(&vcrypto.kind().0);
         hash_data.extend_from_slice(&owner_key.bytes);
         hash_data.extend_from_slice(schema_data);
         let hash = vcrypto.generate_hash(&hash_data);
-        TypedKey::new(vcrypto.kind(), hash)
+        TypedRecordKey::new(vcrypto.kind(), RecordKey::from(hash))
     }
 
     #[instrument(level = "trace", target = "stor", skip_all)]
     pub(super) fn add_offline_subkey_write_inner(
         inner: &mut StorageManagerInner,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         subkey: ValueSubkey,
         safety_selection: SafetySelection,
     ) {

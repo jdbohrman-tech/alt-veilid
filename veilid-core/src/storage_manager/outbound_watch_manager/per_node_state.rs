@@ -5,9 +5,9 @@ impl_veilid_log_facility!("stor");
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub(in crate::storage_manager) struct PerNodeKey {
     /// Watched record key
-    pub record_key: TypedKey,
+    pub record_key: TypedRecordKey,
     /// Watching node id
-    pub node_id: TypedKey,
+    pub node_id: TypedPublicKey,
 }
 
 impl fmt::Display for PerNodeKey {
@@ -23,8 +23,8 @@ impl FromStr for PerNodeKey {
             .split_once('@')
             .ok_or_else(|| VeilidAPIError::parse_error("invalid per-node key", s))?;
         Ok(PerNodeKey {
-            record_key: TypedKey::from_str(rkey)?,
-            node_id: TypedKey::from_str(nid)?,
+            record_key: TypedRecordKey::from_str(rkey)?,
+            node_id: TypedPublicKey::from_str(nid)?,
         })
     }
 }

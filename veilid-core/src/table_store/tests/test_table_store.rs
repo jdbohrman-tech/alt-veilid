@@ -196,7 +196,7 @@ pub async fn test_json(vcrypto: &AsyncCryptoSystemGuard<'_>, ts: &TableStore) {
     );
 
     assert!(
-        db.load_json::<TypedKey>(1, b"foo").await.is_err(),
+        db.load_json::<TypedPublicKey>(1, b"foo").await.is_err(),
         "should fail to unfreeze"
     );
 }

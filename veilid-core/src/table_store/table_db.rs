@@ -150,7 +150,7 @@ impl TableDB {
             vcrypto.crypt_b2b_no_auth(
                 &data,
                 encout,
-                (nonce as &[u8]).try_into().unwrap(),
+                &Nonce::try_from(&nonce[0..NONCE_LENGTH]).unwrap(),
                 &ei.typed_key.value,
             );
             out
@@ -175,7 +175,7 @@ impl TableDB {
             vcrypto.crypt_b2b_no_auth(
                 &data[NONCE_LENGTH..],
                 &mut out,
-                (&data[0..NONCE_LENGTH]).try_into().unwrap(),
+                &Nonce::try_from(&data[0..NONCE_LENGTH]).unwrap(),
                 &di.typed_key.value,
             );
             decompress_size_prepended(&out, None)

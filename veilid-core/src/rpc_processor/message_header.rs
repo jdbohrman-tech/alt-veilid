@@ -72,7 +72,7 @@ impl MessageHeader {
             RPCMessageHeaderDetail::PrivateRouted(p) => p.direct.routing_domain,
         }
     }
-    pub fn direct_sender_node_id(&self) -> TypedKey {
+    pub fn direct_sender_node_id(&self) -> TypedPublicKey {
         match &self.detail {
             RPCMessageHeaderDetail::Direct(d) => d.envelope.get_sender_typed_id(),
             RPCMessageHeaderDetail::SafetyRouted(s) => s.direct.envelope.get_sender_typed_id(),

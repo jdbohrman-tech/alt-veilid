@@ -21,7 +21,7 @@ enum OfflineSubkeyWriteResult {
 
 #[derive(Debug)]
 struct WorkItem {
-    record_key: TypedKey,
+    record_key: TypedRecordKey,
     safety_selection: SafetySelection,
     subkeys: ValueSubkeyRangeSet,
 }
@@ -39,7 +39,7 @@ impl StorageManager {
     async fn write_single_offline_subkey(
         &self,
         stop_token: StopToken,
-        key: TypedKey,
+        key: TypedRecordKey,
         subkey: ValueSubkey,
         safety_selection: SafetySelection,
     ) -> EyreResult<OfflineSubkeyWriteResult> {

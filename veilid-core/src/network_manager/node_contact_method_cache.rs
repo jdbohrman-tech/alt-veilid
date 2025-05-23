@@ -4,7 +4,7 @@ pub const NODE_CONTACT_METHOD_CACHE_SIZE: usize = 1024;
 
 #[derive(Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Hash)]
 pub struct NodeContactMethodCacheKey {
-    pub node_ids: TypedKeyGroup,
+    pub node_ids: TypedPublicKeyGroup,
     pub own_node_info_ts: Timestamp,
     pub target_node_info_ts: Timestamp,
     pub target_node_ref_filter: NodeRefFilter,

@@ -30,7 +30,7 @@ impl RPCProcessor {
     pub async fn rpc_call_set_value(
         &self,
         dest: Destination,
-        key: TypedKey,
+        key: TypedRecordKey,
         subkey: ValueSubkey,
         value: SignedValueData,
         descriptor: SignedValueDescriptor,
@@ -154,7 +154,12 @@ impl RPCProcessor {
         }
 
         // Validate peers returned are, in fact, closer to the key than the node we sent this to
-        let valid = match RoutingTable::verify_peers_closer(&vcrypto, target_node_id, key, &peers) {
+        let valid = match RoutingTable::verify_peers_closer(
+            &vcrypto,
+            target_node_id.into(),
+            key.into(),
+            &peers,
+        ) {
             Ok(v) => v,
             Err(e) => {
                 return Ok(NetworkResult::invalid_message(format!(

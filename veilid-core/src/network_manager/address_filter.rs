@@ -30,7 +30,7 @@ struct AddressFilterInner {
     conn_timestamps_by_ip6_prefix: BTreeMap<Ipv6Addr, Vec<Timestamp>>,
     punishments_by_ip4: BTreeMap<Ipv4Addr, Punishment>,
     punishments_by_ip6_prefix: BTreeMap<Ipv6Addr, Punishment>,
-    punishments_by_node_id: BTreeMap<TypedKey, Punishment>,
+    punishments_by_node_id: BTreeMap<TypedPublicKey, Punishment>,
     dial_info_failures: BTreeMap<DialInfo, Timestamp>,
 }
 
@@ -178,7 +178,7 @@ impl AddressFilter {
         }
         // node id
         {
-            let mut dead_keys = Vec::<TypedKey>::new();
+            let mut dead_keys = Vec::<TypedPublicKey>::new();
             for (key, value) in &mut inner.punishments_by_node_id {
                 // Drop punishments older than the punishment duration
                 if cur_ts.as_u64().saturating_sub(value.timestamp.as_u64())
@@ -297,19 +297,23 @@ impl AddressFilter {
         };
     }
 
-    fn is_node_id_punished_inner(&self, inner: &AddressFilterInner, node_id: TypedKey) -> bool {
+    fn is_node_id_punished_inner(
+        &self,
+        inner: &AddressFilterInner,
+        node_id: TypedPublicKey,
+    ) -> bool {
         if inner.punishments_by_node_id.contains_key(&node_id) {
             return true;
         }
         false
     }
 
-    pub fn is_node_id_punished(&self, node_id: TypedKey) -> bool {
+    pub fn is_node_id_punished(&self, node_id: TypedPublicKey) -> bool {
         let inner = self.inner.lock();
         self.is_node_id_punished_inner(&inner, node_id)
     }
 
-    pub fn punish_node_id(&self, node_id: TypedKey, reason: PunishmentReason) {
+    pub fn punish_node_id(&self, node_id: TypedPublicKey, reason: PunishmentReason) {
         if let Ok(Some(nr)) = self.routing_table().lookup_node_ref(node_id) {
             // make the entry dead if it's punished
             nr.operate_mut(|_rti, e| e.set_punished(Some(reason)));

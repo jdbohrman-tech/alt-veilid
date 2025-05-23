@@ -28,7 +28,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "dht", skip_all, err)]
     pub(super) async fn outbound_get_value(
         &self,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         subkey: ValueSubkey,
         safety_selection: SafetySelection,
         last_get_result: GetResult,
@@ -255,7 +255,7 @@ impl StorageManager {
                     let routing_table = registry.routing_table();
                     let fanout_call = FanoutCall::new(
                         &routing_table,
-                        record_key,
+                        record_key.into(),
                         key_count,
                         fanout,
                         consensus_count,
@@ -306,7 +306,7 @@ impl StorageManager {
     pub(super) fn process_deferred_outbound_get_value_result(
         &self,
         res_rx: flume::Receiver<Result<get_value::OutboundGetValueResult, VeilidAPIError>>,
-        key: TypedKey,
+        key: TypedRecordKey,
         subkey: ValueSubkey,
         last_seq: ValueSeqNum,
     ) {
@@ -358,7 +358,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "dht", skip_all)]
     pub(super) async fn process_outbound_get_value_result(
         &self,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         subkey: ValueSubkey,
         opt_last_seq: Option<u32>,
         result: get_value::OutboundGetValueResult,
@@ -406,7 +406,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "dht", skip_all)]
     pub async fn inbound_get_value(
         &self,
-        key: TypedKey,
+        key: TypedRecordKey,
         subkey: ValueSubkey,
         want_descriptor: bool,
     ) -> VeilidAPIResult<NetworkResult<GetResult>> {

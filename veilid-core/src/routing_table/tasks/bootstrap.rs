@@ -62,7 +62,7 @@ impl RoutingTable {
             }));
         }
 
-        let mut bootstrapped_peer_id_set = HashSet::<TypedKey>::new();
+        let mut bootstrapped_peer_id_set = HashSet::<TypedPublicKey>::new();
         let mut bootstrapped_peers = vec![];
         loop {
             match unord.next().timeout_at(stop_token.clone()).await {

@@ -39,7 +39,7 @@ pub fn decode_peer_info(
         .reborrow()
         .get_signed_node_info()
         .map_err(RPCError::protocol)?;
-    let mut node_ids = TypedKeyGroup::with_capacity(nids_reader.len() as usize);
+    let mut node_ids = TypedPublicKeyGroup::with_capacity(nids_reader.len() as usize);
     for nid_reader in nids_reader.iter() {
         node_ids.add(decode_typed_key(&nid_reader)?);
     }

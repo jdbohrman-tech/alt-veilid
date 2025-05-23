@@ -4,7 +4,7 @@ impl_veilid_log_facility!("net");
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BootstrapRecord {
-    node_ids: TypedKeyGroup,
+    node_ids: TypedPublicKeyGroup,
     envelope_support: Vec<u8>,
     dial_info_details: Vec<DialInfoDetail>,
     timestamp_secs: Option<u64>,
@@ -13,7 +13,7 @@ pub struct BootstrapRecord {
 
 impl BootstrapRecord {
     pub fn new(
-        node_ids: TypedKeyGroup,
+        node_ids: TypedPublicKeyGroup,
         mut envelope_support: Vec<u8>,
         mut dial_info_details: Vec<DialInfoDetail>,
         timestamp_secs: Option<u64>,
@@ -31,7 +31,7 @@ impl BootstrapRecord {
         }
     }
 
-    pub fn node_ids(&self) -> &TypedKeyGroup {
+    pub fn node_ids(&self) -> &TypedPublicKeyGroup {
         &self.node_ids
     }
     pub fn envelope_support(&self) -> &[u8] {
@@ -226,7 +226,7 @@ impl BootstrapRecord {
         network_manager: &NetworkManager,
         dial_info_converter: &dyn DialInfoConverter,
         record_str: &str,
-        signing_keys: &[TypedKey],
+        signing_keys: &[TypedPublicKey],
     ) -> EyreResult<Option<BootstrapRecord>> {
         // All formats split on '|' character
         let fields: Vec<String> = record_str
@@ -309,10 +309,10 @@ impl BootstrapRecord {
         envelope_support.dedup();
 
         // Node Id
-        let mut node_ids = TypedKeyGroup::new();
+        let mut node_ids = TypedPublicKeyGroup::new();
         for node_id_str in fields[2].split(',') {
             let node_id_str = node_id_str.trim();
-            let node_id = match TypedKey::from_str(node_id_str) {
+            let node_id = match TypedPublicKey::from_str(node_id_str) {
                 Ok(v) => v,
                 Err(e) => {
                     bail!(
@@ -376,7 +376,7 @@ impl BootstrapRecord {
         dial_info_converter: &dyn DialInfoConverter,
         record_str: &str,
         fields: &[String],
-        signing_keys: &[TypedKey],
+        signing_keys: &[TypedPublicKey],
     ) -> EyreResult<Option<BootstrapRecord>> {
         if fields.len() < 7 {
             bail!("invalid number of fields in bootstrap v1 txt record");
@@ -432,10 +432,10 @@ impl BootstrapRecord {
         envelope_support.dedup();
 
         // Node Id
-        let mut node_ids = TypedKeyGroup::new();
+        let mut node_ids = TypedPublicKeyGroup::new();
         for node_id_str in fields[2].split(',') {
             let node_id_str = node_id_str.trim();
-            let node_id = match TypedKey::from_str(node_id_str) {
+            let node_id = match TypedPublicKey::from_str(node_id_str) {
                 Ok(v) => v,
                 Err(e) => {
                     bail!(

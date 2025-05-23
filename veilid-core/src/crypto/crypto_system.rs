@@ -26,11 +26,13 @@ pub trait CryptoSystem {
         domain: &[u8],
     ) -> VeilidAPIResult<SharedSecret> {
         let dh = self.compute_dh(key, secret)?;
-        Ok(self.generate_hash(&[&dh.bytes, domain, VEILID_DOMAIN_API].concat()))
+        Ok(SharedSecret::from(self.generate_hash(
+            &[&dh.bytes, domain, VEILID_DOMAIN_API].concat(),
+        )))
     }
     fn generate_keypair(&self) -> KeyPair;
     fn generate_hash(&self, data: &[u8]) -> HashDigest;
-    fn generate_hash_reader(&self, reader: &mut dyn std::io::Read) -> VeilidAPIResult<HashDigest>;
+    fn generate_hash_reader(&self, reader: &mut dyn std::io::Read) -> VeilidAPIResult<PublicKey>;
 
     // Validation
     fn validate_keypair(&self, key: &PublicKey, secret: &SecretKey) -> bool;
@@ -42,7 +44,7 @@ pub trait CryptoSystem {
     ) -> VeilidAPIResult<bool>;
 
     // Distance Metric
-    fn distance(&self, key1: &CryptoKey, key2: &CryptoKey) -> CryptoKeyDistance;
+    fn distance(&self, hash1: &HashDigest, hash2: &HashDigest) -> HashDistance;
 
     // Authentication
     fn sign(&self, key: &PublicKey, secret: &SecretKey, data: &[u8]) -> VeilidAPIResult<Signature>;
@@ -80,29 +82,24 @@ pub trait CryptoSystem {
     ) -> VeilidAPIResult<Vec<u8>>;
 
     // NoAuth Encrypt/Decrypt
-    fn crypt_in_place_no_auth(
-        &self,
-        body: &mut [u8],
-        nonce: &[u8; NONCE_LENGTH],
-        shared_secret: &SharedSecret,
-    );
+    fn crypt_in_place_no_auth(&self, body: &mut [u8], nonce: &Nonce, shared_secret: &SharedSecret);
     fn crypt_b2b_no_auth(
         &self,
         in_buf: &[u8],
         out_buf: &mut [u8],
-        nonce: &[u8; NONCE_LENGTH],
+        nonce: &Nonce,
         shared_secret: &SharedSecret,
     );
     fn crypt_no_auth_aligned_8(
         &self,
         body: &[u8],
-        nonce: &[u8; NONCE_LENGTH],
+        nonce: &Nonce,
         shared_secret: &SharedSecret,
     ) -> Vec<u8>;
     fn crypt_no_auth_unaligned(
         &self,
         body: &[u8],
-        nonce: &[u8; NONCE_LENGTH],
+        nonce: &Nonce,
         shared_secret: &SharedSecret,
     ) -> Vec<u8>;
 }

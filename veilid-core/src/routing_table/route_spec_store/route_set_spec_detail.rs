@@ -57,10 +57,10 @@ impl RouteSetSpecDetail {
     pub fn get_route_by_key(&self, key: &PublicKey) -> Option<&RouteSpecDetail> {
         self.route_set.get(key)
     }
-    pub fn get_route_set_keys(&self) -> TypedKeyGroup {
-        let mut tks = TypedKeyGroup::new();
+    pub fn get_route_set_keys(&self) -> TypedPublicKeyGroup {
+        let mut tks = TypedPublicKeyGroup::new();
         for (k, v) in &self.route_set {
-            tks.add(TypedKey::new(v.crypto_kind, *k));
+            tks.add(TypedPublicKey::new(v.crypto_kind, *k));
         }
         tks
     }
@@ -109,7 +109,7 @@ impl RouteSetSpecDetail {
             Sequencing::EnsureOrdered => self.can_do_sequenced,
         }
     }
-    pub fn contains_nodes(&self, nodes: &[TypedKey]) -> bool {
+    pub fn contains_nodes(&self, nodes: &[TypedPublicKey]) -> bool {
         for tk in nodes {
             for rsd in self.route_set.values() {
                 if rsd.crypto_kind == tk.kind && rsd.hops.contains(&tk.value) {

@@ -139,14 +139,14 @@ impl RouteSpecStoreCache {
     }
 
     /// calculate how many times a node with a particular node id set has been used anywhere in the path of our allocated routes
-    pub fn get_used_node_count(&self, node_ids: &TypedKeyGroup) -> usize {
+    pub fn get_used_node_count(&self, node_ids: &TypedPublicKeyGroup) -> usize {
         node_ids.iter().fold(0usize, |acc, k| {
             acc + self.used_nodes.get(&k.value).cloned().unwrap_or_default()
         })
     }
 
     /// calculate how many times a node with a particular node id set has been used at the end of the path of our allocated routes
-    pub fn get_used_end_node_count(&self, node_ids: &TypedKeyGroup) -> usize {
+    pub fn get_used_end_node_count(&self, node_ids: &TypedPublicKeyGroup) -> usize {
         node_ids.iter().fold(0usize, |acc, k| {
             acc + self
                 .used_end_nodes

@@ -4,9 +4,9 @@ use crate::*;
 use lazy_static::*;
 
 lazy_static! {
-    static ref BOGUS_KEY: TypedKey = TypedKey::from(CryptoTyped::new(
+    static ref BOGUS_KEY: TypedRecordKey = TypedRecordKey::from(CryptoTyped::new(
         CRYPTO_KIND_VLD0,
-        CryptoKey::new([0u8; 32])
+        RecordKey::new([0u8; 32])
     ));
 }
 

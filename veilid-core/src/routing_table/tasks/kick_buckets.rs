@@ -32,7 +32,7 @@ impl RoutingTable {
             };
             let sort = make_closest_node_id_sort(&crypto, our_node_id);
 
-            let mut closest_peers = BTreeSet::<CryptoKey>::new();
+            let mut closest_peers = BTreeSet::<PublicKey>::new();
             let mut closest_unreliable_count = 0usize;
             let mut closest_reliable_count = 0usize;
 

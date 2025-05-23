@@ -47,27 +47,27 @@ pub enum RoutingContextRequestOp {
     },
     OpenDhtRecord {
         #[schemars(with = "String")]
-        key: TypedKey,
+        key: TypedRecordKey,
         #[schemars(with = "Option<String>")]
         writer: Option<KeyPair>,
     },
     CloseDhtRecord {
         #[schemars(with = "String")]
-        key: TypedKey,
+        key: TypedRecordKey,
     },
     DeleteDhtRecord {
         #[schemars(with = "String")]
-        key: TypedKey,
+        key: TypedRecordKey,
     },
     GetDhtValue {
         #[schemars(with = "String")]
-        key: TypedKey,
+        key: TypedRecordKey,
         subkey: ValueSubkey,
         force_refresh: bool,
     },
     SetDhtValue {
         #[schemars(with = "String")]
-        key: TypedKey,
+        key: TypedRecordKey,
         subkey: ValueSubkey,
         #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
@@ -77,19 +77,19 @@ pub enum RoutingContextRequestOp {
     },
     WatchDhtValues {
         #[schemars(with = "String")]
-        key: TypedKey,
+        key: TypedRecordKey,
         subkeys: Option<ValueSubkeyRangeSet>,
         expiration: Option<Timestamp>,
         count: Option<u32>,
     },
     CancelDhtWatch {
         #[schemars(with = "String")]
-        key: TypedKey,
+        key: TypedRecordKey,
         subkeys: Option<ValueSubkeyRangeSet>,
     },
     InspectDhtRecord {
         #[schemars(with = "String")]
-        key: TypedKey,
+        key: TypedRecordKey,
         subkeys: Option<ValueSubkeyRangeSet>,
         #[schemars(default)]
         scope: DHTReportScope,

@@ -4,7 +4,7 @@ use super::*;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SignedRelayedNodeInfo {
     node_info: NodeInfo,
-    relay_ids: TypedKeyGroup,
+    relay_ids: TypedPublicKeyGroup,
     relay_info: SignedDirectNodeInfo,
     timestamp: Timestamp,
     signatures: Vec<TypedSignature>,
@@ -32,7 +32,7 @@ impl SignedRelayedNodeInfo {
     /// All signatures are stored however, as this can be passed to other nodes that may be able to validate those signatures.
     pub fn new(
         node_info: NodeInfo,
-        relay_ids: TypedKeyGroup,
+        relay_ids: TypedPublicKeyGroup,
         relay_info: SignedDirectNodeInfo,
         timestamp: Timestamp,
         signatures: Vec<TypedSignature>,
@@ -48,9 +48,9 @@ impl SignedRelayedNodeInfo {
 
     pub fn validate(
         &self,
-        node_ids: &TypedKeyGroup,
+        node_ids: &TypedPublicKeyGroup,
         crypto: &Crypto,
-    ) -> VeilidAPIResult<TypedKeyGroup> {
+    ) -> VeilidAPIResult<TypedPublicKeyGroup> {
         // Ensure the relay info for the node has a superset of the crypto kinds of the node it is relaying
         if common_crypto_kinds(
             self.node_info.crypto_support(),
@@ -84,7 +84,7 @@ impl SignedRelayedNodeInfo {
         crypto: &Crypto,
         typed_key_pairs: Vec<TypedKeyPair>,
         node_info: NodeInfo,
-        relay_ids: TypedKeyGroup,
+        relay_ids: TypedPublicKeyGroup,
         relay_info: SignedDirectNodeInfo,
     ) -> VeilidAPIResult<Self> {
         let timestamp = Timestamp::now();
@@ -105,7 +105,7 @@ impl SignedRelayedNodeInfo {
 
     fn make_signature_bytes(
         node_info: &NodeInfo,
-        relay_ids: &[TypedKey],
+        relay_ids: &[TypedPublicKey],
         relay_info: &SignedDirectNodeInfo,
         timestamp: Timestamp,
     ) -> VeilidAPIResult<Vec<u8>> {
@@ -148,7 +148,7 @@ impl SignedRelayedNodeInfo {
     pub fn timestamp(&self) -> Timestamp {
         self.timestamp
     }
-    pub fn relay_ids(&self) -> &TypedKeyGroup {
+    pub fn relay_ids(&self) -> &TypedPublicKeyGroup {
         &self.relay_ids
     }
     pub fn relay_info(&self) -> &SignedDirectNodeInfo {

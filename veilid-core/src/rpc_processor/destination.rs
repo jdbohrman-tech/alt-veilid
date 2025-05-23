@@ -107,7 +107,7 @@ impl Destination {
         }
     }
 
-    pub fn get_target_node_ids(&self) -> Option<TypedKeyGroup> {
+    pub fn get_target_node_ids(&self) -> Option<TypedPublicKeyGroup> {
         match self {
             Destination::Direct {
                 node,

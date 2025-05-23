@@ -258,7 +258,7 @@ pub fn test_typed_convert(vcrypto: &AsyncCryptoSystemGuard<'_>) {
         "{}:7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ",
         vcrypto.kind()
     );
-    let tk1 = TypedKey::from_str(&tks1).expect("failed");
+    let tk1 = TypedPublicKey::from_str(&tks1).expect("failed");
     let tks1x = tk1.to_string();
     assert_eq!(tks1, tks1x);
 
@@ -266,27 +266,27 @@ pub fn test_typed_convert(vcrypto: &AsyncCryptoSystemGuard<'_>) {
         "{}:7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzd",
         vcrypto.kind()
     );
-    let _tk2 = TypedKey::from_str(&tks2).expect_err("succeeded when it shouldnt have");
+    let _tk2 = TypedPublicKey::from_str(&tks2).expect_err("succeeded when it shouldnt have");
 
     let tks3 = "XXXX:7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ".to_string();
-    let tk3 = TypedKey::from_str(&tks3).expect("failed");
+    let tk3 = TypedPublicKey::from_str(&tks3).expect("failed");
     let tks3x = tk3.to_string();
     assert_eq!(tks3, tks3x);
 
     let tks4 = "XXXX:7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzd".to_string();
-    let _tk4 = TypedKey::from_str(&tks4).expect_err("succeeded when it shouldnt have");
+    let _tk4 = TypedPublicKey::from_str(&tks4).expect_err("succeeded when it shouldnt have");
 
     let tks5 = "XXX:7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ".to_string();
-    let _tk5 = TypedKey::from_str(&tks5).expect_err("succeeded when it shouldnt have");
+    let _tk5 = TypedPublicKey::from_str(&tks5).expect_err("succeeded when it shouldnt have");
 
     let tks6 = "7lxDEabK_qgjbe38RtBa3IZLrud84P6NhGP-pRTZzdQ".to_string();
-    let tk6 = TypedKey::from_str(&tks6).expect("failed");
+    let tk6 = TypedPublicKey::from_str(&tks6).expect("failed");
     let tks6x = tk6.to_string();
     assert!(tks6x.ends_with(&tks6));
 }
 
 async fn test_hash(vcrypto: &AsyncCryptoSystemGuard<'_>) {
-    let mut s = BTreeSet::<PublicKey>::new();
+    let mut s = BTreeSet::<HashDigest>::new();
 
     let k1 = vcrypto.generate_hash("abc".as_bytes()).await;
     let k2 = vcrypto.generate_hash("abcd".as_bytes()).await;
@@ -381,24 +381,24 @@ async fn test_operations(vcrypto: &AsyncCryptoSystemGuard<'_>) {
     assert_eq!(d4.first_nonzero_bit(), Some(0));
 }
 
-pub fn test_crypto_key_ordering() {
-    let k1 = CryptoKey::new([
+pub fn test_public_key_ordering() {
+    let k1 = PublicKey::new([
         128, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0,
     ]);
-    let k2 = CryptoKey::new([
+    let k2 = PublicKey::new([
         1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0,
     ]);
-    let k3 = CryptoKey::new([
+    let k3 = PublicKey::new([
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 128,
     ]);
-    let k4 = CryptoKey::new([
+    let k4 = PublicKey::new([
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 1,
     ]);
-    let k5 = CryptoKey::new([
+    let k5 = PublicKey::new([
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0,
     ]);
@@ -413,7 +413,7 @@ pub async fn test_all() {
     let api = crypto_tests_startup().await;
     let crypto = api.crypto().unwrap();
 
-    test_crypto_key_ordering();
+    test_public_key_ordering();
 
     // Test versions
     for v in VALID_CRYPTO_KINDS {

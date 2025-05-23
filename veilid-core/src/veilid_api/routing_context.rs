@@ -9,7 +9,7 @@ impl_veilid_log_facility!("veilid_api");
 #[must_use]
 pub enum Target {
     /// Node by its public key.
-    NodeId(TypedKey),
+    NodeId(TypedPublicKey),
     /// Remote private route by its id.
     PrivateRoute(RouteId),
 }
@@ -300,7 +300,7 @@ impl RoutingContext {
         schema: DHTSchema,
         owner_key: &PublicKey,
         kind: Option<CryptoKind>,
-    ) -> VeilidAPIResult<TypedKey> {
+    ) -> VeilidAPIResult<TypedRecordKey> {
         veilid_log!(self debug
             "RoutingContext::get_dht_record_key(self: {:?}, schema: {:?}, owner_key: {:?}, kind: {:?})", self, schema, owner_key, kind);
         schema.validate()?;
@@ -358,7 +358,7 @@ impl RoutingContext {
     #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), ret, err)]
     pub async fn open_dht_record(
         &self,
-        key: TypedKey,
+        key: TypedRecordKey,
         default_writer: Option<KeyPair>,
     ) -> VeilidAPIResult<DHTRecordDescriptor> {
         veilid_log!(self debug
@@ -376,7 +376,7 @@ impl RoutingContext {
     ///
     /// Closing a record allows you to re-open it with a different routing context.
     #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), ret, err)]
-    pub async fn close_dht_record(&self, key: TypedKey) -> VeilidAPIResult<()> {
+    pub async fn close_dht_record(&self, key: TypedRecordKey) -> VeilidAPIResult<()> {
         veilid_log!(self debug
             "RoutingContext::close_dht_record(self: {:?}, key: {:?})", self, key);
 
@@ -392,7 +392,7 @@ impl RoutingContext {
     /// Deleting a record does not delete it from the network, but will remove the storage of the record
     /// locally, and will prevent its value from being refreshed on the network by this node.
     #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), ret, err)]
-    pub async fn delete_dht_record(&self, key: TypedKey) -> VeilidAPIResult<()> {
+    pub async fn delete_dht_record(&self, key: TypedRecordKey) -> VeilidAPIResult<()> {
         veilid_log!(self debug
             "RoutingContext::delete_dht_record(self: {:?}, key: {:?})", self, key);
 
@@ -411,7 +411,7 @@ impl RoutingContext {
     #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), ret, err)]
     pub async fn get_dht_value(
         &self,
-        key: TypedKey,
+        key: TypedRecordKey,
         subkey: ValueSubkey,
         force_refresh: bool,
     ) -> VeilidAPIResult<Option<ValueData>> {
@@ -434,7 +434,7 @@ impl RoutingContext {
     #[instrument(target = "veilid_api", level = "debug", skip(data), fields(__VEILID_LOG_KEY = self.log_key(), data = print_data(&data, Some(64))), ret, err)]
     pub async fn set_dht_value(
         &self,
-        key: TypedKey,
+        key: TypedRecordKey,
         subkey: ValueSubkey,
         data: Vec<u8>,
         writer: Option<KeyPair>,
@@ -476,7 +476,7 @@ impl RoutingContext {
     #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), ret, err)]
     pub async fn watch_dht_values(
         &self,
-        key: TypedKey,
+        key: TypedRecordKey,
         subkeys: Option<ValueSubkeyRangeSet>,
         expiration: Option<Timestamp>,
         count: Option<u32>,
@@ -508,7 +508,7 @@ impl RoutingContext {
     #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), ret, err)]
     pub async fn cancel_dht_watch(
         &self,
-        key: TypedKey,
+        key: TypedRecordKey,
         subkeys: Option<ValueSubkeyRangeSet>,
     ) -> VeilidAPIResult<bool> {
         veilid_log!(self debug
@@ -564,7 +564,7 @@ impl RoutingContext {
     #[instrument(target = "veilid_api", level = "debug", fields(__VEILID_LOG_KEY = self.log_key()), ret, err)]
     pub async fn inspect_dht_record(
         &self,
-        key: TypedKey,
+        key: TypedRecordKey,
         subkeys: Option<ValueSubkeyRangeSet>,
         scope: DHTReportScope,
     ) -> VeilidAPIResult<DHTRecordReport> {

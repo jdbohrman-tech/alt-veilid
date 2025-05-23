@@ -64,7 +64,7 @@ impl RPCProcessor {
         &self,
         routed_operation: RoutedOperation,
         next_route_node: RouteNode,
-        safety_route_public_key: TypedKey,
+        safety_route_public_key: TypedPublicKey,
         next_private_route: PrivateRoute,
     ) -> RPCNetworkResult<()> {
         // Make sure hop count makes sense
@@ -116,7 +116,7 @@ impl RPCProcessor {
         detail: RPCMessageHeaderDetailDirect,
         vcrypto: &CryptoSystemGuard<'_>,
         routed_operation: RoutedOperation,
-        remote_sr_pubkey: TypedKey,
+        remote_sr_pubkey: TypedPublicKey,
     ) -> RPCNetworkResult<()> {
         // Now that things are valid, decrypt the routed operation with DEC(nonce, DH(the SR's public key, the PR's (or node's) secret)
         // xxx: punish nodes that send messages that fail to decrypt eventually? How to do this for safety routes?
@@ -162,8 +162,8 @@ impl RPCProcessor {
         detail: RPCMessageHeaderDetailDirect,
         vcrypto: &CryptoSystemGuard<'_>,
         routed_operation: RoutedOperation,
-        remote_sr_pubkey: TypedKey,
-        pr_pubkey: TypedKey,
+        remote_sr_pubkey: TypedPublicKey,
+        pr_pubkey: TypedPublicKey,
     ) -> RPCNetworkResult<()> {
         // Get sender id of the peer with the crypto kind of the route
         let Some(sender_id) = detail.sender_noderef.node_ids().get(pr_pubkey.kind) else {
@@ -237,8 +237,8 @@ impl RPCProcessor {
         detail: RPCMessageHeaderDetailDirect,
         vcrypto: &CryptoSystemGuard<'_>,
         routed_operation: RoutedOperation,
-        remote_sr_pubkey: TypedKey,
-        pr_pubkey: TypedKey,
+        remote_sr_pubkey: TypedPublicKey,
+        pr_pubkey: TypedPublicKey,
     ) -> RPCNetworkResult<()> {
         // If the private route public key is our node id, then this was sent via safety route to our node directly
         // so there will be no signatures to validate
@@ -266,7 +266,7 @@ impl RPCProcessor {
     async fn process_private_route_first_hop(
         &self,
         mut routed_operation: RoutedOperation,
-        sr_pubkey: TypedKey,
+        sr_pubkey: TypedPublicKey,
         mut private_route: PrivateRoute,
     ) -> RPCNetworkResult<()> {
         let Some(pr_first_hop) = private_route.pop_first_hop() else {
@@ -331,7 +331,7 @@ impl RPCProcessor {
     fn decrypt_private_route_hop_data(
         &self,
         route_hop_data: &RouteHopData,
-        pr_pubkey: &TypedKey,
+        pr_pubkey: &TypedPublicKey,
         routed_operation: &mut RoutedOperation,
     ) -> RPCNetworkResult<RouteHop> {
         // Get crypto kind

@@ -18,11 +18,11 @@ pub fn test_dhtschema() {
             91,
             vec![
                 DHTSchemaSMPLMember {
-                    m_key: fix_cryptokey(),
+                    m_key: fix_publickey(),
                     m_cnt: 5,
                 },
                 DHTSchemaSMPLMember {
-                    m_key: fix_cryptokey(),
+                    m_key: fix_publickey(),
                     m_cnt: 6,
                 },
             ],
@@ -38,7 +38,7 @@ pub fn test_dhtschema() {
 
 pub fn test_dhtschemasmplmember() {
     let orig = DHTSchemaSMPLMember {
-        m_key: fix_cryptokey(),
+        m_key: fix_publickey(),
         m_cnt: 7,
     };
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();
@@ -51,11 +51,11 @@ pub fn test_dhtschemasmpl() {
         91,
         vec![
             DHTSchemaSMPLMember {
-                m_key: fix_cryptokey(),
+                m_key: fix_publickey(),
                 m_cnt: 8,
             },
             DHTSchemaSMPLMember {
-                m_key: fix_cryptokey(),
+                m_key: fix_publickey(),
                 m_cnt: 9,
             },
         ],

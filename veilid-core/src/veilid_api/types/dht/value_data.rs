@@ -95,11 +95,11 @@ mod tests {
 
     #[test]
     fn value_data_ok() {
-        assert!(ValueData::new(vec![0; ValueData::MAX_LEN], CryptoKey { bytes: [0; 32] }).is_ok());
+        assert!(ValueData::new(vec![0; ValueData::MAX_LEN], PublicKey { bytes: [0; 32] }).is_ok());
         assert!(ValueData::new_with_seq(
             0,
             vec![0; ValueData::MAX_LEN],
-            CryptoKey { bytes: [0; 32] }
+            PublicKey { bytes: [0; 32] }
         )
         .is_ok());
     }
@@ -108,13 +108,13 @@ mod tests {
     fn value_data_too_long() {
         assert!(ValueData::new(
             vec![0; ValueData::MAX_LEN + 1],
-            CryptoKey { bytes: [0; 32] }
+            PublicKey { bytes: [0; 32] }
         )
         .is_err());
         assert!(ValueData::new_with_seq(
             0,
             vec![0; ValueData::MAX_LEN + 1],
-            CryptoKey { bytes: [0; 32] }
+            PublicKey { bytes: [0; 32] }
         )
         .is_err());
     }

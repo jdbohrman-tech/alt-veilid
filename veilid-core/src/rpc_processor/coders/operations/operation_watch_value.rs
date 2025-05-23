@@ -5,7 +5,7 @@ const MAX_WATCH_VALUE_A_PEERS_LEN: usize = 20;
 
 #[derive(Debug, Clone)]
 pub(in crate::rpc_processor) struct RPCOperationWatchValueQ {
-    key: TypedKey,
+    key: TypedRecordKey,
     subkeys: ValueSubkeyRangeSet,
     expiration: u64,
     count: u32,
@@ -16,7 +16,7 @@ pub(in crate::rpc_processor) struct RPCOperationWatchValueQ {
 
 impl RPCOperationWatchValueQ {
     pub fn new(
-        key: TypedKey,
+        key: TypedRecordKey,
         subkeys: ValueSubkeyRangeSet,
         expiration: u64,
         count: u32,
@@ -51,7 +51,7 @@ impl RPCOperationWatchValueQ {
 
     // signature covers: key, subkeys, expiration, count, using watcher key
     fn make_signature_data(
-        key: &TypedKey,
+        key: &TypedRecordKey,
         subkeys: &ValueSubkeyRangeSet,
         expiration: u64,
         count: u32,
@@ -104,7 +104,7 @@ impl RPCOperationWatchValueQ {
     }
 
     #[expect(dead_code)]
-    pub fn key(&self) -> &TypedKey {
+    pub fn key(&self) -> &TypedRecordKey {
         &self.key
     }
 
@@ -139,7 +139,7 @@ impl RPCOperationWatchValueQ {
     pub fn destructure(
         self,
     ) -> (
-        TypedKey,
+        TypedRecordKey,
         ValueSubkeyRangeSet,
         u64,
         u32,
@@ -163,7 +163,7 @@ impl RPCOperationWatchValueQ {
         reader: &veilid_capnp::operation_watch_value_q::Reader,
     ) -> Result<Self, RPCError> {
         let k_reader = reader.get_key().map_err(RPCError::protocol)?;
-        let key = decode_typed_key(&k_reader)?;
+        let key = decode_typed_record_key(&k_reader)?;
 
         let sk_reader = reader.get_subkeys().map_err(RPCError::protocol)?;
         if sk_reader.len() as usize > MAX_WATCH_VALUE_Q_SUBKEY_RANGES_LEN {
@@ -215,7 +215,7 @@ impl RPCOperationWatchValueQ {
         builder: &mut veilid_capnp::operation_watch_value_q::Builder,
     ) -> Result<(), RPCError> {
         let mut k_builder = builder.reborrow().init_key();
-        encode_typed_key(&self.key, &mut k_builder);
+        encode_typed_record_key(&self.key, &mut k_builder);
 
         let mut sk_builder = builder.reborrow().init_subkeys(
             self.subkeys

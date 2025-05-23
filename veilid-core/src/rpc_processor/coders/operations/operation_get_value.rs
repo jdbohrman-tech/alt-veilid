@@ -22,13 +22,13 @@ impl fmt::Debug for ValidateGetValueContext {
 
 #[derive(Debug, Clone)]
 pub(in crate::rpc_processor) struct RPCOperationGetValueQ {
-    key: TypedKey,
+    key: TypedRecordKey,
     subkey: ValueSubkey,
     want_descriptor: bool,
 }
 
 impl RPCOperationGetValueQ {
-    pub fn new(key: TypedKey, subkey: ValueSubkey, want_descriptor: bool) -> Self {
+    pub fn new(key: TypedRecordKey, subkey: ValueSubkey, want_descriptor: bool) -> Self {
         Self {
             key,
             subkey,
@@ -48,7 +48,7 @@ impl RPCOperationGetValueQ {
     // pub fn want_descriptor(&self) -> bool {
     //     self.want_descriptor
     // }
-    pub fn destructure(self) -> (TypedKey, ValueSubkey, bool) {
+    pub fn destructure(self) -> (TypedRecordKey, ValueSubkey, bool) {
         (self.key, self.subkey, self.want_descriptor)
     }
 
@@ -57,7 +57,7 @@ impl RPCOperationGetValueQ {
         reader: &veilid_capnp::operation_get_value_q::Reader,
     ) -> Result<Self, RPCError> {
         let k_reader = reader.reborrow().get_key().map_err(RPCError::protocol)?;
-        let key = decode_typed_key(&k_reader)?;
+        let key = decode_typed_record_key(&k_reader)?;
         let subkey = reader.reborrow().get_subkey();
         let want_descriptor = reader.reborrow().get_want_descriptor();
         Ok(Self {
@@ -71,7 +71,7 @@ impl RPCOperationGetValueQ {
         builder: &mut veilid_capnp::operation_get_value_q::Builder,
     ) -> Result<(), RPCError> {
         let mut k_builder = builder.reborrow().init_key();
-        encode_typed_key(&self.key, &mut k_builder);
+        encode_typed_record_key(&self.key, &mut k_builder);
         builder.set_subkey(self.subkey);
         builder.set_want_descriptor(self.want_descriptor);
         Ok(())

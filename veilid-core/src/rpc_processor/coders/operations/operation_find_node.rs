@@ -4,12 +4,12 @@ const MAX_FIND_NODE_A_PEERS_LEN: usize = 20;
 
 #[derive(Debug, Clone)]
 pub(in crate::rpc_processor) struct RPCOperationFindNodeQ {
-    node_id: TypedKey,
+    node_id: TypedPublicKey,
     capabilities: Vec<Capability>,
 }
 
 impl RPCOperationFindNodeQ {
-    pub fn new(node_id: TypedKey, capabilities: Vec<Capability>) -> Self {
+    pub fn new(node_id: TypedPublicKey, capabilities: Vec<Capability>) -> Self {
         Self {
             node_id,
             capabilities,
@@ -26,7 +26,7 @@ impl RPCOperationFindNodeQ {
     //     &self.capabilities
     // }
 
-    pub fn destructure(self) -> (TypedKey, Vec<Capability>) {
+    pub fn destructure(self) -> (TypedPublicKey, Vec<Capability>) {
         (self.node_id, self.capabilities)
     }
 

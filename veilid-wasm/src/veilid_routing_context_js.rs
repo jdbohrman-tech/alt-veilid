@@ -258,7 +258,7 @@ impl VeilidRoutingContext {
         key: String,
         default_writer: Option<String>,
     ) -> APIResult<DHTRecordDescriptor> {
-        let key = TypedKey::from_str(&key)?;
+        let key = TypedRecordKey::from_str(&key)?;
         let default_writer = default_writer
             .map(|default_writer| KeyPair::from_str(&default_writer))
             .map_or(APIResult::Ok(None), |r| r.map(Some))?;
@@ -272,7 +272,7 @@ impl VeilidRoutingContext {
     ///
     /// Closing a record allows you to re-open it with a different routing context
     pub async fn closeDhtRecord(&self, key: String) -> APIResult<()> {
-        let key = TypedKey::from_str(&key)?;
+        let key = TypedRecordKey::from_str(&key)?;
         let routing_context = self.getRoutingContext()?;
         routing_context.close_dht_record(key).await?;
         APIRESULT_UNDEFINED
@@ -284,7 +284,7 @@ impl VeilidRoutingContext {
     /// Deleting a record does not delete it from the network, but will remove the storage of the record
     /// locally, and will prevent its value from being refreshed on the network by this node.
     pub async fn deleteDhtRecord(&self, key: String) -> APIResult<()> {
-        let key = TypedKey::from_str(&key)?;
+        let key = TypedRecordKey::from_str(&key)?;
         let routing_context = self.getRoutingContext()?;
         routing_context.delete_dht_record(key).await?;
         APIRESULT_UNDEFINED
@@ -302,7 +302,7 @@ impl VeilidRoutingContext {
         subkey: u32,
         forceRefresh: bool,
     ) -> APIResult<Option<ValueData>> {
-        let key = TypedKey::from_str(&key)?;
+        let key = TypedRecordKey::from_str(&key)?;
         let routing_context = self.getRoutingContext()?;
         let res = routing_context
             .get_dht_value(key, subkey, forceRefresh)
@@ -324,7 +324,7 @@ impl VeilidRoutingContext {
         data: Box<[u8]>,
         writer: Option<String>,
     ) -> APIResult<Option<ValueData>> {
-        let key = TypedKey::from_str(&key)?;
+        let key = TypedRecordKey::from_str(&key)?;
         let data = data.into_vec();
         let writer = writer
             .map(|writer| KeyPair::from_str(&writer))
@@ -369,7 +369,7 @@ impl VeilidRoutingContext {
         expiration: Option<String>,
         count: Option<u32>,
     ) -> APIResult<bool> {
-        let key = TypedKey::from_str(&key)?;
+        let key = TypedRecordKey::from_str(&key)?;
         let expiration = if let Some(expiration) = expiration {
             Some(veilid_core::Timestamp::new(
                 u64::from_str(&expiration).map_err(VeilidAPIError::generic)?,
@@ -399,7 +399,7 @@ impl VeilidRoutingContext {
         key: String,
         subkeys: Option<ValueSubkeyRangeSet>,
     ) -> APIResult<bool> {
-        let key = TypedKey::from_str(&key)?;
+        let key = TypedRecordKey::from_str(&key)?;
         let routing_context = self.getRoutingContext()?;
         let res = routing_context.cancel_dht_watch(key, subkeys).await?;
         APIResult::Ok(res)
@@ -450,7 +450,7 @@ impl VeilidRoutingContext {
         subkeys: Option<ValueSubkeyRangeSet>,
         scope: Option<DHTReportScope>,
     ) -> APIResult<DHTRecordReport> {
-        let key = TypedKey::from_str(&key)?;
+        let key = TypedRecordKey::from_str(&key)?;
         let scope = scope.unwrap_or_default();
 
         let routing_context = self.getRoutingContext()?;

@@ -40,10 +40,10 @@ pub fn vld0_generate_keypair() -> KeyPair {
     let mut csprng = VeilidRng {};
     let signing_key = ed::SigningKey::generate(&mut csprng);
     let verifying_key = signing_key.verifying_key();
-    let dht_key = PublicKey::new(verifying_key.to_bytes());
-    let dht_key_secret = SecretKey::new(signing_key.to_bytes());
+    let public_key = PublicKey::new(verifying_key.to_bytes());
+    let secret_key = SecretKey::new(signing_key.to_bytes());
 
-    KeyPair::new(dht_key, dht_key_secret)
+    KeyPair::new(public_key, secret_key)
 }
 
 /// V0 CryptoSystem
@@ -163,8 +163,8 @@ impl CryptoSystem for CryptoSystemVLD0 {
     }
 
     #[instrument(level = "trace", target = "crypto", skip_all)]
-    fn generate_hash(&self, data: &[u8]) -> PublicKey {
-        PublicKey::new(*blake3::hash(data).as_bytes())
+    fn generate_hash(&self, data: &[u8]) -> HashDigest {
+        HashDigest::new(*blake3::hash(data).as_bytes())
     }
 
     #[instrument(level = "trace", target = "crypto", skip_all)]
@@ -176,61 +176,61 @@ impl CryptoSystem for CryptoSystemVLD0 {
 
     // Validation
     #[instrument(level = "trace", target = "crypto", skip_all)]
-    fn validate_keypair(&self, dht_key: &PublicKey, dht_key_secret: &SecretKey) -> bool {
+    fn validate_keypair(&self, public_key: &PublicKey, secret_key: &SecretKey) -> bool {
         let data = vec![0u8; 512];
-        let Ok(sig) = self.sign(dht_key, dht_key_secret, &data) else {
+        let Ok(sig) = self.sign(public_key, secret_key, &data) else {
             return false;
         };
-        let Ok(v) = self.verify(dht_key, &data, &sig) else {
+        let Ok(v) = self.verify(public_key, &data, &sig) else {
             return false;
         };
         v
     }
 
     #[instrument(level = "trace", target = "crypto", skip_all)]
-    fn validate_hash(&self, data: &[u8], dht_key: &PublicKey) -> bool {
+    fn validate_hash(&self, data: &[u8], hash_digest: &HashDigest) -> bool {
         let bytes = *blake3::hash(data).as_bytes();
 
-        bytes == dht_key.bytes
+        bytes == hash_digest.bytes
     }
 
     #[instrument(level = "trace", target = "crypto", skip_all)]
     fn validate_hash_reader(
         &self,
         reader: &mut dyn std::io::Read,
-        dht_key: &PublicKey,
+        hash_digest: &HashDigest,
     ) -> VeilidAPIResult<bool> {
         let mut hasher = blake3::Hasher::new();
         std::io::copy(reader, &mut hasher).map_err(VeilidAPIError::generic)?;
         let bytes = *hasher.finalize().as_bytes();
-        Ok(bytes == dht_key.bytes)
+        Ok(bytes == hash_digest.bytes)
     }
 
     // Distance Metric
     #[instrument(level = "trace", target = "crypto", skip_all)]
-    fn distance(&self, key1: &PublicKey, key2: &PublicKey) -> CryptoKeyDistance {
+    fn distance(&self, hash1: &HashDigest, hash2: &HashDigest) -> HashDistance {
         let mut bytes = [0u8; CRYPTO_KEY_LENGTH];
 
         (0..CRYPTO_KEY_LENGTH).for_each(|n| {
-            bytes[n] = key1.bytes[n] ^ key2.bytes[n];
+            bytes[n] = hash1.bytes[n] ^ hash2.bytes[n];
         });
 
-        CryptoKeyDistance::new(bytes)
+        HashDistance::new(bytes)
     }
 
     // Authentication
     #[instrument(level = "trace", target = "crypto", skip_all)]
     fn sign(
         &self,
-        dht_key: &PublicKey,
-        dht_key_secret: &SecretKey,
+        public_key: &PublicKey,
+        secret_key: &SecretKey,
         data: &[u8],
     ) -> VeilidAPIResult<Signature> {
         let mut kpb: [u8; SECRET_KEY_LENGTH + PUBLIC_KEY_LENGTH] =
             [0u8; SECRET_KEY_LENGTH + PUBLIC_KEY_LENGTH];
 
-        kpb[..SECRET_KEY_LENGTH].copy_from_slice(&dht_key_secret.bytes);
-        kpb[SECRET_KEY_LENGTH..].copy_from_slice(&dht_key.bytes);
+        kpb[..SECRET_KEY_LENGTH].copy_from_slice(&secret_key.bytes);
+        kpb[SECRET_KEY_LENGTH..].copy_from_slice(&public_key.bytes);
         let keypair = ed::SigningKey::from_keypair_bytes(&kpb)
             .map_err(|e| VeilidAPIError::parse_error("Keypair is invalid", e))?;
 
@@ -243,7 +243,7 @@ impl CryptoSystem for CryptoSystemVLD0 {
 
         let sig = Signature::new(sig_bytes.to_bytes());
 
-        if !self.verify(dht_key, data, &sig)? {
+        if !self.verify(public_key, data, &sig)? {
             apibail_internal!("newly created signature does not verify");
         }
 
@@ -252,11 +252,11 @@ impl CryptoSystem for CryptoSystemVLD0 {
     #[instrument(level = "trace", target = "crypto", skip_all)]
     fn verify(
         &self,
-        dht_key: &PublicKey,
+        public_key: &PublicKey,
         data: &[u8],
         signature: &Signature,
     ) -> VeilidAPIResult<bool> {
-        let pk = ed::VerifyingKey::from_bytes(&dht_key.bytes)
+        let pk = ed::VerifyingKey::from_bytes(&public_key.bytes)
             .map_err(|e| VeilidAPIError::parse_error("Public key is invalid", e))?;
         let sig = ed::Signature::from_bytes(&signature.bytes);
 
@@ -342,13 +342,9 @@ impl CryptoSystem for CryptoSystemVLD0 {
 
     // NoAuth Encrypt/Decrypt
     #[instrument(level = "trace", target = "crypto", skip_all)]
-    fn crypt_in_place_no_auth(
-        &self,
-        body: &mut [u8],
-        nonce: &[u8; NONCE_LENGTH],
-        shared_secret: &SharedSecret,
-    ) {
-        let mut cipher = <XChaCha20 as KeyIvInit>::new(&shared_secret.bytes.into(), nonce.into());
+    fn crypt_in_place_no_auth(&self, body: &mut [u8], nonce: &Nonce, shared_secret: &SharedSecret) {
+        let mut cipher =
+            <XChaCha20 as KeyIvInit>::new(&shared_secret.bytes.into(), &nonce.bytes.into());
         cipher.apply_keystream(body);
     }
 
@@ -357,10 +353,11 @@ impl CryptoSystem for CryptoSystemVLD0 {
         &self,
         in_buf: &[u8],
         out_buf: &mut [u8],
-        nonce: &[u8; NONCE_LENGTH],
+        nonce: &Nonce,
         shared_secret: &SharedSecret,
     ) {
-        let mut cipher = <XChaCha20 as KeyIvInit>::new(&shared_secret.bytes.into(), nonce.into());
+        let mut cipher =
+            <XChaCha20 as KeyIvInit>::new(&shared_secret.bytes.into(), &nonce.bytes.into());
         cipher.apply_keystream_b2b(in_buf, out_buf).unwrap();
     }
 
@@ -368,7 +365,7 @@ impl CryptoSystem for CryptoSystemVLD0 {
     fn crypt_no_auth_aligned_8(
         &self,
         in_buf: &[u8],
-        nonce: &[u8; NONCE_LENGTH],
+        nonce: &Nonce,
         shared_secret: &SharedSecret,
     ) -> Vec<u8> {
         let mut out_buf = unsafe { aligned_8_u8_vec_uninit(in_buf.len()) };
@@ -380,7 +377,7 @@ impl CryptoSystem for CryptoSystemVLD0 {
     fn crypt_no_auth_unaligned(
         &self,
         in_buf: &[u8],
-        nonce: &[u8; NONCE_LENGTH],
+        nonce: &Nonce,
         shared_secret: &SharedSecret,
     ) -> Vec<u8> {
         let mut out_buf = unsafe { unaligned_u8_vec_uninit(in_buf.len()) };

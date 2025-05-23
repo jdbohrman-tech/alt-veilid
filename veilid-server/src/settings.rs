@@ -698,10 +698,10 @@ pub struct Dht {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RoutingTable {
-    pub node_id: Option<veilid_core::TypedKeyGroup>,
-    pub node_id_secret: Option<veilid_core::TypedSecretGroup>,
+    pub node_id: Option<veilid_core::TypedPublicKeyGroup>,
+    pub node_id_secret: Option<veilid_core::TypedSecretKeyGroup>,
     pub bootstrap: Vec<String>,
-    pub bootstrap_keys: Vec<veilid_core::TypedKey>,
+    pub bootstrap_keys: Vec<veilid_core::TypedPublicKey>,
     pub limit_over_attached: u32,
     pub limit_fully_attached: u32,
     pub limit_attached_strong: u32,
@@ -1848,9 +1848,12 @@ mod tests {
         assert_eq!(
             s.core.network.routing_table.bootstrap_keys,
             vec![
-                TypedKey::from_str("VLD0:Vj0lKDdUQXmQ5Ol1SZdlvXkBHUccBcQvGLN9vbLSI7k").unwrap(),
-                TypedKey::from_str("VLD0:QeQJorqbXtC7v3OlynCZ_W3m76wGNeB5NTF81ypqHAo").unwrap(),
-                TypedKey::from_str("VLD0:QNdcl-0OiFfYVj9331XVR6IqZ49NG-E18d5P7lwi4TA").unwrap(),
+                TypedPublicKey::from_str("VLD0:Vj0lKDdUQXmQ5Ol1SZdlvXkBHUccBcQvGLN9vbLSI7k")
+                    .unwrap(),
+                TypedPublicKey::from_str("VLD0:QeQJorqbXtC7v3OlynCZ_W3m76wGNeB5NTF81ypqHAo")
+                    .unwrap(),
+                TypedPublicKey::from_str("VLD0:QNdcl-0OiFfYVj9331XVR6IqZ49NG-E18d5P7lwi4TA")
+                    .unwrap(),
             ]
         );
         //

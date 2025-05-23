@@ -47,7 +47,7 @@ impl RouteNode {
         match self {
             RouteNode::NodeId(id) => {
                 //
-                match routing_table.lookup_node_ref(TypedKey::new(crypto_kind, *id)) {
+                match routing_table.lookup_node_ref(TypedPublicKey::new(crypto_kind, *id)) {
                     Ok(nr) => nr,
                     Err(e) => {
                         veilid_log!(routing_table debug "failed to look up route node: {}", e);
@@ -71,7 +71,7 @@ impl RouteNode {
     pub fn describe(&self, crypto_kind: CryptoKind) -> String {
         match self {
             RouteNode::NodeId(id) => {
-                format!("{}", TypedKey::new(crypto_kind, *id))
+                format!("{}", TypedPublicKey::new(crypto_kind, *id))
             }
             RouteNode::PeerInfo(pi) => match pi.node_ids().get(crypto_kind) {
                 Some(id) => format!("{}", id),
@@ -121,14 +121,14 @@ impl PrivateRouteHops {
 #[derive(Clone, Debug)]
 pub(crate) struct PrivateRoute {
     /// The public key used for the entire route
-    pub public_key: TypedKey,
+    pub public_key: TypedPublicKey,
     pub hop_count: u8,
     pub hops: PrivateRouteHops,
 }
 
 impl PrivateRoute {
     /// Stub route is the form used when no privacy is required, but you need to specify the destination for a safety route
-    pub fn new_stub(public_key: TypedKey, node: RouteNode) -> Self {
+    pub fn new_stub(public_key: TypedPublicKey, node: RouteNode) -> Self {
         Self {
             public_key,
             hop_count: 1,
@@ -182,14 +182,14 @@ impl PrivateRoute {
         }
     }
 
-    pub fn first_hop_node_id(&self) -> Option<TypedKey> {
+    pub fn first_hop_node_id(&self) -> Option<TypedPublicKey> {
         let PrivateRouteHops::FirstHop(pr_first_hop) = &self.hops else {
             return None;
         };
 
         // Get the safety route to use from the spec
         Some(match &pr_first_hop.node {
-            RouteNode::NodeId(n) => TypedKey::new(self.public_key.kind, *n),
+            RouteNode::NodeId(n) => TypedPublicKey::new(self.public_key.kind, *n),
             RouteNode::PeerInfo(p) => p.node_ids().get(self.public_key.kind).unwrap(),
         })
     }
@@ -232,14 +232,14 @@ pub(crate) enum SafetyRouteHops {
 
 #[derive(Clone, Debug)]
 pub(crate) struct SafetyRoute {
-    pub public_key: TypedKey,
+    pub public_key: TypedPublicKey,
     pub hop_count: u8,
     pub hops: SafetyRouteHops,
 }
 
 impl SafetyRoute {
     /// Stub route is the form used when no privacy is required, but you need to directly contact a private route
-    pub fn new_stub(public_key: TypedKey, private_route: PrivateRoute) -> Self {
+    pub fn new_stub(public_key: TypedPublicKey, private_route: PrivateRoute) -> Self {
         // First hop should have already been popped off for stubbed safety routes since
         // we are sending directly to the first hop
         assert!(matches!(private_route.hops, PrivateRouteHops::Data(_)));

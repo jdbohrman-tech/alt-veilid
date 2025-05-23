@@ -126,27 +126,23 @@ class EncodedString(str):
         return cls(urlsafe_b64encode_no_pad(b))
 
 
-class CryptoKey(EncodedString):
+class HashDistance(EncodedString):
     pass
 
 
-class CryptoKeyDistance(CryptoKey):
+class PublicKey(EncodedString):
     pass
 
 
-class PublicKey(CryptoKey):
+class SecretKey(EncodedString):
     pass
 
 
-class SecretKey(CryptoKey):
+class SharedSecret(EncodedString):
     pass
 
 
-class SharedSecret(CryptoKey):
-    pass
-
-
-class HashDigest(CryptoKey):
+class HashDigest(EncodedString):
     pass
 
 

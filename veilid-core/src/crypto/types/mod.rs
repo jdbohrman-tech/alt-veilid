@@ -55,23 +55,50 @@ pub use crypto_typed_group::*;
 pub use keypair::*;
 
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
-pub type TypedKey = CryptoTyped<PublicKey>;
+pub type TypedPublicKey = CryptoTyped<PublicKey>;
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
-pub type TypedSecret = CryptoTyped<SecretKey>;
+pub type TypedSecretKey = CryptoTyped<SecretKey>;
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
 pub type TypedKeyPair = CryptoTyped<KeyPair>;
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
 pub type TypedSignature = CryptoTyped<Signature>;
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
 pub type TypedSharedSecret = CryptoTyped<SharedSecret>;
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
+pub type TypedRouteId = CryptoTyped<RouteId>;
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
+pub type TypedRecordKey = CryptoTyped<RecordKey>;
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
+pub type TypedNodeId = CryptoTyped<NodeId>;
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
+pub type TypedHashDigest = CryptoTyped<HashDigest>;
 
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
-pub type TypedKeyGroup = CryptoTypedGroup<PublicKey>;
+pub type TypedPublicKeyGroup = CryptoTypedGroup<PublicKey>;
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
-pub type TypedSecretGroup = CryptoTypedGroup<SecretKey>;
+pub type TypedSecretKeyGroup = CryptoTypedGroup<SecretKey>;
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
 pub type TypedKeyPairGroup = CryptoTypedGroup<KeyPair>;
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
 pub type TypedSignatureGroup = CryptoTypedGroup<Signature>;
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
 pub type TypedSharedSecretGroup = CryptoTypedGroup<SharedSecret>;
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
+pub type TypedRouteIdGroup = CryptoTypedGroup<RouteId>;
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
+pub type TypedRecordKeyGroup = CryptoTypedGroup<RecordKey>;
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
+pub type TypedNodeIdGroup = CryptoTypedGroup<NodeId>;
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
+pub type TypedHashDigestGroup = CryptoTypedGroup<HashDigest>;
+
+impl From<TypedPublicKey> for TypedHashDigest {
+    fn from(value: TypedPublicKey) -> Self {
+        TypedHashDigest::new(value.kind, value.value.into())
+    }
+}
+impl From<TypedRecordKey> for TypedHashDigest {
+    fn from(value: TypedRecordKey) -> Self {
+        TypedHashDigest::new(value.kind, value.value.into())
+    }
+}

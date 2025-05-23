@@ -7,7 +7,7 @@ pub struct PeerInfo {
         skip_serializing_if = "is_default_routing_domain"
     )]
     routing_domain: RoutingDomain,
-    node_ids: TypedKeyGroup,
+    node_ids: TypedPublicKeyGroup,
     signed_node_info: SignedNodeInfo,
 }
 
@@ -32,7 +32,7 @@ impl fmt::Display for PeerInfo {
 impl PeerInfo {
     pub fn new(
         routing_domain: RoutingDomain,
-        node_ids: TypedKeyGroup,
+        node_ids: TypedPublicKeyGroup,
         signed_node_info: SignedNodeInfo,
     ) -> Self {
         assert!(!node_ids.is_empty() && node_ids.len() <= MAX_CRYPTO_KINDS);
@@ -55,13 +55,13 @@ impl PeerInfo {
     pub fn routing_domain(&self) -> RoutingDomain {
         self.routing_domain
     }
-    pub fn node_ids(&self) -> &TypedKeyGroup {
+    pub fn node_ids(&self) -> &TypedPublicKeyGroup {
         &self.node_ids
     }
     pub fn signed_node_info(&self) -> &SignedNodeInfo {
         &self.signed_node_info
     }
-    pub fn destructure(self) -> (RoutingDomain, TypedKeyGroup, SignedNodeInfo) {
+    pub fn destructure(self) -> (RoutingDomain, TypedPublicKeyGroup, SignedNodeInfo) {
         (self.routing_domain, self.node_ids, self.signed_node_info)
     }
 

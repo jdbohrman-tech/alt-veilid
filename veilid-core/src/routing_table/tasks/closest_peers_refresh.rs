@@ -55,7 +55,7 @@ impl RoutingTable {
             let noderefs = self
                 .find_preferred_closest_nodes(
                     CLOSEST_PEERS_REQUEST_COUNT,
-                    self_node_id,
+                    self_node_id.into(),
                     filters,
                     |_rti, entry: Option<Arc<BucketEntry>>| {
                         NodeRef::new(self.registry(), entry.unwrap().clone())

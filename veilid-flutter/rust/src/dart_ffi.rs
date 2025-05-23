@@ -713,7 +713,7 @@ pub extern "C" fn routing_context_create_dht_record(
 #[no_mangle]
 #[instrument(level = "trace", target = "ffi", skip_all)]
 pub extern "C" fn routing_context_open_dht_record(port: i64, id: u32, key: FfiStr, writer: FfiStr) {
-    let key: veilid_core::TypedKey =
+    let key: veilid_core::TypedRecordKey =
         veilid_core::deserialize_opt_json(key.into_opt_string()).unwrap();
     let writer: Option<veilid_core::KeyPair> = writer
         .into_opt_string()
@@ -732,7 +732,7 @@ pub extern "C" fn routing_context_open_dht_record(port: i64, id: u32, key: FfiSt
 #[no_mangle]
 #[instrument(level = "trace", target = "ffi", skip_all)]
 pub extern "C" fn routing_context_close_dht_record(port: i64, id: u32, key: FfiStr) {
-    let key: veilid_core::TypedKey =
+    let key: veilid_core::TypedRecordKey =
         veilid_core::deserialize_opt_json(key.into_opt_string()).unwrap();
     DartIsolateWrapper::new(port).spawn_result(
         async move {
@@ -748,7 +748,7 @@ pub extern "C" fn routing_context_close_dht_record(port: i64, id: u32, key: FfiS
 #[no_mangle]
 #[instrument(level = "trace", target = "ffi", skip_all)]
 pub extern "C" fn routing_context_delete_dht_record(port: i64, id: u32, key: FfiStr) {
-    let key: veilid_core::TypedKey =
+    let key: veilid_core::TypedRecordKey =
         veilid_core::deserialize_opt_json(key.into_opt_string()).unwrap();
     DartIsolateWrapper::new(port).spawn_result(
         async move {
@@ -770,7 +770,7 @@ pub extern "C" fn routing_context_get_dht_value(
     subkey: u32,
     force_refresh: bool,
 ) {
-    let key: veilid_core::TypedKey =
+    let key: veilid_core::TypedRecordKey =
         veilid_core::deserialize_opt_json(key.into_opt_string()).unwrap();
     DartIsolateWrapper::new(port).spawn_result_json(
         async move {
@@ -795,7 +795,7 @@ pub extern "C" fn routing_context_set_dht_value(
     data: FfiStr,
     writer: FfiStr,
 ) {
-    let key: veilid_core::TypedKey =
+    let key: veilid_core::TypedRecordKey =
         veilid_core::deserialize_opt_json(key.into_opt_string()).unwrap();
     let data: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(data.into_opt_string().unwrap().as_bytes())
@@ -827,7 +827,7 @@ pub extern "C" fn routing_context_watch_dht_values(
     expiration: u64,
     count: u32,
 ) {
-    let key: veilid_core::TypedKey =
+    let key: veilid_core::TypedRecordKey =
         veilid_core::deserialize_opt_json(key.into_opt_string()).unwrap();
     let subkeys: veilid_core::ValueSubkeyRangeSet =
         veilid_core::deserialize_opt_json(subkeys.into_opt_string()).unwrap();
@@ -854,7 +854,7 @@ pub extern "C" fn routing_context_cancel_dht_watch(
     key: FfiStr,
     subkeys: FfiStr,
 ) {
-    let key: veilid_core::TypedKey =
+    let key: veilid_core::TypedRecordKey =
         veilid_core::deserialize_opt_json(key.into_opt_string()).unwrap();
     let subkeys: veilid_core::ValueSubkeyRangeSet =
         veilid_core::deserialize_opt_json(subkeys.into_opt_string()).unwrap();
@@ -879,7 +879,7 @@ pub extern "C" fn routing_context_inspect_dht_record(
     subkeys: FfiStr,
     scope: FfiStr,
 ) {
-    let key: veilid_core::TypedKey =
+    let key: veilid_core::TypedRecordKey =
         veilid_core::deserialize_opt_json(key.into_opt_string()).unwrap();
     let subkeys: veilid_core::ValueSubkeyRangeSet =
         veilid_core::deserialize_opt_json(subkeys.into_opt_string()).unwrap();
@@ -1289,7 +1289,7 @@ pub extern "C" fn best_crypto_kind() -> u32 {
 #[no_mangle]
 #[instrument(level = "trace", target = "ffi", skip_all)]
 pub extern "C" fn verify_signatures(port: i64, node_ids: FfiStr, data: FfiStr, signatures: FfiStr) {
-    let node_ids: Vec<veilid_core::TypedKey> =
+    let node_ids: Vec<veilid_core::TypedPublicKey> =
         veilid_core::deserialize_opt_json(node_ids.into_opt_string()).unwrap();
 
     let data: Vec<u8> = data_encoding::BASE64URL_NOPAD
@@ -1740,9 +1740,9 @@ pub extern "C" fn crypto_validate_hash(port: i64, kind: u32, data: FfiStr, hash:
 pub extern "C" fn crypto_distance(port: i64, kind: u32, key1: FfiStr, key2: FfiStr) {
     let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
 
-    let key1: veilid_core::CryptoKey =
+    let key1: veilid_core::HashDigest =
         veilid_core::deserialize_opt_json(key1.into_opt_string()).unwrap();
-    let key2: veilid_core::CryptoKey =
+    let key2: veilid_core::HashDigest =
         veilid_core::deserialize_opt_json(key2.into_opt_string()).unwrap();
 
     DartIsolateWrapper::new(port).spawn_result_json(
@@ -1768,9 +1768,9 @@ pub extern "C" fn crypto_distance(port: i64, kind: u32, key1: FfiStr, key2: FfiS
 pub extern "C" fn crypto_sign(port: i64, kind: u32, key: FfiStr, secret: FfiStr, data: FfiStr) {
     let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
 
-    let key: veilid_core::CryptoKey =
+    let key: veilid_core::PublicKey =
         veilid_core::deserialize_opt_json(key.into_opt_string()).unwrap();
-    let secret: veilid_core::CryptoKey =
+    let secret: veilid_core::SecretKey =
         veilid_core::deserialize_opt_json(secret.into_opt_string()).unwrap();
     let data: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(data.into_opt_string().unwrap().as_bytes())
@@ -1805,7 +1805,7 @@ pub extern "C" fn crypto_verify(
 ) {
     let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
 
-    let key: veilid_core::CryptoKey =
+    let key: veilid_core::PublicKey =
         veilid_core::deserialize_opt_json(key.into_opt_string()).unwrap();
     let data: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(data.into_opt_string().unwrap().as_bytes())

@@ -211,11 +211,8 @@ impl Envelope {
             }
         }
         // Decrypt message without authentication
-        let body = vcrypto.crypt_no_auth_aligned_8(
-            &data[0x6A..data.len() - 64],
-            &self.nonce.bytes,
-            &dh_secret,
-        );
+        let body =
+            vcrypto.crypt_no_auth_aligned_8(&data[0x6A..data.len() - 64], &self.nonce, &dh_secret);
 
         // Decompress body
         let body = decompress_size_prepended(&body, Some(MAX_ENVELOPE_SIZE))?;
@@ -294,7 +291,7 @@ impl Envelope {
         }
 
         // Encrypt message
-        let encrypted_body = vcrypto.crypt_no_auth_unaligned(&body, &self.nonce.bytes, &dh_secret);
+        let encrypted_body = vcrypto.crypt_no_auth_unaligned(&body, &self.nonce, &dh_secret);
 
         // Write body
         if !encrypted_body.is_empty() {
@@ -335,15 +332,15 @@ impl Envelope {
         self.sender_id
     }
 
-    pub fn get_sender_typed_id(&self) -> TypedKey {
-        TypedKey::new(self.crypto_kind, self.sender_id)
+    pub fn get_sender_typed_id(&self) -> TypedPublicKey {
+        TypedPublicKey::new(self.crypto_kind, self.sender_id)
     }
 
     pub fn get_recipient_id(&self) -> PublicKey {
         self.recipient_id
     }
 
-    pub fn get_recipient_typed_id(&self) -> TypedKey {
-        TypedKey::new(self.crypto_kind, self.recipient_id)
+    pub fn get_recipient_typed_id(&self) -> TypedPublicKey {
+        TypedPublicKey::new(self.crypto_kind, self.recipient_id)
     }
 }

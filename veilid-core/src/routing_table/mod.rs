@@ -304,7 +304,7 @@ impl RoutingTable {
 
     ///////////////////////////////////////////////////////////////////
 
-    pub fn node_id(&self, kind: CryptoKind) -> TypedKey {
+    pub fn node_id(&self, kind: CryptoKind) -> TypedPublicKey {
         self.config()
             .with(|c| c.network.routing_table.node_id.get(kind).unwrap())
     }
@@ -315,7 +315,7 @@ impl RoutingTable {
             .value
     }
 
-    pub fn node_ids(&self) -> TypedKeyGroup {
+    pub fn node_ids(&self) -> TypedPublicKeyGroup {
         self.config()
             .with(|c| c.network.routing_table.node_id.clone())
     }
@@ -331,7 +331,7 @@ impl RoutingTable {
         tkps
     }
 
-    pub fn matches_own_node_id(&self, node_ids: &[TypedKey]) -> bool {
+    pub fn matches_own_node_id(&self, node_ids: &[TypedPublicKey]) -> bool {
         for ni in node_ids {
             if let Some(v) = self.node_ids().get(ni.kind) {
                 if v.value == ni.value {
@@ -351,14 +351,17 @@ impl RoutingTable {
         false
     }
 
-    pub fn calculate_bucket_index(&self, node_id: &TypedKey) -> BucketIndex {
+    pub fn calculate_bucket_index(&self, node_id: &TypedPublicKey) -> BucketIndex {
         let crypto = self.crypto();
         let self_node_id_key = self.node_id(node_id.kind).value;
         let vcrypto = crypto.get(node_id.kind).unwrap();
         (
             node_id.kind,
             vcrypto
-                .distance(&node_id.value, &self_node_id_key)
+                .distance(
+                    &HashDigest::from(node_id.value),
+                    &HashDigest::from(self_node_id_key),
+                )
                 .first_nonzero_bit()
                 .unwrap(),
         )
@@ -659,7 +662,7 @@ impl RoutingTable {
             .get_nodes_needing_ping(routing_domain, cur_ts)
     }
 
-    fn queue_bucket_kicks(&self, node_ids: TypedKeyGroup) {
+    fn queue_bucket_kicks(&self, node_ids: TypedPublicKeyGroup) {
         for node_id in node_ids.iter() {
             // Skip node ids we didn't add to buckets
             if !VALID_CRYPTO_KINDS.contains(&node_id.kind) {
@@ -678,7 +681,7 @@ impl RoutingTable {
     }
 
     /// Resolve an existing routing table entry and return a reference to it
-    pub fn lookup_node_ref(&self, node_id: TypedKey) -> EyreResult<Option<NodeRef>> {
+    pub fn lookup_node_ref(&self, node_id: TypedPublicKey) -> EyreResult<Option<NodeRef>> {
         self.inner.read().lookup_node_ref(node_id)
     }
 
@@ -686,7 +689,7 @@ impl RoutingTable {
     #[instrument(level = "trace", skip_all)]
     pub fn lookup_and_filter_noderef(
         &self,
-        node_id: TypedKey,
+        node_id: TypedPublicKey,
         routing_domain_set: RoutingDomainSet,
         dial_info_filter: DialInfoFilter,
     ) -> EyreResult<Option<FilteredNodeRef>> {
@@ -716,7 +719,7 @@ impl RoutingTable {
     pub fn register_node_with_id(
         &self,
         routing_domain: RoutingDomain,
-        node_id: TypedKey,
+        node_id: TypedPublicKey,
         timestamp: Timestamp,
     ) -> EyreResult<FilteredNodeRef> {
         self.inner
@@ -736,7 +739,7 @@ impl RoutingTable {
     }
 
     #[instrument(level = "trace", skip_all)]
-    pub fn get_recent_peers(&self) -> Vec<(TypedKey, RecentPeersEntry)> {
+    pub fn get_recent_peers(&self) -> Vec<(TypedPublicKey, RecentPeersEntry)> {
         let mut recent_peers = Vec::new();
         let mut dead_peers = Vec::new();
         let mut out = Vec::new();
@@ -908,7 +911,7 @@ impl RoutingTable {
     pub fn find_preferred_closest_nodes<'a, T, O>(
         &self,
         node_count: usize,
-        node_id: TypedKey,
+        node_id: TypedHashDigest,
         filters: VecDeque<RoutingTableEntryFilter>,
         transform: T,
     ) -> VeilidAPIResult<Vec<O>>
@@ -922,7 +925,7 @@ impl RoutingTable {
 
     pub fn sort_and_clean_closest_noderefs(
         &self,
-        node_id: TypedKey,
+        node_id: TypedHashDigest,
         closest_nodes: &[NodeRef],
     ) -> Vec<NodeRef> {
         self.inner
@@ -960,7 +963,7 @@ impl RoutingTable {
     pub async fn find_nodes_close_to_node_id(
         &self,
         node_ref: FilteredNodeRef,
-        node_id: TypedKey,
+        node_id: TypedPublicKey,
         capabilities: Vec<Capability>,
     ) -> EyreResult<NetworkResult<Vec<NodeRef>>> {
         let rpc_processor = self.rpc_processor();
@@ -1077,7 +1080,7 @@ impl RoutingTable {
     #[instrument(level = "trace", skip(self, filter, metric), ret)]
     pub fn get_node_speed_percentile(
         &self,
-        node_id: TypedKey,
+        node_id: TypedPublicKey,
         cur_ts: Timestamp,
         filter: impl Fn(&BucketEntryInner) -> bool,
         metric: impl Fn(&LatencyStats) -> TimestampDuration,

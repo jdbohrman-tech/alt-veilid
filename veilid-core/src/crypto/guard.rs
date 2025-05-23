@@ -103,9 +103,10 @@ impl AsyncCryptoSystemGuard<'_> {
         domain: &[u8],
     ) -> VeilidAPIResult<SharedSecret> {
         let dh = self.compute_dh(key, secret).await?;
-        Ok(self
-            .generate_hash(&[&dh.bytes, domain, VEILID_DOMAIN_API].concat())
-            .await)
+        Ok(SharedSecret::from(
+            self.generate_hash(&[&dh.bytes, domain, VEILID_DOMAIN_API].concat())
+                .await,
+        ))
     }
 
     pub async fn generate_keypair(&self) -> KeyPair {
@@ -119,7 +120,7 @@ impl AsyncCryptoSystemGuard<'_> {
     pub async fn generate_hash_reader(
         &self,
         reader: &mut dyn std::io::Read,
-    ) -> VeilidAPIResult<HashDigest> {
+    ) -> VeilidAPIResult<PublicKey> {
         yielding(|| self.guard.generate_hash_reader(reader)).await
     }
 
@@ -141,7 +142,7 @@ impl AsyncCryptoSystemGuard<'_> {
     }
 
     // Distance Metric
-    pub async fn distance(&self, key1: &CryptoKey, key2: &CryptoKey) -> CryptoKeyDistance {
+    pub async fn distance(&self, key1: &HashDigest, key2: &HashDigest) -> HashDistance {
         yielding(|| self.guard.distance(key1, key2)).await
     }
 
@@ -229,7 +230,7 @@ impl AsyncCryptoSystemGuard<'_> {
     pub async fn crypt_in_place_no_auth(
         &self,
         body: &mut [u8],
-        nonce: &[u8; NONCE_LENGTH],
+        nonce: &Nonce,
         shared_secret: &SharedSecret,
     ) {
         yielding(|| {
@@ -243,7 +244,7 @@ impl AsyncCryptoSystemGuard<'_> {
         &self,
         in_buf: &[u8],
         out_buf: &mut [u8],
-        nonce: &[u8; NONCE_LENGTH],
+        nonce: &Nonce,
         shared_secret: &SharedSecret,
     ) {
         yielding(|| {
@@ -256,7 +257,7 @@ impl AsyncCryptoSystemGuard<'_> {
     pub async fn crypt_no_auth_aligned_8(
         &self,
         body: &[u8],
-        nonce: &[u8; NONCE_LENGTH],
+        nonce: &Nonce,
         shared_secret: &SharedSecret,
     ) -> Vec<u8> {
         yielding(|| {
@@ -269,7 +270,7 @@ impl AsyncCryptoSystemGuard<'_> {
     pub async fn crypt_no_auth_unaligned(
         &self,
         body: &[u8],
-        nonce: &[u8; NONCE_LENGTH],
+        nonce: &Nonce,
         shared_secret: &SharedSecret,
     ) -> Vec<u8> {
         yielding(|| {

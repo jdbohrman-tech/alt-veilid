@@ -496,12 +496,12 @@ impl Default for VeilidConfigRPC {
 #[must_use]
 pub struct VeilidConfigRoutingTable {
     #[schemars(with = "Vec<String>")]
-    pub node_id: TypedKeyGroup,
+    pub node_id: TypedPublicKeyGroup,
     #[schemars(with = "Vec<String>")]
-    pub node_id_secret: TypedSecretGroup,
+    pub node_id_secret: TypedSecretKeyGroup,
     pub bootstrap: Vec<String>,
     #[schemars(with = "Vec<String>")]
-    pub bootstrap_keys: Vec<TypedKey>,
+    pub bootstrap_keys: Vec<TypedPublicKey>,
     pub limit_over_attached: u32,
     pub limit_fully_attached: u32,
     pub limit_attached_strong: u32,
@@ -522,16 +522,16 @@ impl Default for VeilidConfigRoutingTable {
         }
         let bootstrap_keys = vec![
             // Primary Veilid Foundation bootstrap signing key
-            TypedKey::from_str("VLD0:Vj0lKDdUQXmQ5Ol1SZdlvXkBHUccBcQvGLN9vbLSI7k").unwrap(),
+            TypedPublicKey::from_str("VLD0:Vj0lKDdUQXmQ5Ol1SZdlvXkBHUccBcQvGLN9vbLSI7k").unwrap(),
             // Secondary Veilid Foundation bootstrap signing key
-            TypedKey::from_str("VLD0:QeQJorqbXtC7v3OlynCZ_W3m76wGNeB5NTF81ypqHAo").unwrap(),
+            TypedPublicKey::from_str("VLD0:QeQJorqbXtC7v3OlynCZ_W3m76wGNeB5NTF81ypqHAo").unwrap(),
             // Backup Veilid Foundation bootstrap signing key
-            TypedKey::from_str("VLD0:QNdcl-0OiFfYVj9331XVR6IqZ49NG-E18d5P7lwi4TA").unwrap(),
+            TypedPublicKey::from_str("VLD0:QNdcl-0OiFfYVj9331XVR6IqZ49NG-E18d5P7lwi4TA").unwrap(),
         ];
 
         Self {
-            node_id: TypedKeyGroup::default(),
-            node_id_secret: TypedSecretGroup::default(),
+            node_id: TypedPublicKeyGroup::default(),
+            node_id_secret: TypedSecretKeyGroup::default(),
             bootstrap,
             bootstrap_keys,
             limit_over_attached: 64,
@@ -1082,7 +1082,7 @@ impl VeilidStartupOptions {
         let mut safe_cfg = self.inner.read().clone();
 
         // Remove secrets
-        safe_cfg.network.routing_table.node_id_secret = TypedSecretGroup::new();
+        safe_cfg.network.routing_table.node_id_secret = TypedSecretKeyGroup::new();
         "".clone_into(&mut safe_cfg.protected_store.device_encryption_key_password);
         safe_cfg.protected_store.new_device_encryption_key_password = None;
 
@@ -1093,7 +1093,7 @@ impl VeilidStartupOptions {
         let mut safe_cfg = self.inner.read().clone();
 
         // Remove secrets
-        safe_cfg.network.routing_table.node_id_secret = TypedSecretGroup::new();
+        safe_cfg.network.routing_table.node_id_secret = TypedSecretKeyGroup::new();
         "".clone_into(&mut safe_cfg.protected_store.device_encryption_key_password);
         safe_cfg.protected_store.new_device_encryption_key_password = None;
 

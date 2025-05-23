@@ -14,14 +14,14 @@ pub(in crate::rpc_processor) struct ValidateInspectValueContext {
 
 #[derive(Debug, Clone)]
 pub(in crate::rpc_processor) struct RPCOperationInspectValueQ {
-    key: TypedKey,
+    key: TypedRecordKey,
     subkeys: ValueSubkeyRangeSet,
     want_descriptor: bool,
 }
 
 impl RPCOperationInspectValueQ {
     pub fn new(
-        key: TypedKey,
+        key: TypedRecordKey,
         subkeys: ValueSubkeyRangeSet,
         want_descriptor: bool,
     ) -> Result<Self, RPCError> {
@@ -44,7 +44,7 @@ impl RPCOperationInspectValueQ {
     // pub fn want_descriptor(&self) -> bool {
     //     self.want_descriptor
     // }
-    pub fn destructure(self) -> (TypedKey, ValueSubkeyRangeSet, bool) {
+    pub fn destructure(self) -> (TypedRecordKey, ValueSubkeyRangeSet, bool) {
         (self.key, self.subkeys, self.want_descriptor)
     }
 
@@ -53,7 +53,7 @@ impl RPCOperationInspectValueQ {
         reader: &veilid_capnp::operation_inspect_value_q::Reader,
     ) -> Result<Self, RPCError> {
         let k_reader = reader.reborrow().get_key().map_err(RPCError::protocol)?;
-        let key = decode_typed_key(&k_reader)?;
+        let key = decode_typed_record_key(&k_reader)?;
         let sk_reader = reader.get_subkeys().map_err(RPCError::protocol)?;
         // Maximum number of ranges that can hold the maximum number of subkeys is one subkey per range
         if sk_reader.len() as usize > MAX_INSPECT_VALUE_Q_SUBKEY_RANGES_LEN {
@@ -87,7 +87,7 @@ impl RPCOperationInspectValueQ {
         builder: &mut veilid_capnp::operation_inspect_value_q::Builder,
     ) -> Result<(), RPCError> {
         let mut k_builder = builder.reborrow().init_key();
-        encode_typed_key(&self.key, &mut k_builder);
+        encode_typed_record_key(&self.key, &mut k_builder);
 
         let mut sk_builder = builder.reborrow().init_subkeys(
             self.subkeys

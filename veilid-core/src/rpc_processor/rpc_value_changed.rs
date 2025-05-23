@@ -9,7 +9,7 @@ impl RPCProcessor {
     pub async fn rpc_call_value_changed(
         &self,
         dest: Destination,
-        key: TypedKey,
+        key: TypedRecordKey,
         subkeys: ValueSubkeyRangeSet,
         count: u32,
         watch_id: u64,
@@ -63,7 +63,7 @@ impl RPCProcessor {
                 ));
             }
             RPCMessageHeaderDetail::PrivateRouted(p) => {
-                TypedKey::new(p.direct.envelope.get_crypto_kind(), p.remote_safety_route)
+                TypedPublicKey::new(p.direct.envelope.get_crypto_kind(), p.remote_safety_route)
             }
         };
 

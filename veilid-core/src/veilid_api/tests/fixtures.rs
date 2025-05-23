@@ -90,19 +90,46 @@ pub fn fix_peerstats() -> PeerStats {
     }
 }
 
-pub fn fix_cryptokey() -> CryptoKey {
+pub fn fix_publickey() -> PublicKey {
     let mut fake_key = [0u8; CRYPTO_KEY_LENGTH];
     random_bytes(&mut fake_key);
-    CryptoKey::new(fake_key)
+    PublicKey::new(fake_key)
 }
 
-pub fn fix_typedkey() -> TypedKey {
+pub fn fix_recordkey() -> RecordKey {
     let mut fake_key = [0u8; CRYPTO_KEY_LENGTH];
     random_bytes(&mut fake_key);
-    TypedKey {
+    RecordKey::new(fake_key)
+}
+
+pub fn fix_routeid() -> RouteId {
+    let mut fake_key = [0u8; CRYPTO_KEY_LENGTH];
+    random_bytes(&mut fake_key);
+    RouteId::new(fake_key)
+}
+
+pub fn fix_typedkey() -> TypedPublicKey {
+    let mut fake_key = [0u8; CRYPTO_KEY_LENGTH];
+    random_bytes(&mut fake_key);
+    TypedPublicKey {
         kind: FourCC::from_str("FAKE").unwrap(),
-        value: fix_cryptokey(),
+        value: fix_publickey(),
     }
+}
+
+pub fn fix_typedrecordkey() -> TypedRecordKey {
+    let mut fake_key = [0u8; CRYPTO_KEY_LENGTH];
+    random_bytes(&mut fake_key);
+    TypedRecordKey {
+        kind: FourCC::from_str("FAKE").unwrap(),
+        value: fix_recordkey(),
+    }
+}
+
+pub fn fix_secretkey() -> SecretKey {
+    let mut fake_key = [0u8; CRYPTO_KEY_LENGTH];
+    random_bytes(&mut fake_key);
+    SecretKey::new(fake_key)
 }
 
 pub fn fix_peertabledata() -> PeerTableData {
@@ -148,10 +175,10 @@ pub fn fix_veilidconfig() -> VeilidConfig {
             hole_punch_receipt_time_ms: 9000,
             network_key_password: None,
             routing_table: VeilidConfigRoutingTable {
-                node_id: TypedKeyGroup::new(),
-                node_id_secret: TypedSecretGroup::new(),
+                node_id: TypedPublicKeyGroup::new(),
+                node_id_secret: TypedSecretKeyGroup::new(),
                 bootstrap: vec!["boots".to_string()],
-                bootstrap_keys: vec![TypedKey::from_str(
+                bootstrap_keys: vec![TypedPublicKey::from_str(
                     "VLD0:qrxwD1-aM9xiUw4IAPVXE_4qgoIfyR4Y6MEPyaDl_GQ",
                 )
                 .unwrap()],
@@ -262,9 +289,9 @@ pub fn fix_veilidconfig() -> VeilidConfig {
 
 pub fn fix_veilidvaluechange() -> VeilidValueChange {
     VeilidValueChange {
-        key: fix_typedkey(),
+        key: fix_typedrecordkey(),
         subkeys: ValueSubkeyRangeSet::new(),
         count: 5,
-        value: Some(ValueData::new_with_seq(23, b"ValueData".to_vec(), fix_cryptokey()).unwrap()),
+        value: Some(ValueData::new_with_seq(23, b"ValueData".to_vec(), fix_publickey()).unwrap()),
     }
 }

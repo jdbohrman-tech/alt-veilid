@@ -246,7 +246,7 @@ impl VeilidAPI {
         }
 
         // Is this a node id?
-        if let Ok(nid) = TypedKey::from_str(&s) {
+        if let Ok(nid) = TypedPublicKey::from_str(&s) {
             return Ok(Target::NodeId(nid));
         }
 

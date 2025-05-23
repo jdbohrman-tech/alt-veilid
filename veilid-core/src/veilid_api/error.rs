@@ -132,7 +132,7 @@ pub enum VeilidAPIError {
     #[error("Key not found: {key}")]
     KeyNotFound {
         #[schemars(with = "String")]
-        key: TypedKey,
+        key: TypedRecordKey,
     },
     #[error("Internal: {message}")]
     Internal { message: String },
@@ -180,7 +180,7 @@ impl VeilidAPIError {
             message: msg.to_string(),
         }
     }
-    pub fn key_not_found(key: TypedKey) -> Self {
+    pub fn key_not_found(key: TypedRecordKey) -> Self {
         Self::KeyNotFound { key }
     }
     pub fn internal<T: ToString>(msg: T) -> Self {

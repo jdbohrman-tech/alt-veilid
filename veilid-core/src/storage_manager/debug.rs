@@ -79,7 +79,7 @@ impl StorageManager {
 
     pub async fn debug_local_record_subkey_info(
         &self,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         subkey: ValueSubkey,
     ) -> String {
         let inner = self.inner.lock().await;
@@ -92,7 +92,7 @@ impl StorageManager {
     }
     pub async fn debug_remote_record_subkey_info(
         &self,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         subkey: ValueSubkey,
     ) -> String {
         let inner = self.inner.lock().await;
@@ -103,7 +103,7 @@ impl StorageManager {
             .debug_record_subkey_info(record_key, subkey)
             .await
     }
-    pub async fn debug_local_record_info(&self, record_key: TypedKey) -> String {
+    pub async fn debug_local_record_info(&self, record_key: TypedRecordKey) -> String {
         let inner = self.inner.lock().await;
         let Some(local_record_store) = &inner.local_record_store else {
             return "not initialized".to_owned();
@@ -119,7 +119,7 @@ impl StorageManager {
         format!("{}\n{}", local_debug, opened_debug)
     }
 
-    pub async fn debug_remote_record_info(&self, record_key: TypedKey) -> String {
+    pub async fn debug_remote_record_info(&self, record_key: TypedRecordKey) -> String {
         let inner = self.inner.lock().await;
         let Some(remote_record_store) = &inner.remote_record_store else {
             return "not initialized".to_owned();

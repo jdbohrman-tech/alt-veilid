@@ -58,10 +58,10 @@ pub async fn test_routingtable_buckets_round_trip() {
 }
 
 pub fn test_round_trip_peerinfo() {
-    let mut tks = TypedKeyGroup::new();
-    tks.add(TypedKey::new(
+    let mut tks = TypedPublicKeyGroup::new();
+    tks.add(TypedPublicKey::new(
         CRYPTO_KIND_VLD0,
-        CryptoKey::new([
+        PublicKey::new([
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0,
         ]),

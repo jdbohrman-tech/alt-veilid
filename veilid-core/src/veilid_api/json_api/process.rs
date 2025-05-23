@@ -227,7 +227,7 @@ impl JsonRequestProcessor {
         }
 
         // Is this a node id?
-        if let Ok(nid) = TypedKey::from_str(&s) {
+        if let Ok(nid) = TypedPublicKey::from_str(&s) {
             return Ok(Target::NodeId(nid));
         }
 
@@ -551,7 +551,7 @@ impl JsonRequestProcessor {
                 }
             }
             CryptoSystemRequestOp::Distance { key1, key2 } => CryptoSystemResponseOp::Distance {
-                value: csv.distance(&key1, &key2),
+                value: csv.distance(&HashDigest::from(key1), &HashDigest::from(key2)),
             },
             CryptoSystemRequestOp::Sign { key, secret, data } => CryptoSystemResponseOp::Sign {
                 result: to_json_api_result_with_string(csv.sign(&key, &secret, &data)),

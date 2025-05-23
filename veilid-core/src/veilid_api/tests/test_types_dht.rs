@@ -6,9 +6,9 @@ use range_set_blaze::*;
 
 pub fn test_dhtrecorddescriptor() {
     let orig = DHTRecordDescriptor::new(
-        fix_typedkey(),
-        fix_cryptokey(),
-        Some(fix_cryptokey()),
+        fix_typedrecordkey(),
+        fix_publickey(),
+        Some(fix_secretkey()),
         DHTSchema::dflt(4321).unwrap(),
     );
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();
@@ -19,7 +19,7 @@ pub fn test_dhtrecorddescriptor() {
 // value_data
 
 pub fn test_valuedata() {
-    let orig = ValueData::new_with_seq(42, b"Brent Spiner".to_vec(), fix_cryptokey());
+    let orig = ValueData::new_with_seq(42, b"Brent Spiner".to_vec(), fix_publickey());
     let copy = deserialize_json(&serialize_json(&orig)).unwrap();
 
     assert_eq!(orig, copy);

@@ -28,7 +28,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "dht", skip_all, err)]
     pub(super) async fn outbound_set_value(
         &self,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         subkey: ValueSubkey,
         safety_selection: SafetySelection,
         value: Arc<SignedValueData>,
@@ -228,7 +228,7 @@ impl StorageManager {
                     let routing_table = registry.routing_table();
                     let fanout_call = FanoutCall::new(
                         &routing_table,
-                        record_key,
+                        record_key.into(),
                         key_count,
                         fanout,
                         consensus_count,
@@ -277,7 +277,7 @@ impl StorageManager {
     pub(super) fn process_deferred_outbound_set_value_result(
         &self,
         res_rx: flume::Receiver<Result<set_value::OutboundSetValueResult, VeilidAPIError>>,
-        key: TypedKey,
+        key: TypedRecordKey,
         subkey: ValueSubkey,
         last_value_data: ValueData,
         safety_selection: SafetySelection,
@@ -343,7 +343,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub(super) async fn process_outbound_set_value_result(
         &self,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         subkey: ValueSubkey,
         last_value_data: ValueData,
         safety_selection: SafetySelection,
@@ -402,7 +402,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "dht", skip_all)]
     pub async fn inbound_set_value(
         &self,
-        key: TypedKey,
+        key: TypedRecordKey,
         subkey: ValueSubkey,
         value: Arc<SignedValueData>,
         descriptor: Option<Arc<SignedValueDescriptor>>,

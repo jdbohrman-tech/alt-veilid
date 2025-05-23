@@ -193,7 +193,7 @@ impl Default for NetworkManagerStartupContext {
 #[derive(Debug)]
 struct NetworkManagerInner {
     stats: NetworkManagerStats,
-    client_allowlist: LruCache<TypedKey, ClientAllowlistEntry>,
+    client_allowlist: LruCache<TypedPublicKey, ClientAllowlistEntry>,
     node_contact_method_cache: NodeContactMethodCache,
     address_check: Option<AddressCheck>,
     peer_info_change_subscription: Option<EventBusSubscription>,
@@ -531,7 +531,7 @@ impl NetworkManager {
     }
 
     #[expect(dead_code)]
-    pub fn update_client_allowlist(&self, client: TypedKey) {
+    pub fn update_client_allowlist(&self, client: TypedPublicKey) {
         let mut inner = self.inner.lock();
         match inner.client_allowlist.entry(client) {
             hashlink::lru_cache::Entry::Occupied(mut entry) => {
@@ -546,7 +546,7 @@ impl NetworkManager {
     }
 
     #[instrument(level = "trace", skip(self), ret)]
-    pub fn check_client_allowlist(&self, client: TypedKey) -> bool {
+    pub fn check_client_allowlist(&self, client: TypedPublicKey) -> bool {
         let mut inner = self.inner.lock();
 
         match inner.client_allowlist.entry(client) {
@@ -874,7 +874,7 @@ impl NetworkManager {
     #[instrument(level = "trace", target = "net", skip_all)]
     fn build_envelope<B: AsRef<[u8]>>(
         &self,
-        dest_node_id: TypedKey,
+        dest_node_id: TypedPublicKey,
         version: u8,
         body: B,
     ) -> EyreResult<Vec<u8>> {

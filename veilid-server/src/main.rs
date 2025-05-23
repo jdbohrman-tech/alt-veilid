@@ -20,7 +20,7 @@ use clap::{Args, Parser};
 use server::*;
 use settings::LogLevel;
 use tools::*;
-use veilid_core::{TypedKeyGroup, TypedSecretGroup};
+use veilid_core::{TypedPublicKeyGroup, TypedSecretKeyGroup};
 use veilid_logs::*;
 
 #[derive(Args, Debug, Clone)]
@@ -315,13 +315,13 @@ fn main() -> EyreResult<()> {
         settingsrw.logging.terminal.enabled = false;
 
         // Split or get secret
-        let tks = TypedKeyGroup::from_str(&key_set)
+        let tks = TypedPublicKeyGroup::from_str(&key_set)
             .wrap_err("failed to decode node id set from command line")?;
 
         let buffer = rpassword::prompt_password("Enter secret key set (will not echo): ")
             .wrap_err("invalid secret key")?;
         let buffer = buffer.trim().to_string();
-        let tss = TypedSecretGroup::from_str(&buffer).wrap_err("failed to decode secret set")?;
+        let tss = TypedSecretKeyGroup::from_str(&buffer).wrap_err("failed to decode secret set")?;
 
         settingsrw.core.network.routing_table.node_id = Some(tks);
         settingsrw.core.network.routing_table.node_id_secret = Some(tss);
@@ -345,10 +345,10 @@ fn main() -> EyreResult<()> {
 
     if let Some(bootstrap_keys) = args.bootstrap_keys {
         println!("Overriding bootstrap keys with: ");
-        let mut bootstrap_keys_list: Vec<veilid_core::TypedKey> = Vec::new();
+        let mut bootstrap_keys_list: Vec<veilid_core::TypedPublicKey> = Vec::new();
         for x in bootstrap_keys.split(',') {
             let x = x.trim();
-            let key = match veilid_core::TypedKey::from_str(x) {
+            let key = match veilid_core::TypedPublicKey::from_str(x) {
                 Ok(v) => v,
                 Err(e) => {
                     bail!("Failed to parse bootstrap key: {}\n{}", e, x)
@@ -425,13 +425,13 @@ fn main() -> EyreResult<()> {
     // --- Generate DHT Key ---
     if let Some(ckstr) = args.generate_key_pair {
         if ckstr.is_empty() {
-            let mut tks = veilid_core::TypedKeyGroup::new();
-            let mut tss = veilid_core::TypedSecretGroup::new();
+            let mut tks = veilid_core::TypedPublicKeyGroup::new();
+            let mut tss = veilid_core::TypedSecretKeyGroup::new();
             for ck in veilid_core::VALID_CRYPTO_KINDS {
                 let tkp =
                     veilid_core::Crypto::generate_keypair(ck).wrap_err("invalid crypto kind")?;
-                tks.add(veilid_core::TypedKey::new(tkp.kind, tkp.value.key));
-                tss.add(veilid_core::TypedSecret::new(tkp.kind, tkp.value.secret));
+                tks.add(veilid_core::TypedPublicKey::new(tkp.kind, tkp.value.key));
+                tss.add(veilid_core::TypedSecretKey::new(tkp.kind, tkp.value.secret));
             }
             println!("Public Keys:\n{}\nSecret Keys:\n{}\n", tks, tss);
         } else {

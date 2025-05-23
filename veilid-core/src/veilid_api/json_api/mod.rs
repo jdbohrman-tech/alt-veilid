@@ -96,7 +96,7 @@ pub enum RequestOp {
     CryptoSystem(CryptoSystemRequest),
     VerifySignatures {
         #[schemars(with = "Vec<String>")]
-        node_ids: Vec<TypedKey>,
+        node_ids: Vec<TypedPublicKey>,
         #[serde(with = "as_human_base64")]
         #[schemars(with = "String")]
         data: Vec<u8>,
@@ -207,7 +207,7 @@ pub enum ResponseOp {
     VerifySignatures {
         #[serde(flatten)]
         #[schemars(with = "ApiResult<Option<Vec<String>>>")]
-        result: ApiResultWithOptVecString<Option<TypedKeyGroup>>,
+        result: ApiResultWithOptVecString<Option<TypedPublicKeyGroup>>,
     },
     GenerateSignatures {
         #[serde(flatten)]

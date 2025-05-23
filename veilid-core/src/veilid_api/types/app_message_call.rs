@@ -11,7 +11,7 @@ pub struct VeilidAppMessage {
         all(target_arch = "wasm32", target_os = "unknown"),
         tsify(optional, type = "string")
     )]
-    sender: Option<TypedKey>,
+    sender: Option<TypedPublicKey>,
 
     #[serde(with = "as_human_opt_string")]
     #[schemars(with = "Option<String>")]
@@ -35,7 +35,11 @@ pub struct VeilidAppMessage {
 }
 
 impl VeilidAppMessage {
-    pub fn new(sender: Option<TypedKey>, route_id: Option<RouteId>, message: Vec<u8>) -> Self {
+    pub fn new(
+        sender: Option<TypedPublicKey>,
+        route_id: Option<RouteId>,
+        message: Vec<u8>,
+    ) -> Self {
         Self {
             sender,
             route_id,
@@ -45,7 +49,7 @@ impl VeilidAppMessage {
 
     /// Some(sender) if the message was sent directly, None if received via a private/safety route.
     #[must_use]
-    pub fn sender(&self) -> Option<&TypedKey> {
+    pub fn sender(&self) -> Option<&TypedPublicKey> {
         self.sender.as_ref()
     }
 
@@ -70,7 +74,7 @@ pub struct VeilidAppCall {
     #[serde(with = "as_human_opt_string")]
     #[schemars(with = "Option<String>")]
     #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), tsify(optional))]
-    sender: Option<TypedKey>,
+    sender: Option<TypedPublicKey>,
 
     #[serde(with = "as_human_opt_string")]
     #[schemars(with = "Option<String>")]
@@ -99,7 +103,7 @@ pub struct VeilidAppCall {
 
 impl VeilidAppCall {
     pub fn new(
-        sender: Option<TypedKey>,
+        sender: Option<TypedPublicKey>,
         route_id: Option<RouteId>,
         message: Vec<u8>,
         call_id: OperationId,
@@ -114,7 +118,7 @@ impl VeilidAppCall {
 
     /// Some(sender) if the request was sent directly, None if received via a private/safety route.
     #[must_use]
-    pub fn sender(&self) -> Option<&TypedKey> {
+    pub fn sender(&self) -> Option<&TypedPublicKey> {
         self.sender.as_ref()
     }
 

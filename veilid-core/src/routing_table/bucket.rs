@@ -83,7 +83,10 @@ impl Bucket {
         veilid_log!(self trace "Node added: {}:{}", self.kind, node_id_key);
 
         // Add new entry
-        let entry = Arc::new(BucketEntry::new(TypedKey::new(self.kind, node_id_key)));
+        let entry = Arc::new(BucketEntry::new(TypedPublicKey::new(
+            self.kind,
+            node_id_key,
+        )));
         self.entries.insert(node_id_key, entry.clone());
 
         // Return the new entry

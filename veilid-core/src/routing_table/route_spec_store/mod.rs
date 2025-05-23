@@ -166,7 +166,7 @@ impl RouteSpecStore {
         crypto_kinds: &[CryptoKind],
         safety_spec: &SafetySpec,
         directions: DirectionSet,
-        avoid_nodes: &[TypedKey],
+        avoid_nodes: &[TypedPublicKey],
         automatic: bool,
     ) -> VeilidAPIResult<RouteId> {
         let inner = &mut *self.inner.lock();
@@ -193,7 +193,7 @@ impl RouteSpecStore {
         crypto_kinds: &[CryptoKind],
         safety_spec: &SafetySpec,
         directions: DirectionSet,
-        avoid_nodes: &[TypedKey],
+        avoid_nodes: &[TypedPublicKey],
         automatic: bool,
     ) -> VeilidAPIResult<RouteId> {
         use core::cmp::Ordering;
@@ -517,7 +517,7 @@ impl RouteSpecStore {
             }
 
             // Ensure the route doesn't contain both a node and its relay
-            let mut seen_nodes: HashSet<TypedKey> = HashSet::new();
+            let mut seen_nodes: HashSet<TypedPublicKey> = HashSet::new();
             for n in permutation {
                 let node = nodes.get(*n).unwrap();
                 if !seen_nodes.insert(node.locked(rti).best_node_id()) {
@@ -698,7 +698,7 @@ impl RouteSpecStore {
     #[instrument(level = "trace", target = "route", skip(self, data, callback), ret)]
     pub fn with_signature_validated_route<F, R>(
         &self,
-        public_key: &TypedKey,
+        public_key: &TypedPublicKey,
         signatures: &[Signature],
         data: &[u8],
         last_hop_id: PublicKey,
@@ -948,7 +948,7 @@ impl RouteSpecStore {
         stability: Stability,
         sequencing: Sequencing,
         directions: DirectionSet,
-        avoid_nodes: &[TypedKey],
+        avoid_nodes: &[TypedPublicKey],
     ) -> Option<RouteId> {
         let cur_ts = Timestamp::now();
 
@@ -1105,7 +1105,7 @@ impl RouteSpecStore {
 
                 let opt_first_hop = match pr_first_hop_node {
                     RouteNode::NodeId(id) => rti
-                        .lookup_node_ref(TypedKey::new(crypto_kind, id))
+                        .lookup_node_ref(TypedPublicKey::new(crypto_kind, id))
                         .map_err(VeilidAPIError::internal)?,
                     RouteNode::PeerInfo(pi) => Some(
                         rti.register_node_with_peer_info(pi, false)
@@ -1252,7 +1252,8 @@ impl RouteSpecStore {
                             RouteNode::NodeId(safety_rsd.hops[h])
                         } else {
                             // Full peer info, required until we are sure the route has been fully established
-                            let node_id = TypedKey::new(safety_rsd.crypto_kind, safety_rsd.hops[h]);
+                            let node_id =
+                                TypedPublicKey::new(safety_rsd.crypto_kind, safety_rsd.hops[h]);
                             let pi = rti
                                 .with_node_entry(node_id, |entry| {
                                     entry.with(rti, |_rti, e| {
@@ -1301,7 +1302,7 @@ impl RouteSpecStore {
 
         // Build safety route
         let safety_route = SafetyRoute {
-            public_key: TypedKey::new(crypto_kind, sr_pubkey),
+            public_key: TypedPublicKey::new(crypto_kind, sr_pubkey),
             hop_count: safety_spec.hop_count as u8,
             hops,
         };
@@ -1334,7 +1335,7 @@ impl RouteSpecStore {
         crypto_kind: CryptoKind,
         safety_spec: &SafetySpec,
         direction: DirectionSet,
-        avoid_nodes: &[TypedKey],
+        avoid_nodes: &[TypedPublicKey],
     ) -> VeilidAPIResult<PublicKey> {
         // Ensure the total hop count isn't too long for our config
         let max_route_hop_count = self.max_route_hop_count;
@@ -1410,7 +1411,7 @@ impl RouteSpecStore {
         &self,
         crypto_kind: CryptoKind,
         safety_spec: &SafetySpec,
-        avoid_nodes: &[TypedKey],
+        avoid_nodes: &[TypedPublicKey],
     ) -> VeilidAPIResult<PublicKey> {
         let inner = &mut *self.inner.lock();
         let routing_table = self.routing_table();
@@ -1496,7 +1497,7 @@ impl RouteSpecStore {
                     RouteNode::NodeId(rsd.hops[h])
                 } else {
                     // Full peer info, required until we are sure the route has been fully established
-                    let node_id = TypedKey::new(rsd.crypto_kind, rsd.hops[h]);
+                    let node_id = TypedPublicKey::new(rsd.crypto_kind, rsd.hops[h]);
                     let pi = rti
                         .with_node_entry(node_id, |entry| {
                             entry.with(rti, |_rti, e| {
@@ -1514,7 +1515,7 @@ impl RouteSpecStore {
         }
 
         let private_route = PrivateRoute {
-            public_key: TypedKey::new(rsd.crypto_kind, *key),
+            public_key: TypedPublicKey::new(rsd.crypto_kind, *key),
             // add hop for 'FirstHop'
             hop_count: (hop_count + 1).try_into().unwrap(),
             hops: PrivateRouteHops::FirstHop(Box::new(route_hop)),

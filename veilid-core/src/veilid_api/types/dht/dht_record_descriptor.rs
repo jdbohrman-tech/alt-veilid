@@ -11,7 +11,7 @@ use super::*;
 pub struct DHTRecordDescriptor {
     /// DHT Key = Hash(ownerKeyKind) of: [ ownerKeyValue, schema ]
     #[schemars(with = "String")]
-    key: TypedKey,
+    key: TypedRecordKey,
     /// The public key of the owner
     #[schemars(with = "String")]
     owner: PublicKey,
@@ -26,7 +26,7 @@ pub struct DHTRecordDescriptor {
 
 impl DHTRecordDescriptor {
     pub(crate) fn new(
-        key: TypedKey,
+        key: TypedRecordKey,
         owner: PublicKey,
         owner_secret: Option<SecretKey>,
         schema: DHTSchema,
@@ -39,7 +39,7 @@ impl DHTRecordDescriptor {
         }
     }
 
-    pub fn key(&self) -> &TypedKey {
+    pub fn key(&self) -> &TypedRecordKey {
         &self.key
     }
     pub fn owner(&self) -> &PublicKey {

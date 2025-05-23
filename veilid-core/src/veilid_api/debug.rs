@@ -14,7 +14,7 @@ impl_veilid_log_facility!("veilid_debug");
 #[derive(Default)]
 pub(crate) struct DebugCache {
     pub imported_routes: Vec<RouteId>,
-    pub opened_record_contexts: Lazy<LinkedHashMap<TypedKey, RoutingContext>>,
+    pub opened_record_contexts: Lazy<LinkedHashMap<TypedRecordKey, RoutingContext>>,
 }
 
 #[must_use]
@@ -228,11 +228,17 @@ fn get_number<T: num_traits::Num + FromStr>(text: &str) -> Option<T> {
     T::from_str(text).ok()
 }
 
-fn get_typed_key(text: &str) -> Option<TypedKey> {
-    TypedKey::from_str(text).ok()
+fn get_typed_key(text: &str) -> Option<TypedPublicKey> {
+    TypedPublicKey::from_str(text).ok()
+}
+fn get_typed_record_key(text: &str) -> Option<TypedRecordKey> {
+    TypedRecordKey::from_str(text).ok()
 }
 fn get_public_key(text: &str) -> Option<PublicKey> {
     PublicKey::from_str(text).ok()
+}
+fn get_record_key(text: &str) -> Option<RecordKey> {
+    RecordKey::from_str(text).ok()
 }
 fn get_keypair(text: &str) -> Option<KeyPair> {
     KeyPair::from_str(text).ok()
@@ -251,10 +257,10 @@ fn get_crypto_system_version<'a>(
     }
 }
 
-fn get_dht_key_no_safety(text: &str) -> Option<TypedKey> {
-    let key = if let Some(key) = get_public_key(text) {
-        TypedKey::new(best_crypto_kind(), key)
-    } else if let Some(key) = get_typed_key(text) {
+fn get_dht_key_no_safety(text: &str) -> Option<TypedRecordKey> {
+    let key = if let Some(key) = get_record_key(text) {
+        TypedRecordKey::new(best_crypto_kind(), key)
+    } else if let Some(key) = get_typed_record_key(text) {
         key
     } else {
         return None;
@@ -265,7 +271,7 @@ fn get_dht_key_no_safety(text: &str) -> Option<TypedKey> {
 
 fn get_dht_key(
     registry: VeilidComponentRegistry,
-) -> impl FnOnce(&str) -> Option<(TypedKey, Option<SafetySelection>)> {
+) -> impl FnOnce(&str) -> Option<(TypedRecordKey, Option<SafetySelection>)> {
     move |text| {
         // Safety selection
         let (text, ss) = if let Some((first, second)) = text.split_once('+') {
@@ -278,9 +284,9 @@ fn get_dht_key(
             return None;
         }
 
-        let key = if let Some(key) = get_public_key(text) {
-            TypedKey::new(best_crypto_kind(), key)
-        } else if let Some(key) = get_typed_key(text) {
+        let key = if let Some(key) = get_record_key(text) {
+            TypedRecordKey::new(best_crypto_kind(), key)
+        } else if let Some(key) = get_typed_record_key(text) {
             key
         } else {
             return None;
@@ -298,7 +304,7 @@ fn resolve_node_ref(
         let text = text.to_owned();
         Box::pin(async move {
             let nr = if let Some(key) = get_public_key(&text) {
-                let node_id = TypedKey::new(best_crypto_kind(), key);
+                let node_id = TypedPublicKey::new(best_crypto_kind(), key);
                 registry
                     .rpc_processor()
                     .resolve_node(node_id, safety_selection)
@@ -333,7 +339,7 @@ fn resolve_filtered_node_ref(
                 .unwrap_or((&text, None));
 
             let nr = if let Some(key) = get_public_key(text) {
-                let node_id = TypedKey::new(best_crypto_kind(), key);
+                let node_id = TypedPublicKey::new(best_crypto_kind(), key);
                 registry
                     .rpc_processor()
                     .resolve_node(node_id, safety_selection)
@@ -2433,7 +2439,7 @@ TableDB Operations:
         context: &str,
         key: &str,
         arg: usize,
-    ) -> VeilidAPIResult<(TypedKey, RoutingContext)> {
+    ) -> VeilidAPIResult<(TypedRecordKey, RoutingContext)> {
         let key = match get_debug_argument_at(args, arg, context, key, get_dht_key_no_safety)
             .ok()
             .or_else(|| {

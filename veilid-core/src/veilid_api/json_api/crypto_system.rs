@@ -89,9 +89,9 @@ pub enum CryptoSystemRequestOp {
     },
     Distance {
         #[schemars(with = "String")]
-        key1: CryptoKey,
+        key1: PublicKey,
         #[schemars(with = "String")]
-        key2: CryptoKey,
+        key2: PublicKey,
     },
     Sign {
         #[schemars(with = "String")]
@@ -215,7 +215,7 @@ pub enum CryptoSystemResponseOp {
     },
     Distance {
         #[schemars(with = "String")]
-        value: CryptoKeyDistance,
+        value: HashDistance,
     },
     Sign {
         #[serde(flatten)]

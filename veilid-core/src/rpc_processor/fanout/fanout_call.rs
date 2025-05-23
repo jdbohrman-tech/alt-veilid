@@ -112,7 +112,7 @@ pub enum FanoutCallDisposition {
 }
 
 pub type FanoutCallResult = Result<FanoutCallOutput, RPCError>;
-pub type FanoutNodeInfoFilter = Arc<dyn (Fn(&[TypedKey], &NodeInfo) -> bool) + Send + Sync>;
+pub type FanoutNodeInfoFilter = Arc<dyn (Fn(&[TypedPublicKey], &NodeInfo) -> bool) + Send + Sync>;
 pub type FanoutCheckDone = Arc<dyn (Fn(&FanoutResult) -> bool) + Send + Sync>;
 pub type FanoutCallRoutine =
     Arc<dyn (Fn(NodeRef) -> PinBoxFutureStatic<FanoutCallResult>) + Send + Sync>;
@@ -146,7 +146,7 @@ pub fn capability_fanout_node_info_filter(caps: Vec<Capability>) -> FanoutNodeIn
 /// in the given time
 pub(crate) struct FanoutCall<'a> {
     routing_table: &'a RoutingTable,
-    node_id: TypedKey,
+    hash_coordinate: TypedHashDigest,
     node_count: usize,
     fanout_tasks: usize,
     consensus_count: usize,
@@ -166,7 +166,7 @@ impl<'a> FanoutCall<'a> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         routing_table: &'a RoutingTable,
-        node_id: TypedKey,
+        hash_coordinate: TypedHashDigest,
         node_count: usize,
         fanout_tasks: usize,
         consensus_count: usize,
@@ -177,7 +177,7 @@ impl<'a> FanoutCall<'a> {
     ) -> Self {
         Self {
             routing_table,
-            node_id,
+            hash_coordinate,
             node_count,
             fanout_tasks,
             consensus_count,
@@ -398,7 +398,12 @@ impl<'a> FanoutCall<'a> {
             };
 
             self.routing_table
-                .find_preferred_closest_nodes(self.node_count, self.node_id, filters, transform)
+                .find_preferred_closest_nodes(
+                    self.node_count,
+                    self.hash_coordinate,
+                    filters,
+                    transform,
+                )
                 .map_err(RPCError::invalid_format)?
         };
         context.fanout_queue.add(&closest_nodes);
@@ -410,24 +415,26 @@ impl<'a> FanoutCall<'a> {
     pub async fn run(&self, init_fanout_queue: Vec<NodeRef>) -> Result<FanoutResult, RPCError> {
         // Create context for this run
         let crypto = self.routing_table.crypto();
-        let Some(vcrypto) = crypto.get(self.node_id.kind) else {
+        let Some(vcrypto) = crypto.get(self.hash_coordinate.kind) else {
             return Err(RPCError::internal(
                 "should not try this on crypto we don't support",
             ));
         };
         let node_sort = Box::new(
-            |a_key: &CryptoTyped<CryptoKey>,
-             b_key: &CryptoTyped<CryptoKey>|
+            |a_key: &CryptoTyped<PublicKey>,
+             b_key: &CryptoTyped<PublicKey>|
              -> core::cmp::Ordering {
-                let da = vcrypto.distance(&a_key.value, &self.node_id.value);
-                let db = vcrypto.distance(&b_key.value, &self.node_id.value);
+                let da =
+                    vcrypto.distance(&HashDigest::from(a_key.value), &self.hash_coordinate.value);
+                let db =
+                    vcrypto.distance(&HashDigest::from(b_key.value), &self.hash_coordinate.value);
                 da.cmp(&db)
             },
         );
         let context = Arc::new(Mutex::new(FanoutContext {
             fanout_queue: FanoutQueue::new(
                 self.routing_table.registry(),
-                self.node_id.kind,
+                self.hash_coordinate.kind,
                 node_sort,
                 self.consensus_count,
             ),

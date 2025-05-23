@@ -47,7 +47,7 @@ impl StorageManager {
     #[instrument(target = "watch", level = "debug", skip_all, err)]
     pub(super) async fn outbound_watch_value_cancel(
         &self,
-        watch_lock: AsyncTagLockGuard<TypedKey>,
+        watch_lock: AsyncTagLockGuard<TypedRecordKey>,
         opt_watcher: Option<KeyPair>,
         safety_selection: SafetySelection,
         watch_node: NodeRef,
@@ -95,7 +95,7 @@ impl StorageManager {
     #[instrument(target = "watch", level = "debug", skip_all, err)]
     pub(super) async fn outbound_watch_value_change(
         &self,
-        watch_lock: AsyncTagLockGuard<TypedKey>,
+        watch_lock: AsyncTagLockGuard<TypedRecordKey>,
         params: OutboundWatchParameters,
         watch_node: NodeRef,
         watch_id: u64,
@@ -165,7 +165,7 @@ impl StorageManager {
     #[instrument(target = "watch", level = "debug", skip_all, err)]
     pub(super) async fn outbound_watch_value(
         &self,
-        watch_lock: AsyncTagLockGuard<TypedKey>,
+        watch_lock: AsyncTagLockGuard<TypedRecordKey>,
         params: OutboundWatchParameters,
         per_node_state: HashMap<PerNodeKey, PerNodeState>,
     ) -> VeilidAPIResult<OutboundWatchValueResult> {
@@ -332,7 +332,7 @@ impl StorageManager {
         let routing_table = self.routing_table();
         let fanout_call = FanoutCall::new(
             &routing_table,
-            record_key,
+            record_key.into(),
             key_count,
             fanout,
             consensus_count,
@@ -374,7 +374,7 @@ impl StorageManager {
     /// Remove dead watches from the table
     pub(super) async fn process_outbound_watch_dead(
         &self,
-        watch_lock: AsyncTagLockGuard<TypedKey>,
+        watch_lock: AsyncTagLockGuard<TypedRecordKey>,
     ) {
         let record_key = watch_lock.tag();
 
@@ -404,7 +404,7 @@ impl StorageManager {
     /// and call their nodes to cancel the watch
     pub(super) async fn process_outbound_watch_cancel(
         &self,
-        watch_lock: AsyncTagLockGuard<TypedKey>,
+        watch_lock: AsyncTagLockGuard<TypedRecordKey>,
     ) {
         let record_key = watch_lock.tag();
 
@@ -520,7 +520,7 @@ impl StorageManager {
     /// and drop the ones that can't be or are dead
     pub(super) async fn process_outbound_watch_renew(
         &self,
-        watch_lock: AsyncTagLockGuard<TypedKey>,
+        watch_lock: AsyncTagLockGuard<TypedRecordKey>,
     ) {
         let record_key = watch_lock.tag();
 
@@ -619,7 +619,7 @@ impl StorageManager {
     /// Perform fanout to add or update per-node watches to an outbound watch
     pub(super) async fn process_outbound_watch_reconcile(
         &self,
-        watch_lock: AsyncTagLockGuard<TypedKey>,
+        watch_lock: AsyncTagLockGuard<TypedRecordKey>,
     ) {
         let record_key = watch_lock.tag();
 
@@ -734,7 +734,7 @@ impl StorageManager {
     fn process_outbound_watch_value_result_inner(
         &self,
         inner: &mut StorageManagerInner,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         owvresult: OutboundWatchValueResult,
     ) {
         let Some(outbound_watch) = inner
@@ -842,8 +842,8 @@ impl StorageManager {
     /// Can be processed in the foreground, or by the background operation queue
     pub(super) fn get_next_outbound_watch_operation(
         &self,
-        key: TypedKey,
-        opt_watch_lock: Option<AsyncTagLockGuard<TypedKey>>,
+        key: TypedRecordKey,
+        opt_watch_lock: Option<AsyncTagLockGuard<TypedRecordKey>>,
         cur_ts: Timestamp,
         outbound_watch: &mut OutboundWatch,
     ) -> Option<PinBoxFutureStatic<()>> {
@@ -918,7 +918,7 @@ impl StorageManager {
     /// Can be processed in the foreground, or by the background operation queue
     pub(super) fn get_change_inspection_operation(
         &self,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         subkeys: ValueSubkeyRangeSet,
     ) -> PinBoxFutureStatic<()> {
         let fut = {
@@ -1014,7 +1014,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "dht", skip_all)]
     pub async fn inbound_watch_value(
         &self,
-        key: TypedKey,
+        key: TypedRecordKey,
         params: InboundWatchParameters,
         watch_id: Option<u64>,
     ) -> VeilidAPIResult<NetworkResult<InboundWatchResult>> {
@@ -1055,11 +1055,11 @@ impl StorageManager {
     #[instrument(level = "debug", target = "watch", skip_all)]
     pub async fn inbound_value_changed(
         &self,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         mut subkeys: ValueSubkeyRangeSet,
         count: u32,
         value: Option<Arc<SignedValueData>>,
-        inbound_node_id: TypedKey,
+        inbound_node_id: TypedPublicKey,
         watch_id: u64,
     ) -> VeilidAPIResult<NetworkResult<()>> {
         // Operate on the watch for this record

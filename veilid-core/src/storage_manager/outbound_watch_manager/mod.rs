@@ -19,13 +19,13 @@ impl_veilid_log_facility!("stor");
 pub(in crate::storage_manager) struct OutboundWatchManager {
     /// Each watch per record key
     #[serde(skip)]
-    pub outbound_watches: HashMap<TypedKey, OutboundWatch>,
+    pub outbound_watches: HashMap<TypedRecordKey, OutboundWatch>,
     /// Last known active watch per node+record
     #[serde_as(as = "Vec<(_, _)>")]
     pub per_node_states: HashMap<PerNodeKey, PerNodeState>,
     /// Value changed updates that need inpection to determine if they should be reported
     #[serde(skip)]
-    pub needs_change_inspection: HashMap<TypedKey, ValueSubkeyRangeSet>,
+    pub needs_change_inspection: HashMap<TypedRecordKey, ValueSubkeyRangeSet>,
 }
 
 impl fmt::Display for OutboundWatchManager {
@@ -116,7 +116,7 @@ impl OutboundWatchManager {
 
     pub fn set_desired_watch(
         &mut self,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         desired_watch: Option<OutboundWatchParameters>,
     ) {
         match self.outbound_watches.get_mut(&record_key) {
@@ -139,7 +139,7 @@ impl OutboundWatchManager {
         }
     }
 
-    pub fn set_next_reconcile_ts(&mut self, record_key: TypedKey, next_ts: Timestamp) {
+    pub fn set_next_reconcile_ts(&mut self, record_key: TypedRecordKey, next_ts: Timestamp) {
         if let Some(outbound_watch) = self.outbound_watches.get_mut(&record_key) {
             if let Some(state) = outbound_watch.state_mut() {
                 state.edit(&self.per_node_states, |editor| {
@@ -204,7 +204,11 @@ impl OutboundWatchManager {
     }
 
     /// Set a record up to be inspected for changed subkeys
-    pub fn enqueue_change_inspect(&mut self, record_key: TypedKey, subkeys: ValueSubkeyRangeSet) {
+    pub fn enqueue_change_inspect(
+        &mut self,
+        record_key: TypedRecordKey,
+        subkeys: ValueSubkeyRangeSet,
+    ) {
         self.needs_change_inspection
             .entry(record_key)
             .and_modify(|x| *x = x.union(&subkeys))

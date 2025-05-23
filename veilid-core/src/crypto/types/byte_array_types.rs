@@ -39,24 +39,24 @@ pub const NONCE_LENGTH: usize = 24;
 /// Length of a nonce in bytes after encoding to base64url
 #[allow(dead_code)]
 pub const NONCE_LENGTH_ENCODED: usize = 32;
-/// Length of a shared secret in bytes
-#[allow(dead_code)]
-pub const SHARED_SECRET_LENGTH: usize = CRYPTO_KEY_LENGTH;
-/// Length of a shared secret in bytes after encoding to base64url
-#[allow(dead_code)]
-pub const SHARED_SECRET_LENGTH_ENCODED: usize = CRYPTO_KEY_LENGTH_ENCODED;
-/// Length of a route id in bytes
-#[allow(dead_code)]
-pub const ROUTE_ID_LENGTH: usize = CRYPTO_KEY_LENGTH;
-/// Length of a route id in bytes after encoding to base64url
-#[allow(dead_code)]
-pub const ROUTE_ID_LENGTH_ENCODED: usize = CRYPTO_KEY_LENGTH_ENCODED;
 /// Length of a hash digest in bytes
 #[allow(dead_code)]
 pub const HASH_DIGEST_LENGTH: usize = CRYPTO_KEY_LENGTH;
 /// Length of a hash digest in bytes after encoding to base64url
 #[allow(dead_code)]
 pub const HASH_DIGEST_LENGTH_ENCODED: usize = CRYPTO_KEY_LENGTH_ENCODED;
+/// Length of a shared secret in bytes
+#[allow(dead_code)]
+pub const SHARED_SECRET_LENGTH: usize = HASH_DIGEST_LENGTH;
+/// Length of a shared secret in bytes after encoding to base64url
+#[allow(dead_code)]
+pub const SHARED_SECRET_LENGTH_ENCODED: usize = HASH_DIGEST_LENGTH_ENCODED;
+/// Length of a route id in bytes
+#[allow(dead_code)]
+pub const ROUTE_ID_LENGTH: usize = HASH_DIGEST_LENGTH;
+/// Length of a route id in bytes after encoding to base64url
+#[allow(dead_code)]
+pub const ROUTE_ID_LENGTH_ENCODED: usize = HASH_DIGEST_LENGTH_ENCODED;
 
 //////////////////////////////////////////////////////////////////////
 
@@ -292,20 +292,84 @@ macro_rules! byte_array_type {
 
 /////////////////////////////////////////
 
-byte_array_type!(CryptoKey, CRYPTO_KEY_LENGTH, CRYPTO_KEY_LENGTH_ENCODED);
-
-#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
-pub type PublicKey = CryptoKey;
-#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
-pub type SecretKey = CryptoKey;
-#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
-pub type HashDigest = CryptoKey;
-#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
-pub type SharedSecret = CryptoKey;
-#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
-pub type RouteId = CryptoKey;
-#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
-pub type CryptoKeyDistance = CryptoKey;
-
+byte_array_type!(PublicKey, PUBLIC_KEY_LENGTH, PUBLIC_KEY_LENGTH_ENCODED);
+byte_array_type!(SecretKey, SECRET_KEY_LENGTH, SECRET_KEY_LENGTH_ENCODED);
 byte_array_type!(Signature, SIGNATURE_LENGTH, SIGNATURE_LENGTH_ENCODED);
 byte_array_type!(Nonce, NONCE_LENGTH, NONCE_LENGTH_ENCODED);
+
+/*
+Notes:
+    - These are actually HashDigest types, but not interchangable:
+        - RouteId (eventually will be a RecordKey type with DHT Routes)
+        - RecordKey
+        - SharedSecret
+*/
+
+// HashDigest sub-types
+byte_array_type!(HashDigest, HASH_DIGEST_LENGTH, HASH_DIGEST_LENGTH_ENCODED);
+byte_array_type!(
+    SharedSecret,
+    SHARED_SECRET_LENGTH,
+    SHARED_SECRET_LENGTH_ENCODED
+);
+byte_array_type!(RouteId, ROUTE_ID_LENGTH, ROUTE_ID_LENGTH_ENCODED);
+byte_array_type!(RecordKey, HASH_DIGEST_LENGTH, HASH_DIGEST_LENGTH_ENCODED);
+byte_array_type!(HashDistance, HASH_DIGEST_LENGTH, HASH_DIGEST_LENGTH_ENCODED);
+
+// NodeId is currently the same as PublicKey, but will eventually be a sub-type of HashDigest.
+byte_array_type!(NodeId, PUBLIC_KEY_LENGTH, PUBLIC_KEY_LENGTH_ENCODED);
+
+// Temporary adapters for converting to/from HashDigest types
+// Removing these will show where there's still issues.
+impl From<HashDigest> for SharedSecret {
+    fn from(value: HashDigest) -> Self {
+        Self::new(value.bytes)
+    }
+}
+
+impl From<HashDigest> for RecordKey {
+    fn from(value: HashDigest) -> Self {
+        Self::new(value.bytes)
+    }
+}
+
+impl From<RecordKey> for HashDigest {
+    fn from(value: RecordKey) -> Self {
+        Self::new(value.bytes)
+    }
+}
+
+impl From<NodeId> for HashDigest {
+    fn from(value: NodeId) -> Self {
+        Self::new(value.bytes)
+    }
+}
+
+// Removing this will show where PublicKey might need to be converted to NodeId or RecordKey.
+impl From<PublicKey> for HashDigest {
+    fn from(value: PublicKey) -> Self {
+        Self::new(value.bytes)
+    }
+}
+
+impl From<HashDigest> for PublicKey {
+    fn from(value: HashDigest) -> Self {
+        Self::new(value.bytes)
+    }
+}
+
+/*
+- NodeId currently equals PublicKey, but should be distinct from PublicKey.
+    - NodeId eventually should be a HashDigest type that's constructable from a PublicKey
+*/
+impl From<PublicKey> for NodeId {
+    fn from(value: PublicKey) -> Self {
+        Self::new(value.bytes)
+    }
+}
+
+impl From<NodeId> for PublicKey {
+    fn from(value: NodeId) -> Self {
+        Self::new(value.bytes)
+    }
+}

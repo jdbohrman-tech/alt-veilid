@@ -259,11 +259,11 @@ impl Crypto {
     /// Returns None if any cryptokinds are supported and do not validate
     pub fn verify_signatures(
         &self,
-        public_keys: &[TypedKey],
+        public_keys: &[TypedPublicKey],
         data: &[u8],
         typed_signatures: &[TypedSignature],
-    ) -> VeilidAPIResult<Option<TypedKeyGroup>> {
-        let mut out = TypedKeyGroup::with_capacity(public_keys.len());
+    ) -> VeilidAPIResult<Option<TypedPublicKeyGroup>> {
+        let mut out = TypedPublicKeyGroup::with_capacity(public_keys.len());
         for sig in typed_signatures {
             for nid in public_keys {
                 if nid.kind == sig.kind {
@@ -352,7 +352,7 @@ impl Crypto {
         &self,
         vcrypto: AsyncCryptoSystemGuard<'_>,
         table_store: &TableStore,
-    ) -> VeilidAPIResult<(TypedKey, TypedSecret)> {
+    ) -> VeilidAPIResult<(TypedPublicKey, TypedSecretKey)> {
         let config = self.config();
         let ck = vcrypto.kind();
         let (mut node_id, mut node_id_secret) = config.with(|c| {
@@ -371,7 +371,7 @@ impl Crypto {
         if node_id.is_none() {
             veilid_log!(self debug "pulling {} from storage", table_key_node_id);
             if let Ok(Some(stored_node_id)) = config_table
-                .load_json::<TypedKey>(0, table_key_node_id.as_bytes())
+                .load_json::<TypedPublicKey>(0, table_key_node_id.as_bytes())
                 .await
             {
                 veilid_log!(self debug "{} found in storage", table_key_node_id);
@@ -385,7 +385,7 @@ impl Crypto {
         if node_id_secret.is_none() {
             veilid_log!(self debug "pulling {} from storage", table_key_node_id_secret);
             if let Ok(Some(stored_node_id_secret)) = config_table
-                .load_json::<TypedSecret>(0, table_key_node_id_secret.as_bytes())
+                .load_json::<TypedSecretKey>(0, table_key_node_id_secret.as_bytes())
                 .await
             {
                 veilid_log!(self debug "{} found in storage", table_key_node_id_secret);
@@ -413,7 +413,10 @@ impl Crypto {
                 // If we still don't have a valid node id, generate one
                 veilid_log!(self debug "generating new node_id_{}", ck);
                 let kp = vcrypto.generate_keypair().await;
-                (TypedKey::new(ck, kp.key), TypedSecret::new(ck, kp.secret))
+                (
+                    TypedPublicKey::new(ck, kp.key),
+                    TypedSecretKey::new(ck, kp.secret),
+                )
             };
         veilid_log!(self info  "Node Id: {}", node_id);
 
@@ -432,8 +435,8 @@ impl Crypto {
     /// Must be done -after- protected store is initialized, during table store init
     #[cfg_attr(test, allow(unused_variables))]
     async fn setup_node_ids(&self, table_store: &TableStore) -> VeilidAPIResult<()> {
-        let mut out_node_id = TypedKeyGroup::new();
-        let mut out_node_id_secret = TypedSecretGroup::new();
+        let mut out_node_id = TypedPublicKeyGroup::new();
+        let mut out_node_id_secret = TypedSecretKeyGroup::new();
 
         for ck in VALID_CRYPTO_KINDS {
             let vcrypto = self
@@ -443,7 +446,10 @@ impl Crypto {
             #[cfg(test)]
             let (node_id, node_id_secret) = {
                 let kp = vcrypto.generate_keypair().await;
-                (TypedKey::new(ck, kp.key), TypedSecret::new(ck, kp.secret))
+                (
+                    TypedPublicKey::new(ck, kp.key),
+                    TypedSecretKey::new(ck, kp.secret),
+                )
             };
             #[cfg(not(test))]
             let (node_id, node_id_secret) = self.setup_node_id(vcrypto, table_store).await?;

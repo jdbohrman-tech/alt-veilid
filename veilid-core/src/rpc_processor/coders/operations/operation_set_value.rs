@@ -22,7 +22,7 @@ impl fmt::Debug for ValidateSetValueContext {
 
 #[derive(Debug, Clone)]
 pub(in crate::rpc_processor) struct RPCOperationSetValueQ {
-    key: TypedKey,
+    key: TypedRecordKey,
     subkey: ValueSubkey,
     value: SignedValueData,
     descriptor: Option<SignedValueDescriptor>,
@@ -30,7 +30,7 @@ pub(in crate::rpc_processor) struct RPCOperationSetValueQ {
 
 impl RPCOperationSetValueQ {
     pub fn new(
-        key: TypedKey,
+        key: TypedRecordKey,
         subkey: ValueSubkey,
         value: SignedValueData,
         descriptor: Option<SignedValueDescriptor>,
@@ -64,7 +64,7 @@ impl RPCOperationSetValueQ {
     pub fn destructure(
         self,
     ) -> (
-        TypedKey,
+        TypedRecordKey,
         ValueSubkey,
         SignedValueData,
         Option<SignedValueDescriptor>,
@@ -77,7 +77,7 @@ impl RPCOperationSetValueQ {
         reader: &veilid_capnp::operation_set_value_q::Reader,
     ) -> Result<Self, RPCError> {
         let k_reader = reader.get_key().map_err(RPCError::protocol)?;
-        let key = decode_typed_key(&k_reader)?;
+        let key = decode_typed_record_key(&k_reader)?;
         let subkey = reader.get_subkey();
         let v_reader = reader.get_value().map_err(RPCError::protocol)?;
         let value = decode_signed_value_data(&v_reader)?;
@@ -100,7 +100,7 @@ impl RPCOperationSetValueQ {
         builder: &mut veilid_capnp::operation_set_value_q::Builder,
     ) -> Result<(), RPCError> {
         let mut k_builder = builder.reborrow().init_key();
-        encode_typed_key(&self.key, &mut k_builder);
+        encode_typed_record_key(&self.key, &mut k_builder);
         builder.set_subkey(self.subkey);
         let mut v_builder = builder.reborrow().init_value();
         encode_signed_value_data(&self.value, &mut v_builder)?;

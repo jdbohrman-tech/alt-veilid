@@ -10,11 +10,11 @@ pub enum ContactMethod {
     /// Contact the node directly
     Direct(DialInfo),
     /// Request via signal the node connect back directly (relay, target)
-    SignalReverse(TypedKey, TypedKey),
+    SignalReverse(TypedPublicKey, TypedPublicKey),
     /// Request via signal the node negotiate a hole punch (relay, target)
-    SignalHolePunch(TypedKey, TypedKey),
+    SignalHolePunch(TypedPublicKey, TypedPublicKey),
     /// Must use an inbound relay to reach the node
-    InboundRelay(TypedKey),
+    InboundRelay(TypedPublicKey),
     /// Must use outbound relay to reach the node
-    OutboundRelay(TypedKey),
+    OutboundRelay(TypedPublicKey),
 }

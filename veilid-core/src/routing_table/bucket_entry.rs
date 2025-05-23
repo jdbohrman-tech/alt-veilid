@@ -163,9 +163,9 @@ impl fmt::Display for BucketEntryLocalNetwork {
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct BucketEntryInner {
     /// The node ids matching this bucket entry, with the cryptography versions supported by this node as the 'kind' field
-    validated_node_ids: TypedKeyGroup,
+    validated_node_ids: TypedPublicKeyGroup,
     /// The node ids claimed by the remote node that use cryptography versions we do not support
-    unsupported_node_ids: TypedKeyGroup,
+    unsupported_node_ids: TypedPublicKeyGroup,
     /// The set of envelope versions supported by the node inclusive of the requirements of any relay the node may be using
     envelope_support: Vec<u8>,
     /// If this node has updated it's SignedNodeInfo since our network
@@ -283,7 +283,7 @@ impl BucketEntryInner {
     }
 
     /// Get all node ids
-    pub fn node_ids(&self) -> TypedKeyGroup {
+    pub fn node_ids(&self) -> TypedPublicKeyGroup {
         let mut node_ids = self.validated_node_ids.clone();
         node_ids.add_all(&self.unsupported_node_ids);
         node_ids
@@ -293,7 +293,7 @@ impl BucketEntryInner {
     /// Returns Ok(Some(node)) any previous existing node id associated with that crypto kind
     /// Returns Ok(None) if no previous existing node id was associated with that crypto kind, or one existed but nothing changed.
     /// Results Err() if this operation would add more crypto kinds than we support
-    pub fn add_node_id(&mut self, node_id: TypedKey) -> EyreResult<Option<TypedKey>> {
+    pub fn add_node_id(&mut self, node_id: TypedPublicKey) -> EyreResult<Option<TypedPublicKey>> {
         let total_node_id_count = self.validated_node_ids.len() + self.unsupported_node_ids.len();
         let node_ids = if VALID_CRYPTO_KINDS.contains(&node_id.kind) {
             &mut self.validated_node_ids
@@ -331,7 +331,7 @@ impl BucketEntryInner {
     /// Remove a node id for a particular crypto kind.
     /// Returns Some(node) any previous existing node id associated with that crypto kind
     /// Returns None if no previous existing node id was associated with that crypto kind
-    pub fn remove_node_id(&mut self, crypto_kind: CryptoKind) -> Option<TypedKey> {
+    pub fn remove_node_id(&mut self, crypto_kind: CryptoKind) -> Option<TypedPublicKey> {
         let node_ids = if VALID_CRYPTO_KINDS.contains(&crypto_kind) {
             &mut self.validated_node_ids
         } else {
@@ -348,7 +348,7 @@ impl BucketEntryInner {
         opt_dead_id
     }
 
-    pub fn best_node_id(&self) -> TypedKey {
+    pub fn best_node_id(&self) -> TypedPublicKey {
         self.validated_node_ids.best().unwrap()
     }
 
@@ -1217,14 +1217,14 @@ pub(crate) struct BucketEntry {
 }
 
 impl BucketEntry {
-    pub(super) fn new(first_node_id: TypedKey) -> Self {
+    pub(super) fn new(first_node_id: TypedPublicKey) -> Self {
         // First node id should always be one we support since TypedKeySets are sorted and we must have at least one supported key
         assert!(VALID_CRYPTO_KINDS.contains(&first_node_id.kind));
 
         let now = Timestamp::now();
         let inner = BucketEntryInner {
-            validated_node_ids: TypedKeyGroup::from(first_node_id),
-            unsupported_node_ids: TypedKeyGroup::new(),
+            validated_node_ids: TypedPublicKeyGroup::from(first_node_id),
+            unsupported_node_ids: TypedPublicKeyGroup::new(),
             envelope_support: Vec::new(),
             updated_since_last_network_change: false,
             last_flows: BTreeMap::new(),

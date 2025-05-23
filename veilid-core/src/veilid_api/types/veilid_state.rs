@@ -107,7 +107,7 @@ pub struct PeerTableData {
         all(target_arch = "wasm32", target_os = "unknown"),
         tsify(type = "string[]")
     )]
-    pub node_ids: Vec<TypedKey>,
+    pub node_ids: Vec<TypedPublicKey>,
     /// The peer's human readable address.
     pub peer_address: String,
     /// Statistics we have collected on this peer.
@@ -162,7 +162,7 @@ pub struct VeilidStateConfig {
 pub struct VeilidValueChange {
     /// The DHT Record key that changed
     #[schemars(with = "String")]
-    pub key: TypedKey,
+    pub key: TypedRecordKey,
     /// The portion of the DHT Record's subkeys that have changed
     /// If the subkey range is empty, any watch present on the value has died.
     pub subkeys: ValueSubkeyRangeSet,

@@ -22,7 +22,7 @@ impl InspectCacheL2 {
 
 #[derive(Debug)]
 pub struct InspectCache {
-    cache: LruCache<TypedKey, InspectCacheL2>,
+    cache: LruCache<TypedRecordKey, InspectCacheL2>,
 }
 
 impl InspectCache {
@@ -34,7 +34,7 @@ impl InspectCache {
 
     pub fn get(
         &mut self,
-        key: &TypedKey,
+        key: &TypedRecordKey,
         subkeys: &ValueSubkeyRangeSet,
     ) -> Option<InspectCacheL2Value> {
         if let Some(l2c) = self.cache.get_mut(key) {
@@ -45,7 +45,12 @@ impl InspectCache {
         None
     }
 
-    pub fn put(&mut self, key: TypedKey, subkeys: ValueSubkeyRangeSet, value: InspectCacheL2Value) {
+    pub fn put(
+        &mut self,
+        key: TypedRecordKey,
+        subkeys: ValueSubkeyRangeSet,
+        value: InspectCacheL2Value,
+    ) {
         self.cache
             .entry(key)
             .or_insert_with(|| InspectCacheL2::new(L2_CACHE_DEPTH))
@@ -53,11 +58,16 @@ impl InspectCache {
             .insert(subkeys, value);
     }
 
-    pub fn invalidate(&mut self, key: &TypedKey) {
+    pub fn invalidate(&mut self, key: &TypedRecordKey) {
         self.cache.remove(key);
     }
 
-    pub fn replace_subkey_seq(&mut self, key: &TypedKey, subkey: ValueSubkey, seq: ValueSeqNum) {
+    pub fn replace_subkey_seq(
+        &mut self,
+        key: &TypedRecordKey,
+        subkey: ValueSubkey,
+        seq: ValueSeqNum,
+    ) {
         let Some(l2) = self.cache.get_mut(key) else {
             return;
         };

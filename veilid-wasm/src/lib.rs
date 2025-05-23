@@ -527,7 +527,7 @@ pub fn routing_context_create_dht_record(
 #[wasm_bindgen()]
 pub fn routing_context_open_dht_record(id: u32, key: String, writer: Option<String>) -> Promise {
     wrap_api_future_json(async move {
-        let key: veilid_core::TypedKey =
+        let key: veilid_core::TypedRecordKey =
             veilid_core::deserialize_json(&key).map_err(VeilidAPIError::generic)?;
         let writer: Option<veilid_core::KeyPair> = match writer {
             Some(s) => Some(veilid_core::deserialize_json(&s).map_err(VeilidAPIError::generic)?),
@@ -544,7 +544,7 @@ pub fn routing_context_open_dht_record(id: u32, key: String, writer: Option<Stri
 #[wasm_bindgen()]
 pub fn routing_context_close_dht_record(id: u32, key: String) -> Promise {
     wrap_api_future_void(async move {
-        let key: veilid_core::TypedKey =
+        let key: veilid_core::TypedRecordKey =
             veilid_core::deserialize_json(&key).map_err(VeilidAPIError::generic)?;
 
         let routing_context = get_routing_context(id, "routing_context_close_dht_record")?;
@@ -557,7 +557,7 @@ pub fn routing_context_close_dht_record(id: u32, key: String) -> Promise {
 #[wasm_bindgen()]
 pub fn routing_context_delete_dht_record(id: u32, key: String) -> Promise {
     wrap_api_future_void(async move {
-        let key: veilid_core::TypedKey =
+        let key: veilid_core::TypedRecordKey =
             veilid_core::deserialize_json(&key).map_err(VeilidAPIError::generic)?;
 
         let routing_context = get_routing_context(id, "routing_context_delete_dht_record")?;
@@ -575,7 +575,7 @@ pub fn routing_context_get_dht_value(
     force_refresh: bool,
 ) -> Promise {
     wrap_api_future_json(async move {
-        let key: veilid_core::TypedKey =
+        let key: veilid_core::TypedRecordKey =
             veilid_core::deserialize_json(&key).map_err(VeilidAPIError::generic)?;
 
         let routing_context = get_routing_context(id, "routing_context_get_dht_value")?;
@@ -596,7 +596,7 @@ pub fn routing_context_set_dht_value(
     writer: Option<String>,
 ) -> Promise {
     wrap_api_future_json(async move {
-        let key: veilid_core::TypedKey =
+        let key: veilid_core::TypedRecordKey =
             veilid_core::deserialize_json(&key).map_err(VeilidAPIError::generic)?;
         let data: Vec<u8> = data_encoding::BASE64URL_NOPAD
             .decode(data.as_bytes())
@@ -624,7 +624,7 @@ pub fn routing_context_watch_dht_values(
     count: u32,
 ) -> Promise {
     wrap_api_future_plain(async move {
-        let key: veilid_core::TypedKey =
+        let key: veilid_core::TypedRecordKey =
             veilid_core::deserialize_json(&key).map_err(VeilidAPIError::generic)?;
         let subkeys: veilid_core::ValueSubkeyRangeSet =
             veilid_core::deserialize_json(&subkeys).map_err(VeilidAPIError::generic)?;
@@ -644,7 +644,7 @@ pub fn routing_context_watch_dht_values(
 #[wasm_bindgen()]
 pub fn routing_context_cancel_dht_watch(id: u32, key: String, subkeys: String) -> Promise {
     wrap_api_future_plain(async move {
-        let key: veilid_core::TypedKey =
+        let key: veilid_core::TypedRecordKey =
             veilid_core::deserialize_json(&key).map_err(VeilidAPIError::generic)?;
         let subkeys: veilid_core::ValueSubkeyRangeSet =
             veilid_core::deserialize_json(&subkeys).map_err(VeilidAPIError::generic)?;
@@ -664,7 +664,7 @@ pub fn routing_context_inspect_dht_record(
     scope: String,
 ) -> Promise {
     wrap_api_future_json(async move {
-        let key: veilid_core::TypedKey =
+        let key: veilid_core::TypedRecordKey =
             veilid_core::deserialize_json(&key).map_err(VeilidAPIError::generic)?;
         let subkeys: veilid_core::ValueSubkeyRangeSet =
             veilid_core::deserialize_json(&subkeys).map_err(VeilidAPIError::generic)?;
@@ -1002,7 +1002,7 @@ pub fn best_crypto_kind() -> u32 {
 #[wasm_bindgen()]
 pub fn verify_signatures(node_ids: String, data: String, signatures: String) -> Promise {
     wrap_api_future_json(async move {
-        let node_ids: Vec<veilid_core::TypedKey> =
+        let node_ids: Vec<veilid_core::TypedPublicKey> =
             veilid_core::deserialize_json(&node_ids).map_err(VeilidAPIError::generic)?;
 
         let data: Vec<u8> = data_encoding::BASE64URL_NOPAD
@@ -1371,9 +1371,9 @@ pub fn crypto_distance(kind: u32, key1: String, key2: String) -> Promise {
     wrap_api_future_json(async move {
         let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
 
-        let key1: veilid_core::CryptoKey =
+        let key1: veilid_core::HashDigest =
             veilid_core::deserialize_json(&key1).map_err(VeilidAPIError::generic)?;
-        let key2: veilid_core::CryptoKey =
+        let key2: veilid_core::HashDigest =
             veilid_core::deserialize_json(&key2).map_err(VeilidAPIError::generic)?;
 
         let veilid_api = get_veilid_api()?;
@@ -1395,9 +1395,9 @@ pub fn crypto_sign(kind: u32, key: String, secret: String, data: String) -> Prom
     wrap_api_future_json(async move {
         let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
 
-        let key: veilid_core::CryptoKey =
+        let key: veilid_core::PublicKey =
             veilid_core::deserialize_json(&key).map_err(VeilidAPIError::generic)?;
-        let secret: veilid_core::CryptoKey =
+        let secret: veilid_core::SecretKey =
             veilid_core::deserialize_json(&secret).map_err(VeilidAPIError::generic)?;
 
         let data: Vec<u8> = data_encoding::BASE64URL_NOPAD
@@ -1419,7 +1419,7 @@ pub fn crypto_verify(kind: u32, key: String, data: String, signature: String) ->
     wrap_api_future_plain(async move {
         let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
 
-        let key: veilid_core::CryptoKey =
+        let key: veilid_core::PublicKey =
             veilid_core::deserialize_json(&key).map_err(VeilidAPIError::generic)?;
         let data: Vec<u8> = data_encoding::BASE64URL_NOPAD
             .decode(data.as_bytes())

@@ -8,7 +8,7 @@ impl RoutingTable {
     pub fn find_preferred_closest_peers(
         &self,
         routing_domain: RoutingDomain,
-        key: TypedKey,
+        key: TypedPublicKey,
         capabilities: &[Capability],
     ) -> NetworkResult<Vec<Arc<PeerInfo>>> {
         if Crypto::validate_crypto_kind(key.kind).is_err() {
@@ -48,7 +48,7 @@ impl RoutingTable {
 
         let closest_nodes = match self.find_preferred_closest_nodes(
             node_count,
-            key,
+            key.into(),
             filters,
             // transform
             |rti, entry| {
@@ -72,7 +72,7 @@ impl RoutingTable {
     pub fn find_preferred_peers_closer_to_key(
         &self,
         routing_domain: RoutingDomain,
-        key: TypedKey,
+        key: TypedRecordKey,
         required_capabilities: Vec<Capability>,
     ) -> NetworkResult<Vec<Arc<PeerInfo>>> {
         // add node information for the requesting node to our routing table
@@ -87,7 +87,10 @@ impl RoutingTable {
         };
         let vcrypto = &vcrypto;
 
-        let own_distance = vcrypto.distance(&own_node_id.value, &key.value);
+        let own_distance = vcrypto.distance(
+            &HashDigest::from(own_node_id.value),
+            &HashDigest::from(key.value),
+        );
 
         let filter = Box::new(
             move |rti: &RoutingTableInner, opt_entry: Option<Arc<BucketEntry>>| {
@@ -112,7 +115,10 @@ impl RoutingTable {
                     let Some(entry_node_id) = e.node_ids().get(crypto_kind) else {
                         return false;
                     };
-                    let entry_distance = vcrypto.distance(&entry_node_id.value, &key.value);
+                    let entry_distance = vcrypto.distance(
+                        &HashDigest::from(entry_node_id.value),
+                        &HashDigest::from(key.value),
+                    );
                     if entry_distance >= own_distance {
                         return false;
                     }
@@ -129,7 +135,7 @@ impl RoutingTable {
         //
         let closest_nodes = match self.find_preferred_closest_nodes(
             node_count,
-            key,
+            key.into(),
             filters,
             // transform
             |rti, entry| {
@@ -147,7 +153,12 @@ impl RoutingTable {
 
         // Validate peers returned are, in fact, closer to the key than the node we sent this to
         // This same test is used on the other side so we vet things here
-        let valid = match Self::verify_peers_closer(vcrypto, own_node_id, key, &closest_nodes) {
+        let valid = match Self::verify_peers_closer(
+            vcrypto,
+            own_node_id.into(),
+            key.into(),
+            &closest_nodes,
+        ) {
             Ok(v) => v,
             Err(e) => {
                 panic!("missing cryptosystem in peers node ids: {}", e);
@@ -167,8 +178,8 @@ impl RoutingTable {
     #[instrument(level = "trace", target = "rtab", skip_all, err)]
     pub fn verify_peers_closer(
         vcrypto: &crypto::CryptoSystemGuard<'_>,
-        key_far: TypedKey,
-        key_near: TypedKey,
+        key_far: TypedHashDigest,
+        key_near: TypedHashDigest,
         peers: &[Arc<PeerInfo>],
     ) -> EyreResult<bool> {
         let kind = vcrypto.kind();
@@ -183,7 +194,7 @@ impl RoutingTable {
             let Some(key_peer) = peer.node_ids().get(kind) else {
                 bail!("peers need to have a key with the same cryptosystem");
             };
-            let d_near = vcrypto.distance(&key_near.value, &key_peer.value);
+            let d_near = vcrypto.distance(&key_near.value, &key_peer.value.into());
             if d_far < d_near {
                 let warning = format!(
                     r#"peer: {}

@@ -303,7 +303,7 @@ impl RPCProcessor {
     fn process_sender_peer_info(
         &self,
         routing_domain: RoutingDomain,
-        sender_node_id: TypedKey,
+        sender_node_id: TypedPublicKey,
         sender_peer_info: &SenderPeerInfo,
     ) -> RPCNetworkResult<Option<NodeRef>> {
         let Some(peer_info) = sender_peer_info.opt_peer_info.clone() else {
@@ -364,7 +364,7 @@ impl RPCProcessor {
     #[instrument(level = "trace", target = "rpc", skip_all)]
     async fn public_internet_peer_search(
         &self,
-        node_id: TypedKey,
+        node_id: TypedPublicKey,
         count: usize,
         fanout: usize,
         timeout_us: TimestampDuration,
@@ -436,7 +436,7 @@ impl RPCProcessor {
         let routing_table = self.routing_table();
         let fanout_call = FanoutCall::new(
             &routing_table,
-            node_id,
+            node_id.into(),
             count,
             fanout,
             0,
@@ -464,7 +464,7 @@ impl RPCProcessor {
     #[instrument(level = "trace", target = "rpc", skip_all)]
     pub fn resolve_node(
         &self,
-        node_id: TypedKey,
+        node_id: TypedPublicKey,
         safety_selection: SafetySelection,
     ) -> PinBoxFuture<Result<Option<NodeRef>, RPCError>> {
         let registry = self.registry();

@@ -212,8 +212,8 @@ impl Receipt {
         self.sender_id
     }
 
-    pub fn get_sender_typed_id(&self) -> TypedKey {
-        TypedKey::new(self.crypto_kind, self.sender_id)
+    pub fn get_sender_typed_id(&self) -> TypedPublicKey {
+        TypedPublicKey::new(self.crypto_kind, self.sender_id)
     }
 
     #[must_use]

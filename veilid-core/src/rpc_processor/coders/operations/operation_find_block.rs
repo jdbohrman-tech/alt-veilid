@@ -6,22 +6,22 @@ const MAX_FIND_BLOCK_A_PEERS_LEN: usize = 10;
 
 #[derive(Debug, Clone)]
 pub(in crate::rpc_processor) struct RPCOperationFindBlockQ {
-    block_id: TypedKey,
+    block_id: TypedPublicKey,
 }
 
 impl RPCOperationFindBlockQ {
-    pub fn new(block_id: TypedKey) -> Self {
+    pub fn new(block_id: TypedPublicKey) -> Self {
         Self { block_id }
     }
     pub fn validate(&mut self, _validate_context: &RPCValidateContext) -> Result<(), RPCError> {
         Ok(())
     }
 
-    pub fn block_id(&self) -> TypedKey {
+    pub fn block_id(&self) -> TypedPublicKey {
         self.block_id
     }
 
-    pub fn destructure(self) -> TypedKey {
+    pub fn destructure(self) -> TypedPublicKey {
         self.block_id
     }
 

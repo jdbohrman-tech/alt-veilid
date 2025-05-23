@@ -57,7 +57,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "dht", skip_all, err)]
     pub(super) async fn outbound_inspect_value(
         &self,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         subkeys: ValueSubkeyRangeSet,
         safety_selection: SafetySelection,
         local_inspect_result: InspectResult,
@@ -290,7 +290,7 @@ impl StorageManager {
         let routing_table = self.routing_table();
         let fanout_call = FanoutCall::new(
             &routing_table,
-            record_key,
+            record_key.into(),
             key_count,
             fanout,
             consensus_count,
@@ -358,7 +358,7 @@ impl StorageManager {
     #[instrument(level = "trace", target = "dht", skip_all)]
     pub async fn inbound_inspect_value(
         &self,
-        record_key: TypedKey,
+        record_key: TypedRecordKey,
         subkeys: ValueSubkeyRangeSet,
         want_descriptor: bool,
     ) -> VeilidAPIResult<NetworkResult<InspectResult>> {

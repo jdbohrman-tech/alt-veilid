@@ -20,8 +20,7 @@ from .operations import (
 )
 from .state import VeilidState, VeilidUpdate
 from .types import (
-    CryptoKey,
-    CryptoKeyDistance,
+    HashDistance,
     CryptoKind,
     DHTRecordDescriptor,
     DHTRecordReport,
@@ -1311,11 +1310,11 @@ class _JsonCryptoSystem(CryptoSystem):
             )
         )
 
-    async def distance(self, key1: CryptoKey, key2: CryptoKey) -> CryptoKeyDistance:
-        assert isinstance(key1, CryptoKey)
-        assert isinstance(key2, CryptoKey)
+    async def distance(self, key1: HashDigest, key2: HashDigest) -> HashDistance:
+        assert isinstance(key1, HashDigest)
+        assert isinstance(key2, HashDigest)
 
-        return CryptoKeyDistance(
+        return HashDistance(
             raise_api_result(
                 await self.api.send_ndjson_request(
                     Operation.CRYPTO_SYSTEM,

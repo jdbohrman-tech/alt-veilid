@@ -296,8 +296,8 @@ class CryptoSystem(ABC):
 
     @abstractmethod
     async def distance(
-        self, key1: types.CryptoKey, key2: types.CryptoKey
-    ) -> types.CryptoKeyDistance:
+        self, key1: types.HashDigest, key2: types.HashDigest
+    ) -> types.HashDistance:
         pass
 
     @abstractmethod

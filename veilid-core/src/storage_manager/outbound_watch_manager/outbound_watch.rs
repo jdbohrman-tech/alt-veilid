@@ -5,7 +5,7 @@ impl_veilid_log_facility!("stor");
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(in crate::storage_manager) struct OutboundWatch {
     /// Record key being watched
-    record_key: TypedKey,
+    record_key: TypedRecordKey,
 
     /// Current state
     /// None means inactive/cancelled
@@ -37,7 +37,7 @@ impl fmt::Display for OutboundWatch {
 
 impl OutboundWatch {
     /// Create new outbound watch with desired parameters
-    pub fn new(record_key: TypedKey, desired: OutboundWatchParameters) -> Self {
+    pub fn new(record_key: TypedRecordKey, desired: OutboundWatchParameters) -> Self {
         Self {
             record_key,
             state: None,

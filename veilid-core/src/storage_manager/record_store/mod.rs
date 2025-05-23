@@ -469,7 +469,11 @@ where
     }
 
     #[instrument(level = "trace", target = "stor", skip_all, err)]
-    pub async fn new_record(&mut self, key: TypedKey, record: Record<D>) -> VeilidAPIResult<()> {
+    pub async fn new_record(
+        &mut self,
+        key: TypedRecordKey,
+        record: Record<D>,
+    ) -> VeilidAPIResult<()> {
         let rtk = RecordTableKey { key };
         if self.record_index.contains_key(&rtk) {
             apibail_internal!("record already exists");
@@ -510,7 +514,7 @@ where
     }
 
     #[instrument(level = "trace", target = "stor", skip_all, err)]
-    pub async fn delete_record(&mut self, key: TypedKey) -> VeilidAPIResult<()> {
+    pub async fn delete_record(&mut self, key: TypedRecordKey) -> VeilidAPIResult<()> {
         // Get the record table key
         let rtk = RecordTableKey { key };
 
@@ -536,13 +540,13 @@ where
     }
 
     #[instrument(level = "trace", target = "stor", skip_all)]
-    pub(super) fn contains_record(&mut self, key: TypedKey) -> bool {
+    pub(super) fn contains_record(&mut self, key: TypedRecordKey) -> bool {
         let rtk = RecordTableKey { key };
         self.record_index.contains_key(&rtk)
     }
 
     #[instrument(level = "trace", target = "stor", skip_all)]
-    pub(super) fn with_record<R, F>(&mut self, key: TypedKey, f: F) -> Option<R>
+    pub(super) fn with_record<R, F>(&mut self, key: TypedRecordKey, f: F) -> Option<R>
     where
         F: FnOnce(&Record<D>) -> R,
     {
@@ -566,7 +570,7 @@ where
     }
 
     #[instrument(level = "trace", target = "stor", skip_all)]
-    pub(super) fn peek_record<R, F>(&self, key: TypedKey, f: F) -> Option<R>
+    pub(super) fn peek_record<R, F>(&self, key: TypedRecordKey, f: F) -> Option<R>
     where
         F: FnOnce(&Record<D>) -> R,
     {
@@ -581,7 +585,7 @@ where
     }
 
     #[instrument(level = "trace", target = "stor", skip_all)]
-    pub(super) fn with_record_mut<R, F>(&mut self, key: TypedKey, f: F) -> Option<R>
+    pub(super) fn with_record_mut<R, F>(&mut self, key: TypedRecordKey, f: F) -> Option<R>
     where
         F: FnOnce(&mut Record<D>) -> R,
     {
@@ -607,7 +611,7 @@ where
     #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub async fn get_subkey(
         &mut self,
-        key: TypedKey,
+        key: TypedRecordKey,
         subkey: ValueSubkey,
         want_descriptor: bool,
     ) -> VeilidAPIResult<Option<GetResult>> {
@@ -675,7 +679,7 @@ where
     #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub async fn peek_subkey(
         &self,
-        key: TypedKey,
+        key: TypedRecordKey,
         subkey: ValueSubkey,
         want_descriptor: bool,
     ) -> VeilidAPIResult<Option<GetResult>> {
@@ -740,7 +744,7 @@ where
     #[instrument(level = "trace", target = "stor", skip_all)]
     async fn update_watched_value(
         &mut self,
-        key: TypedKey,
+        key: TypedRecordKey,
         subkey: ValueSubkey,
         watch_update_mode: InboundWatchUpdateMode,
     ) {
@@ -779,7 +783,7 @@ where
     #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub async fn set_subkey(
         &mut self,
-        key: TypedKey,
+        key: TypedRecordKey,
         subkey: ValueSubkey,
         signed_value_data: Arc<SignedValueData>,
         watch_update_mode: InboundWatchUpdateMode,
@@ -883,7 +887,7 @@ where
     #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub async fn inspect_record(
         &mut self,
-        key: TypedKey,
+        key: TypedRecordKey,
         subkeys: &ValueSubkeyRangeSet,
         want_descriptor: bool,
     ) -> VeilidAPIResult<Option<InspectResult>> {
@@ -967,7 +971,7 @@ where
     #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub async fn _change_existing_watch(
         &mut self,
-        key: TypedKey,
+        key: TypedRecordKey,
         params: InboundWatchParameters,
         watch_id: u64,
     ) -> VeilidAPIResult<InboundWatchResult> {
@@ -1004,7 +1008,7 @@ where
     #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub async fn _create_new_watch(
         &mut self,
-        key: TypedKey,
+        key: TypedRecordKey,
         params: InboundWatchParameters,
         member_check: Box<dyn Fn(PublicKey) -> bool + Send>,
     ) -> VeilidAPIResult<InboundWatchResult> {
@@ -1095,7 +1099,7 @@ where
     #[instrument(level = "trace", target = "stor", skip_all, err)]
     pub async fn watch_record(
         &mut self,
-        key: TypedKey,
+        key: TypedRecordKey,
         mut params: InboundWatchParameters,
         opt_watch_id: Option<u64>,
     ) -> VeilidAPIResult<InboundWatchResult> {
@@ -1153,7 +1157,7 @@ where
     #[instrument(level = "trace", target = "stor", skip_all, err)]
     async fn cancel_watch(
         &mut self,
-        key: TypedKey,
+        key: TypedRecordKey,
         watch_id: u64,
         watcher: PublicKey,
     ) -> VeilidAPIResult<bool> {
@@ -1193,7 +1197,7 @@ where
     #[instrument(level = "trace", target = "stor", skip_all)]
     pub fn move_watches(
         &mut self,
-        key: TypedKey,
+        key: TypedRecordKey,
         in_watch: Option<(InboundWatchList, bool)>,
     ) -> Option<(InboundWatchList, bool)> {
         let rtk = RecordTableKey { key };
@@ -1231,7 +1235,7 @@ where
         // ValueChangedInfo but without the subkey data that requires a double mutable borrow to get
         struct EarlyValueChangedInfo {
             target: Target,
-            key: TypedKey,
+            key: TypedRecordKey,
             subkeys: ValueSubkeyRangeSet,
             count: u32,
             watch_id: u64,
@@ -1369,7 +1373,7 @@ where
         out
     }
 
-    pub fn debug_record_info(&self, key: TypedKey) -> String {
+    pub fn debug_record_info(&self, key: TypedRecordKey) -> String {
         let record_info = self
             .peek_record(key, |r| format!("{:#?}", r))
             .unwrap_or("Not found".to_owned());
@@ -1382,7 +1386,11 @@ where
         format!("{}\n{}\n", record_info, watched_record)
     }
 
-    pub async fn debug_record_subkey_info(&self, key: TypedKey, subkey: ValueSubkey) -> String {
+    pub async fn debug_record_subkey_info(
+        &self,
+        key: TypedRecordKey,
+        subkey: ValueSubkey,
+    ) -> String {
         match self.peek_subkey(key, subkey, true).await {
             Ok(Some(v)) => {
                 format!("{:#?}", v)

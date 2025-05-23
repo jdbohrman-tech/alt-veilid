@@ -69,7 +69,7 @@ pub fn decode_signed_relayed_node_info(
     if rid_count > MAX_CRYPTO_KINDS {
         return Err(RPCError::protocol("too many relay ids"));
     }
-    let mut relay_ids = TypedKeyGroup::with_capacity(rid_count);
+    let mut relay_ids = TypedPublicKeyGroup::with_capacity(rid_count);
     for rid_reader in rids_reader {
         let relay_id = decode_typed_key(&rid_reader)?;
         relay_ids.add(relay_id);
