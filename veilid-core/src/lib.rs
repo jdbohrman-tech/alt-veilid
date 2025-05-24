@@ -105,13 +105,18 @@ pub fn veilid_version() -> (u32, u32, u32) {
     )
 }
 
+#[cfg(not(docsrs))]
 include!(env!("BOSION_PATH"));
 
 /// Return the features that were enabled when veilid-core was built.
 #[must_use]
 pub fn veilid_features() -> Vec<String> {
-    let features = Bosion::CRATE_FEATURES.to_vec();
-    features.into_iter().map(String::from).collect()
+    if cfg!(docsrs) {
+        vec!["default".to_string()]
+    } else {
+        let features = Bosion::CRATE_FEATURES.to_vec();
+        features.into_iter().map(String::from).collect()
+    }
 }
 
 #[cfg(target_os = "android")]
