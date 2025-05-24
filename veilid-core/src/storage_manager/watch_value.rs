@@ -1059,7 +1059,7 @@ impl StorageManager {
         mut subkeys: ValueSubkeyRangeSet,
         count: u32,
         value: Option<Arc<SignedValueData>>,
-        inbound_node_id: TypedPublicKey,
+        inbound_node_id: TypedNodeId,
         watch_id: u64,
     ) -> VeilidAPIResult<NetworkResult<()>> {
         // Operate on the watch for this record

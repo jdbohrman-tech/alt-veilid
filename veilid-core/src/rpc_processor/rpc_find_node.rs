@@ -13,7 +13,7 @@ impl RPCProcessor {
     pub async fn rpc_call_find_node(
         &self,
         dest: Destination,
-        node_id: TypedPublicKey,
+        node_id: TypedNodeId,
         capabilities: Vec<Capability>,
     ) -> RPCNetworkResult<Answer<Vec<Arc<PeerInfo>>>> {
         let _guard = self

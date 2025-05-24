@@ -68,7 +68,7 @@ pub fn test_round_trip_peerinfo() {
     ));
     let pi: PeerInfo = PeerInfo::new(
         RoutingDomain::PublicInternet,
-        tks,
+        tks.into(),
         SignedNodeInfo::Direct(SignedDirectNodeInfo::new(
             NodeInfo::new(
                 NetworkClass::OutboundOnly,

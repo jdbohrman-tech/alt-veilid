@@ -39,10 +39,10 @@ pub(crate) trait NodeRefCommonTrait: NodeRefAccessorsTrait + NodeRefOperateTrait
         Arc::ptr_eq(&self.entry(), entry)
     }
 
-    fn node_ids(&self) -> TypedPublicKeyGroup {
+    fn node_ids(&self) -> TypedNodeIdGroup {
         self.operate(|_rti, e| e.node_ids())
     }
-    fn best_node_id(&self) -> Option<TypedPublicKey> {
+    fn best_node_id(&self) -> Option<TypedNodeId> {
         self.operate(|_rti, e| e.best_node_id())
     }
 

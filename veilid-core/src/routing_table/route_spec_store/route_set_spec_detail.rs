@@ -7,7 +7,7 @@ pub struct RouteSpecDetail {
     /// Secret key
     pub secret_key: SecretKey,
     /// Route hops (node id keys)
-    pub hops: Vec<PublicKey>,
+    pub hops: Vec<NodeId>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -109,7 +109,7 @@ impl RouteSetSpecDetail {
             Sequencing::EnsureOrdered => self.can_do_sequenced,
         }
     }
-    pub fn contains_nodes(&self, nodes: &[TypedPublicKey]) -> bool {
+    pub fn contains_nodes(&self, nodes: &[TypedNodeId]) -> bool {
         for tk in nodes {
             for rsd in self.route_set.values() {
                 if rsd.crypto_kind == tk.kind && rsd.hops.contains(&tk.value) {

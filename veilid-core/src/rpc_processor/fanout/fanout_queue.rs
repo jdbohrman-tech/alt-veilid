@@ -33,7 +33,7 @@ pub struct FanoutNode {
 }
 
 pub type FanoutQueueSort<'a> =
-    Box<dyn Fn(&TypedPublicKey, &TypedPublicKey) -> core::cmp::Ordering + Send + 'a>;
+    Box<dyn Fn(&TypedNodeId, &TypedNodeId) -> core::cmp::Ordering + Send + 'a>;
 
 pub struct FanoutQueue<'a> {
     /// Link back to veilid component registry for logging
@@ -41,9 +41,9 @@ pub struct FanoutQueue<'a> {
     /// Crypto kind in use for this queue
     crypto_kind: CryptoKind,
     /// The status of all the nodes we have added so far
-    nodes: HashMap<TypedPublicKey, FanoutNode>,
+    nodes: HashMap<TypedNodeId, FanoutNode>,
     /// Closer nodes to the record key are at the front of the list
-    sorted_nodes: Vec<TypedPublicKey>,
+    sorted_nodes: Vec<TypedNodeId>,
     /// The sort function to use for the nodes
     node_sort: FanoutQueueSort<'a>,
     /// The channel to receive work requests to process
@@ -265,10 +265,7 @@ impl<'a> FanoutQueue<'a> {
     }
 
     /// Review the nodes in the queue
-    pub fn with_nodes<
-        R,
-        F: FnOnce(&HashMap<TypedPublicKey, FanoutNode>, &[TypedPublicKey]) -> R,
-    >(
+    pub fn with_nodes<R, F: FnOnce(&HashMap<TypedNodeId, FanoutNode>, &[TypedNodeId]) -> R>(
         &self,
         func: F,
     ) -> R {

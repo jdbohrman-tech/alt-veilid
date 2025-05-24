@@ -26,7 +26,7 @@ impl fmt::Debug for RouteHopData {
 #[derive(Clone, Debug)]
 pub(crate) enum RouteNode {
     /// Route node is optimized, no contact method information as this node id has been seen before
-    NodeId(PublicKey),
+    NodeId(NodeId),
     /// Route node with full contact method information to ensure the peer is reachable
     PeerInfo(Arc<PeerInfo>),
 }
@@ -47,7 +47,7 @@ impl RouteNode {
         match self {
             RouteNode::NodeId(id) => {
                 //
-                match routing_table.lookup_node_ref(TypedPublicKey::new(crypto_kind, *id)) {
+                match routing_table.lookup_node_ref(TypedNodeId::new(crypto_kind, *id)) {
                     Ok(nr) => nr,
                     Err(e) => {
                         veilid_log!(routing_table debug "failed to look up route node: {}", e);
@@ -71,7 +71,7 @@ impl RouteNode {
     pub fn describe(&self, crypto_kind: CryptoKind) -> String {
         match self {
             RouteNode::NodeId(id) => {
-                format!("{}", TypedPublicKey::new(crypto_kind, *id))
+                format!("{}", TypedNodeId::new(crypto_kind, *id))
             }
             RouteNode::PeerInfo(pi) => match pi.node_ids().get(crypto_kind) {
                 Some(id) => format!("{}", id),
@@ -182,14 +182,14 @@ impl PrivateRoute {
         }
     }
 
-    pub fn first_hop_node_id(&self) -> Option<TypedPublicKey> {
+    pub fn first_hop_node_id(&self) -> Option<TypedNodeId> {
         let PrivateRouteHops::FirstHop(pr_first_hop) = &self.hops else {
             return None;
         };
 
         // Get the safety route to use from the spec
         Some(match &pr_first_hop.node {
-            RouteNode::NodeId(n) => TypedPublicKey::new(self.public_key.kind, *n),
+            RouteNode::NodeId(n) => TypedNodeId::new(self.public_key.kind, *n),
             RouteNode::PeerInfo(p) => p.node_ids().get(self.public_key.kind).unwrap(),
         })
     }

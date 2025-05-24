@@ -345,13 +345,6 @@ impl From<NodeId> for HashDigest {
     }
 }
 
-// Removing this will show where PublicKey might need to be converted to NodeId or RecordKey.
-impl From<PublicKey> for HashDigest {
-    fn from(value: PublicKey) -> Self {
-        Self::new(value.bytes)
-    }
-}
-
 impl From<HashDigest> for PublicKey {
     fn from(value: HashDigest) -> Self {
         Self::new(value.bytes)

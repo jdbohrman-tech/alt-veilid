@@ -8,7 +8,7 @@ impl RoutingTable {
     pub fn find_preferred_closest_peers(
         &self,
         routing_domain: RoutingDomain,
-        key: TypedPublicKey,
+        key: TypedNodeId,
         capabilities: &[Capability],
     ) -> NetworkResult<Vec<Arc<PeerInfo>>> {
         if Crypto::validate_crypto_kind(key.kind).is_err() {

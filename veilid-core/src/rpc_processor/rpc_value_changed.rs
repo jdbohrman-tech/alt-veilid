@@ -62,9 +62,10 @@ impl RPCProcessor {
                     "not processing value change over safety route",
                 ));
             }
-            RPCMessageHeaderDetail::PrivateRouted(p) => {
-                TypedPublicKey::new(p.direct.envelope.get_crypto_kind(), p.remote_safety_route)
-            }
+            RPCMessageHeaderDetail::PrivateRouted(p) => TypedNodeId::new(
+                p.direct.envelope.get_crypto_kind(),
+                p.remote_safety_route.into(),
+            ),
         };
 
         if debug_target_enabled!("dht") {

@@ -26,14 +26,14 @@ pub struct RouteSpecStoreCache {
     /// Registry accessor
     registry: VeilidComponentRegistry,
     /// How many times nodes have been used
-    used_nodes: HashMap<PublicKey, usize>,
+    used_nodes: HashMap<NodeId, usize>,
     /// How many times nodes have been used at the terminal point of a route
-    used_end_nodes: HashMap<PublicKey, usize>,
+    used_end_nodes: HashMap<NodeId, usize>,
     /// Route spec hop cache, used to quickly disqualify routes
     hop_cache: HashSet<Vec<u8>>,
     /// Remote private routes we've imported and statistics
     remote_private_route_set_cache: LruCache<RouteId, RemotePrivateRouteInfo>,
-    /// Remote private routes indexed by public key
+    /// Remote private route ids indexed by route's public key
     remote_private_routes_by_key: HashMap<PublicKey, RouteId>,
     /// Compiled route cache
     compiled_route_cache: LruCache<CompiledRouteCacheKey, SafetyRoute>,
@@ -139,14 +139,14 @@ impl RouteSpecStoreCache {
     }
 
     /// calculate how many times a node with a particular node id set has been used anywhere in the path of our allocated routes
-    pub fn get_used_node_count(&self, node_ids: &TypedPublicKeyGroup) -> usize {
+    pub fn get_used_node_count(&self, node_ids: &TypedNodeIdGroup) -> usize {
         node_ids.iter().fold(0usize, |acc, k| {
             acc + self.used_nodes.get(&k.value).cloned().unwrap_or_default()
         })
     }
 
     /// calculate how many times a node with a particular node id set has been used at the end of the path of our allocated routes
-    pub fn get_used_end_node_count(&self, node_ids: &TypedPublicKeyGroup) -> usize {
+    pub fn get_used_end_node_count(&self, node_ids: &TypedNodeIdGroup) -> usize {
         node_ids.iter().fold(0usize, |acc, k| {
             acc + self
                 .used_end_nodes

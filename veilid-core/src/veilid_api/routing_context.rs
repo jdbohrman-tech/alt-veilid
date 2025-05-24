@@ -9,7 +9,7 @@ impl_veilid_log_facility!("veilid_api");
 #[must_use]
 pub enum Target {
     /// Node by its public key.
-    NodeId(TypedPublicKey),
+    NodeId(TypedNodeId),
     /// Remote private route by its id.
     PrivateRoute(RouteId),
 }

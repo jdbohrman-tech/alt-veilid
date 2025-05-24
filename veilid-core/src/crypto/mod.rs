@@ -352,7 +352,7 @@ impl Crypto {
         &self,
         vcrypto: AsyncCryptoSystemGuard<'_>,
         table_store: &TableStore,
-    ) -> VeilidAPIResult<(TypedPublicKey, TypedSecretKey)> {
+    ) -> VeilidAPIResult<(TypedNodeId, TypedSecretKey)> {
         let config = self.config();
         let ck = vcrypto.kind();
         let (mut node_id, mut node_id_secret) = config.with(|c| {
@@ -371,7 +371,7 @@ impl Crypto {
         if node_id.is_none() {
             veilid_log!(self debug "pulling {} from storage", table_key_node_id);
             if let Ok(Some(stored_node_id)) = config_table
-                .load_json::<TypedPublicKey>(0, table_key_node_id.as_bytes())
+                .load_json::<TypedNodeId>(0, table_key_node_id.as_bytes())
                 .await
             {
                 veilid_log!(self debug "{} found in storage", table_key_node_id);
@@ -400,7 +400,7 @@ impl Crypto {
             if let (Some(node_id), Some(node_id_secret)) = (node_id, node_id_secret) {
                 // Validate node id
                 if !vcrypto
-                    .validate_keypair(&node_id.value, &node_id_secret.value)
+                    .validate_keypair(&node_id.value.into(), &node_id_secret.value)
                     .await
                 {
                     apibail_generic!(format!(
@@ -414,7 +414,7 @@ impl Crypto {
                 veilid_log!(self debug "generating new node_id_{}", ck);
                 let kp = vcrypto.generate_keypair().await;
                 (
-                    TypedPublicKey::new(ck, kp.key),
+                    TypedNodeId::new(ck, kp.key.into()),
                     TypedSecretKey::new(ck, kp.secret),
                 )
             };
@@ -435,7 +435,7 @@ impl Crypto {
     /// Must be done -after- protected store is initialized, during table store init
     #[cfg_attr(test, allow(unused_variables))]
     async fn setup_node_ids(&self, table_store: &TableStore) -> VeilidAPIResult<()> {
-        let mut out_node_id = TypedPublicKeyGroup::new();
+        let mut out_node_id = TypedNodeIdGroup::new();
         let mut out_node_id_secret = TypedSecretKeyGroup::new();
 
         for ck in VALID_CRYPTO_KINDS {
@@ -447,7 +447,7 @@ impl Crypto {
             let (node_id, node_id_secret) = {
                 let kp = vcrypto.generate_keypair().await;
                 (
-                    TypedPublicKey::new(ck, kp.key),
+                    TypedNodeId::new(ck, kp.key.into()),
                     TypedSecretKey::new(ck, kp.secret),
                 )
             };

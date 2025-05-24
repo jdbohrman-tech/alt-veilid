@@ -35,14 +35,15 @@ impl SignedDirectNodeInfo {
 
     pub fn validate(
         &self,
-        node_ids: &TypedPublicKeyGroup,
+        node_ids: &TypedNodeIdGroup,
         crypto: &Crypto,
-    ) -> VeilidAPIResult<TypedPublicKeyGroup> {
+    ) -> VeilidAPIResult<TypedNodeIdGroup> {
         let node_info_bytes = Self::make_signature_bytes(&self.node_info, self.timestamp)?;
 
+        let public_keys = TypedPublicKeyGroup::from(node_ids.clone());
         // Verify the signatures that we can
         let opt_validated_node_ids =
-            crypto.verify_signatures(node_ids, &node_info_bytes, &self.signatures)?;
+            crypto.verify_signatures(&public_keys, &node_info_bytes, &self.signatures)?;
         let Some(validated_node_ids) = opt_validated_node_ids else {
             apibail_generic!("verification error in direct node info");
         };
@@ -50,7 +51,7 @@ impl SignedDirectNodeInfo {
             apibail_generic!("no valid node ids in direct node info");
         }
 
-        Ok(validated_node_ids)
+        Ok(validated_node_ids.into())
     }
 
     pub fn make_signatures(

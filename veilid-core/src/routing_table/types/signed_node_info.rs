@@ -26,9 +26,9 @@ impl fmt::Display for SignedNodeInfo {
 impl SignedNodeInfo {
     pub fn validate(
         &self,
-        node_ids: &TypedPublicKeyGroup,
+        node_ids: &TypedNodeIdGroup,
         crypto: &Crypto,
-    ) -> VeilidAPIResult<TypedPublicKeyGroup> {
+    ) -> VeilidAPIResult<TypedNodeIdGroup> {
         match self {
             SignedNodeInfo::Direct(d) => d.validate(node_ids, crypto),
             SignedNodeInfo::Relayed(r) => r.validate(node_ids, crypto),
@@ -54,9 +54,9 @@ impl SignedNodeInfo {
             SignedNodeInfo::Relayed(r) => r.node_info(),
         }
     }
-    pub fn relay_ids(&self) -> TypedPublicKeyGroup {
+    pub fn relay_ids(&self) -> TypedNodeIdGroup {
         match self {
-            SignedNodeInfo::Direct(_) => TypedPublicKeyGroup::new(),
+            SignedNodeInfo::Direct(_) => TypedNodeIdGroup::new(),
             SignedNodeInfo::Relayed(r) => r.relay_ids().clone(),
         }
     }

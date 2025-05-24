@@ -55,7 +55,7 @@ pub struct RoutingTableInner {
     /// Statistics about the total bandwidth to/from this node
     pub(super) self_transfer_stats: TransferStatsDownUp,
     /// Peers we have recently communicated with
-    pub(super) recent_peers: LruCache<TypedPublicKey, RecentPeersEntry>,
+    pub(super) recent_peers: LruCache<TypedNodeId, RecentPeersEntry>,
     /// Async tagged critical sections table
     /// Tag: "tick" -> in ticker
     pub(super) critical_sections: AsyncTagLockTable<&'static str>,
@@ -389,7 +389,7 @@ impl RoutingTableInner {
 
     /// Attempt to settle buckets and remove entries down to the desired number
     /// which may not be possible due extant NodeRefs
-    pub fn kick_bucket(&mut self, bucket_index: BucketIndex, exempt_peers: &BTreeSet<PublicKey>) {
+    pub fn kick_bucket(&mut self, bucket_index: BucketIndex, exempt_peers: &BTreeSet<NodeId>) {
         let bucket = self.get_bucket_mut(bucket_index);
         let bucket_depth = Self::bucket_depth(bucket_index);
 
@@ -655,7 +655,7 @@ impl RoutingTableInner {
     fn update_bucket_entry_node_ids(
         &mut self,
         entry: Arc<BucketEntry>,
-        node_ids: &[TypedPublicKey],
+        node_ids: &[TypedNodeId],
     ) -> EyreResult<()> {
         let routing_table = self.routing_table();
 
@@ -745,7 +745,7 @@ impl RoutingTableInner {
     #[instrument(level = "trace", skip_all, err)]
     fn create_node_ref<F>(
         &mut self,
-        node_ids: &TypedPublicKeyGroup,
+        node_ids: &TypedNodeIdGroup,
         update_func: F,
     ) -> EyreResult<NodeRef>
     where
@@ -825,9 +825,9 @@ impl RoutingTableInner {
 
     /// Resolve an existing routing table entry using any crypto kind and return a reference to it
     #[instrument(level = "trace", skip_all, err)]
-    pub fn lookup_any_node_ref(&self, node_id_key: PublicKey) -> EyreResult<Option<NodeRef>> {
+    pub fn lookup_any_node_ref(&self, node_id_key: NodeId) -> EyreResult<Option<NodeRef>> {
         for ck in VALID_CRYPTO_KINDS {
-            if let Some(nr) = self.lookup_node_ref(TypedPublicKey::new(ck, node_id_key))? {
+            if let Some(nr) = self.lookup_node_ref(TypedNodeId::new(ck, node_id_key))? {
                 return Ok(Some(nr));
             }
         }
@@ -836,7 +836,7 @@ impl RoutingTableInner {
 
     /// Resolve an existing routing table entry and return a reference to it
     #[instrument(level = "trace", skip_all, err)]
-    pub fn lookup_node_ref(&self, node_id: TypedPublicKey) -> EyreResult<Option<NodeRef>> {
+    pub fn lookup_node_ref(&self, node_id: TypedNodeId) -> EyreResult<Option<NodeRef>> {
         if self.routing_table().matches_own_node_id(&[node_id]) {
             bail!("can't look up own node id in routing table");
         }
@@ -855,7 +855,7 @@ impl RoutingTableInner {
     #[instrument(level = "trace", skip_all, err)]
     pub fn lookup_and_filter_noderef(
         &self,
-        node_id: TypedPublicKey,
+        node_id: TypedNodeId,
         routing_domain_set: RoutingDomainSet,
         dial_info_filter: DialInfoFilter,
     ) -> EyreResult<Option<FilteredNodeRef>> {
@@ -870,7 +870,7 @@ impl RoutingTableInner {
     }
 
     /// Resolve an existing routing table entry and call a function on its entry without using a noderef
-    pub fn with_node_entry<F, R>(&self, node_id: TypedPublicKey, f: F) -> Option<R>
+    pub fn with_node_entry<F, R>(&self, node_id: TypedNodeId, f: F) -> Option<R>
     where
         F: FnOnce(Arc<BucketEntry>) -> R,
     {
@@ -970,10 +970,10 @@ impl RoutingTableInner {
     pub fn register_node_with_id(
         &mut self,
         routing_domain: RoutingDomain,
-        node_id: TypedPublicKey,
+        node_id: TypedNodeId,
         timestamp: Timestamp,
     ) -> EyreResult<FilteredNodeRef> {
-        let nr = self.create_node_ref(&TypedPublicKeyGroup::from(node_id), |_rti, e| {
+        let nr = self.create_node_ref(&TypedNodeIdGroup::from(node_id), |_rti, e| {
             //e.make_not_dead(timestamp);
             e.touch_last_seen(timestamp);
         })?;
@@ -1091,7 +1091,7 @@ impl RoutingTableInner {
         }
     }
 
-    pub fn touch_recent_peer(&mut self, node_id: TypedPublicKey, last_connection: Flow) {
+    pub fn touch_recent_peer(&mut self, node_id: TypedNodeId, last_connection: Flow) {
         self.recent_peers
             .insert(node_id, RecentPeersEntry { last_connection });
     }
@@ -1525,7 +1525,7 @@ impl RoutingTableInner {
     #[instrument(level = "trace", skip(self, filter, metric), ret)]
     pub fn get_node_relative_performance(
         &self,
-        node_id: TypedPublicKey,
+        node_id: TypedNodeId,
         cur_ts: Timestamp,
         filter: impl Fn(&BucketEntryInner) -> bool,
         metric: impl Fn(&LatencyStats) -> TimestampDuration,
@@ -1615,13 +1615,13 @@ pub fn make_closest_noderef_sort<'a>(
 
 pub fn make_closest_node_id_sort(
     crypto: &Crypto,
-    node_id: TypedPublicKey,
-) -> impl Fn(&PublicKey, &PublicKey) -> core::cmp::Ordering + '_ {
+    node_id: TypedNodeId,
+) -> impl Fn(&NodeId, &NodeId) -> core::cmp::Ordering + '_ {
     let kind = node_id.kind;
     // Get cryptoversion to check distance with
     let vcrypto = crypto.get(kind).unwrap();
 
-    move |a: &PublicKey, b: &PublicKey| -> core::cmp::Ordering {
+    move |a: &NodeId, b: &NodeId| -> core::cmp::Ordering {
         // distance is the next metric, closer nodes first
         let da = vcrypto.distance(&HashDigest::from(*a), &HashDigest::from(node_id.value));
         let db = vcrypto.distance(&HashDigest::from(*b), &HashDigest::from(node_id.value));

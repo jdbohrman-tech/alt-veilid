@@ -4,7 +4,7 @@ impl_veilid_log_facility!("net");
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BootstrapRecord {
-    node_ids: TypedPublicKeyGroup,
+    node_ids: TypedNodeIdGroup,
     envelope_support: Vec<u8>,
     dial_info_details: Vec<DialInfoDetail>,
     timestamp_secs: Option<u64>,
@@ -13,7 +13,7 @@ pub struct BootstrapRecord {
 
 impl BootstrapRecord {
     pub fn new(
-        node_ids: TypedPublicKeyGroup,
+        node_ids: TypedNodeIdGroup,
         mut envelope_support: Vec<u8>,
         mut dial_info_details: Vec<DialInfoDetail>,
         timestamp_secs: Option<u64>,
@@ -31,7 +31,7 @@ impl BootstrapRecord {
         }
     }
 
-    pub fn node_ids(&self) -> &TypedPublicKeyGroup {
+    pub fn node_ids(&self) -> &TypedNodeIdGroup {
         &self.node_ids
     }
     pub fn envelope_support(&self) -> &[u8] {
@@ -309,10 +309,10 @@ impl BootstrapRecord {
         envelope_support.dedup();
 
         // Node Id
-        let mut node_ids = TypedPublicKeyGroup::new();
+        let mut node_ids = TypedNodeIdGroup::new();
         for node_id_str in fields[2].split(',') {
             let node_id_str = node_id_str.trim();
-            let node_id = match TypedPublicKey::from_str(node_id_str) {
+            let node_id = match TypedNodeId::from_str(node_id_str) {
                 Ok(v) => v,
                 Err(e) => {
                     bail!(
@@ -432,10 +432,10 @@ impl BootstrapRecord {
         envelope_support.dedup();
 
         // Node Id
-        let mut node_ids = TypedPublicKeyGroup::new();
+        let mut node_ids = TypedNodeIdGroup::new();
         for node_id_str in fields[2].split(',') {
             let node_id_str = node_id_str.trim();
-            let node_id = match TypedPublicKey::from_str(node_id_str) {
+            let node_id = match TypedNodeId::from_str(node_id_str) {
                 Ok(v) => v,
                 Err(e) => {
                     bail!(

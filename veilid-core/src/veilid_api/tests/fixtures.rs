@@ -108,12 +108,18 @@ pub fn fix_routeid() -> RouteId {
     RouteId::new(fake_key)
 }
 
-pub fn fix_typedkey() -> TypedPublicKey {
+pub fn fix_nodeid() -> NodeId {
     let mut fake_key = [0u8; CRYPTO_KEY_LENGTH];
     random_bytes(&mut fake_key);
-    TypedPublicKey {
+    NodeId::new(fake_key)
+}
+
+pub fn fix_typednodeid() -> TypedNodeId {
+    let mut fake_key = [0u8; CRYPTO_KEY_LENGTH];
+    random_bytes(&mut fake_key);
+    TypedNodeId {
         kind: FourCC::from_str("FAKE").unwrap(),
-        value: fix_publickey(),
+        value: fix_nodeid(),
     }
 }
 
@@ -134,7 +140,7 @@ pub fn fix_secretkey() -> SecretKey {
 
 pub fn fix_peertabledata() -> PeerTableData {
     PeerTableData {
-        node_ids: vec![fix_typedkey()],
+        node_ids: vec![fix_typednodeid()],
         peer_address: "123 Main St.".to_string(),
         peer_stats: fix_peerstats(),
     }
@@ -175,7 +181,7 @@ pub fn fix_veilidconfig() -> VeilidConfig {
             hole_punch_receipt_time_ms: 9000,
             network_key_password: None,
             routing_table: VeilidConfigRoutingTable {
-                node_id: TypedPublicKeyGroup::new(),
+                node_id: TypedNodeIdGroup::new(),
                 node_id_secret: TypedSecretKeyGroup::new(),
                 bootstrap: vec!["boots".to_string()],
                 bootstrap_keys: vec![TypedPublicKey::from_str(

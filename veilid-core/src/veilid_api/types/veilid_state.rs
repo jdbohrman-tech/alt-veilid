@@ -107,7 +107,7 @@ pub struct PeerTableData {
         all(target_arch = "wasm32", target_os = "unknown"),
         tsify(type = "string[]")
     )]
-    pub node_ids: Vec<TypedPublicKey>,
+    pub node_ids: Vec<TypedNodeId>,
     /// The peer's human readable address.
     pub peer_address: String,
     /// Statistics we have collected on this peer.

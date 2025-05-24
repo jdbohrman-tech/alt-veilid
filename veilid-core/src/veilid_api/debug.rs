@@ -228,14 +228,14 @@ fn get_number<T: num_traits::Num + FromStr>(text: &str) -> Option<T> {
     T::from_str(text).ok()
 }
 
-fn get_typed_key(text: &str) -> Option<TypedPublicKey> {
-    TypedPublicKey::from_str(text).ok()
-}
 fn get_typed_record_key(text: &str) -> Option<TypedRecordKey> {
     TypedRecordKey::from_str(text).ok()
 }
-fn get_public_key(text: &str) -> Option<PublicKey> {
-    PublicKey::from_str(text).ok()
+fn get_node_id(text: &str) -> Option<NodeId> {
+    NodeId::from_str(text).ok()
+}
+fn get_typed_node_id(text: &str) -> Option<TypedNodeId> {
+    TypedNodeId::from_str(text).ok()
 }
 fn get_record_key(text: &str) -> Option<RecordKey> {
     RecordKey::from_str(text).ok()
@@ -303,15 +303,15 @@ fn resolve_node_ref(
     move |text| {
         let text = text.to_owned();
         Box::pin(async move {
-            let nr = if let Some(key) = get_public_key(&text) {
-                let node_id = TypedPublicKey::new(best_crypto_kind(), key);
+            let nr = if let Some(key) = get_node_id(&text) {
+                let node_id = TypedNodeId::new(best_crypto_kind(), key);
                 registry
                     .rpc_processor()
                     .resolve_node(node_id, safety_selection)
                     .await
                     .ok()
                     .flatten()?
-            } else if let Some(node_id) = get_typed_key(&text) {
+            } else if let Some(node_id) = get_typed_node_id(&text) {
                 registry
                     .rpc_processor()
                     .resolve_node(node_id, safety_selection)
@@ -338,15 +338,15 @@ fn resolve_filtered_node_ref(
                 .map(|x| (x.0, Some(x.1)))
                 .unwrap_or((&text, None));
 
-            let nr = if let Some(key) = get_public_key(text) {
-                let node_id = TypedPublicKey::new(best_crypto_kind(), key);
+            let nr = if let Some(key) = get_node_id(text) {
+                let node_id = TypedNodeId::new(best_crypto_kind(), key);
                 registry
                     .rpc_processor()
                     .resolve_node(node_id, safety_selection)
                     .await
                     .ok()
                     .flatten()?
-            } else if let Some(node_id) = get_typed_key(text) {
+            } else if let Some(node_id) = get_typed_node_id(text) {
                 registry
                     .rpc_processor()
                     .resolve_node(node_id, safety_selection)
@@ -368,9 +368,9 @@ fn resolve_filtered_node_ref(
 fn get_node_ref(registry: VeilidComponentRegistry) -> impl FnOnce(&str) -> Option<NodeRef> {
     move |text| {
         let routing_table = registry.routing_table();
-        let nr = if let Some(key) = get_public_key(text) {
+        let nr = if let Some(key) = get_node_id(text) {
             routing_table.lookup_any_node_ref(key).ok().flatten()?
-        } else if let Some(node_id) = get_typed_key(text) {
+        } else if let Some(node_id) = get_typed_node_id(text) {
             routing_table.lookup_node_ref(node_id).ok().flatten()?
         } else {
             return None;
@@ -401,9 +401,9 @@ fn get_filtered_node_ref(
             .map(|x| (x.0, Some(x.1)))
             .unwrap_or((text, None));
 
-        let nr = if let Some(key) = get_public_key(text) {
+        let nr = if let Some(key) = get_node_id(text) {
             routing_table.lookup_any_node_ref(key).ok().flatten()?
-        } else if let Some(node_id) = get_typed_key(text) {
+        } else if let Some(node_id) = get_typed_node_id(text) {
             routing_table.lookup_node_ref(node_id).ok().flatten()?
         } else {
             return None;

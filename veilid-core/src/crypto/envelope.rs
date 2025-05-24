@@ -39,8 +39,8 @@ pub struct Envelope {
     crypto_kind: CryptoKind,
     timestamp: Timestamp,
     nonce: Nonce,
-    sender_id: PublicKey,
-    recipient_id: PublicKey,
+    sender_id: NodeId,
+    recipient_id: NodeId,
 }
 
 impl Envelope {
@@ -50,8 +50,8 @@ impl Envelope {
         crypto_kind: CryptoKind,
         timestamp: Timestamp,
         nonce: Nonce,
-        sender_id: PublicKey,
-        recipient_id: PublicKey,
+        sender_id: NodeId,
+        recipient_id: NodeId,
     ) -> Self {
         assert!(VALID_ENVELOPE_VERSIONS.contains(&version));
         assert!(VALID_CRYPTO_KINDS.contains(&crypto_kind));
@@ -140,8 +140,8 @@ impl Envelope {
             .try_into()
             .map_err(VeilidAPIError::internal)?;
         let mut nonce: Nonce = Nonce::new(nonce_slice);
-        let mut sender_id = PublicKey::new(sender_id_slice);
-        let mut recipient_id = PublicKey::new(recipient_id_slice);
+        let mut sender_id = NodeId::new(sender_id_slice);
+        let mut recipient_id = NodeId::new(recipient_id_slice);
 
         // Apply network key (not the best, but it will keep networks from colliding without much overhead)
         if let Some(nk) = network_key.as_ref() {
@@ -173,7 +173,7 @@ impl Envelope {
 
         // Validate signature
         if !vcrypto
-            .verify(&sender_id, &data[0..(data.len() - 64)], &signature)
+            .verify(&sender_id.into(), &data[0..(data.len() - 64)], &signature)
             .map_err(VeilidAPIError::internal)?
         {
             apibail_parse_error!("signature verification of envelope failed", signature);
@@ -202,7 +202,7 @@ impl Envelope {
         let vcrypto = crypto
             .get(self.crypto_kind)
             .expect("need to ensure only valid crypto kinds here");
-        let mut dh_secret = vcrypto.cached_dh(&self.sender_id, node_id_secret)?;
+        let mut dh_secret = vcrypto.cached_dh(&self.sender_id.into(), node_id_secret)?;
 
         // Apply network key
         if let Some(nk) = network_key.as_ref() {
@@ -252,7 +252,7 @@ impl Envelope {
         let vcrypto = crypto
             .get(self.crypto_kind)
             .expect("need to ensure only valid crypto kinds here");
-        let mut dh_secret = vcrypto.cached_dh(&self.recipient_id, node_id_secret)?;
+        let mut dh_secret = vcrypto.cached_dh(&self.recipient_id.into(), node_id_secret)?;
 
         // Write envelope body
         let mut data = vec![0u8; envelope_size];
@@ -300,7 +300,7 @@ impl Envelope {
 
         // Sign the envelope
         let signature = vcrypto.sign(
-            &self.sender_id,
+            &self.sender_id.into(),
             node_id_secret,
             &data[0..(envelope_size - 64)],
         )?;
@@ -328,19 +328,19 @@ impl Envelope {
         self.nonce
     }
 
-    pub fn get_sender_id(&self) -> PublicKey {
+    pub fn get_sender_id(&self) -> NodeId {
         self.sender_id
     }
 
-    pub fn get_sender_typed_id(&self) -> TypedPublicKey {
-        TypedPublicKey::new(self.crypto_kind, self.sender_id)
+    pub fn get_sender_typed_id(&self) -> TypedNodeId {
+        TypedNodeId::new(self.crypto_kind, self.sender_id)
     }
 
-    pub fn get_recipient_id(&self) -> PublicKey {
+    pub fn get_recipient_id(&self) -> NodeId {
         self.recipient_id
     }
 
-    pub fn get_recipient_typed_id(&self) -> TypedPublicKey {
-        TypedPublicKey::new(self.crypto_kind, self.recipient_id)
+    pub fn get_recipient_typed_id(&self) -> TypedNodeId {
+        TypedNodeId::new(self.crypto_kind, self.recipient_id)
     }
 }

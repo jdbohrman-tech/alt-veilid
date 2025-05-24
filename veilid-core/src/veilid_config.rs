@@ -496,7 +496,7 @@ impl Default for VeilidConfigRPC {
 #[must_use]
 pub struct VeilidConfigRoutingTable {
     #[schemars(with = "Vec<String>")]
-    pub node_id: TypedPublicKeyGroup,
+    pub node_id: TypedNodeIdGroup,
     #[schemars(with = "Vec<String>")]
     pub node_id_secret: TypedSecretKeyGroup,
     pub bootstrap: Vec<String>,
@@ -530,7 +530,7 @@ impl Default for VeilidConfigRoutingTable {
         ];
 
         Self {
-            node_id: TypedPublicKeyGroup::default(),
+            node_id: TypedNodeIdGroup::default(),
             node_id_secret: TypedSecretKeyGroup::default(),
             bootstrap,
             bootstrap_keys,

@@ -53,7 +53,7 @@ pub fn encode_route_hop(
     match &route_hop.node {
         RouteNode::NodeId(ni) => {
             let mut ni_builder = node_builder.init_node_id();
-            encode_key256(ni, &mut ni_builder);
+            encode_key256(&(*ni).into(), &mut ni_builder);
         }
         RouteNode::PeerInfo(pi) => {
             let mut pi_builder = node_builder.init_peer_info();
@@ -75,7 +75,7 @@ pub fn decode_route_hop(
     let node = match n_reader.which().map_err(RPCError::protocol)? {
         veilid_capnp::route_hop::node::Which::NodeId(ni) => {
             let ni_reader = ni.map_err(RPCError::protocol)?;
-            RouteNode::NodeId(decode_key256(&ni_reader))
+            RouteNode::NodeId(decode_key256(&ni_reader).into())
         }
         veilid_capnp::route_hop::node::Which::PeerInfo(pi) => {
             let pi_reader = pi.map_err(RPCError::protocol)?;
@@ -104,7 +104,7 @@ pub fn encode_private_route(
     private_route: &PrivateRoute,
     builder: &mut veilid_capnp::private_route::Builder,
 ) -> Result<(), RPCError> {
-    encode_typed_key(
+    encode_typed_public_key(
         &private_route.public_key,
         &mut builder.reborrow().init_public_key(),
     );
@@ -130,7 +130,7 @@ pub fn decode_private_route(
     decode_context: &RPCDecodeContext,
     reader: &veilid_capnp::private_route::Reader,
 ) -> Result<PrivateRoute, RPCError> {
-    let public_key = decode_typed_key(&reader.get_public_key().map_err(
+    let public_key = decode_typed_public_key(&reader.get_public_key().map_err(
         RPCError::map_protocol("invalid public key in private route"),
     )?)?;
     let hop_count = reader.get_hop_count();
@@ -160,7 +160,7 @@ pub fn encode_safety_route(
     safety_route: &SafetyRoute,
     builder: &mut veilid_capnp::safety_route::Builder,
 ) -> Result<(), RPCError> {
-    encode_typed_key(
+    encode_typed_public_key(
         &safety_route.public_key,
         &mut builder.reborrow().init_public_key(),
     );
@@ -184,7 +184,7 @@ pub fn decode_safety_route(
     decode_context: &RPCDecodeContext,
     reader: &veilid_capnp::safety_route::Reader,
 ) -> Result<SafetyRoute, RPCError> {
-    let public_key = decode_typed_key(
+    let public_key = decode_typed_public_key(
         &reader
             .get_public_key()
             .map_err(RPCError::map_protocol("invalid public key in safety route"))?,

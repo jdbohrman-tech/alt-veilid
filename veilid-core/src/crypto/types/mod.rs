@@ -92,13 +92,40 @@ pub type TypedNodeIdGroup = CryptoTypedGroup<NodeId>;
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
 pub type TypedHashDigestGroup = CryptoTypedGroup<HashDigest>;
 
-impl From<TypedPublicKey> for TypedHashDigest {
-    fn from(value: TypedPublicKey) -> Self {
+impl From<TypedNodeId> for TypedHashDigest {
+    fn from(value: TypedNodeId) -> Self {
         TypedHashDigest::new(value.kind, value.value.into())
     }
 }
+
 impl From<TypedRecordKey> for TypedHashDigest {
     fn from(value: TypedRecordKey) -> Self {
         TypedHashDigest::new(value.kind, value.value.into())
+    }
+}
+
+impl From<TypedNodeId> for TypedPublicKey {
+    fn from(value: TypedNodeId) -> Self {
+        TypedPublicKey::new(value.kind, value.value.into())
+    }
+}
+
+impl From<TypedPublicKey> for TypedNodeId {
+    fn from(value: TypedPublicKey) -> Self {
+        TypedNodeId::new(value.kind, value.value.into())
+    }
+}
+
+impl From<TypedNodeIdGroup> for TypedPublicKeyGroup {
+    fn from(value: TypedNodeIdGroup) -> Self {
+        let items: Vec<TypedPublicKey> = value.iter().map(|node_id| (*node_id).into()).collect();
+        TypedPublicKeyGroup::from(items)
+    }
+}
+
+impl From<TypedPublicKeyGroup> for TypedNodeIdGroup {
+    fn from(value: TypedPublicKeyGroup) -> Self {
+        let items: Vec<TypedNodeId> = value.iter().map(|node_id| (*node_id).into()).collect();
+        TypedNodeIdGroup::from(items)
     }
 }

@@ -23,7 +23,7 @@ impl RoutingTable {
         let mut inner = self.inner.write();
 
         // Get our exempt nodes for each crypto kind
-        let mut exempt_peers_by_kind = BTreeMap::<CryptoKind, BTreeSet<PublicKey>>::new();
+        let mut exempt_peers_by_kind = BTreeMap::<CryptoKind, BTreeSet<NodeId>>::new();
 
         for kind in VALID_CRYPTO_KINDS {
             let our_node_id = self.node_id(kind);
@@ -32,7 +32,7 @@ impl RoutingTable {
             };
             let sort = make_closest_node_id_sort(&crypto, our_node_id);
 
-            let mut closest_peers = BTreeSet::<PublicKey>::new();
+            let mut closest_peers = BTreeSet::<NodeId>::new();
             let mut closest_unreliable_count = 0usize;
             let mut closest_reliable_count = 0usize;
 

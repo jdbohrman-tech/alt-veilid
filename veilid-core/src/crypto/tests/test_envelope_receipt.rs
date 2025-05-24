@@ -25,8 +25,8 @@ pub async fn test_envelope_round_trip(
         vcrypto.kind(),
         ts,
         nonce,
-        sender_id,
-        recipient_id,
+        sender_id.into(),
+        recipient_id.into(),
     );
 
     // Create arbitrary body
@@ -77,8 +77,14 @@ pub async fn test_receipt_round_trip(
     // Create receipt
     let nonce = vcrypto.random_nonce().await;
     let (sender_id, sender_secret) = vcrypto.generate_keypair().await.into_split();
-    let receipt = Receipt::try_new(envelope_version, vcrypto.kind(), nonce, sender_id, body)
-        .expect("should not fail");
+    let receipt = Receipt::try_new(
+        envelope_version,
+        vcrypto.kind(),
+        nonce,
+        sender_id.into(),
+        body,
+    )
+    .expect("should not fail");
 
     // Serialize to bytes
     let mut enc_data = receipt

@@ -14,7 +14,7 @@ pub fn test_alignedu64() {
 
 pub fn test_veilidappmessage() {
     let orig = VeilidAppMessage::new(
-        Some(fix_typedkey()),
+        Some(fix_typednodeid()),
         Some(fix_routeid()),
         b"Hi there!".to_vec(),
     );
@@ -25,7 +25,7 @@ pub fn test_veilidappmessage() {
 
 pub fn test_veilidappcall() {
     let orig = VeilidAppCall::new(
-        Some(fix_typedkey()),
+        Some(fix_typednodeid()),
         Some(fix_routeid()),
         b"Well, hello!".to_vec(),
         OperationId::from(123),

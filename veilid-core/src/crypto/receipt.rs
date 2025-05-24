@@ -36,7 +36,7 @@ pub struct Receipt {
     version: u8,
     crypto_kind: CryptoKind,
     nonce: Nonce,
-    sender_id: PublicKey,
+    sender_id: NodeId,
     extra_data: Vec<u8>,
 }
 
@@ -45,7 +45,7 @@ impl Receipt {
         version: u8,
         crypto_kind: CryptoKind,
         nonce: Nonce,
-        sender_id: PublicKey,
+        sender_id: NodeId,
         extra_data: D,
     ) -> VeilidAPIResult<Self> {
         assert!(VALID_ENVELOPE_VERSIONS.contains(&version));
@@ -114,7 +114,7 @@ impl Receipt {
         }
 
         // Get sender id
-        let sender_id = PublicKey::new(
+        let sender_id = NodeId::new(
             data[0x22..0x42]
                 .try_into()
                 .map_err(VeilidAPIError::internal)?,
@@ -129,7 +129,7 @@ impl Receipt {
 
         // Validate signature
         if !vcrypto
-            .verify(&sender_id, &data[0..(data.len() - 64)], &signature)
+            .verify(&sender_id.into(), &data[0..(data.len() - 64)], &signature)
             .map_err(VeilidAPIError::generic)?
         {
             apibail_parse_error!("signature failure in receipt", signature);
@@ -187,7 +187,11 @@ impl Receipt {
         }
         // Sign the receipt
         let signature = vcrypto
-            .sign(&self.sender_id, secret, &data[0..(receipt_size - 64)])
+            .sign(
+                &self.sender_id.into(),
+                secret,
+                &data[0..(receipt_size - 64)],
+            )
             .map_err(VeilidAPIError::generic)?;
         // Append the signature
         data[(receipt_size - 64)..].copy_from_slice(&signature.bytes);
@@ -208,12 +212,12 @@ impl Receipt {
         self.nonce
     }
 
-    pub fn get_sender_id(&self) -> PublicKey {
+    pub fn get_sender_id(&self) -> NodeId {
         self.sender_id
     }
 
-    pub fn get_sender_typed_id(&self) -> TypedPublicKey {
-        TypedPublicKey::new(self.crypto_kind, self.sender_id)
+    pub fn get_sender_typed_id(&self) -> TypedNodeId {
+        TypedNodeId::new(self.crypto_kind, self.sender_id)
     }
 
     #[must_use]

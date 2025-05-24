@@ -13,7 +13,7 @@ pub fn encode_peer_info(
             .map_err(RPCError::map_invalid_format("out of bound error"))?,
     );
     for (i, nid) in peer_info.node_ids().iter().enumerate() {
-        encode_typed_key(
+        encode_typed_node_id(
             nid,
             &mut nids_builder.reborrow().get(
                 i.try_into()
@@ -39,9 +39,9 @@ pub fn decode_peer_info(
         .reborrow()
         .get_signed_node_info()
         .map_err(RPCError::protocol)?;
-    let mut node_ids = TypedPublicKeyGroup::with_capacity(nids_reader.len() as usize);
+    let mut node_ids = TypedNodeIdGroup::with_capacity(nids_reader.len() as usize);
     for nid_reader in nids_reader.iter() {
-        node_ids.add(decode_typed_key(&nid_reader)?);
+        node_ids.add(decode_typed_node_id(&nid_reader)?);
     }
     let signed_node_info = decode_signed_node_info(&sni_reader)?;
     if node_ids.is_empty() {

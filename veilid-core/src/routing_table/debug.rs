@@ -203,7 +203,7 @@ impl RoutingTable {
             let mut b = 0;
             let blen = inner.buckets[ck].len();
             while b < blen {
-                let filtered_entries: Vec<(&PublicKey, &Arc<BucketEntry>)> = inner.buckets[ck][b]
+                let filtered_entries: Vec<(&NodeId, &Arc<BucketEntry>)> = inner.buckets[ck][b]
                     .entries()
                     .filter(|e| {
                         let cap_match = e.1.with(inner, |_rti, e| {
@@ -245,7 +245,7 @@ impl RoutingTable {
 
                         out += "    ";
                         out += &e.1.with(inner, |_rti, e| {
-                            let node_id_str = TypedPublicKey::new(*ck, node).to_string();
+                            let node_id_str = TypedNodeId::new(*ck, node).to_string();
                             Self::format_entry(cur_ts, &node_id_str, e, &relay_tag)
                         });
                         out += "\n";

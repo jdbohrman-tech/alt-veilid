@@ -2,7 +2,7 @@ use super::*;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialOrd, Ord, PartialEq, Eq, Hash, Default)]
 #[serde(from = "Vec<CryptoTyped<K>>", into = "Vec<CryptoTyped<K>>")]
-pub struct CryptoTypedGroup<K = PublicKey>
+pub struct CryptoTypedGroup<K>
 where
     K: Clone
         + Copy

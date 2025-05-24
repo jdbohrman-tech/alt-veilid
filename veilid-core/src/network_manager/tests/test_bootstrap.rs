@@ -4,7 +4,7 @@ use crate::tests::mock_registry;
 fn make_mock_bootstrap_record(include_timestamp: bool) -> BootstrapRecord {
     let mut node_ids = CryptoTypedGroup::new();
     node_ids.add(
-        TypedPublicKey::from_str("VLD0:f8G4Ckr1UR8YXnmAllwfvBEvXGgfYicZllb7jEpJeSU")
+        TypedNodeId::from_str("VLD0:f8G4Ckr1UR8YXnmAllwfvBEvXGgfYicZllb7jEpJeSU")
             .expect("should parse key"),
     );
     let envelope_support = VALID_ENVELOPE_VERSIONS.to_vec();

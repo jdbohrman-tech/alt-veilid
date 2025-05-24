@@ -107,7 +107,7 @@ impl Destination {
         }
     }
 
-    pub fn get_target_node_ids(&self) -> Option<TypedPublicKeyGroup> {
+    pub fn get_target_node_ids(&self) -> Option<TypedNodeIdGroup> {
         match self {
             Destination::Direct {
                 node,
@@ -429,7 +429,10 @@ impl RPCProcessor {
                         };
 
                         Ok(NetworkResult::value(RespondTo::PrivateRoute(
-                            PrivateRoute::new_stub(routing_table.node_id(crypto_kind), route_node),
+                            PrivateRoute::new_stub(
+                                routing_table.node_id(crypto_kind).into(),
+                                route_node,
+                            ),
                         )))
                     }
                     SafetySelection::Safe(safety_spec) => {

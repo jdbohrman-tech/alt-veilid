@@ -698,7 +698,7 @@ pub struct Dht {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RoutingTable {
-    pub node_id: Option<veilid_core::TypedPublicKeyGroup>,
+    pub node_id: Option<veilid_core::TypedNodeIdGroup>,
     pub node_id_secret: Option<veilid_core::TypedSecretKeyGroup>,
     pub bootstrap: Vec<String>,
     pub bootstrap_keys: Vec<veilid_core::TypedPublicKey>,

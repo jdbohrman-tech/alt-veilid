@@ -42,7 +42,7 @@ mod rpc_start_tunnel;
 pub(crate) use answer::*;
 pub(crate) use coders::{
     builder_to_vec, decode_private_route, encode_node_info, encode_private_route, encode_route_hop,
-    encode_signed_direct_node_info, encode_typed_key, RPCDecodeContext,
+    encode_signed_direct_node_info, encode_typed_node_id, RPCDecodeContext,
     MAX_INSPECT_VALUE_A_SEQS_LEN,
 };
 pub(crate) use destination::*;
@@ -303,7 +303,7 @@ impl RPCProcessor {
     fn process_sender_peer_info(
         &self,
         routing_domain: RoutingDomain,
-        sender_node_id: TypedPublicKey,
+        sender_node_id: TypedNodeId,
         sender_peer_info: &SenderPeerInfo,
     ) -> RPCNetworkResult<Option<NodeRef>> {
         let Some(peer_info) = sender_peer_info.opt_peer_info.clone() else {
@@ -364,7 +364,7 @@ impl RPCProcessor {
     #[instrument(level = "trace", target = "rpc", skip_all)]
     async fn public_internet_peer_search(
         &self,
-        node_id: TypedPublicKey,
+        node_id: TypedNodeId,
         count: usize,
         fanout: usize,
         timeout_us: TimestampDuration,
@@ -464,7 +464,7 @@ impl RPCProcessor {
     #[instrument(level = "trace", target = "rpc", skip_all)]
     pub fn resolve_node(
         &self,
-        node_id: TypedPublicKey,
+        node_id: TypedNodeId,
         safety_selection: SafetySelection,
     ) -> PinBoxFuture<Result<Option<NodeRef>, RPCError>> {
         let registry = self.registry();
@@ -575,7 +575,7 @@ impl RPCProcessor {
                             let node_id = self
                                 .routing_table()
                                 .node_id(sr.direct.envelope.get_crypto_kind());
-                            if node_id.value != reply_private_route {
+                            if node_id.value != reply_private_route.into() {
                                 return Err(RPCError::protocol(
                                     "should have received reply from safety route to a stub",
                                 ));
@@ -773,7 +773,7 @@ impl RPCProcessor {
                         };
                         let private_route = PrivateRoute::new_stub(
                             match destination_node_ref.best_node_id() {
-                                Some(nid) => nid,
+                                Some(nid) => nid.into(),
                                 None => {
                                     return Ok(NetworkResult::no_connection_other(
                                         "No best node id for stub private route",

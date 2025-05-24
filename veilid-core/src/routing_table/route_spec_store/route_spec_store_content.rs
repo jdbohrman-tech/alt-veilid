@@ -35,7 +35,7 @@ impl RouteSpecStoreContent {
             let mut hop_node_refs = Vec::with_capacity(rsd.hops.len());
             for h in &rsd.hops {
                 let Ok(Some(nr)) =
-                    routing_table.lookup_node_ref(TypedPublicKey::new(rsd.crypto_kind, *h))
+                    routing_table.lookup_node_ref(TypedNodeId::new(rsd.crypto_kind, *h))
                 else {
                     dead_ids.push(*rsid);
                     break;

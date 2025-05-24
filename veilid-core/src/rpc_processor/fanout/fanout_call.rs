@@ -112,7 +112,7 @@ pub enum FanoutCallDisposition {
 }
 
 pub type FanoutCallResult = Result<FanoutCallOutput, RPCError>;
-pub type FanoutNodeInfoFilter = Arc<dyn (Fn(&[TypedPublicKey], &NodeInfo) -> bool) + Send + Sync>;
+pub type FanoutNodeInfoFilter = Arc<dyn (Fn(&[TypedNodeId], &NodeInfo) -> bool) + Send + Sync>;
 pub type FanoutCheckDone = Arc<dyn (Fn(&FanoutResult) -> bool) + Send + Sync>;
 pub type FanoutCallRoutine =
     Arc<dyn (Fn(NodeRef) -> PinBoxFutureStatic<FanoutCallResult>) + Send + Sync>;
@@ -421,9 +421,7 @@ impl<'a> FanoutCall<'a> {
             ));
         };
         let node_sort = Box::new(
-            |a_key: &CryptoTyped<PublicKey>,
-             b_key: &CryptoTyped<PublicKey>|
-             -> core::cmp::Ordering {
+            |a_key: &CryptoTyped<NodeId>, b_key: &CryptoTyped<NodeId>| -> core::cmp::Ordering {
                 let da =
                     vcrypto.distance(&HashDigest::from(a_key.value), &self.hash_coordinate.value);
                 let db =

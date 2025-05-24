@@ -7,7 +7,7 @@ pub(in crate::storage_manager) struct PerNodeKey {
     /// Watched record key
     pub record_key: TypedRecordKey,
     /// Watching node id
-    pub node_id: TypedPublicKey,
+    pub node_id: TypedNodeId,
 }
 
 impl fmt::Display for PerNodeKey {
@@ -24,7 +24,7 @@ impl FromStr for PerNodeKey {
             .ok_or_else(|| VeilidAPIError::parse_error("invalid per-node key", s))?;
         Ok(PerNodeKey {
             record_key: TypedRecordKey::from_str(rkey)?,
-            node_id: TypedPublicKey::from_str(nid)?,
+            node_id: TypedNodeId::from_str(nid)?,
         })
     }
 }

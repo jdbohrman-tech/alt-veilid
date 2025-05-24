@@ -16,7 +16,7 @@ pub(in crate::storage_manager) struct LocalRecordDetail {
     pub safety_selection: SafetySelection,
     /// The nodes that we have seen this record cached on recently
     #[serde(default)]
-    pub nodes: HashMap<PublicKey, PerNodeRecordDetail>,
+    pub nodes: HashMap<NodeId, PerNodeRecordDetail>,
 }
 
 impl LocalRecordDetail {

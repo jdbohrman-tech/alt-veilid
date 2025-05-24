@@ -4,7 +4,7 @@ use super::*;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SignedRelayedNodeInfo {
     node_info: NodeInfo,
-    relay_ids: TypedPublicKeyGroup,
+    relay_ids: TypedNodeIdGroup,
     relay_info: SignedDirectNodeInfo,
     timestamp: Timestamp,
     signatures: Vec<TypedSignature>,
@@ -32,7 +32,7 @@ impl SignedRelayedNodeInfo {
     /// All signatures are stored however, as this can be passed to other nodes that may be able to validate those signatures.
     pub fn new(
         node_info: NodeInfo,
-        relay_ids: TypedPublicKeyGroup,
+        relay_ids: TypedNodeIdGroup,
         relay_info: SignedDirectNodeInfo,
         timestamp: Timestamp,
         signatures: Vec<TypedSignature>,
@@ -48,9 +48,9 @@ impl SignedRelayedNodeInfo {
 
     pub fn validate(
         &self,
-        node_ids: &TypedPublicKeyGroup,
+        node_ids: &TypedNodeIdGroup,
         crypto: &Crypto,
-    ) -> VeilidAPIResult<TypedPublicKeyGroup> {
+    ) -> VeilidAPIResult<TypedNodeIdGroup> {
         // Ensure the relay info for the node has a superset of the crypto kinds of the node it is relaying
         if common_crypto_kinds(
             self.node_info.crypto_support(),
@@ -69,22 +69,23 @@ impl SignedRelayedNodeInfo {
             &self.relay_info,
             self.timestamp,
         )?;
+        let public_keys = TypedPublicKeyGroup::from(node_ids.clone());
         let opt_validated_node_ids =
-            crypto.verify_signatures(node_ids, &node_info_bytes, &self.signatures)?;
+            crypto.verify_signatures(&public_keys, &node_info_bytes, &self.signatures)?;
         let Some(validated_node_ids) = opt_validated_node_ids else {
             apibail_generic!("verification error in relayed node info");
         };
         if validated_node_ids.is_empty() {
             apibail_generic!("no valid node ids in relayed node info");
         }
-        Ok(validated_node_ids)
+        Ok(TypedNodeIdGroup::from(validated_node_ids))
     }
 
     pub fn make_signatures(
         crypto: &Crypto,
         typed_key_pairs: Vec<TypedKeyPair>,
         node_info: NodeInfo,
-        relay_ids: TypedPublicKeyGroup,
+        relay_ids: TypedNodeIdGroup,
         relay_info: SignedDirectNodeInfo,
     ) -> VeilidAPIResult<Self> {
         let timestamp = Timestamp::now();
@@ -105,7 +106,7 @@ impl SignedRelayedNodeInfo {
 
     fn make_signature_bytes(
         node_info: &NodeInfo,
-        relay_ids: &[TypedPublicKey],
+        relay_ids: &[TypedNodeId],
         relay_info: &SignedDirectNodeInfo,
         timestamp: Timestamp,
     ) -> VeilidAPIResult<Vec<u8>> {
@@ -121,7 +122,7 @@ impl SignedRelayedNodeInfo {
         for relay_id in relay_ids {
             let mut rid_msg = ::capnp::message::Builder::new_default();
             let mut rid_builder = rid_msg.init_root::<veilid_capnp::typed_key::Builder>();
-            encode_typed_key(relay_id, &mut rid_builder);
+            encode_typed_node_id(relay_id, &mut rid_builder);
             sig_bytes.append(&mut builder_to_vec(rid_msg).map_err(VeilidAPIError::internal)?);
         }
 
@@ -148,7 +149,7 @@ impl SignedRelayedNodeInfo {
     pub fn timestamp(&self) -> Timestamp {
         self.timestamp
     }
-    pub fn relay_ids(&self) -> &TypedPublicKeyGroup {
+    pub fn relay_ids(&self) -> &TypedNodeIdGroup {
         &self.relay_ids
     }
     pub fn relay_info(&self) -> &SignedDirectNodeInfo {

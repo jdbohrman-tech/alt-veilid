@@ -20,7 +20,7 @@ use clap::{Args, Parser};
 use server::*;
 use settings::LogLevel;
 use tools::*;
-use veilid_core::{TypedPublicKeyGroup, TypedSecretKeyGroup};
+use veilid_core::{TypedNodeIdGroup, TypedSecretKeyGroup};
 use veilid_logs::*;
 
 #[derive(Args, Debug, Clone)]
@@ -315,7 +315,7 @@ fn main() -> EyreResult<()> {
         settingsrw.logging.terminal.enabled = false;
 
         // Split or get secret
-        let tks = TypedPublicKeyGroup::from_str(&key_set)
+        let tks = TypedNodeIdGroup::from_str(&key_set)
             .wrap_err("failed to decode node id set from command line")?;
 
         let buffer = rpassword::prompt_password("Enter secret key set (will not echo): ")

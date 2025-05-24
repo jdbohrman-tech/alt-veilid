@@ -242,7 +242,7 @@ impl RPCProcessor {
     ) -> RPCNetworkResult<()> {
         // If the private route public key is our node id, then this was sent via safety route to our node directly
         // so there will be no signatures to validate
-        if self.routing_table().node_ids().contains(&pr_pubkey) {
+        if self.routing_table().node_ids().contains(&pr_pubkey.into()) {
             // The private route was a stub
             self.process_safety_routed_operation(
                 detail,
@@ -384,7 +384,11 @@ impl RPCProcessor {
             let node_id = self.routing_table().node_id(crypto_kind);
             let node_id_secret = self.routing_table().node_id_secret_key(crypto_kind);
             let sig = vcrypto
-                .sign(&node_id.value, &node_id_secret, routed_operation.data())
+                .sign(
+                    &node_id.value.into(),
+                    &node_id_secret,
+                    routed_operation.data(),
+                )
                 .map_err(RPCError::internal)?;
             routed_operation.add_signature(sig);
         }

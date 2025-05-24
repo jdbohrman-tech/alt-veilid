@@ -1343,7 +1343,7 @@ impl StorageManager {
             let config = self.config();
             let cfg = config.get();
             if let Some(node_id) = cfg.network.routing_table.node_id.get(kind) {
-                if schema.is_member(&node_id.value) {
+                if schema.is_member(&node_id.value.into()) {
                     apibail_invalid_argument!(
                         "node id can not be schema member",
                         "schema",
@@ -1602,7 +1602,7 @@ impl StorageManager {
                 .copied()
                 .filter_map(|x| {
                     routing_table
-                        .lookup_node_ref(TypedPublicKey::new(record_key.kind, x))
+                        .lookup_node_ref(TypedNodeId::new(record_key.kind, x))
                         .ok()
                         .flatten()
                 })

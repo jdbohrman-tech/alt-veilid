@@ -16,7 +16,7 @@ pub fn encode_signed_relayed_node_info(
             .map_err(RPCError::map_invalid_format("out of bound error"))?,
     );
     for (i, typed_key) in signed_relayed_node_info.relay_ids().iter().enumerate() {
-        encode_typed_key(
+        encode_typed_node_id(
             typed_key,
             &mut rids_builder.reborrow().get(
                 i.try_into()
@@ -69,9 +69,9 @@ pub fn decode_signed_relayed_node_info(
     if rid_count > MAX_CRYPTO_KINDS {
         return Err(RPCError::protocol("too many relay ids"));
     }
-    let mut relay_ids = TypedPublicKeyGroup::with_capacity(rid_count);
+    let mut relay_ids = TypedNodeIdGroup::with_capacity(rid_count);
     for rid_reader in rids_reader {
-        let relay_id = decode_typed_key(&rid_reader)?;
+        let relay_id = decode_typed_node_id(&rid_reader)?;
         relay_ids.add(relay_id);
     }
 
