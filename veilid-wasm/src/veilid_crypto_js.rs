@@ -24,7 +24,7 @@ impl VeilidCrypto {
     }
 
     pub fn cachedDh(kind: String, key: PublicKey, secret: SecretKey) -> APIResult<SharedSecret> {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from_str(&kind)?;
 
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
@@ -40,7 +40,7 @@ impl VeilidCrypto {
     }
 
     pub fn computeDh(kind: String, key: PublicKey, secret: SecretKey) -> APIResult<SharedSecret> {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from_str(&kind)?;
 
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
@@ -61,7 +61,7 @@ impl VeilidCrypto {
         secret: SecretKey,
         domain: Box<[u8]>,
     ) -> APIResult<SharedSecret> {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from_str(&kind)?;
 
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
@@ -77,7 +77,7 @@ impl VeilidCrypto {
     }
 
     pub fn randomBytes(kind: String, len: u32) -> APIResult<Box<[u8]>> {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from_str(&kind)?;
 
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
@@ -94,7 +94,7 @@ impl VeilidCrypto {
     }
 
     pub fn defaultSaltLength(kind: String) -> APIResult<u32> {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from_str(&kind)?;
 
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
@@ -110,7 +110,7 @@ impl VeilidCrypto {
     }
 
     pub fn hashPassword(kind: String, password: Box<[u8]>, salt: Box<[u8]>) -> APIResult<String> {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from_str(&kind)?;
 
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
@@ -130,7 +130,7 @@ impl VeilidCrypto {
         password: Box<[u8]>,
         password_hash: String,
     ) -> APIResult<bool> {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from_str(&kind)?;
 
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
@@ -150,7 +150,7 @@ impl VeilidCrypto {
         password: Box<[u8]>,
         salt: Box<[u8]>,
     ) -> APIResult<SharedSecret> {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from_str(&kind)?;
 
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
@@ -166,7 +166,7 @@ impl VeilidCrypto {
     }
 
     pub fn randomNonce(kind: String) -> APIResult<Nonce> {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from_str(&kind)?;
 
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
@@ -182,7 +182,7 @@ impl VeilidCrypto {
     }
 
     pub fn randomSharedSecret(kind: String) -> APIResult<SharedSecret> {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from_str(&kind)?;
 
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
@@ -269,7 +269,7 @@ impl VeilidCrypto {
     }
 
     pub fn generateKeyPair(kind: String) -> APIResult<String> {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from_str(&kind)?;
 
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
@@ -286,7 +286,7 @@ impl VeilidCrypto {
     }
 
     pub fn generateHash(kind: String, data: Box<[u8]>) -> APIResult<HashDigest> {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from_str(&kind)?;
 
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
@@ -302,7 +302,7 @@ impl VeilidCrypto {
     }
 
     pub fn validateKeyPair(kind: String, key: String, secret: String) -> APIResult<bool> {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from_str(&kind)?;
 
         let key: veilid_core::PublicKey = veilid_core::PublicKey::from_str(&key)?;
         let secret: veilid_core::SecretKey = veilid_core::SecretKey::from_str(&secret)?;
@@ -321,7 +321,7 @@ impl VeilidCrypto {
     }
 
     pub fn validateHash(kind: String, data: Box<[u8]>, hash: HashDigest) -> APIResult<bool> {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from_str(&kind)?;
 
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
@@ -337,7 +337,7 @@ impl VeilidCrypto {
     }
 
     pub fn distance(kind: String, hash1: HashDigest, hash2: HashDigest) -> APIResult<HashDistance> {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from_str(&kind)?;
 
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
@@ -358,7 +358,7 @@ impl VeilidCrypto {
         secret: String,
         data: Box<[u8]>,
     ) -> APIResult<Signature> {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from_str(&kind)?;
 
         let key: veilid_core::PublicKey = veilid_core::PublicKey::from_str(&key)?;
         let secret: veilid_core::SecretKey = veilid_core::SecretKey::from_str(&secret)?;
@@ -378,7 +378,7 @@ impl VeilidCrypto {
         data: Box<[u8]>,
         signature: Signature,
     ) -> APIResult<bool> {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from_str(&kind)?;
 
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
@@ -390,7 +390,7 @@ impl VeilidCrypto {
     }
 
     pub fn aeadOverhead(kind: String) -> APIResult<usize> {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from_str(&kind)?;
 
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
@@ -412,7 +412,7 @@ impl VeilidCrypto {
         shared_secret: SharedSecret,
         associated_data: Option<Box<[u8]>>,
     ) -> APIResult<Box<[u8]>> {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from_str(&kind)?;
 
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
@@ -443,7 +443,7 @@ impl VeilidCrypto {
         shared_secret: SharedSecret,
         associated_data: Option<Box<[u8]>>,
     ) -> APIResult<Box<[u8]>> {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from_str(&kind)?;
 
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
@@ -472,7 +472,7 @@ impl VeilidCrypto {
         nonce: Nonce,
         shared_secret: SharedSecret,
     ) -> APIResult<Box<[u8]>> {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from_str(&kind)?;
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from_str(&kind)?;
 
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;

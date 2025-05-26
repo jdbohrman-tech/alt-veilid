@@ -58,7 +58,7 @@ pub async fn test_signed_node_info() {
         let _ = sdni.validate(&tks1.into(), &crypto).unwrap_err();
 
         // Test unsupported cryptosystem validation
-        let fake_crypto_kind: CryptoKind = FourCC::from([0, 1, 2, 3]);
+        let fake_crypto_kind: CryptoKind = CryptoKind::from([0, 1, 2, 3]);
         let mut tksfake: TypedPublicKeyGroup =
             TypedPublicKey::new(fake_crypto_kind, PublicKey::default()).into();
         let mut sigsfake = sni.signatures().to_vec();
@@ -123,7 +123,7 @@ pub async fn test_signed_node_info() {
         assert_err!(srni.validate(&tks3.into(), &crypto));
 
         // Test unsupported cryptosystem validation
-        let fake_crypto_kind: CryptoKind = FourCC::from([0, 1, 2, 3]);
+        let fake_crypto_kind: CryptoKind = CryptoKind::from([0, 1, 2, 3]);
         let mut tksfake3: TypedPublicKeyGroup =
             TypedPublicKey::new(fake_crypto_kind, PublicKey::default()).into();
         let mut sigsfake3 = sni2.signatures().to_vec();

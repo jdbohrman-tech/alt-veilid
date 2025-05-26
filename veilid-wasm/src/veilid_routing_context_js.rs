@@ -202,7 +202,7 @@ impl VeilidRoutingContext {
     ) -> APIResult<String> {
         let owner = PublicKey::from_str(&owner)?;
         let crypto_kind = kind
-            .map(|kind| veilid_core::FourCC::from_str(&kind))
+            .map(|kind| veilid_core::CryptoKind::from_str(&kind))
             .map_or(APIResult::Ok(None), |r| r.map(Some))?;
         let routing_context = self.getRoutingContext()?;
 
@@ -226,7 +226,7 @@ impl VeilidRoutingContext {
         kind: Option<String>,
     ) -> APIResult<DHTRecordDescriptor> {
         let crypto_kind = kind
-            .map(|kind| veilid_core::FourCC::from_str(&kind))
+            .map(|kind| veilid_core::CryptoKind::from_str(&kind))
             .map_or(APIResult::Ok(None), |r| r.map(Some))?;
         let owner_keypair = owner
             .map(|owner| KeyPair::from_str(&owner))

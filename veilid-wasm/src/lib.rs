@@ -506,7 +506,7 @@ pub fn routing_context_create_dht_record(
         let crypto_kind = if kind == 0 {
             None
         } else {
-            Some(veilid_core::FourCC::from(kind))
+            Some(veilid_core::CryptoKind::from(kind))
         };
         let owner: Option<veilid_core::KeyPair> = match owner {
             Some(s) => Some(veilid_core::deserialize_json(&s).map_err(VeilidAPIError::generic)?),
@@ -1038,7 +1038,7 @@ pub fn generate_signatures(data: String, key_pairs: String) -> Promise {
 
 #[wasm_bindgen()]
 pub fn generate_key_pair(kind: u32) -> Promise {
-    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
     wrap_api_future_json(async move {
         let out = veilid_core::Crypto::generate_keypair(kind)?;
@@ -1049,7 +1049,7 @@ pub fn generate_key_pair(kind: u32) -> Promise {
 #[wasm_bindgen()]
 pub fn crypto_cached_dh(kind: u32, key: String, secret: String) -> Promise {
     wrap_api_future_json(async move {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
         let key: veilid_core::PublicKey =
             veilid_core::deserialize_json(&key).map_err(VeilidAPIError::generic)?;
@@ -1073,7 +1073,7 @@ pub fn crypto_cached_dh(kind: u32, key: String, secret: String) -> Promise {
 #[wasm_bindgen()]
 pub fn crypto_compute_dh(kind: u32, key: String, secret: String) -> Promise {
     wrap_api_future_json(async move {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
         let key: veilid_core::PublicKey =
             veilid_core::deserialize_json(&key).map_err(VeilidAPIError::generic)?;
@@ -1102,7 +1102,7 @@ pub fn crypto_generate_shared_secret(
     domain: String,
 ) -> Promise {
     wrap_api_future_json(async move {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
         let key: veilid_core::PublicKey =
             veilid_core::deserialize_json(&key).map_err(VeilidAPIError::generic)?;
@@ -1128,7 +1128,7 @@ pub fn crypto_generate_shared_secret(
 
 #[wasm_bindgen()]
 pub fn crypto_random_bytes(kind: u32, len: u32) -> Promise {
-    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
     wrap_api_future_plain(async move {
         let veilid_api = get_veilid_api()?;
@@ -1148,7 +1148,7 @@ pub fn crypto_random_bytes(kind: u32, len: u32) -> Promise {
 
 #[wasm_bindgen()]
 pub fn crypto_default_salt_length(kind: u32) -> Promise {
-    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
     wrap_api_future_plain(async move {
         let veilid_api = get_veilid_api()?;
@@ -1168,7 +1168,7 @@ pub fn crypto_default_salt_length(kind: u32) -> Promise {
 #[wasm_bindgen()]
 pub fn crypto_hash_password(kind: u32, password: String, salt: String) -> Promise {
     wrap_api_future_plain(async move {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
         let password: Vec<u8> = data_encoding::BASE64URL_NOPAD
             .decode(password.as_bytes())
             .map_err(VeilidAPIError::generic)?;
@@ -1193,7 +1193,7 @@ pub fn crypto_hash_password(kind: u32, password: String, salt: String) -> Promis
 #[wasm_bindgen()]
 pub fn crypto_verify_password(kind: u32, password: String, password_hash: String) -> Promise {
     wrap_api_future_plain(async move {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
         let password: Vec<u8> = data_encoding::BASE64URL_NOPAD
             .decode(password.as_bytes())
             .map_err(VeilidAPIError::generic)?;
@@ -1214,7 +1214,7 @@ pub fn crypto_verify_password(kind: u32, password: String, password_hash: String
 #[wasm_bindgen()]
 pub fn crypto_derive_shared_secret(kind: u32, password: String, salt: String) -> Promise {
     wrap_api_future_json(async move {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
         let password: Vec<u8> = data_encoding::BASE64URL_NOPAD
             .decode(password.as_bytes())
             .map_err(VeilidAPIError::generic)?;
@@ -1239,7 +1239,7 @@ pub fn crypto_derive_shared_secret(kind: u32, password: String, salt: String) ->
 #[wasm_bindgen()]
 pub fn crypto_random_nonce(kind: u32) -> Promise {
     wrap_api_future_json(async move {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
@@ -1257,7 +1257,7 @@ pub fn crypto_random_nonce(kind: u32) -> Promise {
 
 #[wasm_bindgen()]
 pub fn crypto_random_shared_secret(kind: u32) -> Promise {
-    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
     wrap_api_future_json(async move {
         let veilid_api = get_veilid_api()?;
@@ -1276,7 +1276,7 @@ pub fn crypto_random_shared_secret(kind: u32) -> Promise {
 
 #[wasm_bindgen()]
 pub fn crypto_generate_key_pair(kind: u32) -> Promise {
-    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
     wrap_api_future_json(async move {
         let veilid_api = get_veilid_api()?;
@@ -1296,7 +1296,7 @@ pub fn crypto_generate_key_pair(kind: u32) -> Promise {
 #[wasm_bindgen()]
 pub fn crypto_generate_hash(kind: u32, data: String) -> Promise {
     wrap_api_future_json(async move {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
         let data: Vec<u8> = data_encoding::BASE64URL_NOPAD
             .decode(data.as_bytes())
@@ -1319,7 +1319,7 @@ pub fn crypto_generate_hash(kind: u32, data: String) -> Promise {
 #[wasm_bindgen()]
 pub fn crypto_validate_key_pair(kind: u32, key: String, secret: String) -> Promise {
     wrap_api_future_plain(async move {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
         let key: veilid_core::PublicKey =
             veilid_core::deserialize_json(&key).map_err(VeilidAPIError::generic)?;
@@ -1343,7 +1343,7 @@ pub fn crypto_validate_key_pair(kind: u32, key: String, secret: String) -> Promi
 #[wasm_bindgen()]
 pub fn crypto_validate_hash(kind: u32, data: String, hash: String) -> Promise {
     wrap_api_future_plain(async move {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
         let data: Vec<u8> = data_encoding::BASE64URL_NOPAD
             .decode(data.as_bytes())
@@ -1369,7 +1369,7 @@ pub fn crypto_validate_hash(kind: u32, data: String, hash: String) -> Promise {
 #[wasm_bindgen()]
 pub fn crypto_distance(kind: u32, key1: String, key2: String) -> Promise {
     wrap_api_future_json(async move {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
         let key1: veilid_core::HashDigest =
             veilid_core::deserialize_json(&key1).map_err(VeilidAPIError::generic)?;
@@ -1393,7 +1393,7 @@ pub fn crypto_distance(kind: u32, key1: String, key2: String) -> Promise {
 #[wasm_bindgen()]
 pub fn crypto_sign(kind: u32, key: String, secret: String, data: String) -> Promise {
     wrap_api_future_json(async move {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
         let key: veilid_core::PublicKey =
             veilid_core::deserialize_json(&key).map_err(VeilidAPIError::generic)?;
@@ -1417,7 +1417,7 @@ pub fn crypto_sign(kind: u32, key: String, secret: String, data: String) -> Prom
 #[wasm_bindgen()]
 pub fn crypto_verify(kind: u32, key: String, data: String, signature: String) -> Promise {
     wrap_api_future_plain(async move {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
         let key: veilid_core::PublicKey =
             veilid_core::deserialize_json(&key).map_err(VeilidAPIError::generic)?;
@@ -1440,7 +1440,7 @@ pub fn crypto_verify(kind: u32, key: String, data: String, signature: String) ->
 #[wasm_bindgen()]
 pub fn crypto_aead_overhead(kind: u32) -> Promise {
     wrap_api_future_plain(async move {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
         let veilid_api = get_veilid_api()?;
         let crypto = veilid_api.crypto()?;
@@ -1465,7 +1465,7 @@ pub fn crypto_decrypt_aead(
     associated_data: Option<String>,
 ) -> Promise {
     wrap_api_future_plain(async move {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
         let body: Vec<u8> = data_encoding::BASE64URL_NOPAD
             .decode(body.as_bytes())
@@ -1518,7 +1518,7 @@ pub fn crypto_encrypt_aead(
     associated_data: Option<String>,
 ) -> Promise {
     wrap_api_future_plain(async move {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
         let body: Vec<u8> = data_encoding::BASE64URL_NOPAD
             .decode(body.as_bytes())
@@ -1570,7 +1570,7 @@ pub fn crypto_crypt_no_auth(
     shared_secret: String,
 ) -> Promise {
     wrap_api_future_plain(async move {
-        let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+        let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
         let mut body: Vec<u8> = data_encoding::BASE64URL_NOPAD
             .decode(body.as_bytes())

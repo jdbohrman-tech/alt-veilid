@@ -289,7 +289,7 @@ impl RPCProcessor {
         &self,
         routing_domain: RoutingDomain,
         signed_node_info: &SignedNodeInfo,
-        capabilities: &[Capability],
+        capabilities: &[VeilidCapability],
     ) -> bool {
         let routing_table = self.routing_table();
         routing_table.signed_node_info_is_valid_in_routing_domain(routing_domain, signed_node_info)

@@ -1,4 +1,4 @@
-use crate::*;
+use crate::{routing_table::VeilidCapability, *};
 
 cfg_if! {
     if #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))] {
@@ -181,7 +181,7 @@ pub fn config_callback(key: String) -> ConfigCallbackReturn {
     match key.as_str() {
         "program_name" => Ok(Box::new(String::from("VeilidCoreTests"))),
         "namespace" => Ok(Box::<String>::default()),
-        "capabilities.disable" => Ok(Box::<Vec<FourCC>>::default()),
+        "capabilities.disable" => Ok(Box::<Vec<VeilidCapability>>::default()),
         "table_store.directory" => Ok(Box::new(get_table_store_path())),
         "table_store.delete" => Ok(Box::new(true)),
         "block_store.directory" => Ok(Box::new(get_block_store_path())),
@@ -323,7 +323,7 @@ pub fn test_config() {
     let inner = vc.get();
     assert_eq!(inner.program_name, String::from("VeilidCoreTests"));
     assert_eq!(inner.namespace, String::from(""));
-    assert_eq!(inner.capabilities.disable, Vec::<FourCC>::new());
+    assert_eq!(inner.capabilities.disable, Vec::<VeilidCapability>::new());
     assert_eq!(inner.table_store.directory, get_table_store_path());
     assert!(inner.table_store.delete);
     assert_eq!(inner.block_store.directory, get_block_store_path());

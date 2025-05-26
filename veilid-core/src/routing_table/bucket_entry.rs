@@ -365,7 +365,7 @@ impl BucketEntryInner {
     pub fn has_all_capabilities(
         &self,
         routing_domain: RoutingDomain,
-        capabilities: &[Capability],
+        capabilities: &[VeilidCapability],
     ) -> bool {
         let Some(ni) = self.node_info(routing_domain) else {
             return false;
@@ -377,7 +377,7 @@ impl BucketEntryInner {
     pub fn has_any_capabilities(
         &self,
         routing_domain: RoutingDomain,
-        capabilities: &[Capability],
+        capabilities: &[VeilidCapability],
     ) -> bool {
         let Some(ni) = self.node_info(routing_domain) else {
             return false;

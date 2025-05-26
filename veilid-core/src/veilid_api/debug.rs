@@ -700,8 +700,8 @@ impl VeilidAPI {
                 fastest = true;
             } else {
                 for cap in arg.split(',') {
-                    if let Ok(capfcc) = FourCC::from_str(cap) {
-                        capabilities.push(capfcc);
+                    if let Ok(cap) = VeilidCapability::from_str(cap) {
+                        capabilities.push(cap);
                     } else {
                         apibail_invalid_argument!("debug_entries", "unknown", arg);
                     }
@@ -2229,7 +2229,7 @@ TableDB Operations:
 --------------------------------------------------------------------
 <key> is: VLD0:GsgXCRPrzSK6oBNgxhNpm-rTYFd02R0ySx6j9vbQBG4
     * also <node>, <relay>, <target>, <route>
-<capabilities> is: a list of FourCC codes: ROUT,SGNL,RLAY,DIAL,DHTV,DHTW,APPM etc.
+<capabilities> is: a list of VeilidCapability four-character codes: ROUT,SGNL,RLAY,DIAL,DHTV,DHTW,APPM etc.
 <configkey> is: dot path like network.protocol.udp.enabled
 <destination> is:
     * direct:  <node>[+<safety>][<modifiers>]

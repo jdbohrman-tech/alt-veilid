@@ -88,11 +88,7 @@ impl Receipt {
         }
 
         // Check crypto kind
-        let crypto_kind = FourCC(
-            data[0x04..0x08]
-                .try_into()
-                .map_err(VeilidAPIError::internal)?,
-        );
+        let crypto_kind = CryptoKind::try_from(&data[0x04..0x08])?;
         let Some(vcrypto) = crypto.get(crypto_kind) else {
             apibail_parse_error!("unsupported crypto kind", crypto_kind);
         };

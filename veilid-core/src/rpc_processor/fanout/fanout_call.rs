@@ -121,7 +121,7 @@ pub fn empty_fanout_node_info_filter() -> FanoutNodeInfoFilter {
     Arc::new(|_, _| true)
 }
 
-pub fn capability_fanout_node_info_filter(caps: Vec<Capability>) -> FanoutNodeInfoFilter {
+pub fn capability_fanout_node_info_filter(caps: Vec<VeilidCapability>) -> FanoutNodeInfoFilter {
     Arc::new(move |_, ni| ni.has_all_capabilities(&caps))
 }
 

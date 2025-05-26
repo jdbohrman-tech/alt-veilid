@@ -178,7 +178,7 @@ impl RoutingTable {
     pub fn debug_info_entries(
         &self,
         min_state: BucketEntryState,
-        capabilities: Vec<FourCC>,
+        capabilities: Vec<VeilidCapability>,
     ) -> String {
         let relay_node_filter = self.make_public_internet_relay_node_filter();
 
@@ -262,7 +262,7 @@ impl RoutingTable {
     pub fn debug_info_entries_fastest(
         &self,
         min_state: BucketEntryState,
-        capabilities: Vec<FourCC>,
+        capabilities: Vec<VeilidCapability>,
         node_count: usize,
     ) -> String {
         let cur_ts = Timestamp::now();

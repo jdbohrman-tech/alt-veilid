@@ -77,7 +77,7 @@ impl RoutingDomainDetail for LocalNetworkRoutingDomainDetail {
     fn compatible_address_types(&self) -> AddressTypeSet {
         AddressType::IPV4 | AddressType::IPV6
     }
-    fn capabilities(&self) -> Vec<Capability> {
+    fn capabilities(&self) -> Vec<VeilidCapability> {
         self.common.capabilities()
     }
     fn requires_relay(&self) -> Option<RelayKind> {

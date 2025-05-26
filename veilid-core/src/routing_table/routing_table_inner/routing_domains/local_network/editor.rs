@@ -89,7 +89,7 @@ impl RoutingDomainEditorCommonTrait for RoutingDomainEditorLocalNetwork<'_> {
         outbound_protocols: ProtocolTypeSet,
         inbound_protocols: ProtocolTypeSet,
         address_types: AddressTypeSet,
-        capabilities: Vec<Capability>,
+        capabilities: Vec<VeilidCapability>,
         confirmed: bool,
     ) -> &mut Self {
         self.changes.push(RoutingDomainChangeLocalNetwork::Common(

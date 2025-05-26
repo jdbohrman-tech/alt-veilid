@@ -8,7 +8,7 @@ pub async fn test_all() {
     test_alignedu64();
     test_veilidappmessage();
     test_veilidappcall();
-    test_fourcc();
+    test_cryptokind();
     test_sequencing();
     test_stability();
     test_safetyselection();

@@ -17,7 +17,7 @@ const VEILID_DOMAIN_SIGN: &[u8] = b"VLD0_SIGN";
 const VEILID_DOMAIN_CRYPT: &[u8] = b"VLD0_CRYPT";
 
 const AEAD_OVERHEAD: usize = 16;
-pub const CRYPTO_KIND_VLD0: CryptoKind = FourCC(*b"VLD0");
+pub const CRYPTO_KIND_VLD0: CryptoKind = CryptoKind(*b"VLD0");
 
 fn public_to_x25519_pk(public: &PublicKey) -> VeilidAPIResult<xd::PublicKey> {
     let pk_ed = ed::VerifyingKey::from_bytes(&public.bytes).map_err(VeilidAPIError::internal)?;

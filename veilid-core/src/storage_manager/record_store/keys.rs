@@ -19,7 +19,7 @@ impl TryFrom<&[u8]> for RecordTableKey {
         if bytes.len() != HASH_DIGEST_LENGTH + 4 {
             bail!("invalid bytes length");
         }
-        let kind = FourCC::try_from(&bytes[0..4]).wrap_err("invalid kind")?;
+        let kind = CryptoKind::try_from(&bytes[0..4]).wrap_err("invalid kind")?;
         let value =
             RecordKey::try_from(&bytes[4..HASH_DIGEST_LENGTH + 4]).wrap_err("invalid value")?;
         let key = TypedRecordKey::new(kind, value);
@@ -48,7 +48,7 @@ impl TryFrom<&[u8]> for SubkeyTableKey {
         if bytes.len() != HASH_DIGEST_LENGTH + 4 {
             bail!("invalid bytes length");
         }
-        let kind = FourCC::try_from(&bytes[0..4]).wrap_err("invalid kind")?;
+        let kind = CryptoKind::try_from(&bytes[0..4]).wrap_err("invalid kind")?;
         let value =
             RecordKey::try_from(&bytes[4..HASH_DIGEST_LENGTH + 4]).wrap_err("invalid value")?;
         let subkey = ValueSubkey::from_le_bytes(

@@ -274,7 +274,7 @@ impl TableStore {
         }
 
         // Get cryptosystem
-        let kind = FourCC::try_from(&dek_bytes[0..4]).unwrap();
+        let kind = CryptoKind::try_from(&dek_bytes[0..4]).unwrap();
         let crypto = self.crypto();
         let Some(vcrypto) = crypto.get_async(kind) else {
             bail!("unsupported cryptosystem '{kind}'");

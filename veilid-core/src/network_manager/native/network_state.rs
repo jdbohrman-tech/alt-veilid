@@ -6,8 +6,8 @@ pub struct ProtocolConfig {
     pub inbound: ProtocolTypeSet,
     pub family_global: AddressTypeSet,
     pub family_local: AddressTypeSet,
-    pub public_internet_capabilities: Vec<FourCC>,
-    pub local_network_capabilities: Vec<FourCC>,
+    pub public_internet_capabilities: Vec<VeilidCapability>,
+    pub local_network_capabilities: Vec<VeilidCapability>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -155,14 +155,14 @@ impl Network {
                     .iter()
                     .copied()
                     .filter(|cap| !c.capabilities.disable.contains(cap))
-                    .collect::<Vec<Capability>>()
+                    .collect::<Vec<VeilidCapability>>()
             };
             let local_network_capabilities = {
                 LOCAL_NETWORK_CAPABILITIES
                     .iter()
                     .copied()
                     .filter(|cap| !c.capabilities.disable.contains(cap))
-                    .collect::<Vec<Capability>>()
+                    .collect::<Vec<VeilidCapability>>()
             };
 
             ProtocolConfig {

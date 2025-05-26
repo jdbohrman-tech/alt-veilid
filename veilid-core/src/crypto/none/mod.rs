@@ -4,7 +4,7 @@ use data_encoding::BASE64URL_NOPAD;
 use digest::Digest;
 use rand::RngCore;
 const AEAD_OVERHEAD: usize = PUBLIC_KEY_LENGTH;
-pub const CRYPTO_KIND_NONE: CryptoKind = FourCC(*b"NONE");
+pub const CRYPTO_KIND_NONE: CryptoKind = CryptoKind(*b"NONE");
 
 pub fn none_generate_keypair() -> KeyPair {
     let mut csprng = VeilidRng {};

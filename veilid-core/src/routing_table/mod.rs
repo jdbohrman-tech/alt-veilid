@@ -964,7 +964,7 @@ impl RoutingTable {
         &self,
         node_ref: FilteredNodeRef,
         node_id: TypedNodeId,
-        capabilities: Vec<Capability>,
+        capabilities: Vec<VeilidCapability>,
     ) -> EyreResult<NetworkResult<Vec<NodeRef>>> {
         let rpc_processor = self.rpc_processor();
 
@@ -987,7 +987,7 @@ impl RoutingTable {
         &self,
         crypto_kind: CryptoKind,
         node_ref: FilteredNodeRef,
-        capabilities: Vec<Capability>,
+        capabilities: Vec<VeilidCapability>,
     ) -> EyreResult<NetworkResult<Vec<NodeRef>>> {
         let self_node_id = self.node_id(crypto_kind);
         self.find_nodes_close_to_node_id(node_ref, self_node_id, capabilities)
@@ -1001,7 +1001,7 @@ impl RoutingTable {
         &self,
         crypto_kind: CryptoKind,
         node_ref: FilteredNodeRef,
-        capabilities: Vec<Capability>,
+        capabilities: Vec<VeilidCapability>,
     ) -> EyreResult<NetworkResult<Vec<NodeRef>>> {
         let Some(target_node_id) = node_ref.node_ids().get(crypto_kind) else {
             bail!("no target node ids for this crypto kind");
@@ -1018,7 +1018,7 @@ impl RoutingTable {
         crypto_kind: CryptoKind,
         node_ref: NodeRef,
         wide: bool,
-        capabilities: Vec<Capability>,
+        capabilities: Vec<VeilidCapability>,
     ) {
         // Ask node for nodes closest to our own node
         let closest_nodes = network_result_value_or_log!(self match pin_future!(self.find_nodes_close_to_self(crypto_kind, node_ref.sequencing_filtered(Sequencing::PreferOrdered), capabilities.clone())).await {

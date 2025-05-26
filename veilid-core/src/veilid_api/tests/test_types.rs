@@ -37,8 +37,8 @@ pub fn test_veilidappcall() {
 
 // fourcc
 
-pub fn test_fourcc() {
-    let orig = FourCC::from_str("D34D").unwrap();
+pub fn test_cryptokind() {
+    let orig = CryptoKind::from_str("D34D").unwrap();
     let copy = deserialize_json(&serialize_json(orig)).unwrap();
 
     assert_eq!(orig, copy);

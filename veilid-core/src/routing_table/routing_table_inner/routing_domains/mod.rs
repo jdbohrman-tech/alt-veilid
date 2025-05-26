@@ -18,7 +18,7 @@ pub trait RoutingDomainDetail {
     fn inbound_protocols(&self) -> ProtocolTypeSet;
     fn address_types(&self) -> AddressTypeSet;
     fn compatible_address_types(&self) -> AddressTypeSet;
-    fn capabilities(&self) -> Vec<Capability>;
+    fn capabilities(&self) -> Vec<VeilidCapability>;
     fn requires_relay(&self) -> Option<RelayKind>;
     fn relay_node(&self) -> Option<FilteredNodeRef>;
     fn relay_node_last_keepalive(&self) -> Option<Timestamp>;
@@ -128,7 +128,7 @@ struct RoutingDomainDetailCommon {
     inbound_protocols: ProtocolTypeSet,
     address_types: AddressTypeSet,
     relay_node: Option<NodeRef>,
-    capabilities: Vec<Capability>,
+    capabilities: Vec<VeilidCapability>,
     dial_info_details: Vec<DialInfoDetail>,
     confirmed: bool,
     // caches
@@ -188,7 +188,7 @@ impl RoutingDomainDetailCommon {
         self.address_types
     }
 
-    pub fn capabilities(&self) -> Vec<Capability> {
+    pub fn capabilities(&self) -> Vec<VeilidCapability> {
         self.capabilities.clone()
     }
 
@@ -293,7 +293,7 @@ impl RoutingDomainDetailCommon {
         outbound_protocols: ProtocolTypeSet,
         inbound_protocols: ProtocolTypeSet,
         address_types: AddressTypeSet,
-        capabilities: Vec<Capability>,
+        capabilities: Vec<VeilidCapability>,
         confirmed: bool,
     ) {
         self.outbound_protocols = outbound_protocols;

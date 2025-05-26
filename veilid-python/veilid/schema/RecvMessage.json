@@ -3127,17 +3127,6 @@
         }
       }
     },
-    "FourCC": {
-      "description": "FOURCC code.",
-      "type": "array",
-      "items": {
-        "type": "integer",
-        "format": "uint8",
-        "minimum": 0.0
-      },
-      "maxItems": 4,
-      "minItems": 4
-    },
     "LatencyStats": {
       "description": "Measurement of communications latency to this node over all RPC questions",
       "type": "object",
@@ -3954,6 +3943,16 @@
         }
       ]
     },
+    "VeilidCapability": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "format": "uint8",
+        "minimum": 0.0
+      },
+      "maxItems": 4,
+      "minItems": 4
+    },
     "VeilidConfig": {
       "description": "Top level of the Veilid configuration tree",
       "type": "object",
@@ -4057,7 +4056,7 @@
         "disable": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/FourCC"
+            "$ref": "#/definitions/VeilidCapability"
           }
         }
       }

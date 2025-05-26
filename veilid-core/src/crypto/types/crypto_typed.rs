@@ -24,7 +24,7 @@ cfg_if::cfg_if! {
     if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
         #[wasm_bindgen(typescript_custom_section)]
         const CRYPOTYPED_TYPE: &'static str = r#"
-export type CryptoTyped<TCryptoKey extends string> = `${FourCC}:${TCryptoKey}`;
+export type CryptoTyped<TCryptoKey extends string> = `${CryptoKind}:${TCryptoKey}`;
 "#;
     }
 }

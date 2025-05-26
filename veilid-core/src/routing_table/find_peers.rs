@@ -9,7 +9,7 @@ impl RoutingTable {
         &self,
         routing_domain: RoutingDomain,
         key: TypedNodeId,
-        capabilities: &[Capability],
+        capabilities: &[VeilidCapability],
     ) -> NetworkResult<Vec<Arc<PeerInfo>>> {
         if Crypto::validate_crypto_kind(key.kind).is_err() {
             return NetworkResult::invalid_message("invalid crypto kind");
@@ -73,7 +73,7 @@ impl RoutingTable {
         &self,
         routing_domain: RoutingDomain,
         key: TypedRecordKey,
-        required_capabilities: Vec<Capability>,
+        required_capabilities: Vec<VeilidCapability>,
     ) -> NetworkResult<Vec<Arc<PeerInfo>>> {
         // add node information for the requesting node to our routing table
         let crypto_kind = key.kind;

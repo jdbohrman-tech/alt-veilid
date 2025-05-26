@@ -5,9 +5,7 @@ use core::convert::TryInto;
 use core::fmt;
 use core::hash::Hash;
 
-/// Cryptography version fourcc code
-#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), declare)]
-pub type CryptoKind = FourCC;
+fourcc_type!(CryptoKind);
 
 /// Sort best crypto kinds first
 /// Better crypto kinds are 'less', ordered toward the front of a list

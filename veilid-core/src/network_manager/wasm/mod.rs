@@ -19,7 +19,7 @@ cfg_if! {
         const PUBLIC_INTERNET_CAPABILITIES_LEN: usize = 5;
     }
 }
-pub const PUBLIC_INTERNET_CAPABILITIES: [Capability; PUBLIC_INTERNET_CAPABILITIES_LEN] = [
+pub const PUBLIC_INTERNET_CAPABILITIES: [VeilidCapability; PUBLIC_INTERNET_CAPABILITIES_LEN] = [
     CAP_ROUTE,
     #[cfg(feature = "unstable-tunnels")]
     CAP_TUNNEL,
@@ -38,7 +38,7 @@ pub const PUBLIC_INTERNET_CAPABILITIES: [Capability; PUBLIC_INTERNET_CAPABILITIE
 // #[cfg(not(feature = "unstable-blockstore"))]
 // const LOCAL_NETWORK_CAPABILITIES_LEN: usize = 2;
 
-// pub const LOCAL_NETWORK_CAPABILITIES: [Capability; LOCAL_NETWORK_CAPABILITIES_LEN] = [
+// pub const LOCAL_NETWORK_CAPABILITIES: [VeilidCapability; LOCAL_NETWORK_CAPABILITIES_LEN] = [
 //     //CAP_RELAY,
 //     CAP_DHT,
 //     CAP_DHT_WATCH,
@@ -56,7 +56,7 @@ pub struct ProtocolConfig {
     pub outbound: ProtocolTypeSet,
     pub inbound: ProtocolTypeSet,
     pub family_global: AddressTypeSet,
-    pub public_internet_capabilities: Vec<FourCC>,
+    pub public_internet_capabilities: Vec<VeilidCapability>,
 }
 
 struct NetworkInner {
@@ -387,7 +387,7 @@ impl Network {
                     .iter()
                     .copied()
                     .filter(|cap| !c.capabilities.disable.contains(cap))
-                    .collect::<Vec<Capability>>()
+                    .collect::<Vec<VeilidCapability>>()
             };
 
             ProtocolConfig {

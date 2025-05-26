@@ -2,7 +2,7 @@ from dataclasses import dataclass, fields
 from enum import StrEnum
 from typing import Optional, Self
 
-from .types import TypedKey, TypedSecret, Capability
+from .types import TypedKey, TypedSecret, VeilidCapability
 
 
 class VeilidConfigLogLevel(StrEnum):
@@ -41,7 +41,7 @@ class ConfigBase:
 
 @dataclass
 class VeilidConfigCapabilities(ConfigBase):
-    disable: list[Capability]
+    disable: list[VeilidCapability]
 
 
 @dataclass

@@ -689,7 +689,7 @@ pub extern "C" fn routing_context_create_dht_record(
     let crypto_kind = if kind == 0 {
         None
     } else {
-        Some(veilid_core::FourCC::from(kind))
+        Some(veilid_core::CryptoKind::from(kind))
     };
     let schema: veilid_core::DHTSchema =
         veilid_core::deserialize_opt_json(schema.into_opt_string()).unwrap();
@@ -1336,7 +1336,7 @@ pub extern "C" fn generate_signatures(port: i64, data: FfiStr, key_pairs: FfiStr
 #[no_mangle]
 #[instrument(level = "trace", target = "ffi", skip_all)]
 pub extern "C" fn generate_key_pair(port: i64, kind: u32) {
-    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
     DartIsolateWrapper::new(port).spawn_result_json(
         async move {
@@ -1349,7 +1349,7 @@ pub extern "C" fn generate_key_pair(port: i64, kind: u32) {
 
 #[no_mangle]
 pub extern "C" fn crypto_cached_dh(port: i64, kind: u32, key: FfiStr, secret: FfiStr) {
-    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
     let key: veilid_core::PublicKey =
         veilid_core::deserialize_opt_json(key.into_opt_string()).unwrap();
@@ -1377,7 +1377,7 @@ pub extern "C" fn crypto_cached_dh(port: i64, kind: u32, key: FfiStr, secret: Ff
 #[no_mangle]
 #[instrument(level = "trace", target = "ffi", skip_all)]
 pub extern "C" fn crypto_compute_dh(port: i64, kind: u32, key: FfiStr, secret: FfiStr) {
-    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
     let key: veilid_core::PublicKey =
         veilid_core::deserialize_opt_json(key.into_opt_string()).unwrap();
@@ -1411,7 +1411,7 @@ pub extern "C" fn crypto_generate_shared_secret(
     secret: FfiStr,
     domain: FfiStr,
 ) {
-    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
     let key: veilid_core::PublicKey =
         veilid_core::deserialize_opt_json(key.into_opt_string()).unwrap();
@@ -1442,7 +1442,7 @@ pub extern "C" fn crypto_generate_shared_secret(
 #[no_mangle]
 #[instrument(level = "trace", target = "ffi", skip_all)]
 pub extern "C" fn crypto_random_bytes(port: i64, kind: u32, len: u32) {
-    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
     DartIsolateWrapper::new(port).spawn_result(
         async move {
@@ -1466,7 +1466,7 @@ pub extern "C" fn crypto_random_bytes(port: i64, kind: u32, len: u32) {
 #[no_mangle]
 #[instrument(level = "trace", target = "ffi", skip_all)]
 pub extern "C" fn crypto_default_salt_length(port: i64, kind: u32) {
-    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
     DartIsolateWrapper::new(port).spawn_result(
         async move {
@@ -1489,7 +1489,7 @@ pub extern "C" fn crypto_default_salt_length(port: i64, kind: u32) {
 #[no_mangle]
 #[instrument(level = "trace", target = "ffi", skip_all)]
 pub extern "C" fn crypto_hash_password(port: i64, kind: u32, password: FfiStr, salt: FfiStr) {
-    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
     let password: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(password.into_opt_string().unwrap().as_bytes())
         .unwrap();
@@ -1523,7 +1523,7 @@ pub extern "C" fn crypto_verify_password(
     password: FfiStr,
     password_hash: FfiStr,
 ) {
-    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
     let password: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(password.into_opt_string().unwrap().as_bytes())
         .unwrap();
@@ -1555,7 +1555,7 @@ pub extern "C" fn crypto_derive_shared_secret(
     password: FfiStr,
     salt: FfiStr,
 ) {
-    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
     let password: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(password.into_opt_string().unwrap().as_bytes())
         .unwrap();
@@ -1584,7 +1584,7 @@ pub extern "C" fn crypto_derive_shared_secret(
 #[no_mangle]
 #[instrument(level = "trace", target = "ffi", skip_all)]
 pub extern "C" fn crypto_random_nonce(port: i64, kind: u32) {
-    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
     DartIsolateWrapper::new(port).spawn_result_json(
         async move {
@@ -1607,7 +1607,7 @@ pub extern "C" fn crypto_random_nonce(port: i64, kind: u32) {
 #[no_mangle]
 #[instrument(level = "trace", target = "ffi", skip_all)]
 pub extern "C" fn crypto_random_shared_secret(port: i64, kind: u32) {
-    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
     DartIsolateWrapper::new(port).spawn_result_json(
         async move {
@@ -1630,7 +1630,7 @@ pub extern "C" fn crypto_random_shared_secret(port: i64, kind: u32) {
 #[no_mangle]
 #[instrument(level = "trace", target = "ffi", skip_all)]
 pub extern "C" fn crypto_generate_key_pair(port: i64, kind: u32) {
-    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
     DartIsolateWrapper::new(port).spawn_result_json(
         async move {
@@ -1653,7 +1653,7 @@ pub extern "C" fn crypto_generate_key_pair(port: i64, kind: u32) {
 #[no_mangle]
 #[instrument(level = "trace", target = "ffi", skip_all)]
 pub extern "C" fn crypto_generate_hash(port: i64, kind: u32, data: FfiStr) {
-    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
     let data: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(data.into_opt_string().unwrap().as_bytes())
@@ -1680,7 +1680,7 @@ pub extern "C" fn crypto_generate_hash(port: i64, kind: u32, data: FfiStr) {
 #[no_mangle]
 #[instrument(level = "trace", target = "ffi", skip_all)]
 pub extern "C" fn crypto_validate_key_pair(port: i64, kind: u32, key: FfiStr, secret: FfiStr) {
-    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
     let key: veilid_core::PublicKey =
         veilid_core::deserialize_opt_json(key.into_opt_string()).unwrap();
@@ -1708,7 +1708,7 @@ pub extern "C" fn crypto_validate_key_pair(port: i64, kind: u32, key: FfiStr, se
 #[no_mangle]
 #[instrument(level = "trace", target = "ffi", skip_all)]
 pub extern "C" fn crypto_validate_hash(port: i64, kind: u32, data: FfiStr, hash: FfiStr) {
-    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
     let data: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(data.into_opt_string().unwrap().as_bytes())
@@ -1738,7 +1738,7 @@ pub extern "C" fn crypto_validate_hash(port: i64, kind: u32, data: FfiStr, hash:
 #[no_mangle]
 #[instrument(level = "trace", target = "ffi", skip_all)]
 pub extern "C" fn crypto_distance(port: i64, kind: u32, key1: FfiStr, key2: FfiStr) {
-    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
     let key1: veilid_core::HashDigest =
         veilid_core::deserialize_opt_json(key1.into_opt_string()).unwrap();
@@ -1766,7 +1766,7 @@ pub extern "C" fn crypto_distance(port: i64, kind: u32, key1: FfiStr, key2: FfiS
 #[no_mangle]
 #[instrument(level = "trace", target = "ffi", skip_all)]
 pub extern "C" fn crypto_sign(port: i64, kind: u32, key: FfiStr, secret: FfiStr, data: FfiStr) {
-    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
     let key: veilid_core::PublicKey =
         veilid_core::deserialize_opt_json(key.into_opt_string()).unwrap();
@@ -1803,7 +1803,7 @@ pub extern "C" fn crypto_verify(
     data: FfiStr,
     signature: FfiStr,
 ) {
-    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
     let key: veilid_core::PublicKey =
         veilid_core::deserialize_opt_json(key.into_opt_string()).unwrap();
@@ -1834,7 +1834,7 @@ pub extern "C" fn crypto_verify(
 #[no_mangle]
 #[instrument(level = "trace", target = "ffi", skip_all)]
 pub extern "C" fn crypto_aead_overhead(port: i64, kind: u32) {
-    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
     DartIsolateWrapper::new(port).spawn_result(
         async move {
@@ -1864,7 +1864,7 @@ pub extern "C" fn crypto_decrypt_aead(
     shared_secret: FfiStr,
     associated_data: FfiStr,
 ) {
-    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
     let body: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(body.into_opt_string().unwrap().as_bytes())
@@ -1917,7 +1917,7 @@ pub extern "C" fn crypto_encrypt_aead(
     shared_secret: FfiStr,
     associated_data: FfiStr,
 ) {
-    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
     let body: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(body.into_opt_string().unwrap().as_bytes())
@@ -1969,7 +1969,7 @@ pub extern "C" fn crypto_crypt_no_auth(
     nonce: FfiStr,
     shared_secret: FfiStr,
 ) {
-    let kind: veilid_core::CryptoKind = veilid_core::FourCC::from(kind);
+    let kind: veilid_core::CryptoKind = veilid_core::CryptoKind::from(kind);
 
     let mut body: Vec<u8> = data_encoding::BASE64URL_NOPAD
         .decode(body.into_opt_string().unwrap().as_bytes())

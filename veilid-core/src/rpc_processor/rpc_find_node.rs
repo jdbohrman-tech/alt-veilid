@@ -14,7 +14,7 @@ impl RPCProcessor {
         &self,
         dest: Destination,
         node_id: TypedNodeId,
-        capabilities: Vec<Capability>,
+        capabilities: Vec<VeilidCapability>,
     ) -> RPCNetworkResult<Answer<Vec<Arc<PeerInfo>>>> {
         let _guard = self
             .startup_context

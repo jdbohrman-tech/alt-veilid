@@ -319,6 +319,12 @@ byte_array_type!(HashDistance, HASH_DIGEST_LENGTH, HASH_DIGEST_LENGTH_ENCODED);
 // NodeId is currently the same as PublicKey, but will eventually be a sub-type of HashDigest.
 byte_array_type!(NodeId, PUBLIC_KEY_LENGTH, PUBLIC_KEY_LENGTH_ENCODED);
 
+#[expect(dead_code)]
+trait HashCoordinate {
+    fn from_hash_coordinate(hash_digest: HashDigest) -> Self;
+    fn to_hash_coordinate(&self) -> HashDigest;
+}
+
 // Temporary adapters for converting to/from HashDigest types
 // Removing these will show where there's still issues.
 impl From<HashDigest> for SharedSecret {

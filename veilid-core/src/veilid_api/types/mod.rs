@@ -21,7 +21,6 @@ pub use app_message_call::*;
 #[cfg(feature = "geolocation")]
 pub use country_code::*;
 pub use dht::*;
-pub use fourcc::*;
 pub use safety::*;
 pub use stats::*;
 pub use timestamp::*;

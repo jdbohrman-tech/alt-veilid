@@ -5,11 +5,11 @@ const MAX_FIND_NODE_A_PEERS_LEN: usize = 20;
 #[derive(Debug, Clone)]
 pub(in crate::rpc_processor) struct RPCOperationFindNodeQ {
     node_id: TypedNodeId,
-    capabilities: Vec<Capability>,
+    capabilities: Vec<VeilidCapability>,
 }
 
 impl RPCOperationFindNodeQ {
-    pub fn new(node_id: TypedNodeId, capabilities: Vec<Capability>) -> Self {
+    pub fn new(node_id: TypedNodeId, capabilities: Vec<VeilidCapability>) -> Self {
         Self {
             node_id,
             capabilities,
@@ -22,11 +22,11 @@ impl RPCOperationFindNodeQ {
     // pub fn node_id(&self) -> &TypedKey {
     //     &self.node_id
     // }
-    // pub fn capabilities(&self) -> &[Capability] {
+    // pub fn capabilities(&self) -> &[VeilidCapability] {
     //     &self.capabilities
     // }
 
-    pub fn destructure(self) -> (TypedNodeId, Vec<Capability>) {
+    pub fn destructure(self) -> (TypedNodeId, Vec<VeilidCapability>) {
         (self.node_id, self.capabilities)
     }
 
@@ -45,7 +45,11 @@ impl RPCOperationFindNodeQ {
         }
         let capabilities = cap_reader
             .as_slice()
-            .map(|s| s.iter().map(|x| FourCC::from(x.to_be_bytes())).collect())
+            .map(|s| {
+                s.iter()
+                    .map(|x| VeilidCapability::from(x.to_be_bytes()))
+                    .collect()
+            })
             .unwrap_or_default();
 
         Ok(Self {

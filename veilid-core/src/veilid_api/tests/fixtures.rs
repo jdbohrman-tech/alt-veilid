@@ -118,7 +118,7 @@ pub fn fix_typednodeid() -> TypedNodeId {
     let mut fake_key = [0u8; CRYPTO_KEY_LENGTH];
     random_bytes(&mut fake_key);
     TypedNodeId {
-        kind: FourCC::from_str("FAKE").unwrap(),
+        kind: CryptoKind::from_str("FAKE").unwrap(),
         value: fix_nodeid(),
     }
 }
@@ -127,7 +127,7 @@ pub fn fix_typedrecordkey() -> TypedRecordKey {
     let mut fake_key = [0u8; CRYPTO_KEY_LENGTH];
     random_bytes(&mut fake_key);
     TypedRecordKey {
-        kind: FourCC::from_str("FAKE").unwrap(),
+        kind: CryptoKind::from_str("FAKE").unwrap(),
         value: fix_recordkey(),
     }
 }

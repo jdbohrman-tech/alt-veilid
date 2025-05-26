@@ -1,3 +1,4 @@
+pub use crate::routing_table::VeilidCapability;
 use crate::*;
 
 cfg_if::cfg_if! {
@@ -684,7 +685,7 @@ impl Default for VeilidConfigProtectedStore {
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), derive(Tsify))]
 #[must_use]
 pub struct VeilidConfigCapabilities {
-    pub disable: Vec<FourCC>,
+    pub disable: Vec<VeilidCapability>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize, JsonSchema)]

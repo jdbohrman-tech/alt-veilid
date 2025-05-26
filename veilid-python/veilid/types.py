@@ -52,7 +52,7 @@ class CryptoKind(StrEnum):
     CRYPTO_KIND_VLD0 = "VLD0"
 
 
-class Capability(StrEnum):
+class VeilidCapability(StrEnum):
     CAP_ROUTE = "ROUT"
     CAP_TUNNEL = "TUNL"
     CAP_SIGNAL = "SGNL"

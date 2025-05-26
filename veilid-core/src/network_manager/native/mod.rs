@@ -50,7 +50,7 @@ cfg_if! {
         const PUBLIC_INTERNET_CAPABILITIES_LEN: usize = 7;
     }
 }
-pub const PUBLIC_INTERNET_CAPABILITIES: [Capability; PUBLIC_INTERNET_CAPABILITIES_LEN] = [
+pub const PUBLIC_INTERNET_CAPABILITIES: [VeilidCapability; PUBLIC_INTERNET_CAPABILITIES_LEN] = [
     CAP_ROUTE,
     #[cfg(feature = "unstable-tunnels")]
     CAP_TUNNEL,
@@ -69,7 +69,7 @@ const LOCAL_NETWORK_CAPABILITIES_LEN: usize = 5;
 #[cfg(not(feature = "unstable-blockstore"))]
 const LOCAL_NETWORK_CAPABILITIES_LEN: usize = 4;
 
-pub const LOCAL_NETWORK_CAPABILITIES: [Capability; LOCAL_NETWORK_CAPABILITIES_LEN] = [
+pub const LOCAL_NETWORK_CAPABILITIES: [VeilidCapability; LOCAL_NETWORK_CAPABILITIES_LEN] = [
     CAP_RELAY,
     CAP_DHT,
     CAP_DHT_WATCH,

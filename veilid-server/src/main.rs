@@ -436,7 +436,7 @@ fn main() -> EyreResult<()> {
             println!("Public Keys:\n{}\nSecret Keys:\n{}\n", tks, tss);
         } else {
             let ck: veilid_core::CryptoKind =
-                veilid_core::FourCC::from_str(&ckstr).wrap_err("couldn't parse crypto kind")?;
+                veilid_core::CryptoKind::from_str(&ckstr).wrap_err("couldn't parse crypto kind")?;
             let tkp = veilid_core::Crypto::generate_keypair(ck).wrap_err("invalid crypto kind")?;
             println!("{}", tkp);
         }

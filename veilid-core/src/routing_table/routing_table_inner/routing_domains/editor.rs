@@ -14,7 +14,7 @@ pub trait RoutingDomainEditorCommonTrait {
         outbound_protocols: ProtocolTypeSet,
         inbound_protocols: ProtocolTypeSet,
         address_types: AddressTypeSet,
-        capabilities: Vec<Capability>,
+        capabilities: Vec<VeilidCapability>,
         confirmed: bool,
     ) -> &mut Self;
     fn commit(&mut self, pause_tasks: bool) -> PinBoxFuture<'_, bool>;
@@ -94,7 +94,7 @@ pub(super) enum RoutingDomainChangeCommon {
         outbound_protocols: ProtocolTypeSet,
         inbound_protocols: ProtocolTypeSet,
         address_types: AddressTypeSet,
-        capabilities: Vec<Capability>,
+        capabilities: Vec<VeilidCapability>,
         confirmed: bool,
     },
 }

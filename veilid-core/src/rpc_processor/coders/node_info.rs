@@ -116,7 +116,11 @@ pub fn decode_node_info(reader: &veilid_capnp::node_info::Reader) -> Result<Node
 
     let crypto_support: Vec<CryptoKind> = cs_reader
         .as_slice()
-        .map(|s| s.iter().map(|x| FourCC::from(x.to_be_bytes())).collect())
+        .map(|s| {
+            s.iter()
+                .map(|x| CryptoKind::from(x.to_be_bytes()))
+                .collect()
+        })
         .unwrap_or_default();
 
     // Ensure crypto kinds are not duplicated
@@ -144,7 +148,11 @@ pub fn decode_node_info(reader: &veilid_capnp::node_info::Reader) -> Result<Node
     }
     let capabilities = cap_reader
         .as_slice()
-        .map(|s| s.iter().map(|x| FourCC::from(x.to_be_bytes())).collect())
+        .map(|s| {
+            s.iter()
+                .map(|x| VeilidCapability::from(x.to_be_bytes()))
+                .collect()
+        })
         .unwrap_or_default();
 
     let didl_reader = reader

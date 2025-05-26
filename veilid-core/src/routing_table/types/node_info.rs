@@ -1,20 +1,20 @@
 use super::*;
 
-pub type Capability = FourCC;
-pub const CAP_ROUTE: Capability = FourCC(*b"ROUT");
+fourcc_type!(VeilidCapability);
+pub const CAP_ROUTE: VeilidCapability = VeilidCapability(*b"ROUT");
 #[cfg(feature = "unstable-tunnels")]
-pub const CAP_TUNNEL: Capability = FourCC(*b"TUNL");
-pub const CAP_SIGNAL: Capability = FourCC(*b"SGNL");
-pub const CAP_RELAY: Capability = FourCC(*b"RLAY");
-pub const CAP_VALIDATE_DIAL_INFO: Capability = FourCC(*b"DIAL");
-pub const CAP_DHT: Capability = FourCC(*b"DHTV");
-pub const CAP_DHT_WATCH: Capability = FourCC(*b"DHTW");
-pub const CAP_APPMESSAGE: Capability = FourCC(*b"APPM");
+pub const CAP_TUNNEL: VeilidCapability = VeilidCapability(*b"TUNL");
+pub const CAP_SIGNAL: VeilidCapability = VeilidCapability(*b"SGNL");
+pub const CAP_RELAY: VeilidCapability = VeilidCapability(*b"RLAY");
+pub const CAP_VALIDATE_DIAL_INFO: VeilidCapability = VeilidCapability(*b"DIAL");
+pub const CAP_DHT: VeilidCapability = VeilidCapability(*b"DHTV");
+pub const CAP_DHT_WATCH: VeilidCapability = VeilidCapability(*b"DHTW");
+pub const CAP_APPMESSAGE: VeilidCapability = VeilidCapability(*b"APPM");
 #[cfg(feature = "unstable-blockstore")]
-pub const CAP_BLOCKSTORE: Capability = FourCC(*b"BLOC");
+pub const CAP_BLOCKSTORE: VeilidCapability = VeilidCapability(*b"BLOC");
 
-pub const DISTANCE_METRIC_CAPABILITIES: &[Capability] = &[CAP_DHT, CAP_DHT_WATCH];
-pub const CONNECTIVITY_CAPABILITIES: &[Capability] =
+pub const DISTANCE_METRIC_CAPABILITIES: &[VeilidCapability] = &[CAP_DHT, CAP_DHT_WATCH];
+pub const CONNECTIVITY_CAPABILITIES: &[VeilidCapability] =
     &[CAP_RELAY, CAP_SIGNAL, CAP_ROUTE, CAP_VALIDATE_DIAL_INFO];
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -24,7 +24,7 @@ pub struct NodeInfo {
     address_types: AddressTypeSet,
     envelope_support: Vec<u8>,
     crypto_support: Vec<CryptoKind>,
-    capabilities: Vec<Capability>,
+    capabilities: Vec<VeilidCapability>,
     dial_info_detail_list: Vec<DialInfoDetail>,
 }
 
@@ -51,7 +51,7 @@ impl NodeInfo {
         address_types: AddressTypeSet,
         envelope_support: Vec<u8>,
         crypto_support: Vec<CryptoKind>,
-        capabilities: Vec<Capability>,
+        capabilities: Vec<VeilidCapability>,
         dial_info_detail_list: Vec<DialInfoDetail>,
     ) -> Self {
         Self {
@@ -80,7 +80,7 @@ impl NodeInfo {
     pub fn crypto_support(&self) -> &[CryptoKind] {
         &self.crypto_support
     }
-    pub fn capabilities(&self) -> &[Capability] {
+    pub fn capabilities(&self) -> &[VeilidCapability] {
         &self.capabilities
     }
     pub fn dial_info_detail_list(&self) -> &[DialInfoDetail] {
@@ -148,10 +148,10 @@ impl NodeInfo {
         !self.dial_info_detail_list.is_empty()
     }
 
-    pub fn has_capability(&self, cap: Capability) -> bool {
+    pub fn has_capability(&self, cap: VeilidCapability) -> bool {
         self.capabilities.contains(&cap)
     }
-    pub fn has_all_capabilities(&self, capabilities: &[Capability]) -> bool {
+    pub fn has_all_capabilities(&self, capabilities: &[VeilidCapability]) -> bool {
         for cap in capabilities {
             if !self.has_capability(*cap) {
                 return false;
@@ -159,7 +159,7 @@ impl NodeInfo {
         }
         true
     }
-    pub fn has_any_capabilities(&self, capabilities: &[Capability]) -> bool {
+    pub fn has_any_capabilities(&self, capabilities: &[VeilidCapability]) -> bool {
         if capabilities.is_empty() {
             return true;
         }

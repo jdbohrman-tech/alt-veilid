@@ -223,7 +223,7 @@ impl VeilidAPI {
     /// Parse a string into a target object that can be used in a [RoutingContext].
     ///
     /// Strings are in base64url format and can either be a remote route id or a node id.
-    /// Strings may have a [CryptoKind] [FourCC] prefix separated by a colon, such as:
+    /// Strings may have a [CryptoKind] prefix separated by a colon, such as:
     /// `VLD0:XmnGyJrjMJBRC5ayJZRPXWTBspdX36-pbLb98H3UMeE` but if the prefix is left off
     /// `XmnGyJrjMJBRC5ayJZRPXWTBspdX36-pbLb98H3UMeE` will be parsed with the 'best' cryptosystem
     /// available (at the time of this writing this is `VLD0`).

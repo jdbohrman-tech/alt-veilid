@@ -1277,9 +1277,10 @@ impl Settings {
                 "program_name" => Ok(Box::new(PROGRAM_NAME.to_owned())),
                 "namespace" => Ok(Box::new(subnode_namespace(subnode))),
                 "capabilities.disable" => {
-                    let mut caps = Vec::<FourCC>::new();
+                    let mut caps = Vec::<veilid_core::VeilidCapability>::new();
                     for c in &inner.core.capabilities.disable {
-                        let cap = FourCC::from_str(c.as_str()).map_err(VeilidAPIError::generic)?;
+                        let cap = veilid_core::VeilidCapability::from_str(c.as_str())
+                            .map_err(VeilidAPIError::generic)?;
                         caps.push(cap);
                     }
                     Ok(Box::new(caps))
