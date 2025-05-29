@@ -324,10 +324,12 @@ impl Envelope {
         self.timestamp
     }
 
+    #[expect(dead_code)]
     pub fn get_nonce(&self) -> Nonce {
         self.nonce
     }
 
+    #[expect(dead_code)]
     pub fn get_sender_id(&self) -> NodeId {
         self.sender_id
     }
@@ -336,6 +338,7 @@ impl Envelope {
         TypedNodeId::new(self.crypto_kind, self.sender_id)
     }
 
+    #[expect(dead_code)]
     pub fn get_recipient_id(&self) -> NodeId {
         self.recipient_id
     }

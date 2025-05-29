@@ -14,9 +14,7 @@ pub enum Target {
     PrivateRoute(RouteId),
 }
 
-pub struct RoutingContextInner {}
-
-pub struct RoutingContextUnlockedInner {
+pub(crate) struct RoutingContextUnlockedInner {
     /// Safety routing requirements.
     safety_selection: SafetySelection,
 }

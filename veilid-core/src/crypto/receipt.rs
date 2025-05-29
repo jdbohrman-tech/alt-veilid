@@ -195,11 +195,12 @@ impl Receipt {
         Ok(data)
     }
 
-    #[must_use]
+    #[expect(dead_code)]
     pub fn get_version(&self) -> u8 {
         self.version
     }
 
+    #[expect(dead_code)]
     pub fn get_crypto_kind(&self) -> CryptoKind {
         self.crypto_kind
     }
@@ -208,10 +209,12 @@ impl Receipt {
         self.nonce
     }
 
+    #[expect(dead_code)]
     pub fn get_sender_id(&self) -> NodeId {
         self.sender_id
     }
 
+    #[expect(dead_code)]
     pub fn get_sender_typed_id(&self) -> TypedNodeId {
         TypedNodeId::new(self.crypto_kind, self.sender_id)
     }

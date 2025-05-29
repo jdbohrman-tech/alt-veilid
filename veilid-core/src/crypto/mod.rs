@@ -7,24 +7,24 @@ mod types;
 
 pub mod crypto_system;
 #[cfg(feature = "enable-crypto-none")]
-pub mod none;
+pub(crate) mod none;
 #[doc(hidden)]
 pub mod tests;
 #[cfg(feature = "enable-crypto-vld0")]
-pub mod vld0;
+pub(crate) mod vld0;
 
 pub use blake3digest512::*;
 
 pub use crypto_system::*;
-pub use envelope::*;
+pub(crate) use envelope::*;
 pub use guard::*;
-pub use receipt::*;
+pub(crate) use receipt::*;
 pub use types::*;
 
 #[cfg(feature = "enable-crypto-none")]
-pub use none::*;
+pub(crate) use none::*;
 #[cfg(feature = "enable-crypto-vld0")]
-pub use vld0::*;
+pub(crate) use vld0::*;
 
 use super::*;
 use core::convert::TryInto;

@@ -36,7 +36,7 @@ fn secret_to_x25519_sk(secret: &SecretKey) -> VeilidAPIResult<xd::StaticSecret> 
     Ok(xd::StaticSecret::from(output))
 }
 
-pub fn vld0_generate_keypair() -> KeyPair {
+pub(crate) fn vld0_generate_keypair() -> KeyPair {
     let mut csprng = VeilidRng {};
     let signing_key = ed::SigningKey::generate(&mut csprng);
     let verifying_key = signing_key.verifying_key();
@@ -47,7 +47,7 @@ pub fn vld0_generate_keypair() -> KeyPair {
 }
 
 /// V0 CryptoSystem
-pub struct CryptoSystemVLD0 {
+pub(crate) struct CryptoSystemVLD0 {
     registry: VeilidComponentRegistry,
 }
 
