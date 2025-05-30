@@ -1,4 +1,18 @@
-use super::*;
+//! # veilid-remote-api
+//!
+//! This crate provides the ability to control a Veilid node remotely.
+//!
+//! The [JsonRequestProcessor] is a wrapper around the [VeilidAPI] and provides a way to process requests and send responses.
+
+use veilid_core::tools::*;
+use veilid_core::*;
+
+use parking_lot::Mutex;
+use schemars::{schema_for, JsonSchema};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::fmt;
+use tracing::*;
 
 mod routing_context;
 pub use routing_context::*;

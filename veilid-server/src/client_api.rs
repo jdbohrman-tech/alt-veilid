@@ -11,9 +11,9 @@ use std::sync::Arc;
 use stop_token::future::FutureExt as _;
 use stop_token::*;
 use tracing::*;
-use veilid_core::json_api::JsonRequestProcessor;
 use veilid_core::tools::*;
 use veilid_core::*;
+use veilid_remote_api::JsonRequestProcessor;
 use wg::AsyncWaitGroup;
 
 const MAX_NON_JSON_LOGGING: usize = 50;
@@ -251,7 +251,7 @@ impl ClientApi {
             }
 
             let mut schemas = HashMap::<String, String>::new();
-            veilid_core::json_api::emit_schemas(&mut schemas);
+            veilid_remote_api::emit_schemas(&mut schemas);
 
             let Some(schema) = schemas.get(&args[1]) else {
                 apibail_invalid_argument!("invalid schema", "schema", args[1].clone());
@@ -282,18 +282,18 @@ impl ClientApi {
 
         // Unmarshal NDJSON - newline => json
         // (trim all whitespace around input lines just to make things more permissive for API users)
-        let request: json_api::Request = deserialize_json(&sanitized_line)?;
+        let request: veilid_remote_api::Request = deserialize_json(&sanitized_line)?;
 
         #[cfg(feature = "debug-json-api")]
         debug!("JSONAPI: Request: {:?}", request);
 
         // See if this is a control message or a veilid-core message
-        let response = if let json_api::RequestOp::Control { args } = request.op {
+        let response = if let veilid_remote_api::RequestOp::Control { args } = request.op {
             // Process control messages
-            json_api::Response {
+            veilid_remote_api::Response {
                 id: request.id,
-                op: json_api::ResponseOp::Control {
-                    result: json_api::to_json_api_result(self.process_control(args)),
+                op: veilid_remote_api::ResponseOp::Control {
+                    result: veilid_remote_api::to_json_api_result(self.process_control(args)),
                 },
             }
         } else {
@@ -306,7 +306,7 @@ impl ClientApi {
 
         // Marshal json + newline => NDJSON
         let response_string =
-            Arc::new(serialize_json(json_api::RecvMessage::Response(response)) + "\n");
+            Arc::new(serialize_json(veilid_remote_api::RecvMessage::Response(response)) + "\n");
         if let Err(e) = responses_tx.send_async(response_string).await {
             eprintln!("response not sent: {}", e)
         }
@@ -375,7 +375,7 @@ impl ClientApi {
     {
         // Make request processor for this connection
         let api = self.inner.lock().veilid_api.clone();
-        let jrp = json_api::JsonRequestProcessor::new(api);
+        let jrp = veilid_remote_api::JsonRequestProcessor::new(api);
 
         // Futures to process unordered
         let mut unord = FuturesUnordered::new();
@@ -533,7 +533,7 @@ impl ClientApi {
 
         // serialize update to NDJSON
         let veilid_update =
-            Arc::new(serialize_json(json_api::RecvMessage::Update(veilid_update)) + "\n");
+            Arc::new(serialize_json(veilid_remote_api::RecvMessage::Update(veilid_update)) + "\n");
 
         // Pass updates to clients
         for ch in inner.update_channels.values() {

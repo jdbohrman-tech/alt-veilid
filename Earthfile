@@ -138,20 +138,22 @@ deps-linux:
 # Make a cache image with downloaded and built dependencies
 build-linux-cache:
     FROM +deps-linux
-    RUN mkdir veilid-cli veilid-core veilid-server veilid-tools veilid-wasm veilid-flutter veilid-flutter/rust
+    RUN mkdir -p veilid-cli veilid-core veilid-core/examples/basic veilid-server veilid-tools veilid-wasm veilid-flutter veilid-flutter/rust veilid-remote-api
     COPY --keep-ts --dir .cargo scripts Cargo.lock Cargo.toml .
     COPY --keep-ts veilid-cli/Cargo.toml veilid-cli
     COPY --keep-ts veilid-core/Cargo.toml veilid-core
+    COPY --keep-ts veilid-core/examples/basic/Cargo.toml veilid-core/examples/basic
     COPY --keep-ts veilid-server/Cargo.toml veilid-server
     COPY --keep-ts veilid-tools/Cargo.toml veilid-tools
+    COPY --keep-ts veilid-remote-api/Cargo.toml veilid-remote-api
     COPY --keep-ts veilid-flutter/rust/Cargo.toml veilid-flutter/rust
     COPY --keep-ts veilid-wasm/Cargo.toml veilid-wasm/wasm_remap_paths.sh veilid-wasm
     RUN cargo chef prepare --recipe-path recipe.json
-    RUN cargo chef cook --profile=test --tests --target $DEFAULT_CARGO_TARGET --recipe-path recipe.json -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
-    RUN cargo chef cook --zigbuild --release --target x86_64-unknown-linux-gnu --recipe-path recipe.json -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
-    RUN cargo chef cook --zigbuild --release --target aarch64-unknown-linux-gnu --recipe-path recipe.json -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
-    # RUN cargo chef cook --zigbuild --release --target x86_64-pc-windows-gnu --recipe-path recipe.json -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
-    # RUN cargo chef cook --zigbuild --release --target aarch64-apple-darwin --recipe-path recipe.json -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
+    RUN cargo chef cook --profile=test --tests --target $DEFAULT_CARGO_TARGET --recipe-path recipe.json -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core -p veilid-remote-api
+    RUN cargo chef cook --zigbuild --release --target x86_64-unknown-linux-gnu --recipe-path recipe.json -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core -p veilid-remote-api
+    RUN cargo chef cook --zigbuild --release --target aarch64-unknown-linux-gnu --recipe-path recipe.json -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core -p veilid-remote-api
+    # RUN cargo chef cook --zigbuild --release --target x86_64-pc-windows-gnu --recipe-path recipe.json -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core -p veilid-remote-api
+    # RUN cargo chef cook --zigbuild --release --target aarch64-apple-darwin --recipe-path recipe.json -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core -p veilid-remote-api
     RUN veilid-wasm/wasm_remap_paths.sh cargo chef cook --zigbuild --release --target wasm32-unknown-unknown --recipe-path recipe.json -p veilid-wasm
     ARG CI_REGISTRY_IMAGE=registry.gitlab.com/veilid/veilid
     SAVE IMAGE --push $CI_REGISTRY_IMAGE/build-cache:latest
@@ -170,7 +172,7 @@ code-linux:
         FROM $CI_REGISTRY_IMAGE/build-cache:latest
         # FROM registry.gitlab.com/veilid/build-cache:latest
     END
-    COPY --keep-ts --dir .cargo build_docs.sh files scripts veilid-cli veilid-core veilid-server veilid-tools veilid-flutter veilid-wasm Cargo.lock Cargo.toml /veilid
+    COPY --keep-ts --dir .cargo build_docs.sh files scripts veilid-cli veilid-core veilid-server veilid-tools veilid-flutter veilid-wasm veilid-remote-api Cargo.lock Cargo.toml /veilid
     # Check to make sure Cargo.lock is up to date
     RUN cargo update -w --locked
     # Restore original Cargo.lock
@@ -179,7 +181,7 @@ code-linux:
 # Code + Linux + Android deps
 code-android:
     FROM +deps-android
-    COPY --keep-ts --dir .cargo files scripts veilid-cli veilid-core veilid-server veilid-tools veilid-flutter veilid-wasm Cargo.lock Cargo.toml /veilid
+    COPY --keep-ts --dir .cargo files scripts veilid-cli veilid-core veilid-server veilid-tools veilid-flutter veilid-wasm veilid-remote-api Cargo.lock Cargo.toml /veilid
     COPY --keep-ts scripts/earthly/cargo-android/config.toml /veilid/.cargo/config.toml
 
 # Clippy only
@@ -198,7 +200,7 @@ build-linux-amd64:
         RUN echo "not enough container memory to build. increase build host memory."
         RUN false
     END
-    RUN cargo zigbuild --locked --target x86_64-unknown-linux-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
+    RUN cargo zigbuild --locked --target x86_64-unknown-linux-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core -p veilid-remote-api
     SAVE ARTIFACT ./target/x86_64-unknown-linux-gnu AS LOCAL ./target/artifacts/x86_64-unknown-linux-gnu
 
 build-linux-arm64:
@@ -208,7 +210,7 @@ build-linux-arm64:
         RUN echo "not enough container memory to build. increase build host memory."
         RUN false
     END
-    RUN cargo zigbuild --locked --target aarch64-unknown-linux-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
+    RUN cargo zigbuild --locked --target aarch64-unknown-linux-gnu --release -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core -p veilid-remote-api
     SAVE ARTIFACT ./target/aarch64-unknown-linux-gnu AS LOCAL ./target/artifacts/aarch64-unknown-linux-gnu
 
 # build-windows-amd64:
@@ -269,7 +271,7 @@ unit-tests-docs-linux:
         
 unit-tests-native-linux:
     FROM +code-linux
-    RUN cargo test --locked --tests --target $DEFAULT_CARGO_TARGET -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core
+    RUN cargo test --locked --tests --target $DEFAULT_CARGO_TARGET -p veilid-server -p veilid-cli -p veilid-tools -p veilid-core -p veilid-remote-api
 
 unit-tests-wasm-linux:
     FROM +code-linux

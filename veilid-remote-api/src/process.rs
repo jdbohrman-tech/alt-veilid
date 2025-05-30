@@ -2,55 +2,55 @@ use super::*;
 
 pub fn to_json_api_result<T: Clone + fmt::Debug + JsonSchema>(
     r: VeilidAPIResult<T>,
-) -> json_api::ApiResult<T> {
+) -> super::ApiResult<T> {
     match r {
-        Err(e) => json_api::ApiResult::Err { error: e },
-        Ok(v) => json_api::ApiResult::Ok { value: v },
+        Err(e) => super::ApiResult::Err { error: e },
+        Ok(v) => super::ApiResult::Ok { value: v },
     }
 }
 
 pub fn to_json_api_result_with_string<T: Clone + fmt::Debug>(
     r: VeilidAPIResult<T>,
-) -> json_api::ApiResultWithString<T> {
+) -> super::ApiResultWithString<T> {
     match r {
-        Err(e) => json_api::ApiResultWithString::Err { error: e },
-        Ok(v) => json_api::ApiResultWithString::Ok { value: v },
+        Err(e) => super::ApiResultWithString::Err { error: e },
+        Ok(v) => super::ApiResultWithString::Ok { value: v },
     }
 }
 
 pub fn to_json_api_result_with_vec_string<T: Clone + fmt::Debug>(
     r: VeilidAPIResult<T>,
-) -> json_api::ApiResultWithVecString<T> {
+) -> super::ApiResultWithVecString<T> {
     match r {
-        Err(e) => json_api::ApiResultWithVecString::Err { error: e },
-        Ok(v) => json_api::ApiResultWithVecString::Ok { value: v },
+        Err(e) => super::ApiResultWithVecString::Err { error: e },
+        Ok(v) => super::ApiResultWithVecString::Ok { value: v },
     }
 }
 
 pub fn to_json_api_result_with_opt_vec_string<T: Clone + fmt::Debug>(
     r: VeilidAPIResult<T>,
-) -> json_api::ApiResultWithOptVecString<T> {
+) -> super::ApiResultWithOptVecString<T> {
     match r {
-        Err(e) => json_api::ApiResultWithOptVecString::Err { error: e },
-        Ok(v) => json_api::ApiResultWithOptVecString::Ok { value: v },
+        Err(e) => super::ApiResultWithOptVecString::Err { error: e },
+        Ok(v) => super::ApiResultWithOptVecString::Ok { value: v },
     }
 }
 
 #[must_use]
-pub fn to_json_api_result_with_vec_u8(r: VeilidAPIResult<Vec<u8>>) -> json_api::ApiResultWithVecU8 {
+pub fn to_json_api_result_with_vec_u8(r: VeilidAPIResult<Vec<u8>>) -> super::ApiResultWithVecU8 {
     match r {
-        Err(e) => json_api::ApiResultWithVecU8::Err { error: e },
-        Ok(v) => json_api::ApiResultWithVecU8::Ok { value: v },
+        Err(e) => super::ApiResultWithVecU8::Err { error: e },
+        Ok(v) => super::ApiResultWithVecU8::Ok { value: v },
     }
 }
 
 #[must_use]
 pub fn to_json_api_result_with_vec_vec_u8(
     r: VeilidAPIResult<Vec<Vec<u8>>>,
-) -> json_api::ApiResultWithVecVecU8 {
+) -> super::ApiResultWithVecVecU8 {
     match r {
-        Err(e) => json_api::ApiResultWithVecVecU8::Err { error: e },
-        Ok(v) => json_api::ApiResultWithVecVecU8::Ok {
+        Err(e) => super::ApiResultWithVecVecU8::Err { error: e },
+        Ok(v) => super::ApiResultWithVecVecU8::Ok {
             value: v.into_iter().map(|v| VecU8 { value: v }).collect(),
         },
     }
@@ -211,29 +211,6 @@ impl JsonRequestProcessor {
         1
     }
 
-    // Target
-
-    // Parse target
-    fn parse_target(&self, s: String) -> VeilidAPIResult<Target> {
-        // Is this a route id?
-        if let Ok(rrid) = RouteId::from_str(&s) {
-            let routing_table = self.api.core_context()?.routing_table();
-            let rss = routing_table.route_spec_store();
-
-            // Is this a valid remote route id? (can't target allocated routes)
-            if rss.is_route_id_remote(&rrid) {
-                return Ok(Target::PrivateRoute(rrid));
-            }
-        }
-
-        // Is this a node id?
-        if let Ok(nid) = TypedNodeId::from_str(&s) {
-            return Ok(Target::NodeId(nid));
-        }
-
-        Err(VeilidAPIError::parse_error("Unable to parse as target", s))
-    }
-
     //////////////////////////////////////////////////////////////////////////////////////
 
     #[instrument(level = "trace", target = "json_api", skip_all)]
@@ -281,7 +258,7 @@ impl JsonRequestProcessor {
                     result: to_json_api_result_with_vec_u8(
                         async {
                             routing_context
-                                .app_call(self.parse_target(target)?, message)
+                                .app_call(self.api.parse_as_target(target)?, message)
                                 .await
                         }
                         .await,
@@ -293,7 +270,7 @@ impl JsonRequestProcessor {
                     result: to_json_api_result(
                         async {
                             routing_context
-                                .app_message(self.parse_target(target)?, message)
+                                .app_message(self.api.parse_as_target(target)?, message)
                                 .await
                         }
                         .await,

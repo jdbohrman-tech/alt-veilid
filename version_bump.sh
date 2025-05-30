@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Fail out if any step has an error
-set -e
+set -ex
 
 if [ "$1" == "patch" ]; then
     echo Bumping patch version
@@ -25,7 +25,7 @@ NEW_VERSION=$(cat .bumpversion.cfg | grep current_version\ = | cut -d\  -f3)
 echo NEW_VERSION=$NEW_VERSION
 
 # Update crate dependencies for the crates we publish
-cargo upgrade -p veilid-tools@$NEW_VERSION -p veilid-core@$NEW_VERSION
+cargo upgrade -p veilid-tools@$NEW_VERSION -p veilid-core@$NEW_VERSION -p veilid-remote-api@$NEW_VERSION
 
 # Update lockfile
-cargo update
+cargo update -w

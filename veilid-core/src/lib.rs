@@ -135,7 +135,7 @@ use eyre::{bail, eyre, Report as EyreReport, Result as EyreResult, WrapErr};
 use futures_util::stream::{FuturesOrdered, FuturesUnordered};
 use indent::*;
 use parking_lot::*;
-use schemars::{schema_for, JsonSchema};
+use schemars::JsonSchema;
 use serde::*;
 use stop_token::*;
 use thiserror::Error as ThisError;

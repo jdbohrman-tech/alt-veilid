@@ -55,6 +55,7 @@ geolocation = ["veilid-core/geolocation"]
 
 [dependencies]
 veilid-core = { path = "../veilid-core", default-features = false }
+veilid-remote-api = { path = "../veilid-remote-api"}
 tracing = { version = "^0.1.41", features = ["log", "attributes"] }
 tracing-subscriber = { version = "^0.3.19", features = ["env-filter", "time"] }
 tracing-appender = "^0.2.3"

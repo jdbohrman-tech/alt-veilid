@@ -6597,6 +6597,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "veilid-remote-api"
+version = "0.4.6"
+dependencies = [
+ "parking_lot 0.12.3",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tracing",
+ "veilid-core",
+]
+
+[[package]]
 name = "veilid-server"
 version = "0.4.6"
 dependencies = [
@@ -6647,6 +6659,7 @@ dependencies = [
  "url",
  "veilid-bugsalot",
  "veilid-core",
+ "veilid-remote-api",
  "wg",
  "windows-service",
 ]

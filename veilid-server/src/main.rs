@@ -446,7 +446,7 @@ fn main() -> EyreResult<()> {
     // -- Emit JSON-Schema --
     if let Some(esstr) = args.emit_schema {
         let mut schemas = HashMap::<String, String>::new();
-        veilid_core::json_api::emit_schemas(&mut schemas);
+        veilid_remote_api::emit_schemas(&mut schemas);
 
         if let Some(schema) = schemas.get(&esstr) {
             println!("{}", schema);

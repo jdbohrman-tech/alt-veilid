@@ -7,6 +7,7 @@ members = [
     "veilid-cli",
     "veilid-flutter/rust",
     "veilid-wasm",
+    "veilid-remote-api",
 ]
 resolver = "2"
 

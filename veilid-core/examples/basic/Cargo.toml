@@ -8,6 +8,10 @@ edition.workspace = true
 rust-version.workspace = true
 publish = false
 
+[[bin]]
+name = "basic"
+path = "./src/main.rs"
+
 [dependencies]
 tokio = { version = "^1.43.0" }
 veilid-core = { version = "0.4.6", path = "../../../veilid-core" }

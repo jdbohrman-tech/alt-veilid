@@ -5,7 +5,6 @@ mod routing_context;
 mod serialize_helpers;
 mod types;
 
-pub mod json_api;
 #[doc(hidden)]
 pub mod tests;
 
