@@ -10,6 +10,8 @@ authors.workspace = true
 license.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+documentation = "https://docs.rs/veilid-tools"
+homepage = "https://veilid.gitlab.io/developer-book/"
 
 [lib]
 # staticlib for iOS tests, cydlib for android tests, rlib for everything else

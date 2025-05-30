@@ -1,0 +1,16 @@
+[package]
+name = "veilid-core-examples-basic"
+version = "0.1.0"
+repository.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+tokio = { version = "^1.43.0" }
+veilid-core = { version = "0.4.6", path = "../../../veilid-core" }
+
+[lints]
+workspace = true

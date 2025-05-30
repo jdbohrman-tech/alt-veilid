@@ -1,4 +1,4 @@
-//! # Veilid Tools
+//! # veilid-tools
 //!
 //! A collection of baseline tools for Rust development use by Veilid and Veilid-enabled Rust applications
 //!
@@ -9,7 +9,7 @@
 //!
 //! Everything added to this crate must be extensively unit-tested.
 //!
-//! ## Features
+//! ## Cargo features
 //!
 //! The default `veilid-tools` configurations are:
 //!

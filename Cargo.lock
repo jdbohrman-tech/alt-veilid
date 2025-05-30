@@ -6531,6 +6531,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "veilid-core-examples-basic"
+version = "0.1.0"
+dependencies = [
+ "tokio",
+ "veilid-core",
+]
+
+[[package]]
 name = "veilid-flutter"
 version = "0.4.6"
 dependencies = [

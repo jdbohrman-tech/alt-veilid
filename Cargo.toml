@@ -2,6 +2,7 @@
 members = [
     "veilid-tools",
     "veilid-core",
+    "veilid-core/examples/basic",
     "veilid-server",
     "veilid-cli",
     "veilid-flutter/rust",

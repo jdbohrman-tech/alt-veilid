@@ -1,16 +1,22 @@
 //! # The Veilid Framework
 //!
-//! Core library used to create a Veilid node and operate it as part of an application.
+//! This is the core library used to create a Veilid node and operate it as part of an application.
 //!
 //! `veilid-core` contains all of the core logic for Veilid and can be used in mobile applications as well as desktop
 //! and in-browser WebAssembly apps.
+//!
+//! ## Getting started
+//!
+//! - [Developer Book](https://veilid.gitlab.io/developer-book/)
+//! - [Examples](https://gitlab.com/veilid/veilid/-/tree/main/veilid-core/examples/)
+//! - [API Documentation](https://docs.rs/veilid-core)
 //!
 //! The public API is accessed by getting a [VeilidAPI] object via a call to [api_startup], [api_startup_json], or
 //! [api_startup_config].
 //!
 //! From there, a [RoutingContext] object can get you access to public and private routed operations.
 //!
-//! ## Features
+//! ## Cargo features
 //!
 //! The default `veilid-core` configurations are:
 //!
