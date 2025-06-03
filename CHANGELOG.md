@@ -1,4 +1,4 @@
-**UNRELEASED**
+**Changed in Veilid 0.4.7**
 
 - _BREAKING API CHANGES_:
   - Improve type-safety by splitting out type aliases for `FourCC` and `CryptoKey` types into distinct "newtypes". Previously all instances of these types we just type aliases, and could be used interchangably when in reality they aren't interchangable. This prevents developers from accidentally passing the wrong type into the API, such as a `SecretKey` when you meant to pass a `PublicKey`. Function signatures have been updated to use the correct types, so code will need to be updated accordingly.

@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This guide outlines the process for releasing a new version of Veilid. The end result is an update of the package repositories and Pypi.
+This guide outlines the process for releasing a new version of Veilid. The end result is an update of the Deb/RPM package repositories, Crates.io, and Pypi.
 
 ## Create a Gitlab Release
 
@@ -10,7 +10,7 @@ Releases happen via a CI/CD pipeline. The release process flows as follows:
 
 1. Complete outstanding merge requests (MR):
 
-    1.1 Evaluate the MR's adherence to the published requirements and if automatic tests passed.
+    1.1 Evaluate the MR's adherence to the published requirements and if tests pass.
 
     1.2 (Optional) Perform the merge in a local dev environment if testing is required beyond the standard Earthly tests.
 
@@ -34,19 +34,21 @@ Releases happen via a CI/CD pipeline. The release process flows as follows:
 
     2.8 Push your local the tagged code to trigger the release pipeline `git push -o ci.skip && git push --tags`
 
-    2.9 Ensure the package/release/distribute pipeline autostarted in the Gitlab UI
+    2.9 Ensure the package/release/distribute pipeline autostarts in the Gitlab UI and monitor for failures
 
-Git tags serve as a historical record of what repo versions were successfully released at which version numbers.
+Git tags serve as a historical record of what repo versions were released at which version numbers.
 
-## Publish to crates.io
+## Publish to crates.io (Manual steps if needed)
 
 1. Configure the crates.io credentials, if not already accomplished.
 2. Execute `cargo publish -p veilid-tools --dry-run`
 3. Execute `cargo publish -p veilid-tools`
 4. Execute `cargo publish -p veilid-core --dry-run`
 5. Execute `cargo publish -p veilid-core`
+6. Execute `cargo publish -p veilid-remote-api --dry-run`
+7. Execute `cargo publish -p veilid-remote-api`
 
-## Publish to Pypi
+## Publish to Pypi (Manual steps if needed)
 
 1. Change directory to veilid-python
 2. Install Poetry and configure the Pypi credentials, if not already accomplished.
@@ -66,6 +68,9 @@ Occasionally a release will happen that needs to be reverted. This is done manua
   > Released to crates.io when its version number is changed in `Cargo.toml`
 - [x] __veilid-core__  [__Tag__: `veilid-core-v0.0.0`]
   > The base rust crate for Veilid's logic  
+  > Released to crates.io when its version number is changed in `Cargo.toml`
+- [x] __veilid-remote-api__  [__Tag__: `veilid-remote-api-v0.0.0`]
+  > Exposes veilid-core's JSON API 
   > Released to crates.io when its version number is changed in `Cargo.toml`
 - [ ] __veilid-server__
   > The Veilid headless node end-user application  
