@@ -1,6 +1,9 @@
 [package]
+# --- Bumpversion match - do not reorder
 name = "veilid-remote-api"
 version = "0.4.7"
+# ---
+description = "Library that provides the ability to control a Veilid node remotely"
 repository.workspace = true
 authors.workspace = true
 license.workspace = true
