@@ -14,7 +14,7 @@ path = "./src/main.rs"
 
 [dependencies]
 tokio = { version = "^1.43.0" }
-veilid-core = { version = "0.4.6", path = "../../../veilid-core" }
+veilid-core = { version = "0.4.7", path = "../../../veilid-core" }
 
 [lints]
 workspace = true

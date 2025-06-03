@@ -1134,19 +1134,7 @@ dependencies = [
  "nom 7.1.3",
  "pathdiff",
  "serde",
- "yaml-rust2 0.8.1",
-]
-
-[[package]]
-name = "config"
-version = "0.15.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "595aae20e65c3be792d05818e8c63025294ac3cb7e200f11459063a352a6ef80"
-dependencies = [
- "pathdiff",
- "serde",
- "winnow 0.7.10",
- "yaml-rust2 0.10.1",
+ "yaml-rust2",
 ]
 
 [[package]]
@@ -2027,12 +2015,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
-name = "foldhash"
-version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
-
-[[package]]
 name = "foreign-types"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2409,9 +2391,6 @@ name = "hashbrown"
 version = "0.15.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "84b26c544d002229e640969970a2e74021aadf6e2f96372b9c58eff97de08eb3"
-dependencies = [
- "foldhash",
-]
 
 [[package]]
 name = "hashlink"
@@ -2420,15 +2399,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8094feaf31ff591f651a2664fb9cfd92bba7a60ce3197265e9482ebe753c8f7"
 dependencies = [
  "hashbrown 0.14.5",
-]
-
-[[package]]
-name = "hashlink"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7382cf6263419f2d8df38c55d7da83da5c18aef87fc7a7fc1fb1e344edfe14c1"
-dependencies = [
- "hashbrown 0.15.3",
 ]
 
 [[package]]
@@ -2587,17 +2557,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hostname"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a56f203cd1c76362b69e3863fd987520ac36cf70a8c92627449b2f64a8cf7d65"
-dependencies = [
- "cfg-if 1.0.0",
- "libc",
- "windows-link",
-]
-
-[[package]]
 name = "http"
 version = "0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2665,7 +2624,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite",
- "socket2 0.5.9",
+ "socket2 0.4.10",
  "tokio",
  "tower-service",
  "tracing",
@@ -4753,7 +4712,7 @@ dependencies = [
  "bitflags 2.9.1",
  "fallible-iterator",
  "fallible-streaming-iterator",
- "hashlink 0.8.4",
+ "hashlink",
  "libsqlite3-sys",
  "smallvec",
 ]
@@ -6386,7 +6345,7 @@ dependencies = [
 
 [[package]]
 name = "veilid-cli"
-version = "0.4.6"
+version = "0.4.7"
 dependencies = [
  "arboard",
  "async-std",
@@ -6394,7 +6353,7 @@ dependencies = [
  "cfg-if 1.0.0",
  "chrono",
  "clap 4.5.38",
- "config 0.15.11",
+ "config 0.13.4",
  "console",
  "crossbeam-channel",
  "cursive",
@@ -6411,7 +6370,7 @@ dependencies = [
  "log",
  "lru",
  "owning_ref",
- "parking_lot 0.12.3",
+ "parking_lot 0.11.2",
  "rustyline-async",
  "serde",
  "serde_derive",
@@ -6427,7 +6386,7 @@ dependencies = [
 
 [[package]]
 name = "veilid-core"
-version = "0.4.6"
+version = "0.4.7"
 dependencies = [
  "argon2",
  "async-std",
@@ -6540,7 +6499,7 @@ dependencies = [
 
 [[package]]
 name = "veilid-flutter"
-version = "0.4.6"
+version = "0.4.7"
 dependencies = [
  "allo-isolate",
  "android_log-sys 0.3.2",
@@ -6551,7 +6510,7 @@ dependencies = [
  "data-encoding",
  "ffi-support",
  "futures-util",
- "hostname 0.3.1",
+ "hostname",
  "jni",
  "lazy_static",
  "libc-print",
@@ -6598,7 +6557,7 @@ dependencies = [
 
 [[package]]
 name = "veilid-remote-api"
-version = "0.4.6"
+version = "0.4.7"
 dependencies = [
  "parking_lot 0.12.3",
  "schemars",
@@ -6610,7 +6569,7 @@ dependencies = [
 
 [[package]]
 name = "veilid-server"
-version = "0.4.6"
+version = "0.4.7"
 dependencies = [
  "ansi_term",
  "async-std",
@@ -6627,7 +6586,7 @@ dependencies = [
  "directories",
  "flume",
  "futures-util",
- "hostname 0.4.1",
+ "hostname",
  "json",
  "lazy_static",
  "nix 0.29.0",
@@ -6666,7 +6625,7 @@ dependencies = [
 
 [[package]]
 name = "veilid-tools"
-version = "0.4.6"
+version = "0.4.7"
 dependencies = [
  "android_logger 0.13.3",
  "async-io 1.13.0",
@@ -6752,7 +6711,7 @@ dependencies = [
 
 [[package]]
 name = "veilid-wasm"
-version = "0.4.6"
+version = "0.4.7"
 dependencies = [
  "cfg-if 1.0.0",
  "console_error_panic_hook",
@@ -6762,7 +6721,7 @@ dependencies = [
  "js-sys",
  "lazy_static",
  "parking_lot 0.12.3",
- "send_wrapper 0.6.0",
+ "send_wrapper 0.4.0",
  "serde",
  "serde-wasm-bindgen",
  "serde_bytes",
@@ -7588,18 +7547,7 @@ checksum = "8902160c4e6f2fb145dbe9d6760a75e3c9522d8bf796ed7047c85919ac7115f8"
 dependencies = [
  "arraydeque",
  "encoding_rs",
- "hashlink 0.8.4",
-]
-
-[[package]]
-name = "yaml-rust2"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "818913695e83ece1f8d2a1c52d54484b7b46d0f9c06beeb2649b9da50d9b512d"
-dependencies = [
- "arraydeque",
- "encoding_rs",
- "hashlink 0.10.0",
+ "hashlink",
 ]
 
 [[package]]
