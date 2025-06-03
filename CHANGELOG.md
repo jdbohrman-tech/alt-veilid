@@ -1,5 +1,34 @@
 **UNRELEASED**
 
+- _BREAKING API CHANGES_:
+  - Improve type-safety by splitting out type aliases for `FourCC` and `CryptoKey` types into distinct "newtypes". Previously all instances of these types we just type aliases, and could be used interchangably when in reality they aren't interchangable. This prevents developers from accidentally passing the wrong type into the API, such as a `SecretKey` when you meant to pass a `PublicKey`. Function signatures have been updated to use the correct types, so code will need to be updated accordingly.
+    - `FourCC` has been separated into:
+      - `CryptoKind`
+      - `VeilidCapability`
+    - `CryptoKey` has been separated into:
+      - `PublicKey`
+      - `SecretKey`
+        - This was also renamed from `Secret` -> `SecretKey`, as well as the associated `TypedSecretKey` and `TypedSecretKeyGroup`.
+      - `Signature`
+      - `Nonce`
+      - `HashDigest`
+      - `RouteId`
+      - `RecordKey` (New) - represents a DHT Record Key
+      - `NodeId` (New)
+    - Note: Right now veilid-wasm is not benefiting from the type-safety yet We are looking at improving this in the future.
+  - Remove a number of unintentional exports from `veilid-core`:
+    - `veilid_core::vld0` module - Use the functions exported by `VeilidAPI.crypto()` instead.
+      - `veilid_core::vld0::vld0_generate_keypair` 
+      - `veilid_core::vld0::CryptoSystemVLD0`
+      - `veilid_core::vld0::CRYPTO_KIND_VLD0`
+    - Other internals that were not intended for API consumers:
+      - `veilid_core::RoutingContextUnlockedInner`
+      - `veilid_core::veilid_capnp`
+      - `veilid_core::Envelope`
+      - `veilid_core::Receipt`
+      - `veilid_core::Crypto`
+  - The "JSON API" that was expored by `veilid-core` has now been moved into it's own crate called [`veilid-remote-api`](https://crates.io/crates/veilid-remote-api).
+
 - veilid-core:
   - Update keyvaluedb to 0.1.3
   - Inspect watched records for value changes made while offline when coming back online
