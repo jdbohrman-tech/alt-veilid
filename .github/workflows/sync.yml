@@ -1,0 +1,16 @@
+name: Mirror GitLab to GitHub
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # every Sunday at 00:00 UTC
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone GitLab
+        run: |
+          git clone --bare https://gitlab.com/veilid/veilid.git repo.git
+          cd repo.git
+          git push --mirror https://github.com/jdbohrman-tech/alt-veilid.git
